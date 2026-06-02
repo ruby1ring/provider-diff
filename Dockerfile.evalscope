@@ -10,7 +10,7 @@ ENV PIP_TIMEOUT=120
 ENV PIP_RETRIES=5
 
 RUN pip install --upgrade pip setuptools wheel \
-  && pip install --no-build-isolation "evalscope[service]" uvicorn
+  && pip install --no-build-isolation "evalscope[service]" uvicorn fastapi sse-starlette
 
 RUN mkdir -p /app/outputs
 
