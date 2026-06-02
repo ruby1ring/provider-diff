@@ -1,6 +1,6 @@
 {
   "case_id": "am_sampling_top_p",
-  "title": "top_p should be accepted on Messages endpoint",
+  "title": "Messages 接口接受 top_p",
   "category": "sampling",
   "parameters": ["top_p"],
   "method": "POST",

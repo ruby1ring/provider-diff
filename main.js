@@ -208,7 +208,17 @@ const caseTitleZh = {
   sf_multiturn_tools: "多轮 tools 工作流",
   sf_observability_trace_header: "x-siliconcloud-trace-id 响应头",
   sf_multimodal_image_url: "VLM image_url 图像输入",
-  sf_multimodal_multi_image_compare: "VLM 多图对比输入"
+  sf_multimodal_multi_image_compare: "VLM 多图对比输入",
+  am_basic_minimal: "Messages 最小用户请求",
+  am_basic_system: "Messages 顶层 system 提示词",
+  am_sampling_temperature: "Messages 接口接受 temperature",
+  am_sampling_top_p: "Messages 接口接受 top_p",
+  am_sampling_top_k: "Messages 接口接受 top_k 扩展参数",
+  am_length_max_tokens: "max_tokens 应限制 Messages 输出长度",
+  am_sampling_stop_sequences: "stop_sequences 停止词",
+  am_tools_auto: "Messages 接口接受 tools",
+  am_protocol_stream: "stream=true 应返回 Messages SSE 流",
+  am_reasoning_thinking_budget: "推理模型 Messages 接口接受 thinking budget"
 };
 
 function providerIdForChannel(channelId = state.selectedChannelId) {
@@ -477,7 +487,7 @@ function canonicalResultFromRaw(result = {}, fallback = {}) {
   const failedAssertions = result.failed_assertions || result.failed || [];
   return {
     case_id: result.case_id || fallback.case_id || "",
-    title: result.title || "",
+    title: result.title || (result.source_case ? caseTitle(result.source_case) : "") || fallback.title || "",
     category: result.category || "case",
     parameters: result.parameters || [],
     parameter: result.parameter || (Array.isArray(result.parameters) && result.parameters.length ? result.parameters.join(" + ") : "payload"),
@@ -759,7 +769,9 @@ function caseTitle(testCase) {
 }
 
 function resultTitle(result) {
-  return result.title || result.source_case?.title || result.case_id || "未命名 case";
+  if (result.source_case) return caseTitle(result.source_case);
+  if (result.case_id && caseTitleZh[result.case_id]) return caseTitleZh[result.case_id];
+  return result.title || result.case_id || "未命名 case";
 }
 
 function groupLabel(group) {
@@ -1468,12 +1480,13 @@ function createHistoryRecord() {
   const channel = getSelectedChannel();
   const results = state.completedResults.map((result) => ({
     ...result,
+    title: resultTitle(result),
     response_body: result.response_body,
     raw_response: result.raw_response,
     response_headers: result.response_headers,
     source_case: result.source_case ? {
       case_id: result.source_case.case_id,
-      title: result.source_case.title,
+      title: caseTitle(result.source_case),
       category: result.source_case.category,
       parameters: result.source_case.parameters,
       custom: Boolean(result.source_case.custom),
@@ -1886,6 +1899,7 @@ function mapRunResult(result) {
     : result.error ? 1 : 0;
   return {
     case_id: result.case_id,
+    title: testCase ? caseTitle(testCase) : result.title || "",
     channel_id: state.selectedChannelId,
     parameter: parameters.join(" + "),
     category: result.category || testCase?.category || "case",

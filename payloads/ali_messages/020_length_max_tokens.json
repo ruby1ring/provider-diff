@@ -1,6 +1,6 @@
 {
   "case_id": "am_length_max_tokens",
-  "title": "max_tokens should limit Messages output",
+  "title": "max_tokens 应限制 Messages 输出长度",
   "category": "length",
   "parameters": [
     "max_tokens"

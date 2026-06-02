@@ -1,6 +1,6 @@
 {
   "case_id": "am_protocol_stream",
-  "title": "stream true should return SSE on Messages endpoint",
+  "title": "stream=true 应返回 Messages SSE 流",
   "category": "protocol",
   "parameters": [
     "stream"

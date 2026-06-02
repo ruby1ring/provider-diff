@@ -1,6 +1,6 @@
 {
   "case_id": "am_reasoning_thinking_budget",
-  "title": "thinking budget should be accepted on reasoning-capable Messages models",
+  "title": "推理模型 Messages 接口接受 thinking budget",
   "category": "reasoning",
   "parameters": ["thinking", "thinking_budget_tokens"],
   "requires_model_capability": "reasoning",

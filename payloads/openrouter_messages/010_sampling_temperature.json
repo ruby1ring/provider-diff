@@ -1,6 +1,6 @@
 {
   "case_id": "am_sampling_temperature",
-  "title": "temperature should be accepted on Messages endpoint",
+  "title": "Messages 接口接受 temperature",
   "category": "sampling",
   "parameters": ["temperature"],
   "method": "POST",

@@ -1,6 +1,6 @@
 {
   "case_id": "am_basic_system",
-  "title": "Messages request with top-level system prompt",
+  "title": "Messages 顶层 system 提示词",
   "category": "basic",
   "parameters": ["system", "messages", "max_tokens"],
   "method": "POST",

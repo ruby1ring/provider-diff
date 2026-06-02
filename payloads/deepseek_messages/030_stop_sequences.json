@@ -1,6 +1,6 @@
 {
   "case_id": "am_sampling_stop_sequences",
-  "title": "stop_sequences should be accepted",
+  "title": "stop_sequences 停止词",
   "category": "sampling",
   "parameters": ["stop_sequences"],
   "method": "POST",

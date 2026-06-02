@@ -1,6 +1,6 @@
 {
   "case_id": "am_sampling_top_k",
-  "title": "top_k provider extension should be accepted where supported",
+  "title": "Messages 接口接受 top_k 扩展参数",
   "category": "sampling",
   "parameters": ["top_k"],
   "optional": true,

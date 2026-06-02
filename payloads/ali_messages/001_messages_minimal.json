@@ -1,6 +1,6 @@
 {
   "case_id": "am_basic_minimal",
-  "title": "Messages minimal user request",
+  "title": "Messages 最小用户请求",
   "category": "basic",
   "parameters": [
     "model",
