@@ -21,6 +21,7 @@ env:
   GO_BASE_IMAGE: golang:1.24.8-alpine
   PYTHON_BASE_IMAGE: python:3.12-slim
   EVALSCOPE_BASE_IMAGE: python:3.12-slim
+  COMPOSE_BAKE: "false"
 
 jobs:
   validate:
@@ -60,8 +61,11 @@ jobs:
           docker --version
           docker compose version
 
-      - name: Build and restart stack
-        run: docker compose -p provider-diff up -d --build
+      - name: Build images
+        run: docker compose -p provider-diff build --progress plain
+
+      - name: Restart stack
+        run: docker compose -p provider-diff up -d --no-build
 
       - name: Smoke test
         shell: bash
