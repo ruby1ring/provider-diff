@@ -18,7 +18,9 @@ env:
   APP_PORT: "4173"
   BACKEND_PORT: "8080"
   EVALSCOPE_PORT: "9000"
-  DOCKER_BASE_REGISTRY: dockerproxy.net
+  GO_BASE_IMAGE: golang:1.24.8-alpine
+  PYTHON_BASE_IMAGE: python:3.12-slim
+  EVALSCOPE_BASE_IMAGE: python:3.12-slim
 
 jobs:
   validate:

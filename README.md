@@ -32,10 +32,13 @@ docker compose up --build
 
 Then open http://localhost:4173.
 
-If Docker Hub is slow or blocked in the target environment, use a reachable mirror/proxy for base images:
+If Docker Hub is slow or blocked in the target environment, use local cached base images or a reachable registry:
 
 ```sh
-DOCKER_BASE_REGISTRY=dockerproxy.net docker compose up --build
+GO_BASE_IMAGE=golang:1.24.8-alpine \
+PYTHON_BASE_IMAGE=python:3.12-slim \
+EVALSCOPE_BASE_IMAGE=python:3.12-slim \
+docker compose up --build
 ```
 
 Published ports:

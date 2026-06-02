@@ -4,7 +4,8 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        DOCKER_BASE_REGISTRY: ${DOCKER_BASE_REGISTRY:-docker.io}
+        GO_BASE_IMAGE: ${GO_BASE_IMAGE:-golang:1.22-alpine}
+        PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.12-alpine}
     ports:
       - "${APP_PORT:-4173}:4173"
       - "${BACKEND_PORT:-8080}:8080"
@@ -21,7 +22,7 @@ services:
       context: .
       dockerfile: Dockerfile.evalscope
       args:
-        DOCKER_BASE_REGISTRY: ${DOCKER_BASE_REGISTRY:-docker.io}
+        EVALSCOPE_BASE_IMAGE: ${EVALSCOPE_BASE_IMAGE:-python:3.11-slim}
     ports:
       - "${EVALSCOPE_PORT:-9000}:9000"
     volumes:

@@ -1,6 +1,7 @@
-ARG DOCKER_BASE_REGISTRY=docker.io
+ARG GO_BASE_IMAGE=golang:1.22-alpine
+ARG PYTHON_BASE_IMAGE=python:3.12-alpine
 
-FROM ${DOCKER_BASE_REGISTRY}/library/golang:1.22-alpine AS backend-builder
+FROM ${GO_BASE_IMAGE} AS backend-builder
 
 WORKDIR /src/backend
 
@@ -9,7 +10,7 @@ COPY backend/*.go ./
 
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/provider-diff-backend .
 
-FROM ${DOCKER_BASE_REGISTRY}/library/python:3.12-alpine AS runtime
+FROM ${PYTHON_BASE_IMAGE} AS runtime
 
 WORKDIR /app
 

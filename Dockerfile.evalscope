@@ -1,13 +1,16 @@
-ARG DOCKER_BASE_REGISTRY=docker.io
+ARG EVALSCOPE_BASE_IMAGE=python:3.11-slim
 
-FROM ${DOCKER_BASE_REGISTRY}/library/python:3.11-slim
+FROM ${EVALSCOPE_BASE_IMAGE}
 
 WORKDIR /app
 
 ENV PIP_NO_CACHE_DIR=1
+ENV PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
+ENV PIP_TIMEOUT=120
+ENV PIP_RETRIES=5
 
-RUN pip install --upgrade pip \
-  && pip install "evalscope[service]"
+RUN pip install --upgrade pip setuptools wheel \
+  && pip install --no-build-isolation "evalscope[service]"
 
 RUN mkdir -p /app/outputs
 
