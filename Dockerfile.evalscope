@@ -1,0 +1,16 @@
+ARG DOCKER_BASE_REGISTRY=docker.io
+
+FROM ${DOCKER_BASE_REGISTRY}/library/python:3.11-slim
+
+WORKDIR /app
+
+ENV PIP_NO_CACHE_DIR=1
+
+RUN pip install --upgrade pip \
+  && pip install "evalscope[service]"
+
+RUN mkdir -p /app/outputs
+
+EXPOSE 9000
+
+CMD ["evalscope", "service", "--host", "0.0.0.0", "--port", "9000", "--outputs", "/app/outputs"]

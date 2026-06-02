@@ -5,6 +5,7 @@ const path = require("path");
 
 const root = path.resolve(__dirname, "..");
 const appPort = Number(process.env.APP_PORT || 4173);
+const backendPort = Number(process.env.BACKEND_PORT || process.env.PORT || 8080);
 const evalscopePort = Number(process.env.EVALSCOPE_PORT || 9000);
 const evalscopeHost = process.env.EVALSCOPE_HOST || "127.0.0.1";
 const evalscopeOutputs = process.env.EVALSCOPE_OUTPUTS || path.join(root, "outputs");
@@ -47,6 +48,26 @@ function startProcess(label, command, args) {
   return child;
 }
 
+function startProcessWithEnv(label, command, args, env, cwd = root) {
+  const child = spawn(command, args, {
+    cwd,
+    stdio: "inherit",
+    env: { ...process.env, ...env }
+  });
+  children.add(child);
+  child.once("exit", (code, signal) => {
+    children.delete(child);
+    if (signal) {
+      console.log(`[${label}] stopped by ${signal}`);
+      return;
+    }
+    if (code !== 0 && code !== null) {
+      console.error(`[${label}] exited with code ${code}`);
+    }
+  });
+  return child;
+}
+
 function stopAll() {
   for (const child of children) {
     child.kill("SIGTERM");
@@ -62,6 +83,14 @@ async function main() {
   } else {
     startProcess("app", "python3", ["-m", "http.server", String(appPort)]);
     console.log(`[app] starting http://127.0.0.1:${appPort}`);
+  }
+
+  const backendRunning = await isPortOpen("127.0.0.1", backendPort);
+  if (backendRunning) {
+    console.log(`[backend] http://127.0.0.1:${backendPort} is already running`);
+  } else {
+    startProcessWithEnv("backend", "go", ["run", "."], { PORT: String(backendPort) }, path.join(root, "backend"));
+    console.log(`[backend] starting http://127.0.0.1:${backendPort}`);
   }
 
   const evalscopeRunning = await isPortOpen(evalscopeHost, evalscopePort);

@@ -1,0 +1,90 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: provider-diff-deploy
+  cancel-in-progress: true
+
+env:
+  COMPOSE_PROJECT_NAME: provider-diff
+  APP_PORT: "4173"
+  BACKEND_PORT: "8080"
+  EVALSCOPE_PORT: "9000"
+  DOCKER_BASE_REGISTRY: dockerproxy.net
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.mod
+
+      - name: Test backend
+        working-directory: backend
+        run: go test ./...
+
+      - name: Validate Compose file
+        run: docker compose config
+
+  deploy:
+    name: Deploy to dev-02
+    needs: validate
+    if: github.ref == 'refs/heads/main'
+    runs-on:
+      - self-hosted
+      - provider-diff
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show runtime
+        run: |
+          docker --version
+          docker compose version
+
+      - name: Build and restart stack
+        run: docker compose -p provider-diff up -d --build
+
+      - name: Smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          retry() {
+            local name="$1"
+            local url="$2"
+            for attempt in $(seq 1 60); do
+              if curl -fsS "$url" >/dev/null; then
+                echo "${name} is ready: ${url}"
+                return 0
+              fi
+              echo "waiting for ${name} (${attempt}/60): ${url}"
+              sleep 2
+            done
+            echo "${name} did not become ready: ${url}" >&2
+            return 1
+          }
+
+          retry "backend" "http://127.0.0.1:${BACKEND_PORT}/healthz"
+          retry "frontend" "http://127.0.0.1:${APP_PORT}/"
+          retry "evalscope" "http://127.0.0.1:${EVALSCOPE_PORT}/dashboard"
+
+      - name: Show containers
+        if: always()
+        run: docker compose -p provider-diff ps

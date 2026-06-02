@@ -1,0 +1,28 @@
+services:
+  provider-diff:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DOCKER_BASE_REGISTRY: ${DOCKER_BASE_REGISTRY:-docker.io}
+    ports:
+      - "${APP_PORT:-4173}:4173"
+      - "${BACKEND_PORT:-8080}:8080"
+    environment:
+      APP_PORT: 4173
+      PORT: 8080
+    volumes:
+      - ./outputs:/app/outputs
+    depends_on:
+      - evalscope
+
+  evalscope:
+    build:
+      context: .
+      dockerfile: Dockerfile.evalscope
+      args:
+        DOCKER_BASE_REGISTRY: ${DOCKER_BASE_REGISTRY:-docker.io}
+    ports:
+      - "${EVALSCOPE_PORT:-9000}:9000"
+    volumes:
+      - ./outputs:/app/outputs

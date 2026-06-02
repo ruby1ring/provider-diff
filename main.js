@@ -82,10 +82,12 @@ const state = {
   isRunning: false
 };
 
-const API_BASE = "http://localhost:8080";
+const appProtocol = window.location.protocol === "file:" ? "http:" : window.location.protocol;
+const appHost = window.location.hostname || "localhost";
+const API_BASE = `${appProtocol}//${appHost}:8080`;
 const HISTORY_STORAGE_KEY = "llm-rosetta-history-v1";
 const EVALSCOPE_URL_STORAGE_KEY = "llm-rosetta-evalscope-url-v1";
-const DEFAULT_EVALSCOPE_URL = "http://127.0.0.1:9000/dashboard";
+const DEFAULT_EVALSCOPE_URL = `${appProtocol}//${appHost}:9000/dashboard`;
 const OPENCOMPASS_URL_STORAGE_KEY = "llm-rosetta-opencompass-url-v1";
 const DEFAULT_OPENCOMPASS_URL = "https://rank.opencompass.org.cn/home";
 const MAX_HISTORY_ITEMS = 120;
@@ -944,7 +946,7 @@ async function loadCaseSelectorForChannel() {
   state.isCaseLoading = true;
   els.caseGroups.innerHTML = '<div class="case-loading">正在从后端加载 cases...</div>';
   els.selectedCaseCount.textContent = "已选 0 个";
-  els.caseSelectorHint.textContent = `后端用例接口：http://localhost:8080/api/providers/${providerId}/cases?${endpointQuery()}`;
+  els.caseSelectorHint.textContent = `后端用例接口：${API_BASE}/api/providers/${providerId}/cases?${endpointQuery()}`;
   updateRunAvailability();
 
   try {
@@ -2151,7 +2153,9 @@ function loadEmbedUrl(config) {
     return;
   }
   const storedUrl = normalizeEmbedUrl(localStorage.getItem(config.storageKey) || config.defaultUrl, config.defaultUrl);
-  const url = storedUrl === "http://127.0.0.1:9000" ? DEFAULT_EVALSCOPE_URL : storedUrl;
+  const url = ["http://127.0.0.1:9000", "http://127.0.0.1:9000/dashboard", "http://localhost:9000/dashboard"].includes(storedUrl)
+    ? DEFAULT_EVALSCOPE_URL
+    : storedUrl;
   if (config.input) config.input.value = url;
   config.frame.src = url;
   if (url !== storedUrl) localStorage.setItem(config.storageKey, url);
