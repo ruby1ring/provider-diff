@@ -38,7 +38,7 @@ If Docker Hub is slow or blocked in the target environment, use local cached bas
 GO_BASE_IMAGE=golang:1.24.8-alpine \
 PYTHON_BASE_IMAGE=python:3.12-slim \
 EVALSCOPE_BASE_IMAGE=python:3.12-slim \
-OPENCOMPASS_BASE_IMAGE=python:3.10-slim \
+OPENCOMPASS_BASE_IMAGE=python:3.12-slim \
 docker compose up --build
 ```
 

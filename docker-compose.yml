@@ -34,7 +34,7 @@ services:
       context: .
       dockerfile: Dockerfile.opencompass
       args:
-        OPENCOMPASS_BASE_IMAGE: ${OPENCOMPASS_BASE_IMAGE:-python:3.10-slim}
+        OPENCOMPASS_BASE_IMAGE: ${OPENCOMPASS_BASE_IMAGE:-python:3.12-slim}
     ports:
       - "${OPENCOMPASS_PORT:-9100}:9100"
     volumes:
