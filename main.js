@@ -1283,7 +1283,8 @@ function getResultsForChannel() {
 
 function responseForResult(result) {
   const existing = MOCK_RESPONSES[result.case_id];
-  if (existing) return existing;
+  const hasRealRunResponse = hasResponseBody(result) || result.raw_response || result.request_body || result.response_headers;
+  if (existing && !hasRealRunResponse) return existing;
 
   const selectedBaseline = selectedBaselineRecord();
   const baselineResult = matchingBaselineResult(result, selectedBaseline);
