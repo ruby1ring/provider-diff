@@ -5,6 +5,7 @@ const net = require("node:net");
 const path = require("node:path");
 
 let backendProcess = null;
+const serviceProcesses = [];
 
 function projectRoot() {
   return app.isPackaged ? app.getAppPath() : path.resolve(__dirname, "..");
@@ -16,6 +17,23 @@ function backendPath() {
     return path.join(process.resourcesPath, "backend", binaryName);
   }
   return path.join(__dirname, "bin", binaryName);
+}
+
+function servicePath(name) {
+  const binaryName = process.platform === "win32" ? `${name}.exe` : name;
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, "services", binaryName);
+  }
+  return path.join(__dirname, "services", binaryName);
+}
+
+function executableExists(file) {
+  try {
+    require("node:fs").accessSync(file);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function findFreePort() {
@@ -31,11 +49,11 @@ function findFreePort() {
   });
 }
 
-function waitForHealth(port, timeoutMs = 10000) {
+function waitForUrl(url, timeoutMs = 10000) {
   const deadline = Date.now() + timeoutMs;
   return new Promise((resolve, reject) => {
     const check = () => {
-      const req = http.get(`http://127.0.0.1:${port}/healthz`, (res) => {
+      const req = http.get(url, (res) => {
         res.resume();
         if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
           resolve();
@@ -51,13 +69,17 @@ function waitForHealth(port, timeoutMs = 10000) {
     };
     const retry = () => {
       if (Date.now() > deadline) {
-        reject(new Error(`backend did not become healthy on port ${port}`));
+        reject(new Error(`service did not become healthy: ${url}`));
         return;
       }
       setTimeout(check, 150);
     };
     check();
   });
+}
+
+function waitForHealth(port, timeoutMs = 10000) {
+  return waitForUrl(`http://127.0.0.1:${port}/healthz`, timeoutMs);
 }
 
 async function startBackend() {
@@ -77,8 +99,47 @@ async function startBackend() {
   return port;
 }
 
+async function startBundledService({ name, args, healthPath, urlPath }) {
+  const binary = servicePath(name);
+  if (!executableExists(binary)) return null;
+  const port = await findFreePort();
+  const outputDir = path.join(app.getPath("userData"), "outputs", name);
+  const child = spawn(binary, args(port, outputDir), {
+    cwd: projectRoot(),
+    env: { ...process.env, PORT: String(port), OUTPUT_DIR: outputDir },
+    stdio: app.isPackaged ? "ignore" : "inherit"
+  });
+  serviceProcesses.push(child);
+  child.on("exit", (code) => {
+    if (code !== 0 && !app.isQuitting) {
+      dialog.showErrorBox(`${name} 服务已退出`, `服务进程退出，退出码：${code ?? "unknown"}`);
+    }
+  });
+  await waitForUrl(`http://127.0.0.1:${port}${healthPath}`, 20000);
+  return `http://127.0.0.1:${port}${urlPath}`;
+}
+
+async function startBundledServices() {
+  const [evalscopeUrl, opencompassUrl] = await Promise.all([
+    startBundledService({
+      name: "evalscope-service",
+      args: (port, outputDir) => ["service", "--host", "127.0.0.1", "--port", String(port), "--outputs", outputDir],
+      healthPath: "/dashboard",
+      urlPath: "/dashboard"
+    }).catch(() => null),
+    startBundledService({
+      name: "opencompass-service",
+      args: (port, outputDir) => ["--host", "127.0.0.1", "--port", String(port), "--outputs", outputDir],
+      healthPath: "/healthz",
+      urlPath: "/"
+    }).catch(() => null)
+  ]);
+  return { evalscopeUrl, opencompassUrl };
+}
+
 async function createWindow() {
   const port = await startBackend();
+  const services = await startBundledServices();
   const win = new BrowserWindow({
     width: 1440,
     height: 960,
@@ -91,7 +152,11 @@ async function createWindow() {
     }
   });
   await win.loadFile(path.join(projectRoot(), "index.html"), {
-    query: { apiBase: `http://127.0.0.1:${port}` }
+    query: {
+      apiBase: `http://127.0.0.1:${port}`,
+      ...(services.evalscopeUrl ? { evalscopeUrl: services.evalscopeUrl } : {}),
+      ...(services.opencompassUrl ? { opencompassUrl: services.opencompassUrl } : {})
+    }
   });
 }
 
@@ -109,5 +174,7 @@ app.on("before-quit", () => {
   if (backendProcess && !backendProcess.killed) {
     backendProcess.kill();
   }
+  for (const child of serviceProcesses) {
+    if (child && !child.killed) child.kill();
+  }
 });
-

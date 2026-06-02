@@ -43,7 +43,14 @@ npm run dist:dmg
 
 The DMG is written to `dist/`. The desktop app starts its own local backend on a free `127.0.0.1` port and passes that backend URL into the UI, so it does not require Docker Compose or a deployed frontend.
 
-The local build is unsigned unless you configure a macOS Developer ID certificate, so macOS may require right-clicking the app and choosing Open the first time. EvalScope and OpenCompass Docker services are not embedded in the DMG; their tabs still point at their local service URLs when those services are running separately.
+The local build is unsigned unless you configure a macOS Developer ID certificate, so macOS may require right-clicking the app and choosing Open the first time.
+
+EvalScope and OpenCompass Docker services are not bundled by default. The desktop shell is ready to start bundled service executables when they exist:
+
+- `desktop/services/evalscope-service`
+- `desktop/services/opencompass-service`
+
+When those executables are present at packaging time, the app starts them on free local ports and injects their URLs into the EvalScope/OpenCompass tabs. Without those executables, the tabs keep using their external local-service URLs.
 
 For local desktop smoke testing without producing a DMG:
 
