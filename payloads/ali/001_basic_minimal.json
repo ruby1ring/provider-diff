@@ -1,0 +1,33 @@
+{
+  "case_id": "ali_basic_minimal",
+  "title": "最小 chat completion 请求",
+  "category": "basic",
+  "parameters": [
+    "model",
+    "messages"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句中文打个招呼。"
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "基础 accepted-path case，只验证结构和请求可接受。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "case_id": "deepseek_reasoning_thinking_disabled",
+  "title": "thinking.type=disabled",
+  "category": "reasoning",
+  "parameters": ["thinking"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "user", "content": "直接给出 19 + 23 的答案。"}
+    ],
+    "thinking": {"type": "disabled"}
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "notes": "验证 DeepSeek thinking 关闭形态。"
+  }
+}

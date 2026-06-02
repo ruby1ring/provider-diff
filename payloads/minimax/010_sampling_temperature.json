@@ -1,0 +1,21 @@
+{
+  "case_id": "minimax_sampling_temperature",
+  "title": "temperature valid range",
+  "category": "sampling",
+  "parameters": ["temperature"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {"role": "user", "content": "Return one short sentence about temperature."}
+    ],
+    "temperature": 0.7,
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"]
+  }
+}

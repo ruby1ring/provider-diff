@@ -1,0 +1,23 @@
+{
+  "case_id": "or_sampling_stop_array",
+  "title": "stop array should be accepted",
+  "category": "sampling",
+  "parameters": ["stop"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Write a sentence ending with END."
+      }
+    ],
+    "stop": ["END", "\n\n"]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Current OpenAPI allows up to 4 stop strings."
+  }
+}

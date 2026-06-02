@@ -1,0 +1,50 @@
+{
+  "case_id": "sf_tools_named_function_hint",
+  "title": "tools with a strong function-call instruction should be accepted",
+  "category": "tools",
+  "parameters": ["tools", "tool_choice"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "system",
+        "content": "When asked for weather, call get_current_weather."
+      },
+      {
+        "role": "user",
+        "content": "Use the weather tool for Beijing in celsius."
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_current_weather",
+          "description": "Get the current weather for a city.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string"
+              },
+              "unit": {
+                "type": "string",
+                "enum": ["celsius", "fahrenheit"]
+              }
+            },
+            "required": ["location"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto"
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "optional_response_fields": ["choices[].message.tool_calls"],
+    "notes": "Docs examples use auto. This case encourages a tool call without relying on provider support for forced named tool_choice objects."
+  }
+}

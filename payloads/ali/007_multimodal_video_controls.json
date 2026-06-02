@@ -1,0 +1,52 @@
+{
+  "case_id": "ali_multimodal_video_controls",
+  "title": "video 图片列表与 fps/total_pixels",
+  "category": "multimodal",
+  "parameters": [
+    "messages"
+  ],
+  "requires_model_capability": "vision-video",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "qwen-vl-plus",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "请概括这组连续画面。"
+          },
+          {
+            "type": "video",
+            "video": [
+              "https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20241108/xzsgiz/football1.jpg",
+              "https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20241108/tdescd/football2.jpg",
+              "https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20241108/zefdja/football3.jpg",
+              "https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20241108/aedbqh/football4.jpg"
+            ],
+            "fps": 2,
+            "min_pixels": 4096,
+            "max_pixels": 786432,
+            "total_pixels": 67108864
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "视觉视频 case 已用当前 key 跑通：qwen-vl-plus 返回 200，并接受 video/fps/pixels 配置。"
+  }
+}

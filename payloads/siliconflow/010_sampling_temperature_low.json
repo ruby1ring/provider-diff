@@ -1,0 +1,23 @@
+{
+  "case_id": "sf_sampling_temperature_low",
+  "title": "temperature low should be accepted",
+  "category": "sampling",
+  "parameters": ["temperature"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Write exactly one short sentence about protocol compatibility."
+      }
+    ],
+    "temperature": 0.2
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Validate temperature is accepted; do not assert deterministic content."
+  }
+}

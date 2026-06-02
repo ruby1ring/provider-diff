@@ -1,0 +1,24 @@
+{
+  "case_id": "sf_sampling_min_p",
+  "title": "min_p provider extension should be accepted",
+  "category": "sampling",
+  "parameters": ["min_p"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Return a short phrase about API consistency."
+      }
+    ],
+    "min_p": 0.05
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "provider_extension": true,
+    "notes": "min_p is provider-specific relative to OpenAI baseline."
+  }
+}

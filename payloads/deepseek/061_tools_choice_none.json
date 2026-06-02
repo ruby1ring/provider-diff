@@ -1,0 +1,31 @@
+{
+  "case_id": "deepseek_tools_choice_none",
+  "title": "tool_choice=none",
+  "category": "tools",
+  "parameters": ["tools", "tool_choice"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "user", "content": "不用工具，直接用一句中文说明天气信息需要外部查询。"}
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_weather",
+          "description": "查询城市天气。",
+          "parameters": {"type": "object", "properties": {"city": {"type": "string"}}}
+        }
+      }
+    ],
+    "tool_choice": "none"
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "notes": "文档明确 tool_choice 支持 none。"
+  }
+}

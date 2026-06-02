@@ -1,0 +1,21 @@
+{
+  "case_id": "deepseek_sampling_temperature",
+  "title": "temperature 采样",
+  "category": "sampling",
+  "parameters": ["temperature"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "user", "content": "用一句中文描述 temperature 的作用。"}
+    ],
+    "temperature": 0.7
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "notes": "文档默认值为 1，最大值为 2；该 case 使用正常采样值。"
+  }
+}

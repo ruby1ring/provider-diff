@@ -1,0 +1,48 @@
+{
+  "case_id": "minimax_tools_function_call_unsupported",
+  "title": "Deprecated function_call should be unsupported",
+  "category": "tools",
+  "parameters": [
+    "function_call"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Call compatibility_status for max_completion_tokens."
+      }
+    ],
+    "functions": [
+      {
+        "name": "compatibility_status",
+        "description": "Return compatibility status.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "parameter": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "parameter"
+          ]
+        }
+      }
+    ],
+    "function_call": {
+      "name": "compatibility_status"
+    },
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "notes": "MiniMax docs say deprecated function_call is unsupported; use tools. Real test returned HTTP 200; the provider appears to ignore or coerce this field instead of rejecting it."
+  }
+}

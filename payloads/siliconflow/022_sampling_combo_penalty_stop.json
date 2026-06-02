@@ -1,0 +1,24 @@
+{
+  "case_id": "sf_sampling_combo_penalty_stop",
+  "title": "frequency_penalty with stop sequence should be accepted",
+  "category": "sampling_combo",
+  "parameters": ["frequency_penalty", "stop"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "List three unique API testing terms, then write END."
+      }
+    ],
+    "frequency_penalty": 0.7,
+    "stop": ["END"]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Checks parameter coexistence for penalty and stopping."
+  }
+}

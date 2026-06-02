@@ -1,0 +1,33 @@
+{
+  "case_id": "am_length_max_tokens",
+  "title": "max_tokens should limit Messages output",
+  "category": "length",
+  "parameters": [
+    "max_tokens"
+  ],
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "max_tokens": 32,
+    "thinking": {
+      "type": "disabled"
+    },
+    "messages": [
+      {
+        "role": "user",
+        "content": "Explain compatibility testing in one sentence."
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": [
+      "id",
+      "type",
+      "role",
+      "content",
+      "model"
+    ]
+  }
+}

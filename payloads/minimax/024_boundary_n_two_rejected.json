@@ -1,0 +1,21 @@
+{
+  "case_id": "minimax_boundary_n_two_rejected",
+  "title": "n=2 should be rejected or non-compliant",
+  "category": "boundary",
+  "parameters": ["n"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {"role": "user", "content": "This should fail because n is not 1."}
+    ],
+    "n": 2,
+    "max_completion_tokens": 30
+  },
+  "expect": {
+    "http_status": 400,
+    "support_conclusion": "rejected_400",
+    "notes": "MiniMax docs say n only supports 1. If MiniMax coerces to 1, classify behavior manually."
+  }
+}

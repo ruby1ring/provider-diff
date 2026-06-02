@@ -1,0 +1,34 @@
+{
+  "case_id": "sf_basic_multimessage_context",
+  "title": "Multiple prior messages should be accepted as context",
+  "category": "basic",
+  "parameters": ["model", "messages"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Keep answers short and factual."
+      },
+      {
+        "role": "user",
+        "content": "My project is called llm-rosetta."
+      },
+      {
+        "role": "assistant",
+        "content": "Understood. llm-rosetta is your project name."
+      },
+      {
+        "role": "user",
+        "content": "What is my project called?"
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Normal multi-message context case, not full multi-turn tool semantics."
+  }
+}

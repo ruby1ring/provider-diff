@@ -1,0 +1,23 @@
+{
+  "case_id": "sf_sampling_stop_null",
+  "title": "stop null should be accepted",
+  "category": "sampling",
+  "parameters": ["stop"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Write one short sentence about null values in JSON."
+      }
+    ],
+    "stop": null
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "JSON null corresponds to Python None. This validates that explicitly passing stop null does not error."
+  }
+}

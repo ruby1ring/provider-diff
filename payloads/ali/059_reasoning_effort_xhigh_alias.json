@@ -1,0 +1,22 @@
+{
+  "case_id": "ali_reasoning_effort_xhigh_alias",
+  "title": "reasoning_effort=xhigh 映射 max",
+  "category": "reasoning",
+  "parameters": ["reasoning_effort"],
+  "requires_model_capability": "deepseek-v4-reasoning",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [{"role": "user", "content": "计算 6 * 7，只输出结果。"}],
+    "reasoning_effort": "xhigh"
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "provider_extension": true,
+    "notes": "文档说明 xhigh 会映射为 max。"
+  }
+}

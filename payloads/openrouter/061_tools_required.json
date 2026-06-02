@@ -1,0 +1,43 @@
+{
+  "case_id": "or_tools_required",
+  "title": "tool_choice required should force a tool call when supported",
+  "category": "tools",
+  "parameters": ["tools", "tool_choice"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use the tool to get the weather for Paris."
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_current_weather",
+          "description": "Get current weather.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string"
+              }
+            },
+            "required": ["location"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "required"
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "optional_response_fields": ["choices[].message.tool_calls"],
+    "notes": "Capability/model dependent; some upstreams may not support required tool choice."
+  }
+}

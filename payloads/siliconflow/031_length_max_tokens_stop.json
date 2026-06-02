@@ -1,0 +1,26 @@
+{
+  "case_id": "sf_length_max_tokens_stop",
+  "title": "max_tokens and stop together should be accepted",
+  "category": "length",
+  "parameters": ["max_tokens", "stop"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Write two bullet points about response schemas, then write END."
+      }
+    ],
+    "max_tokens": 96,
+    "enable_thinking": false,
+    "stop": "END"
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "allowed_finish_reasons": ["stop", "eos", "length", "tool_calls"],
+    "notes": "Checks length and stop interaction."
+  }
+}

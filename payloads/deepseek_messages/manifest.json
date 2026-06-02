@@ -1,0 +1,32 @@
+{
+  "provider": "deepseek_messages",
+  "base_url": "https://api.deepseek.com/anthropic/v1",
+  "endpoint": "/messages",
+  "method": "POST",
+  "source": "../../docs/deepseek.md",
+  "default_model": "deepseek-v4-flash",
+  "reasoning_model": "deepseek-v4-pro",
+  "vision_model": "deepseek-v4-flash",
+  "notes": [
+    "Anthropic Messages compatibility tests use /v1/messages-style request bodies.",
+    "OpenAI Official intentionally has no corresponding Messages endpoint in this UI.",
+    "Validate parameter acceptance and broad response shape, not exact generated text."
+  ],
+  "common_expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "type", "role", "content", "model"],
+    "content_required_fields": ["type"]
+  },
+  "cases": [
+    "001_messages_minimal.json",
+    "002_messages_system.json",
+    "010_sampling_temperature.json",
+    "011_sampling_top_p.json",
+    "012_sampling_top_k.json",
+    "020_length_max_tokens.json",
+    "030_stop_sequences.json",
+    "040_tools_auto.json",
+    "050_stream_basic.json",
+    "060_thinking_budget.json"
+  ]
+}

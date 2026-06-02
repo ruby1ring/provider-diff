@@ -1,0 +1,21 @@
+{
+  "case_id": "deepseek_sampling_frequency_penalty_ignored",
+  "title": "frequency_penalty 已 deprecated 且无效果",
+  "category": "sampling",
+  "parameters": ["frequency_penalty"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "user", "content": "用一句中文说明 deprecated 参数应如何处理。"}
+    ],
+    "frequency_penalty": 0.5
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "notes": "文档说明 frequency_penalty no longer supported，传入无效果。"
+  }
+}

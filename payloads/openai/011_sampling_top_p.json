@@ -1,0 +1,19 @@
+{
+  "case_id": "oa_sampling_top_p",
+  "title": "top_p nucleus sampling",
+  "category": "sampling",
+  "parameters": ["top_p"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Return one short sentence about request compatibility."}],
+    "top_p": 0.8,
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"]
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "case_id": "deepseek_basic_system_user",
+  "title": "system 和 user 消息",
+  "category": "basic",
+  "parameters": ["model", "messages"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "system", "content": "你是一个简洁的中文助手。"},
+      {"role": "user", "content": "用一句话解释 API 兼容性。"}
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "choice_required_fields": ["index", "message", "finish_reason"],
+    "usage_required_fields": ["prompt_tokens", "completion_tokens", "total_tokens"],
+    "notes": "验证 system 与 user role 的基础消息结构。"
+  }
+}

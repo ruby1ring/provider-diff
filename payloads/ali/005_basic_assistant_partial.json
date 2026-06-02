@@ -1,0 +1,40 @@
+{
+  "case_id": "ali_basic_assistant_partial",
+  "title": "assistant partial 前缀续写",
+  "category": "basic",
+  "parameters": [
+    "messages"
+  ],
+  "requires_model_capability": "partial-mode",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "请补全这句话，保持一句话：参数兼容性测试可以帮助我们"
+      },
+      {
+        "role": "assistant",
+        "content": "参数兼容性测试可以帮助我们",
+        "partial": true
+      }
+    ],
+    "enable_thinking": false
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "deepseek-v4-pro 默认开启 thinking 时不支持 assistant partial；关闭 enable_thinking 后验证 partial 前缀续写。"
+  }
+}

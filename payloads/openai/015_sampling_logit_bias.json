@@ -1,0 +1,22 @@
+{
+  "case_id": "oa_sampling_logit_bias",
+  "title": "logit_bias token map",
+  "category": "sampling",
+  "parameters": ["logit_bias"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Reply with one short sentence."}],
+    "logit_bias": {
+      "50256": -100
+    },
+    "max_completion_tokens": 50
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Token IDs are tokenizer-specific; this case validates request acceptance."
+  }
+}

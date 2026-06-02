@@ -1,0 +1,24 @@
+{
+  "case_id": "oa_observability_prompt_cache_retention",
+  "title": "prompt_cache_retention 24h",
+  "category": "observability",
+  "parameters": ["prompt_cache_retention"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {"role": "user", "content": "Reply with one short sentence about extended prompt caching."}
+    ],
+    "prompt_cache_key": "provider-diff-retention-key",
+    "prompt_cache_retention": "24h",
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Optional because extended prompt cache retention may depend on account/project availability."
+  }
+}

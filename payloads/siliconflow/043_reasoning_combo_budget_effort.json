@@ -1,0 +1,28 @@
+{
+  "case_id": "sf_reasoning_combo_budget_effort",
+  "title": "reasoning controls together should be accepted when supported",
+  "category": "reasoning",
+  "parameters": ["enable_thinking", "thinking_budget", "reasoning_effort"],
+  "requires_model_capability": "reasoning",
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-ai/DeepSeek-R1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "In one sentence, explain why structural diff should ignore concrete values."
+      }
+    ],
+    "enable_thinking": true,
+    "thinking_budget": 768,
+    "reasoning_effort": "medium"
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "optional_response_fields": ["choices[].message.reasoning_content", "usage.completion_tokens_details.reasoning_tokens"],
+    "provider_extension": true,
+    "notes": "Combination case may reveal whether SiliconFlow accepts both Qwen-style and OpenAI-style reasoning controls simultaneously."
+  }
+}

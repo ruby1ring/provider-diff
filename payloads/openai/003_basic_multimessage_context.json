@@ -1,0 +1,24 @@
+{
+  "case_id": "oa_basic_multimessage_context",
+  "title": "Multi-message context should be preserved",
+  "category": "basic",
+  "parameters": ["messages"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {"role": "developer", "content": "Use the remembered project codename if asked."},
+      {"role": "user", "content": "Project codename is provider-diff."},
+      {"role": "assistant", "content": "Understood."},
+      {"role": "user", "content": "What is the codename? Reply with only the codename."}
+    ],
+    "max_completion_tokens": 40
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Checks standard conversation history shape."
+  }
+}

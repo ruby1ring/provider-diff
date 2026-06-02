@@ -1,0 +1,23 @@
+{
+  "case_id": "oa_basic_assistant_partial",
+  "title": "Assistant prior message in conversation",
+  "category": "basic",
+  "parameters": ["messages[].role=assistant"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {"role": "user", "content": "Say the word alpha."},
+      {"role": "assistant", "content": "alpha"},
+      {"role": "user", "content": "Now say the word beta."}
+    ],
+    "max_completion_tokens": 30
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Confirms ordinary assistant history message is accepted."
+  }
+}

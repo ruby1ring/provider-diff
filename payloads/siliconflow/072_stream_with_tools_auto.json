@@ -1,0 +1,44 @@
+{
+  "case_id": "sf_stream_with_tools_auto",
+  "title": "stream true with tools auto should be accepted if supported",
+  "category": "protocol",
+  "parameters": ["stream", "tools", "tool_choice"],
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use a tool if needed to get weather for Tokyo."
+      }
+    ],
+    "stream": true,
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_current_weather",
+          "description": "Get the current weather for a city.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string"
+              }
+            },
+            "required": ["location"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto"
+  },
+  "expect": {
+    "http_status": 200,
+    "response_mode": "sse",
+    "required_chunk_fields": ["id", "object", "created", "model", "choices"],
+    "notes": "Optional combination because some providers treat stream+tools differently."
+  }
+}

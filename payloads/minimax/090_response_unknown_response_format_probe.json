@@ -1,0 +1,41 @@
+{
+  "case_id": "minimax_response_unknown_response_format_probe",
+  "title": "response_format json_object probe",
+  "category": "output",
+  "parameters": [
+    "response_format"
+  ],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Return valid JSON only."
+      },
+      {
+        "role": "user",
+        "content": "Return {\"provider\":\"minimax\",\"status\":\"probe\"}."
+      }
+    ],
+    "response_format": {
+      "type": "json_object"
+    },
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "Real test returned HTTP 200 but did not enforce JSON output; treat response_format=json_object as ignored for this endpoint."
+  }
+}

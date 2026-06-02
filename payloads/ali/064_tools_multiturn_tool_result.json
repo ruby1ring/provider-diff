@@ -1,0 +1,75 @@
+{
+  "case_id": "ali_tools_multiturn_tool_result",
+  "title": "多轮 tool result 消息",
+  "category": "tools",
+  "parameters": [
+    "messages",
+    "tools",
+    "tool_choice"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "上海天气如何？"
+      },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_weather_001",
+            "type": "function",
+            "function": {
+              "name": "get_current_weather",
+              "arguments": "{\"location\":\"上海\",\"unit\":\"celsius\"}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_weather_001",
+        "content": "{\"temperature\":24,\"unit\":\"celsius\",\"condition\":\"cloudy\"}"
+      },
+      {
+        "role": "user",
+        "content": "请用一句话总结。"
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_current_weather",
+          "description": "查询城市当前天气。",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto"
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "验证 assistant.tool_calls 与 role=tool 的多轮消息结构。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+  }
+}

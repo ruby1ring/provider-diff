@@ -1,0 +1,56 @@
+{
+  "case_id": "ali_skill_ppt",
+  "title": "skill=ppt PPT 生成",
+  "category": "skill",
+  "parameters": [
+    "skill",
+    "stream",
+    "stream_options"
+  ],
+  "requires_model_capability": "qwen-doc-turbo-skill",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "qwen-doc-turbo",
+    "messages": [
+      {
+        "role": "system",
+        "content": "you are a helpful assistant."
+      },
+      {
+        "role": "system",
+        "content": "主题：参数兼容性测试。要点：请求参数、响应结构、错误码。"
+      },
+      {
+        "role": "user",
+        "content": "生成一个 1 页 ppt。"
+      }
+    ],
+    "skill": [
+      {
+        "type": "ppt",
+        "mode": "general",
+        "template_id": "summary_01"
+      }
+    ],
+    "stream": true,
+    "stream_options": {
+      "include_usage": true
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ],
+    "provider_extension": true,
+    "notes": "当前 key 已可访问 qwen-doc-turbo 的 ppt skill，stream=true 返回 SSE。"
+  }
+}

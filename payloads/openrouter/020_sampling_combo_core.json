@@ -1,0 +1,27 @@
+{
+  "case_id": "or_sampling_combo_core",
+  "title": "core sampling combination should be accepted",
+  "category": "sampling",
+  "parameters": ["temperature", "top_p", "frequency_penalty", "presence_penalty", "seed"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Write one concise sentence about normalized APIs."
+      }
+    ],
+    "temperature": 0.4,
+    "top_p": 0.9,
+    "frequency_penalty": 0.1,
+    "presence_penalty": 0.1,
+    "seed": 7
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Combination of fields present in current OpenRouter ChatRequest OpenAPI."
+  }
+}

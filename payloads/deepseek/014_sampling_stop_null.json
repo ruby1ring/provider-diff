@@ -1,0 +1,21 @@
+{
+  "case_id": "deepseek_sampling_stop_null",
+  "title": "stop=null",
+  "category": "sampling",
+  "parameters": ["stop"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "user", "content": "用一句中文说明 stop 为 null 时按默认行为生成。"}
+    ],
+    "stop": null
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "notes": "文档类型为 string | array<string> | null。"
+  }
+}

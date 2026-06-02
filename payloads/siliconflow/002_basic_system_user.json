@@ -1,0 +1,26 @@
+{
+  "case_id": "sf_basic_system_user",
+  "title": "System and user messages should be accepted",
+  "category": "basic",
+  "parameters": ["model", "messages"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a concise assistant. Answer with no more than two sentences."
+      },
+      {
+        "role": "user",
+        "content": "What is an API gateway?"
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Checks standard system+user message shape."
+  }
+}

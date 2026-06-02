@@ -1,0 +1,25 @@
+{
+  "case_id": "oa_prediction_content",
+  "title": "prediction static content",
+  "category": "output",
+  "parameters": ["prediction"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {"role": "user", "content": "Return exactly this sentence: OpenAI compatibility payload accepted."}
+    ],
+    "prediction": {
+      "type": "content",
+      "content": "OpenAI compatibility payload accepted."
+    },
+    "max_completion_tokens": 40
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Validates predicted-output request shape, not latency behavior."
+  }
+}

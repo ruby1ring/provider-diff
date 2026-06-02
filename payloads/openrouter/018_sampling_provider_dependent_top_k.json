@@ -1,0 +1,25 @@
+{
+  "case_id": "or_sampling_provider_dependent_top_k",
+  "title": "top_k provider-dependent parameter probe",
+  "category": "sampling",
+  "parameters": ["top_k"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Return one short sentence about provider-specific parameters."
+      }
+    ],
+    "top_k": 40
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Parameters docs list top_k, but current ChatRequest OpenAPI does not. OpenAI models may not support it; 2xx means accepted/possibly ignored."
+  }
+}

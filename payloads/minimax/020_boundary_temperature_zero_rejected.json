@@ -1,0 +1,26 @@
+{
+  "case_id": "minimax_boundary_temperature_zero_rejected",
+  "title": "temperature=0 should be rejected",
+  "category": "boundary",
+  "parameters": [
+    "temperature"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "This should fail because temperature is 0."
+      }
+    ],
+    "temperature": 0,
+    "max_completion_tokens": 30
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "notes": "MiniMax documents temperature range as (0, 1]. If API returns 422, the runner still maps it to rejected_400 but this exact status assertion will show the difference. Real test returned HTTP 200; the provider appears to ignore or coerce this field instead of rejecting it."
+  }
+}

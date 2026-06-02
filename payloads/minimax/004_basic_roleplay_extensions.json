@@ -1,0 +1,57 @@
+{
+  "case_id": "minimax_basic_roleplay_extensions",
+  "title": "MiniMax role-play message role extensions should be rejected by OpenAI-compatible endpoint",
+  "category": "basic",
+  "parameters": [
+    "messages[].role=user_system",
+    "messages[].role=group",
+    "messages[].role=sample_message_user",
+    "messages[].role=sample_message_ai"
+  ],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a concise assistant."
+      },
+      {
+        "role": "user_system",
+        "content": "The user is testing API compatibility."
+      },
+      {
+        "role": "group",
+        "content": "provider-diff compatibility lab"
+      },
+      {
+        "role": "sample_message_user",
+        "content": "Please answer briefly."
+      },
+      {
+        "role": "sample_message_ai",
+        "content": "I will answer briefly."
+      },
+      {
+        "role": "user",
+        "content": "Reply with one sentence about role support."
+      }
+    ],
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "http_status": 400,
+    "support_conclusion": "rejected_400",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "Real OpenAI-compatible M2.7 endpoint rejects these role-play chat-guide roles with invalid chat setting; keep as a rejected compatibility probe."
+  }
+}

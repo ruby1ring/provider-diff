@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "dev": "node scripts/dev.js"
+  },
+  "devDependencies": {}
+}

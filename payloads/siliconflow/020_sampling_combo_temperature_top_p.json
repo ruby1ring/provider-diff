@@ -1,0 +1,24 @@
+{
+  "case_id": "sf_sampling_combo_temperature_top_p",
+  "title": "temperature and top_p together should be accepted",
+  "category": "sampling_combo",
+  "parameters": ["temperature", "top_p"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Write a concise product-style tagline for a compatibility tester."
+      }
+    ],
+    "temperature": 0.4,
+    "top_p": 0.9
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Checks that common OpenAI sampling parameters can coexist."
+  }
+}

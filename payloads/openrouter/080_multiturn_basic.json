@@ -1,0 +1,30 @@
+{
+  "case_id": "or_multiturn_basic",
+  "title": "basic multi-turn chat should be accepted",
+  "category": "multiturn",
+  "parameters": ["messages"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Remember that the provider is OpenRouter."
+      },
+      {
+        "role": "assistant",
+        "content": "I will remember that the provider is OpenRouter."
+      },
+      {
+        "role": "user",
+        "content": "Which provider did I name?"
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Baseline multi-turn context case."
+  }
+}

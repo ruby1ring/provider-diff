@@ -1,0 +1,68 @@
+{
+  "case_id": "sf_multiturn_tools",
+  "title": "multi-turn tool workflow should be accepted",
+  "category": "multiturn",
+  "parameters": ["messages", "tools", "tool_choice"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Use provided tool results when present."
+      },
+      {
+        "role": "user",
+        "content": "Look up account tier for workspace default."
+      },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_workspace_001",
+            "type": "function",
+            "function": {
+              "name": "get_workspace_tier",
+              "arguments": "{\"workspace\":\"default\"}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_workspace_001",
+        "content": "{\"workspace\":\"default\",\"tier\":\"team\"}"
+      },
+      {
+        "role": "user",
+        "content": "Answer with the workspace tier only."
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_workspace_tier",
+          "description": "Get billing tier for a workspace.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "workspace": {
+                "type": "string"
+              }
+            },
+            "required": ["workspace"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto"
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Full multi-turn tool-result workflow."
+  }
+}

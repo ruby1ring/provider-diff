@@ -1,0 +1,23 @@
+{
+  "case_id": "sf_sampling_stop_string",
+  "title": "stop as string should be accepted",
+  "category": "sampling",
+  "parameters": ["stop"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Count from one to five and then write END."
+      }
+    ],
+    "stop": "END"
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Validate string stop sequence acceptance. Content may or may not visibly include the stop token."
+  }
+}

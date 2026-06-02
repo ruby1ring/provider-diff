@@ -1,0 +1,25 @@
+{
+  "case_id": "sf_length_max_tokens",
+  "title": "max_tokens should limit generation and be accepted",
+  "category": "length",
+  "parameters": ["max_tokens"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Explain in one sentence why protocol compatibility matters."
+      }
+    ],
+    "max_tokens": 64,
+    "enable_thinking": false
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "allowed_finish_reasons": ["stop", "eos", "length", "tool_calls"],
+    "notes": "Do not set max_tokens near the model context limit."
+  }
+}

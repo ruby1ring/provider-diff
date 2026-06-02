@@ -1,0 +1,53 @@
+{
+  "case_id": "or_tools_named_function",
+  "title": "named function tool_choice should be accepted",
+  "category": "tools",
+  "parameters": ["tools", "tool_choice"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Call the compatibility_status tool for parameter temperature."
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "compatibility_status",
+          "description": "Return compatibility status for one parameter.",
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "parameter": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": ["accepted", "rejected", "warning"]
+              }
+            },
+            "required": ["parameter", "status"]
+          }
+        }
+      }
+    ],
+    "tool_choice": {
+      "type": "function",
+      "function": {
+        "name": "compatibility_status"
+      }
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "optional_response_fields": ["choices[].message.tool_calls"],
+    "notes": "Validates named function forcing."
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "case_id": "ali_reasoning_enable_thinking_false",
+  "title": "enable_thinking=false",
+  "category": "reasoning",
+  "parameters": [
+    "enable_thinking"
+  ],
+  "requires_model_capability": "reasoning",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "qwen3-max",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句话解释 false 配置。"
+      }
+    ],
+    "enable_thinking": false
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "provider_extension": true,
+    "notes": "当前 key 已可访问 qwen3-max，enable_thinking=false 返回 200。"
+  }
+}

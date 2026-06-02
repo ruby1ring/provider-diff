@@ -1,0 +1,48 @@
+{
+  "case_id": "or_tools_auto",
+  "title": "tools with tool_choice auto should be accepted",
+  "category": "tools",
+  "parameters": ["tools", "tool_choice"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is the weather in San Francisco in celsius? Use the tool if needed."
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_current_weather",
+          "description": "Get the current weather for a city.",
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "location": {
+                "type": "string",
+                "description": "The city and state, e.g. San Francisco, CA"
+              },
+              "unit": {
+                "type": "string",
+                "enum": ["celsius", "fahrenheit"]
+              }
+            },
+            "required": ["location", "unit"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto"
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "optional_response_fields": ["choices[].message.tool_calls"],
+    "notes": "The model may answer directly or emit a tool call. Validate acceptance and response structure."
+  }
+}

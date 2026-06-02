@@ -1,0 +1,40 @@
+{
+  "case_id": "sf_multimodal_image_url",
+  "title": "image_url content part should be accepted on GLM vision model",
+  "category": "multimodal",
+  "parameters": ["messages[].content[].image_url", "messages[].content[].image_url.detail"],
+  "requires_model_capability": "vision",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "zai-org/GLM-4.6V",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Describe this image in one short phrase."
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "https://sf-maas-uat-prod.oss-cn-shanghai.aliyuncs.com/suggestion/lbygavkzjykewmmpnzfutkvedlowunms.png",
+              "detail": "low"
+            }
+          }
+        ]
+      }
+    ],
+    "temperature": 0.2,
+    "max_tokens": 120
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "assistant_content_non_empty": true,
+    "notes": "Capability-gated VLM case based on SiliconFlow image-input examples for zai-org/GLM-4.6V. Image URL was checked from local machine and returned HTTP 200."
+  }
+}

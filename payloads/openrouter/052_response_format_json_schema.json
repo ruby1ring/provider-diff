@@ -1,0 +1,52 @@
+{
+  "case_id": "or_response_format_json_schema",
+  "title": "response_format json_schema should be accepted when supported",
+  "category": "output",
+  "parameters": ["response_format"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Return valid JSON only. No markdown."
+      },
+      {
+        "role": "user",
+        "content": "Return a compatibility result for parameter temperature with status accepted."
+      }
+    ],
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "compatibility_result",
+        "strict": true,
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "parameter": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "enum": ["accepted", "rejected", "warning"]
+            },
+            "notes": {
+              "type": "string"
+            }
+          },
+          "required": ["parameter", "status", "notes"]
+        }
+      }
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "content_should_parse_as_json": true,
+    "notes": "Structured outputs are model/provider dependent. Optional until model support is guaranteed."
+  }
+}

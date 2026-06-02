@@ -1,0 +1,33 @@
+{
+  "case_id": "ali_protocol_stream_basic",
+  "title": "stream 基础流式返回",
+  "category": "protocol",
+  "parameters": [
+    "stream"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "流式输出一句简短问候。"
+      }
+    ],
+    "stream": true
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ],
+    "notes": "流式 case 验证 SSE/chunk 结构，不验证普通 JSON body。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+  }
+}

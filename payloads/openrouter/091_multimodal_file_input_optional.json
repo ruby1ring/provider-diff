@@ -1,0 +1,42 @@
+{
+  "case_id": "or_multimodal_file_input_optional",
+  "title": "file content part should be accepted when document processing is enabled",
+  "category": "multimodal",
+  "parameters": ["messages[].content[].file"],
+  "requires_model_capability": "file",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Read the attached text file and say ok."
+          },
+          {
+            "type": "file",
+            "file": {
+              "filename": "compat.txt",
+              "file_data": "data:text/plain;base64,T3BlblJvdXRlciBmaWxlIHBhcnNlciBjb21wYXRpYmlsaXR5IHRlc3Qu"
+            }
+          }
+        ]
+      }
+    ],
+    "plugins": [
+      {
+        "id": "file-parser"
+      }
+    ],
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Optional because file parsing may require plugin/model/account support."
+  }
+}

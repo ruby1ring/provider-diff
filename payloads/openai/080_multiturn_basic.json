@@ -1,0 +1,23 @@
+{
+  "case_id": "oa_multiturn_basic",
+  "title": "Basic multi-turn chat",
+  "category": "multiturn",
+  "parameters": ["messages"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {"role": "developer", "content": "Answer in short sentences."},
+      {"role": "user", "content": "Remember the number 42."},
+      {"role": "assistant", "content": "I will remember 42."},
+      {"role": "user", "content": "What number did I ask you to remember?"}
+    ],
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"]
+  }
+}

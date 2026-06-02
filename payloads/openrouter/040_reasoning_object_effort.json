@@ -1,0 +1,30 @@
+{
+  "case_id": "or_reasoning_object_effort",
+  "title": "reasoning object should be accepted on reasoning-capable models",
+  "category": "reasoning",
+  "parameters": ["reasoning", "reasoning.effort", "reasoning.summary"],
+  "requires_model_capability": "reasoning",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-5.2",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Solve briefly: if 3 providers each have 4 tests, how many tests?"
+      }
+    ],
+    "reasoning": {
+      "effort": "low",
+      "summary": "concise"
+    },
+    "max_completion_tokens": 120
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "optional_response_fields": ["choices[].message.reasoning", "choices[].message.reasoning_details", "usage.completion_tokens_details.reasoning_tokens"],
+    "notes": "Capability-gated. Runner may override model; use a reasoning-capable model."
+  }
+}

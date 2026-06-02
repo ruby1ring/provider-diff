@@ -1,0 +1,33 @@
+{
+  "case_id": "ali_sampling_seed",
+  "title": "seed 随机数种子",
+  "category": "sampling",
+  "parameters": [
+    "seed"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "输出一个短标题。"
+      }
+    ],
+    "seed": 1234
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "seed 文档范围为 [0, 2^31-1]。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+  }
+}

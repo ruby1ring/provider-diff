@@ -1,0 +1,15 @@
+deepseek:
+  https://api.deepseek.com
+  sk-your-deepseek-api-key
+
+minimax:
+  https://api.minimaxi.com/v1
+  sk-your-minimax-api-key
+
+siliconflow:
+  https://api.siliconflow.cn/v1
+  sk-your-siliconflow-api-key
+
+ali:
+  https://dashscope.aliyuncs.com/compatible-mode/v1
+  sk-your-dashscope-api-key

@@ -1,0 +1,23 @@
+{
+  "case_id": "deepseek_model_alias_deepseek_reasoner",
+  "title": "兼容 alias：deepseek-reasoner",
+  "category": "basic",
+  "parameters": ["model"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-reasoner",
+    "messages": [
+      {"role": "user", "content": "用一句话确认 deepseek-reasoner alias 可用。"}
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "choice_required_fields": ["index", "message", "finish_reason"],
+    "usage_required_fields": ["prompt_tokens", "completion_tokens", "total_tokens"],
+    "notes": "文档说明 deepseek-reasoner 是兼容 alias，并将在 2026-07-24 废弃；运行时请清空前端全局 Model 覆盖。"
+  }
+}

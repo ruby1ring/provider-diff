@@ -1,0 +1,33 @@
+{
+  "case_id": "ali_sampling_top_p",
+  "title": "top_p 采样",
+  "category": "sampling",
+  "parameters": [
+    "top_p"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句话描述兼容性测试。"
+      }
+    ],
+    "top_p": 0.8
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "top_p 文档范围为 (0, 1.0]。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+  }
+}

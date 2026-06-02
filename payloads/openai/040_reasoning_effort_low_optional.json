@@ -1,0 +1,23 @@
+{
+  "case_id": "oa_reasoning_effort_low",
+  "title": "reasoning_effort low on reasoning model",
+  "category": "reasoning",
+  "parameters": ["reasoning_effort"],
+  "requires_model_capability": "reasoning",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [{"role": "user", "content": "Solve 17 + 25 and reply with only the number."}],
+    "reasoning_effort": "low",
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "usage_required_fields": ["prompt_tokens", "completion_tokens", "total_tokens"],
+    "notes": "Capability-gated reasoning case."
+  }
+}

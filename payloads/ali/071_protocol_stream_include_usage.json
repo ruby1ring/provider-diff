@@ -1,0 +1,37 @@
+{
+  "case_id": "ali_protocol_stream_include_usage",
+  "title": "stream_options.include_usage",
+  "category": "protocol",
+  "parameters": [
+    "stream",
+    "stream_options"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "流式输出一句关于 usage 的说明。"
+      }
+    ],
+    "stream": true,
+    "stream_options": {
+      "include_usage": true
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ],
+    "notes": "include_usage=true 时最后一个 chunk 应包含 usage，choices 可为空数组。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+  }
+}

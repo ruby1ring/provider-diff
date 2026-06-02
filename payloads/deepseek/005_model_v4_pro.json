@@ -1,0 +1,22 @@
+{
+  "case_id": "deepseek_model_v4_pro",
+  "title": "model=deepseek-v4-pro",
+  "category": "basic",
+  "parameters": ["model"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {"role": "user", "content": "用一句话确认 deepseek-v4-pro 可用于 chat completions。"}
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "choice_required_fields": ["index", "message", "finish_reason"],
+    "usage_required_fields": ["prompt_tokens", "completion_tokens", "total_tokens"],
+    "notes": "运行该 case 时如需验证 payload 内的 model，请清空前端全局 Model 覆盖。"
+  }
+}

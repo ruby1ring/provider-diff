@@ -1,0 +1,21 @@
+{
+  "case_id": "deepseek_protocol_stream_false",
+  "title": "stream=false",
+  "category": "protocol",
+  "parameters": ["stream"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "user", "content": "用一句中文说明 stream=false 时返回普通 JSON。"}
+    ],
+    "stream": false
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "notes": "stream 类型为 boolean | null；false 应返回非流式 JSON。"
+  }
+}

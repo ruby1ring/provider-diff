@@ -1,0 +1,26 @@
+{
+  "case_id": "minimax_cache_long_prompt_probe",
+  "title": "Automatic prompt caching long prompt probe",
+  "category": "cache",
+  "parameters": ["usage.prompt_tokens_details.cached_tokens"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Provider-diff cache probe. Repeatable context block: compatibility testing records whether request fields are supported, ignored, or rejected. This sentence is repeated to exceed the passive cache threshold. Compatibility testing records whether request fields are supported, ignored, or rejected. This sentence is repeated to exceed the passive cache threshold. Compatibility testing records whether request fields are supported, ignored, or rejected. This sentence is repeated to exceed the passive cache threshold. Compatibility testing records whether request fields are supported, ignored, or rejected. This sentence is repeated to exceed the passive cache threshold. Compatibility testing records whether request fields are supported, ignored, or rejected. This sentence is repeated to exceed the passive cache threshold. Compatibility testing records whether request fields are supported, ignored, or rejected. This sentence is repeated to exceed the passive cache threshold."
+      },
+      {"role": "user", "content": "Reply with the word cached."}
+    ],
+    "max_completion_tokens": 20
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Automatic prompt caching may show cached_tokens on repeated identical calls; this case does not assert a cache hit."
+  }
+}

@@ -1,0 +1,138 @@
+# Silinex -> DeepSeek 请求转换规则
+# 基于 OpenAI 兼容格式，增加 thinking 字段转换
+
+version: 1
+
+rule_type: request
+
+src_type: silinex
+dst_type: openai_compatible
+
+fields:
+  # model: 直接映射
+  model:
+    type: direct
+
+  # messages: 直接映射
+  messages:
+    type: direct
+
+  # temperature: 直接映射
+  temperature:
+    type: direct
+
+  # top_p: 直接映射
+  top_p:
+    type: direct
+
+  # max_completion_tokens: 丢弃 (不再使用 max_completion_tokens, 统一使用 max_tokens)
+  max_completion_tokens:
+    type: discard
+
+  # max_tokens: 优先使用 max_tokens，取不到则尝试使用 max_completion_tokens
+  max_tokens:
+    type: expr
+    rule: "input.max_tokens != nil ? input.max_tokens : input.max_completion_tokens"
+
+    # stop: 直接映射
+    stop:
+      type: direct
+
+    # stream: 直接映射
+    stream:
+      type: direct
+
+    # stream_options: 仅当 stream=true 时才设置
+    stream_options:
+      type: expr
+      rule: 'input.stream == true ? (input.stream_options != nil ? input.stream_options : {"include_usage": true}) : nil'
+
+    # tools: 直接映射
+    tools:
+      type: direct
+
+    # tool_choice: 直接映射
+    tool_choice:
+      type: direct
+
+    # user: 直接映射
+    user:
+      type: direct
+
+    # frequency_penalty: 直接映射
+    frequency_penalty:
+      type: direct
+
+    # presence_penalty: 直接映射
+    presence_penalty:
+      type: direct
+
+    # logit_bias: 直接映射
+    logit_bias:
+      type: direct
+
+    # logprobs: 直接映射
+    logprobs:
+      type: direct
+
+    # top_logprobs: 直接映射
+    top_logprobs:
+      type: direct
+
+    # n: 直接映射
+    n:
+      type: direct
+
+    # response_format: 直接映射
+    response_format:
+      type: direct
+
+    # seed: 直接映射
+    seed:
+      type: direct
+
+    # reasoning_effort: 从 silinex reasoning.effort 映射
+    reasoning_effort:
+      type: direct
+
+    # store: 直接映射
+    store:
+      type: direct
+
+    # metadata: 直接映射
+    metadata:
+      type: direct
+
+    # audio: 直接映射
+    audio:
+      type: direct
+
+    # modalities: 直接映射
+    modalities:
+      type: direct
+
+    # prediction: 直接映射
+    prediction:
+      type: direct
+
+    # service_tier: 直接映射
+    service_tier:
+      type: direct
+
+    # ==================== DeepSeek 特有字段 ====================
+
+    # thinking: 将 enable_thinking 转换为 DeepSeek 格式
+    # true  -> {"type": "enabled"}
+    # false -> {"type": "disabled"}
+    # nil   -> 不设置
+    thinking:
+      type: expr
+      rule: 'input.enable_thinking == true ? {"type": "enabled"} : (input.enable_thinking == false ? {"type": "disabled"} : nil)'
+
+    # enable_thinking: 丢弃（已转换为 thinking）
+    enable_thinking:
+      type: discard
+
+    # thinking_budget: 丢弃（DeepSeek 不需要）
+    thinking_budget:
+      type: discard

@@ -1,0 +1,68 @@
+{
+  "case_id": "sf_tools_multiturn_tool_result",
+  "title": "conversation with previous tool result should be accepted",
+  "category": "tools",
+  "parameters": ["messages", "tools", "tool_choice"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is the weather in Shanghai?"
+      },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_weather_001",
+            "type": "function",
+            "function": {
+              "name": "get_current_weather",
+              "arguments": "{\"location\":\"Shanghai\",\"unit\":\"celsius\"}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_weather_001",
+        "content": "{\"temperature\":24,\"unit\":\"celsius\",\"condition\":\"cloudy\"}"
+      },
+      {
+        "role": "user",
+        "content": "Summarize the weather in one sentence."
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_current_weather",
+          "description": "Get the current weather for a city.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string"
+              },
+              "unit": {
+                "type": "string",
+                "enum": ["celsius", "fahrenheit"]
+              }
+            },
+            "required": ["location"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto"
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Checks OpenAI-style multi-turn tool-result message handling."
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "case_id": "am_sampling_stop_sequences",
+  "title": "stop_sequences should be accepted",
+  "category": "sampling",
+  "parameters": ["stop_sequences"],
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "anthropic/claude-sonnet-4.5",
+    "max_tokens": 96,
+    "stop_sequences": ["END"],
+    "messages": [
+      { "role": "user", "content": "Count from one to five and then write END." }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "type", "role", "content", "model"]
+  }
+}

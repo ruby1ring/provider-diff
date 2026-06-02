@@ -1,0 +1,22 @@
+{
+  "case_id": "sf_basic_minimal",
+  "title": "Minimal chat completion with model and messages",
+  "category": "basic",
+  "parameters": ["model", "messages"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Say hi in one short sentence."
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Baseline accepted-path case. Validate structure only."
+  }
+}

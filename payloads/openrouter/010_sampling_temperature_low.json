@@ -1,0 +1,23 @@
+{
+  "case_id": "or_sampling_temperature_low",
+  "title": "temperature should be accepted",
+  "category": "sampling",
+  "parameters": ["temperature"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Return one deterministic sentence about OpenRouter."
+      }
+    ],
+    "temperature": 0.1
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Core OpenRouter/OpenAI-compatible sampling parameter."
+  }
+}

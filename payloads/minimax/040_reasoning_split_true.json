@@ -1,0 +1,22 @@
+{
+  "case_id": "minimax_reasoning_split_true",
+  "title": "reasoning_split true",
+  "category": "reasoning",
+  "parameters": ["reasoning_split"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {"role": "user", "content": "Solve 12 + 30 and reply with only the number."}
+    ],
+    "reasoning_split": true,
+    "max_completion_tokens": 120
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Docs say reasoning_split=true separates thinking into choices[].message.reasoning_details."
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "case_id": "or_sampling_combo_provider_dependent",
+  "title": "provider-dependent sampling combination probe",
+  "category": "sampling",
+  "parameters": ["top_k", "min_p", "top_a", "repetition_penalty"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Return one short sentence about routing fallbacks."
+      }
+    ],
+    "top_k": 40,
+    "min_p": 0.05,
+    "top_a": 0.2,
+    "repetition_penalty": 1.05
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Docs-supported/provider-dependent parameters. Use provider.require_parameters=true in a separate case to force upstream support."
+  }
+}

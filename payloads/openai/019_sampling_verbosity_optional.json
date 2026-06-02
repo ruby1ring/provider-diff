@@ -1,0 +1,22 @@
+{
+  "case_id": "oa_sampling_verbosity",
+  "title": "verbosity parameter on supported GPT-5 models",
+  "category": "sampling",
+  "parameters": ["verbosity"],
+  "requires_model_capability": "verbosity",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.4-mini",
+    "messages": [{"role": "user", "content": "Explain why compatibility tests should avoid exact text assertions."}],
+    "verbosity": "low",
+    "max_completion_tokens": 100
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Model-dependent GPT-5 parameter."
+  }
+}

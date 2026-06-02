@@ -1,0 +1,22 @@
+{
+  "case_id": "deepseek_protocol_stream_basic",
+  "title": "stream 基础流式返回",
+  "category": "protocol",
+  "parameters": ["stream"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "user", "content": "流式输出一句中文。"}
+    ],
+    "stream": true
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "response_mode": "sse",
+    "required_chunk_fields": ["id", "object", "created", "model", "choices"],
+    "notes": "stream=true 时返回 text/event-stream，分片以 data: [DONE] 结束。"
+  }
+}

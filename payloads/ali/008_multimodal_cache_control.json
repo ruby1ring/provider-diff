@@ -1,0 +1,46 @@
+{
+  "case_id": "ali_multimodal_cache_control",
+  "title": "显式缓存 cache_control",
+  "category": "multimodal",
+  "parameters": [
+    "messages"
+  ],
+  "requires_model_capability": "explicit-cache",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "这是一段希望缓存的固定上下文：供应商参数兼容性测试关注请求参数、响应结构和错误码。",
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          },
+          {
+            "type": "text",
+            "text": "请总结这段上下文。"
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "文档说明 content array 项可携带 cache_control.type=ephemeral；需要显式缓存能力支持。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "case_id": "ali_sampling_n_two",
+  "title": "n=2 多候选生成",
+  "category": "sampling",
+  "parameters": [
+    "n"
+  ],
+  "requires_model_capability": "n-multiple",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "qwen-plus-character",
+    "messages": [
+      {
+        "role": "user",
+        "content": "给出两个不同的短标题。"
+      }
+    ],
+    "n": 2
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "当前 key 已可访问 qwen-plus-character，n=2 返回两个 choices。"
+  }
+}

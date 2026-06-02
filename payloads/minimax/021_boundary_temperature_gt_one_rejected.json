@@ -1,0 +1,26 @@
+{
+  "case_id": "minimax_boundary_temperature_gt_one_rejected",
+  "title": "temperature greater than 1 should be rejected",
+  "category": "boundary",
+  "parameters": [
+    "temperature"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "This should fail because temperature is above 1."
+      }
+    ],
+    "temperature": 1.1,
+    "max_completion_tokens": 30
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "notes": "MiniMax documents temperature range as (0, 1]. Real test returned HTTP 200; the provider appears to ignore or coerce this field instead of rejecting it."
+  }
+}

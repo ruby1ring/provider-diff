@@ -1,0 +1,45 @@
+{
+  "case_id": "or_multiturn_tool_result",
+  "title": "multi-turn transcript with tool result should be accepted",
+  "category": "multiturn",
+  "parameters": ["messages", "tool_calls", "tool_call_id"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Check whether json_object is supported."
+      },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_json_object",
+            "type": "function",
+            "function": {
+              "name": "lookup_support",
+              "arguments": "{\"parameter\":\"response_format.json_object\"}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_json_object",
+        "content": "{\"supported\":true}"
+      },
+      {
+        "role": "user",
+        "content": "Answer based on the tool result."
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Duplicate of tools transcript under multiturn category for UI grouping."
+  }
+}

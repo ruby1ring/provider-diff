@@ -1,0 +1,37 @@
+{
+  "case_id": "am_basic_system",
+  "title": "Messages request with top-level system prompt",
+  "category": "basic",
+  "parameters": [
+    "system",
+    "messages",
+    "max_tokens"
+  ],
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "max_tokens": 80,
+    "system": "Answer in compact Chinese.",
+    "messages": [
+      {
+        "role": "user",
+        "content": "解释什么是 API 兼容性测试。"
+      }
+    ],
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": [
+      "id",
+      "type",
+      "role",
+      "content",
+      "model"
+    ],
+    "notes": "Current test config has DashScope Messages access to deepseek-v4-pro, so this case uses it for API-level compatibility validation. 关闭 thinking 后验证该参数，避免 DashScope Messages 将 reasoning token 计入 usage.output_tokens。"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "case_id": "or_sampling_top_p",
+  "title": "top_p should be accepted",
+  "category": "sampling",
+  "parameters": ["top_p"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Say one short sentence about routing."
+      }
+    ],
+    "top_p": 0.8
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Core nucleus sampling parameter."
+  }
+}

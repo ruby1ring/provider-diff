@@ -1,0 +1,46 @@
+{
+  "case_id": "am_reasoning_thinking_budget",
+  "title": "thinking budget should be accepted on reasoning-capable Messages models",
+  "category": "reasoning",
+  "parameters": [
+    "thinking",
+    "thinking_budget_tokens"
+  ],
+  "requires_model_capability": "reasoning",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "max_tokens": 768,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Answer briefly: why compare endpoint parameter support?"
+      }
+    ],
+    "thinking": {
+      "type": "enabled",
+      "budget_tokens": 512
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": [
+      "id",
+      "type",
+      "role",
+      "content",
+      "model"
+    ],
+    "notes": "DashScope Messages 会将 thinking 输出计入 usage.output_tokens；该 acceptance probe 保持 max_tokens 高于 thinking budget。",
+    "allowed_finish_reasons": [
+      "end_turn",
+      "max_tokens",
+      "stop_sequence",
+      "tool_use",
+      "pause_turn",
+      "refusal"
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "case_id": "deepseek_sampling_top_p",
+  "title": "top_p 采样",
+  "category": "sampling",
+  "parameters": ["top_p"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "user", "content": "用一句中文描述 top_p 的作用。"}
+    ],
+    "top_p": 0.8
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "notes": "文档默认值为 1，最大值为 1；该 case 使用正常采样值。"
+  }
+}

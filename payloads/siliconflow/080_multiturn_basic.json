@@ -1,0 +1,34 @@
+{
+  "case_id": "sf_multiturn_basic",
+  "title": "basic multi-turn dialogue should preserve context",
+  "category": "multiturn",
+  "parameters": ["messages"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Answer based only on the conversation."
+      },
+      {
+        "role": "user",
+        "content": "Remember this value: gateway_id is sf-prod-01."
+      },
+      {
+        "role": "assistant",
+        "content": "I will remember that gateway_id is sf-prod-01."
+      },
+      {
+        "role": "user",
+        "content": "What is the gateway_id?"
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Normal multi-turn context acceptance. Content assertion can optionally check for sf-prod-01."
+  }
+}

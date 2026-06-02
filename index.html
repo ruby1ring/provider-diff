@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>llm-rosetta</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="global-header">
+        <a class="brand" href="#" aria-label="llm-rosetta home">
+          <span class="brand-mark"></span>
+          <span>llm-rosetta</span>
+        </a>
+        <nav class="top-nav" aria-label="Primary">
+          <a class="is-active" href="#run" data-view-link="run">运行</a>
+          <a href="#reports" data-view-link="reports">报告</a>
+          <a href="#evalscope" data-view-link="evalscope">EvalScope</a>
+          <a href="#opencompass" data-view-link="opencompass">OpenCompass</a>
+        </nav>
+        <button class="account-button" type="button">
+          <span class="avatar">LR</span>
+          <span>预览模式</span>
+          <span>⌄</span>
+        </button>
+      </header>
+
+      <main class="content">
+          <section id="runView" class="app-view" data-view="run">
+          <div class="page-title-row">
+            <div>
+              <h1>LLM 网关参数兼容性测试</h1>
+              <p>选择供应商、勾选 payload 用例，查看每个参数是否支持、是否静默忽略或 400 报错。</p>
+            </div>
+            <div class="view-actions">
+              <button id="runTests" class="primary-button" type="button">运行测试</button>
+            </div>
+          </div>
+
+          <section class="panel config-panel" aria-labelledby="config-title">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">路由</p>
+                <h2 id="config-title">渠道模板</h2>
+              </div>
+              <span class="muted mono">原厂 / 第三方 endpoint 配置</span>
+            </div>
+
+            <div id="endpointTabs" class="endpoint-tabs" role="tablist" aria-label="Endpoint"></div>
+
+            <div id="channelCards" class="channel-grid"></div>
+
+            <form class="config-form">
+              <label class="field">
+                <span>API Key（密钥）</span>
+                <span class="password-control">
+                  <input id="apiKey" type="password" placeholder="sk-..." autocomplete="off" />
+                  <button id="toggleSecret" class="icon-button" type="button" aria-label="显示 API Key" title="显示 API Key">◎</button>
+                </span>
+              </label>
+
+              <label class="field">
+                <span>Base URL（请求地址）</span>
+                <input id="baseUrl" class="mono" type="text" />
+              </label>
+
+              <label class="field">
+                <span>Model（模型）</span>
+                <input id="modelName" class="mono" type="text" />
+              </label>
+
+              <label class="field">
+                <span>对比基准（历史原厂报告）</span>
+                <select id="baselineReport" class="mono">
+                  <option value="">不对比历史基准</option>
+                </select>
+              </label>
+            </form>
+
+            <section class="proxy-settings" aria-labelledby="proxy-title">
+              <div class="proxy-settings__head">
+                <div>
+                  <p class="eyebrow">代理</p>
+                  <h2 id="proxy-title">请求代理设置</h2>
+                </div>
+                <label class="toggle-control">
+                  <input id="proxyEnabled" type="checkbox" />
+                  <span>启用代理</span>
+                </label>
+              </div>
+              <div class="proxy-settings__body">
+                <label class="field">
+                  <span>Proxy URL</span>
+                  <input id="proxyUrl" class="mono" type="text" placeholder="http://127.0.0.1:7890" disabled />
+                </label>
+                <span id="proxyHint" class="muted">未启用代理；后端请求会直连供应商。</span>
+              </div>
+            </section>
+
+            <details id="testSuite" class="suite">
+              <summary>
+                <span id="suiteTitle">测试套件</span>
+                <span class="muted">参数清单</span>
+              </summary>
+              <div id="parameterGroups" class="parameter-groups"></div>
+            </details>
+
+            <section id="caseSelector" class="case-selector" aria-labelledby="case-selector-title">
+              <div class="case-selector__header">
+                <div>
+                  <p class="eyebrow">用例</p>
+                  <h2 id="case-selector-title">选择测试用例</h2>
+                </div>
+                <div class="case-actions">
+                  <button id="selectAllCases" class="secondary-button compact-button" type="button">全选</button>
+                  <button id="clearAllCases" class="secondary-button compact-button" type="button">清空</button>
+                </div>
+              </div>
+              <div class="case-selector__summary">
+                <span id="selectedCaseCount" class="mono">已选 0 个</span>
+                <span id="caseSelectorHint" class="muted">真实测试渠道会从后端读取 payloads/&lt;provider&gt; 下的测试用例。</span>
+              </div>
+              <details class="custom-case-builder">
+                <summary class="custom-case-builder__head">
+                  <strong>自定义 payload</strong>
+                  <span id="customPayloadHint" class="muted">粘贴 JSON object 后添加为临时 case。</span>
+                </summary>
+                <textarea id="customPayloadInput" class="mono" rows="9" spellcheck="false" placeholder='{
+  "model": "Pro/zai-org/GLM-4.7",
+  "messages": [
+    { "role": "user", "content": "Say hi." }
+  ]
+}'></textarea>
+                <div class="custom-case-builder__actions">
+                  <button id="addCustomPayload" class="secondary-button compact-button" type="button">添加 payload</button>
+                  <button id="clearCustomPayload" class="secondary-button compact-button" type="button">清空输入</button>
+                </div>
+              </details>
+              <div id="caseGroups" class="case-groups"></div>
+            </section>
+
+            <div class="run-row">
+              <span class="muted mono">DeepSeek、SiliconFlow 和 Aliyun Bailian 会发起真实 HTTP 请求；其它渠道当前为预览结果。</span>
+            </div>
+          </section>
+
+          <section id="progressPanel" class="panel progress-panel is-hidden" aria-live="polite">
+            <div class="progress-head">
+              <div class="progress-copy">
+                <span id="progressCount" class="mono">0 / 0</span>
+                <span id="progressCase" class="muted mono">空闲</span>
+              </div>
+              <button id="stopTests" class="secondary-button" type="button">停止</button>
+            </div>
+            <div class="progress-track">
+              <div id="progressBar" class="progress-bar"></div>
+            </div>
+            <div id="runLog" class="run-log mono"></div>
+          </section>
+
+          <section id="resultsPanel" class="results-section is-hidden">
+            <div class="stats-grid">
+              <article class="stat-card stat-pass">
+                <span>✓ 支持参数</span>
+                <strong id="statPassed">0</strong>
+              </article>
+              <article class="stat-card stat-warning">
+                <span>⚠ 不支持但不报错</span>
+                <strong id="statWarnings">0</strong>
+              </article>
+              <article class="stat-card stat-fail">
+                <span>✗ 不支持且 400</span>
+                <strong id="statFailed">0</strong>
+              </article>
+              <article class="stat-card stat-diff">
+                <span>◐ 结构差异</span>
+                <strong id="statDiffs">0</strong>
+              </article>
+            </div>
+
+            <section class="panel matrix-panel" aria-labelledby="matrix-title">
+              <div class="matrix-toolbar">
+                <div>
+                  <p class="eyebrow">结果</p>
+                  <h2 id="matrix-title">参数支持结论</h2>
+                </div>
+                <div class="toolbar-actions">
+                  <button id="exportJson" class="secondary-button" type="button">导出 JSON</button>
+                  <button id="exportMarkdown" class="secondary-button" type="button">导出 Markdown</button>
+                  <button id="rerunTests" class="secondary-button" type="button">重新运行</button>
+                </div>
+              </div>
+
+              <div id="filterTabs" class="filter-tabs" role="tablist"></div>
+
+              <div class="table-wrap">
+                <table class="result-table">
+                  <thead>
+                    <tr>
+                      <th>参数</th>
+                      <th>分类</th>
+                      <th>支持结论</th>
+                      <th>HTTP 状态</th>
+                      <th>结构差异</th>
+                    </tr>
+                  </thead>
+                  <tbody id="resultRows"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
+          </section>
+
+          <section id="reportsView" class="app-view is-hidden" data-view="reports">
+          <div class="page-title-row">
+            <div>
+              <h1>历史测试报告</h1>
+              <p>汇总所有已保存测试，快速查看供应商兼容性、失败和结构差异分布。</p>
+            </div>
+          </div>
+
+          <section id="historyPanel" class="history-section">
+            <section class="panel history-panel" aria-labelledby="history-title">
+              <div class="matrix-toolbar">
+                <div>
+                  <p class="eyebrow">报告</p>
+                  <h2 id="history-title">全量测试汇总</h2>
+                </div>
+                <div class="toolbar-actions">
+                  <span id="historyCount" class="muted mono">0 条</span>
+                  <label class="secondary-button import-history-button" for="importHistoryFile">导入报告 JSON</label>
+                  <input id="importHistoryFile" class="visually-hidden" type="file" accept="application/json,.json" multiple />
+                  <button id="clearHistory" class="secondary-button" type="button">清空历史</button>
+                </div>
+              </div>
+              <div id="historySummary" class="history-summary"></div>
+              <div id="historyList" class="history-list"></div>
+            </section>
+          </section>
+          </section>
+
+          <section id="evalscopeView" class="app-view is-hidden" data-view="evalscope">
+          <div class="page-title-row">
+            <div>
+              <h1>EvalScope 可视化评测</h1>
+            </div>
+            <div class="view-actions">
+              <button id="reloadEvalscope" class="secondary-button" type="button">刷新</button>
+              <button id="openEvalscope" class="primary-button" type="button">新窗口打开</button>
+            </div>
+          </div>
+
+          <section class="evalscope-panel" aria-label="EvalScope Web Dashboard">
+            <div class="evalscope-frame-wrap">
+              <iframe
+                id="evalscopeFrame"
+                class="evalscope-frame"
+                title="EvalScope Web Dashboard"
+                src="http://127.0.0.1:9000/dashboard"
+                loading="lazy"
+                referrerpolicy="no-referrer"
+              ></iframe>
+            </div>
+          </section>
+          </section>
+
+          <section id="opencompassView" class="app-view is-hidden" data-view="opencompass">
+          <div class="page-title-row">
+            <div>
+              <h1>OpenCompass 榜单与模型库</h1>
+              <p>OpenCompass 主要是命令行评测框架；这里嵌入官方 CompassRank/CompassHub Web 入口。</p>
+            </div>
+            <div class="view-actions">
+              <button id="reloadOpencompass" class="secondary-button" type="button">刷新</button>
+              <button id="openOpencompass" class="primary-button" type="button">新窗口打开</button>
+            </div>
+          </div>
+
+          <section class="panel embed-panel" aria-labelledby="opencompass-title">
+            <div class="embed-toolbar">
+              <div>
+                <p class="eyebrow">Official Web</p>
+                <h2 id="opencompass-title">嵌入地址</h2>
+              </div>
+              <div class="embed-address">
+                <input id="opencompassUrl" class="mono" type="url" value="https://rank.opencompass.org.cn/home" aria-label="OpenCompass URL" />
+                <button id="saveOpencompassUrl" class="secondary-button" type="button">应用地址</button>
+              </div>
+            </div>
+
+            <div class="embed-launch">
+              <span class="muted">快捷入口</span>
+              <button class="embed-chip" type="button" data-opencompass-preset="https://rank.opencompass.org.cn/home">CompassRank</button>
+              <button class="embed-chip" type="button" data-opencompass-preset="https://hub.opencompass.org.cn/home">CompassHub</button>
+              <a class="embed-chip" href="https://github.com/open-compass/opencompass" target="_blank" rel="noopener noreferrer">GitHub</a>
+            </div>
+
+            <div class="embed-frame-wrap">
+              <iframe
+                id="opencompassFrame"
+                class="embed-frame"
+                title="OpenCompass Web"
+                src="https://rank.opencompass.org.cn/home"
+                loading="lazy"
+                referrerpolicy="no-referrer"
+              ></iframe>
+            </div>
+          </section>
+          </section>
+      </main>
+
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    </div>
+
+    <script src="./lib/mock-data.js"></script>
+    <script src="./main.js"></script>
+  </body>
+</html>

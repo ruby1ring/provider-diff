@@ -1,0 +1,23 @@
+{
+  "case_id": "deepseek_basic_message_name_fields",
+  "title": "messages[].name 可选字段",
+  "category": "basic",
+  "parameters": ["messages"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "system", "name": "policy", "content": "你是一个简洁的中文助手。"},
+      {"role": "user", "name": "tester", "content": "回复一个不超过 10 个字的确认。"}
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "choice_required_fields": ["index", "message", "finish_reason"],
+    "usage_required_fields": ["prompt_tokens", "completion_tokens", "total_tokens"],
+    "notes": "文档说明 system、user、assistant message 支持可选 name 字段。"
+  }
+}

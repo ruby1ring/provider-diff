@@ -1,0 +1,23 @@
+{
+  "case_id": "oa_observability_safety_cache",
+  "title": "safety_identifier and prompt_cache_key",
+  "category": "observability",
+  "parameters": ["safety_identifier", "prompt_cache_key"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {"role": "user", "content": "Reply with one short sentence about cache keys."}
+    ],
+    "safety_identifier": "provider-diff-user-hash",
+    "prompt_cache_key": "provider-diff-cache-key",
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Newer replacements for legacy user field."
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "case_id": "or_length_deprecated_max_tokens",
+  "title": "deprecated max_tokens should still be accepted",
+  "category": "length",
+  "parameters": ["max_tokens"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Answer briefly: what is a deprecated compatibility parameter?"
+      }
+    ],
+    "max_tokens": 50
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "OpenRouter marks max_tokens as deprecated; prefer max_completion_tokens for new requests."
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "case_id": "minimax_unsupported_audio_input",
+  "title": "input_audio should be unsupported",
+  "category": "unsupported",
+  "parameters": [
+    "messages[].content[].input_audio"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Transcribe this short audio."
+          },
+          {
+            "type": "input_audio",
+            "input_audio": {
+              "format": "wav",
+              "data": "UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA="
+            }
+          }
+        ]
+      }
+    ],
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "notes": "MiniMax docs say audio input is not currently supported on OpenAI-compatible endpoint. Real test returned HTTP 200; the provider appears to ignore or coerce this field instead of rejecting it."
+  }
+}

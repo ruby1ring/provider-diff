@@ -1,0 +1,23 @@
+{
+  "case_id": "deepseek_debug_top_logprobs_zero",
+  "title": "top_logprobs=0",
+  "category": "debug",
+  "parameters": ["logprobs", "top_logprobs"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "user", "content": "只输出一个中文词：你好。"}
+    ],
+    "logprobs": true,
+    "top_logprobs": 0,
+    "max_tokens": 20
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "notes": "文档说明 top_logprobs 为 0 到 20，且需要 logprobs=true。"
+  }
+}

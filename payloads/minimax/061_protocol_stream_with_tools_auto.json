@@ -1,0 +1,41 @@
+{
+  "case_id": "minimax_protocol_stream_with_tools_auto",
+  "title": "Streaming with tools auto",
+  "category": "protocol",
+  "parameters": ["stream", "tools", "tool_choice"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {"role": "user", "content": "Call record_status with status ok."}
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "record_status",
+          "description": "Record a status.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {"type": "string"}
+            },
+            "required": ["status"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto",
+    "stream": true,
+    "max_completion_tokens": 160
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "response_mode": "sse",
+    "required_chunk_fields": ["id", "object", "created", "model", "choices"],
+    "notes": "Optional probe for streamed tool-call deltas."
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "case_id": "minimax_sampling_n_one",
+  "title": "n=1 supported",
+  "category": "sampling",
+  "parameters": ["n"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {"role": "user", "content": "Return one short label for this test."}
+    ],
+    "n": 1,
+    "max_completion_tokens": 30
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Docs say n only supports value 1."
+  }
+}

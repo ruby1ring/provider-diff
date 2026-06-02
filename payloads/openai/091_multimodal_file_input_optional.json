@@ -1,0 +1,35 @@
+{
+  "case_id": "oa_multimodal_file_input",
+  "title": "file content part",
+  "category": "multimodal",
+  "parameters": ["messages[].content[].file"],
+  "requires_model_capability": "file_input",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {"type": "text", "text": "Summarize the attached text in one sentence."},
+          {
+            "type": "file",
+            "file": {
+              "filename": "provider-diff.txt",
+              "file_data": "UHJvdmlkZXIgZGlmZiB0ZXN0IGZpbGU6IE9wZW5BSSBmaWxlIGNvbnRlbnQgcGFydC4="
+            }
+          }
+        ]
+      }
+    ],
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Capability-gated file content-part case."
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "case_id": "deepseek_tools_parameters_omitted",
+  "title": "tools[].function.parameters 省略",
+  "category": "tools",
+  "parameters": [
+    "tools",
+    "tools[].function.parameters",
+    "tool_choice"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "user",
+        "content": "调用 ping。"
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "ping",
+          "description": "无参数健康检查。"
+        }
+      }
+    ],
+    "tool_choice": {
+      "type": "function",
+      "function": {
+        "name": "ping"
+      }
+    },
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage",
+      "system_fingerprint"
+    ],
+    "notes": "文档说明省略 parameters 表示空参数列表。 DeepSeek thinking mode rejects forced tool_choice; this case disables thinking to isolate tool_choice behavior."
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "case_id": "or_usage_cost_fields",
+  "title": "usage should include token fields and may include OpenRouter cost fields",
+  "category": "observability",
+  "parameters": ["usage", "usage.cost", "usage.cost_details", "usage.is_byok"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Say ok."
+      }
+    ],
+    "max_completion_tokens": 20
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint", "usage"],
+    "usage_required_fields": ["prompt_tokens", "completion_tokens", "total_tokens"],
+    "optional_response_fields": ["usage.cost", "usage.cost_details", "usage.is_byok"],
+    "notes": "OpenRouter usage schema includes cost and BYOK fields, but exact presence can depend on response mode/account."
+  }
+}

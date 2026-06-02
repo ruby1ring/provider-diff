@@ -1,0 +1,37 @@
+{
+  "case_id": "or_multimodal_audio_input_optional",
+  "title": "input_audio content part should be accepted on audio-capable models",
+  "category": "multimodal",
+  "parameters": ["messages[].content[].input_audio"],
+  "requires_model_capability": "audio",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Transcribe or summarize the audio in one word."
+          },
+          {
+            "type": "input_audio",
+            "input_audio": {
+              "format": "wav",
+              "data": "UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA="
+            }
+          }
+        ]
+      }
+    ],
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Minimal silent WAV-like data. Capability and format support vary by provider."
+  }
+}

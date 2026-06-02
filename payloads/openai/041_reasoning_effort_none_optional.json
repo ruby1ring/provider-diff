@@ -1,0 +1,22 @@
+{
+  "case_id": "oa_reasoning_effort_none",
+  "title": "reasoning_effort none on gpt-5.1",
+  "category": "reasoning",
+  "parameters": ["reasoning_effort"],
+  "requires_model_capability": "reasoning",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [{"role": "user", "content": "Return one short sentence about no reasoning effort."}],
+    "reasoning_effort": "none",
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Docs state gpt-5.1 supports reasoning_effort none."
+  }
+}

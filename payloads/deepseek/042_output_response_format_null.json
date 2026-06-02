@@ -1,0 +1,21 @@
+{
+  "case_id": "deepseek_output_response_format_null",
+  "title": "response_format=null",
+  "category": "output",
+  "parameters": ["response_format"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "user", "content": "用一句中文说明 response_format 为 null 时使用默认文本格式。"}
+    ],
+    "response_format": null
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "notes": "文档类型为 object | null。"
+  }
+}

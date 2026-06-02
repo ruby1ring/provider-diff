@@ -1,0 +1,39 @@
+{
+  "case_id": "minimax_tools_auto",
+  "title": "tools with tool_choice auto",
+  "category": "tools",
+  "parameters": ["tools", "tool_choice"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {"role": "user", "content": "What is the weather in Shanghai? Use a tool if needed."}
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_current_weather",
+          "description": "Get current weather for a city.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {"type": "string"},
+              "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]}
+            },
+            "required": ["location"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto",
+    "max_completion_tokens": 160
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Model may answer directly or return tool_calls; only structure is asserted."
+  }
+}

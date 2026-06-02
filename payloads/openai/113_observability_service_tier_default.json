@@ -1,0 +1,22 @@
+{
+  "case_id": "oa_observability_service_tier_default",
+  "title": "service_tier default",
+  "category": "observability",
+  "parameters": ["service_tier"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {"role": "user", "content": "Reply with the word ok."}
+    ],
+    "service_tier": "default",
+    "max_completion_tokens": 20
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Response may report the actual tier used."
+  }
+}

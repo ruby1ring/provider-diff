@@ -1,0 +1,35 @@
+{
+  "case_id": "ali_header_data_inspection",
+  "title": "X-DashScope-DataInspection 请求头",
+  "category": "headers",
+  "parameters": [
+    "X-DashScope-DataInspection"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "headers": {
+    "X-DashScope-DataInspection": "{\"input\":\"cip\",\"output\":\"cip\"}"
+  },
+  "payload": {
+    "model": "qwen-plus",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句话回答：内容安全检测是什么？"
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 403,
+    "support_conclusion": "permission_limited",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "该参数是 HTTP header，不放入 JSON request body。 Current config key lacks the required model/capability/account permission; keep as permission-limited until the account is enabled."
+  }
+}

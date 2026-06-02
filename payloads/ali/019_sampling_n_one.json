@@ -1,0 +1,33 @@
+{
+  "case_id": "ali_sampling_n_one",
+  "title": "n=1 单结果生成",
+  "category": "sampling",
+  "parameters": [
+    "n"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "给出一个短句。"
+      }
+    ],
+    "n": 1
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "n 的默认值是 1；传 tools 时文档要求 n=1。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+  }
+}

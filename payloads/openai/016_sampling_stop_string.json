@@ -1,0 +1,19 @@
+{
+  "case_id": "oa_sampling_stop_string",
+  "title": "stop as a string",
+  "category": "sampling",
+  "parameters": ["stop"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Count from one to five separated by commas, then write END."}],
+    "stop": "END",
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"]
+  }
+}

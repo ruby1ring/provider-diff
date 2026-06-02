@@ -1,0 +1,58 @@
+{
+  "case_id": "deepseek_tools_choice_required",
+  "title": "tool_choice=required",
+  "category": "tools",
+  "parameters": [
+    "tools",
+    "tool_choice"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "user",
+        "content": "查询上海天气，必须调用工具。"
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_weather",
+          "description": "查询城市天气。",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "city": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "city"
+            ]
+          }
+        }
+      }
+    ],
+    "tool_choice": "required",
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage",
+      "system_fingerprint"
+    ],
+    "notes": "文档明确 tool_choice 支持 required。 DeepSeek thinking mode rejects forced tool_choice; this case disables thinking to isolate tool_choice behavior."
+  }
+}

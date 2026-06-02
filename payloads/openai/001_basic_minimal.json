@@ -1,0 +1,22 @@
+{
+  "case_id": "oa_basic_minimal",
+  "title": "Minimal chat completion with messages",
+  "category": "basic",
+  "parameters": ["model", "messages"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {"role": "user", "content": "Say hi in one short sentence."}
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "choice_required_fields": ["index", "message", "finish_reason"],
+    "usage_required_fields": ["prompt_tokens", "completion_tokens", "total_tokens"],
+    "notes": "Baseline OpenAI accepted-path case."
+  }
+}

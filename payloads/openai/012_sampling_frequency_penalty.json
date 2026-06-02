@@ -1,0 +1,19 @@
+{
+  "case_id": "oa_sampling_frequency_penalty",
+  "title": "frequency_penalty accepted",
+  "category": "sampling",
+  "parameters": ["frequency_penalty"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Write one short sentence without repeating words."}],
+    "frequency_penalty": 0.4,
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"]
+  }
+}

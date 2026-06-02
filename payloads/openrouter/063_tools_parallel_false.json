@@ -1,0 +1,43 @@
+{
+  "case_id": "or_tools_parallel_false",
+  "title": "parallel_tool_calls false should be accepted",
+  "category": "tools",
+  "parameters": ["parallel_tool_calls", "tools"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use one tool if needed to inspect parameter support."
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "inspect_parameter",
+          "description": "Inspect one parameter.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "parameter": {
+                "type": "string"
+              }
+            },
+            "required": ["parameter"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto",
+    "parallel_tool_calls": false
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "OpenRouter supports parallel_tool_calls; upstream support can vary."
+  }
+}

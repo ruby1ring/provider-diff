@@ -1,0 +1,23 @@
+{
+  "case_id": "sf_sampling_frequency_penalty",
+  "title": "frequency_penalty should be accepted",
+  "category": "sampling",
+  "parameters": ["frequency_penalty"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Give three different words related to routing."
+      }
+    ],
+    "frequency_penalty": 0.5
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Docs show valid range -2 <= value <= 2."
+  }
+}

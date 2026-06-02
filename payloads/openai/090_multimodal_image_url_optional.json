@@ -1,0 +1,35 @@
+{
+  "case_id": "oa_multimodal_image_url",
+  "title": "image_url content part on vision model",
+  "category": "multimodal",
+  "parameters": ["messages[].content[].image_url"],
+  "requires_model_capability": "vision",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {"type": "text", "text": "Describe this image in one short phrase."},
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Fronalpstock_big.jpg/320px-Fronalpstock_big.jpg",
+              "detail": "low"
+            }
+          }
+        ]
+      }
+    ],
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Capability-gated vision case; external URL fetch must be allowed."
+  }
+}

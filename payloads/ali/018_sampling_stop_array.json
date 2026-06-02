@@ -1,0 +1,36 @@
+{
+  "case_id": "ali_sampling_stop_array",
+  "title": "stop 数组停止词",
+  "category": "sampling",
+  "parameters": [
+    "stop"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "请输出 A、B、C 三个字母并用中文逗号分隔。"
+      }
+    ],
+    "stop": [
+      "B",
+      "C"
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "验证 stop 为字符串数组。文档提醒数组不要混合 token_id 和字符串。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+  }
+}

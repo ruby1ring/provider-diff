@@ -1,0 +1,46 @@
+{
+  "case_id": "am_reasoning_thinking_budget",
+  "title": "thinking budget should be accepted on reasoning-capable Messages models",
+  "category": "reasoning",
+  "parameters": [
+    "thinking",
+    "thinking_budget_tokens"
+  ],
+  "requires_model_capability": "reasoning",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "max_tokens": 768,
+    "thinking": {
+      "type": "enabled",
+      "budget_tokens": 512
+    },
+    "messages": [
+      {
+        "role": "user",
+        "content": "Answer briefly: why compare endpoint parameter support?"
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": [
+      "id",
+      "type",
+      "role",
+      "content",
+      "model"
+    ],
+    "allowed_finish_reasons": [
+      "end_turn",
+      "max_tokens",
+      "stop_sequence",
+      "tool_use",
+      "pause_turn",
+      "refusal"
+    ],
+    "notes": "Thinking output is counted in usage.output_tokens on SiliconFlow Messages; keep max_tokens above the thinking budget for this acceptance probe."
+  }
+}

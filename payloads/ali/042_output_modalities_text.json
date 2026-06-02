@@ -1,0 +1,37 @@
+{
+  "case_id": "ali_output_modalities_text",
+  "title": "modalities=[text]",
+  "category": "output",
+  "parameters": [
+    "modalities"
+  ],
+  "requires_model_capability": "qwen-omni",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "qwen3-omni-flash",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句话介绍 Qwen-Omni。"
+      }
+    ],
+    "modalities": [
+      "text"
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "当前 key 已可访问 qwen3-omni-flash，modalities=[text] 返回 200。"
+  }
+}

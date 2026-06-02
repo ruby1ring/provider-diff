@@ -1,0 +1,61 @@
+{
+  "case_id": "ali_tools_tool_stream",
+  "title": "stream=true 与 tool_stream",
+  "category": "tools",
+  "parameters": [
+    "stream",
+    "tools",
+    "tool_choice",
+    "tool_stream"
+  ],
+  "requires_model_capability": "glm-tool-stream",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "glm-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "查询北京天气，并使用工具。"
+      }
+    ],
+    "stream": true,
+    "tool_stream": true,
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_current_weather",
+          "description": "查询城市当前天气。",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "location"
+            ]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto"
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ],
+    "provider_extension": true,
+    "notes": "当前 key 已可访问 glm-4.7 tool_stream，stream=true 返回 SSE。"
+  }
+}

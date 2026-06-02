@@ -1,0 +1,29 @@
+{
+  "case_id": "or_plugin_context_compression_optional",
+  "title": "context-compression plugin should be accepted",
+  "category": "plugins",
+  "parameters": ["plugins.context-compression"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Summarize this short prompt in one sentence."
+      }
+    ],
+    "plugins": [
+      {
+        "id": "context-compression",
+        "engine": "middle-out"
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Optional plugin test; small prompt means compression behavior is not asserted."
+  }
+}

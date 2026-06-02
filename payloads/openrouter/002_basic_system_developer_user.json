@@ -1,0 +1,30 @@
+{
+  "case_id": "or_basic_system_developer_user",
+  "title": "system, developer, and user roles should be accepted",
+  "category": "basic",
+  "parameters": ["messages", "developer"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "system",
+        "content": "You answer in compact JSON-free prose."
+      },
+      {
+        "role": "developer",
+        "content": "Keep the answer under 12 words."
+      },
+      {
+        "role": "user",
+        "content": "What is this test checking?"
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Current OpenRouter OpenAPI includes the developer message role."
+  }
+}

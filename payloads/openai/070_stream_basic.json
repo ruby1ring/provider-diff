@@ -1,0 +1,21 @@
+{
+  "case_id": "oa_stream_basic",
+  "title": "Basic streaming response",
+  "category": "protocol",
+  "parameters": ["stream"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Stream one short sentence."}],
+    "stream": true,
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "response_mode": "sse",
+    "required_chunk_fields": ["id", "object", "created", "model", "choices"],
+    "notes": "Validate SSE framing, not normal JSON response parsing."
+  }
+}

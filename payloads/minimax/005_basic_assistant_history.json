@@ -1,0 +1,22 @@
+{
+  "case_id": "minimax_basic_assistant_history",
+  "title": "Assistant history message",
+  "category": "basic",
+  "parameters": ["messages[].role=assistant"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {"role": "user", "content": "Say alpha."},
+      {"role": "assistant", "content": "alpha"},
+      {"role": "user", "content": "Now say beta."}
+    ],
+    "max_completion_tokens": 30
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"]
+  }
+}

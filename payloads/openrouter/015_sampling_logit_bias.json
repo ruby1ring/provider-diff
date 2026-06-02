@@ -1,0 +1,26 @@
+{
+  "case_id": "or_sampling_logit_bias",
+  "title": "logit_bias should be accepted when supported",
+  "category": "sampling",
+  "parameters": ["logit_bias"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with a short greeting."
+      }
+    ],
+    "logit_bias": {
+      "50256": -100
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Token ids are tokenizer/model dependent. Treat rejection as model/provider limitation, not global OpenRouter rejection."
+  }
+}

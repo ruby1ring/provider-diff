@@ -1,0 +1,26 @@
+{
+  "case_id": "sf_stream_with_max_tokens",
+  "title": "stream true with max_tokens should be accepted",
+  "category": "protocol",
+  "parameters": ["stream", "max_tokens"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Stream one sentence about compatibility testing."
+      }
+    ],
+    "stream": true,
+    "enable_thinking": false,
+    "max_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "response_mode": "sse",
+    "required_chunk_fields": ["id", "object", "created", "model", "choices"],
+    "notes": "Checks stream with a common length control."
+  }
+}

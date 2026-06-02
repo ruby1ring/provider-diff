@@ -1,0 +1,37 @@
+{
+  "case_id": "deepseek_tools_auto",
+  "title": "tools 与 tool_choice=auto",
+  "category": "tools",
+  "parameters": ["tools", "tool_choice"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "user", "content": "北京今天适合带伞吗？请调用 get_weather。"}
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_weather",
+          "description": "查询城市天气。",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "city": {"type": "string", "description": "城市名"}
+            },
+            "required": ["city"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto"
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "notes": "文档说明目前只支持 function tools；tool_choice 可为 auto。"
+  }
+}

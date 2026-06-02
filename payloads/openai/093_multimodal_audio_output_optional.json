@@ -1,0 +1,27 @@
+{
+  "case_id": "oa_multimodal_audio_output",
+  "title": "audio output modality",
+  "category": "multimodal",
+  "parameters": ["modalities", "audio"],
+  "requires_model_capability": "audio_output",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini-audio-preview",
+    "messages": [
+      {"role": "user", "content": "Say a short greeting."}
+    ],
+    "modalities": ["text", "audio"],
+    "audio": {
+      "format": "mp3",
+      "voice": "alloy"
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Capability-gated audio output case; response may include choices[].message.audio."
+  }
+}

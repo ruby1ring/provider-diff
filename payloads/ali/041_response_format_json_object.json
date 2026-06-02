@@ -1,0 +1,40 @@
+{
+  "case_id": "ali_response_format_json_object",
+  "title": "response_format=json_object",
+  "category": "output",
+  "parameters": [
+    "response_format"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "system",
+        "content": "你必须只输出合法 JSON。"
+      },
+      {
+        "role": "user",
+        "content": "请按照 json 格式输出一个对象，字段包含 name 和 purpose。"
+      }
+    ],
+    "response_format": {
+      "type": "json_object"
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "content_should_parse_as_json": true,
+    "notes": "文档要求使用 json_object 时 prompt 必须明确要求输出 JSON。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "case_id": "deepseek_beta_prefix_completion",
+  "title": "beta chat prefix completion",
+  "category": "beta",
+  "parameters": [
+    "messages[].prefix"
+  ],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "user",
+        "content": "把这句话补全：兼容性测试的目标是"
+      },
+      {
+        "role": "assistant",
+        "content": "兼容性测试的目标是",
+        "prefix": true
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage",
+      "system_fingerprint"
+    ],
+    "notes": "文档说明 prefix completion 需要 base_url=https://api.deepseek.com/beta；该 case 已声明 base_url=https://api.deepseek.com/beta。"
+  },
+  "base_url": "https://api.deepseek.com/beta"
+}

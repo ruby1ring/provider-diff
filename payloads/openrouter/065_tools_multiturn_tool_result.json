@@ -1,0 +1,45 @@
+{
+  "case_id": "or_tools_multiturn_tool_result",
+  "title": "tool result message should be accepted in follow-up context",
+  "category": "tools",
+  "parameters": ["messages[].role=tool", "tool_call_id"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is the compatibility status for stream?"
+      },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_compat_stream",
+            "type": "function",
+            "function": {
+              "name": "compatibility_status",
+              "arguments": "{\"parameter\":\"stream\"}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_compat_stream",
+        "content": "{\"parameter\":\"stream\",\"status\":\"accepted\"}"
+      },
+      {
+        "role": "user",
+        "content": "Summarize the tool result in one sentence."
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Validates OpenAI-compatible tool-result transcript shape."
+  }
+}

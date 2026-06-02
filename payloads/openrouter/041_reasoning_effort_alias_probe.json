@@ -1,0 +1,27 @@
+{
+  "case_id": "or_reasoning_effort_alias_probe",
+  "title": "reasoning_effort alias probe",
+  "category": "reasoning",
+  "parameters": ["reasoning_effort"],
+  "requires_model_capability": "reasoning",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-5.2",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Answer briefly: why do aliases need compatibility tests?"
+      }
+    ],
+    "reasoning_effort": "low",
+    "max_completion_tokens": 120
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Parameters docs list reasoning_effort, but current ChatRequest OpenAPI uses reasoning.effort. Treat 2xx as accepted/possibly mapped."
+  }
+}

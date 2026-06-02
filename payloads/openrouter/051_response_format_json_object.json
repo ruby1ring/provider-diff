@@ -1,0 +1,30 @@
+{
+  "case_id": "or_response_format_json_object",
+  "title": "response_format json_object should be accepted",
+  "category": "output",
+  "parameters": ["response_format"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Return valid JSON only. No markdown."
+      },
+      {
+        "role": "user",
+        "content": "Return {\"status\":\"ok\",\"provider\":\"openrouter\"} with no extra fields."
+      }
+    ],
+    "response_format": {
+      "type": "json_object"
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "content_should_parse_as_json": true,
+    "notes": "JSON mode still needs an explicit JSON instruction in the messages."
+  }
+}

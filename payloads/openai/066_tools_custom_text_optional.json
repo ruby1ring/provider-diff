@@ -1,0 +1,35 @@
+{
+  "case_id": "oa_tools_custom_text",
+  "title": "Custom tool with text format",
+  "category": "tools",
+  "parameters": ["tools[].type=custom"],
+  "requires_model_capability": "custom_tools",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.4-mini",
+    "messages": [{"role": "user", "content": "Call emit_status with the input accepted."}],
+    "tools": [
+      {
+        "type": "custom",
+        "custom": {
+          "name": "emit_status",
+          "description": "Emit a plain text status.",
+          "format": {"type": "text"}
+        }
+      }
+    ],
+    "tool_choice": {
+      "type": "custom",
+      "custom": {"name": "emit_status"}
+    },
+    "max_completion_tokens": 120
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Optional because custom tool support is model-dependent."
+  }
+}

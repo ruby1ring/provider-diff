@@ -1,0 +1,33 @@
+{
+  "case_id": "or_observability_metadata_trace_session",
+  "title": "metadata, trace, session_id, and user should be accepted",
+  "category": "observability",
+  "parameters": ["metadata", "trace", "session_id", "user"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with the word ok."
+      }
+    ],
+    "user": "provider-diff-user",
+    "session_id": "provider-diff-session",
+    "metadata": {
+      "suite": "provider-diff",
+      "case": "observability"
+    },
+    "trace": {
+      "trace_id": "provider-diff-trace",
+      "trace_name": "provider-diff",
+      "span_name": "openrouter-observability"
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "The current runner cannot set X-OpenRouter-Experimental-Metadata per case, so openrouter_metadata is not asserted."
+  }
+}

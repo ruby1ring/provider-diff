@@ -1,0 +1,50 @@
+{
+  "case_id": "ali_multimodal_image_controls",
+  "title": "image_url 与图像像素控制",
+  "category": "multimodal",
+  "parameters": [
+    "messages",
+    "vl_high_resolution_images"
+  ],
+  "requires_model_capability": "vision",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "qwen-vl-plus",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "请用一句话描述图片内容。"
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20241108/xzsgiz/football1.jpg"
+            },
+            "min_pixels": 4096,
+            "max_pixels": 786432
+          }
+        ]
+      }
+    ],
+    "vl_high_resolution_images": true
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "provider_extension": true,
+    "notes": "视觉模型已用当前 key 跑通：qwen-vl-plus 返回 200，并接受 image_url/min_pixels/max_pixels/vl_high_resolution_images。"
+  }
+}

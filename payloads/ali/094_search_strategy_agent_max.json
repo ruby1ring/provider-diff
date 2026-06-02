@@ -1,0 +1,44 @@
+{
+  "case_id": "ali_search_strategy_agent_max",
+  "title": "search_strategy=agent_max",
+  "category": "search",
+  "parameters": [
+    "enable_search",
+    "search_options",
+    "enable_thinking"
+  ],
+  "requires_model_capability": "search-agent-max-thinking",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "qwen3-max",
+    "messages": [
+      {
+        "role": "user",
+        "content": "请联网搜索并简述 DashScope。"
+      }
+    ],
+    "enable_thinking": true,
+    "enable_search": true,
+    "search_options": {
+      "forced_search": true,
+      "search_strategy": "agent_max"
+    },
+    "stream": true
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "provider_extension": true,
+    "notes": "DashScope 返回 Non-streaming mode does not support Web Extractor；stream=true 后验证 search_strategy=agent_max。",
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ]
+  }
+}

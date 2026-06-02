@@ -1,0 +1,25 @@
+{
+  "case_id": "or_response_format_text",
+  "title": "response_format text should be accepted",
+  "category": "output",
+  "parameters": ["response_format"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Return one sentence about structured outputs."
+      }
+    ],
+    "response_format": {
+      "type": "text"
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Explicit text format."
+  }
+}

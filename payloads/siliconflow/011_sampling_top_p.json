@@ -1,0 +1,23 @@
+{
+  "case_id": "sf_sampling_top_p",
+  "title": "top_p should be accepted",
+  "category": "sampling",
+  "parameters": ["top_p"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Name one benefit of OpenAI-compatible APIs."
+      }
+    ],
+    "top_p": 0.8
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Validate top_p acceptance."
+  }
+}

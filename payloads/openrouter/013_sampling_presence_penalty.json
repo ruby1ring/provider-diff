@@ -1,0 +1,23 @@
+{
+  "case_id": "or_sampling_presence_penalty",
+  "title": "presence_penalty should be accepted",
+  "category": "sampling",
+  "parameters": ["presence_penalty"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Name one benefit of compatibility tests."
+      }
+    ],
+    "presence_penalty": 0.2
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "OpenRouter ChatRequest OpenAPI includes presence_penalty."
+  }
+}

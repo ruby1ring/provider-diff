@@ -1,0 +1,29 @@
+{
+  "case_id": "am_protocol_stream",
+  "title": "stream true should return SSE on Messages endpoint",
+  "category": "protocol",
+  "parameters": [
+    "stream"
+  ],
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "max_tokens": 64,
+    "stream": true,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Say hi in one sentence."
+      }
+    ],
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "response_mode": "sse",
+    "notes": "Current test config has DashScope Messages access to deepseek-v4-pro, so this case uses it for API-level compatibility validation. stream=true 下同样关闭 thinking，避免 reasoning token 影响 max_tokens 断言。"
+  }
+}

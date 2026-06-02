@@ -1,0 +1,19 @@
+{
+  "case_id": "oa_response_format_text",
+  "title": "response_format text",
+  "category": "output",
+  "parameters": ["response_format"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Reply with one plain text sentence."}],
+    "response_format": {"type": "text"},
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"]
+  }
+}

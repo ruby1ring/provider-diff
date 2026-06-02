@@ -1,0 +1,28 @@
+{
+  "case_id": "or_stream_debug_echo_upstream_body",
+  "title": "debug.echo_upstream_body should emit a debug stream chunk",
+  "category": "debug",
+  "parameters": ["stream", "debug.echo_upstream_body"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Stream a short sentence."
+      }
+    ],
+    "stream": true,
+    "debug": {
+      "echo_upstream_body": true
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "response_mode": "sse",
+    "required_chunk_fields": ["id", "object", "created", "model", "choices"],
+    "notes": "Debug option is streaming only. The runner only validates SSE shape, not the debug chunk content."
+  }
+}

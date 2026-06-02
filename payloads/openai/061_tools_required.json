@@ -1,0 +1,37 @@
+{
+  "case_id": "oa_tools_required",
+  "title": "tool_choice required",
+  "category": "tools",
+  "parameters": ["tools", "tool_choice"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Get the weather for Beijing."}],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_current_weather",
+          "description": "Get current weather for a city.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {"type": "string"},
+              "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]}
+            },
+            "required": ["location"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "required",
+    "max_completion_tokens": 120
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Expected finish_reason is often tool_calls, but this runner does not assert it."
+  }
+}

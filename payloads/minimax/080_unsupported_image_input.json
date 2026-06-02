@@ -1,0 +1,36 @@
+{
+  "case_id": "minimax_unsupported_image_input",
+  "title": "image_url input should be unsupported",
+  "category": "unsupported",
+  "parameters": [
+    "messages[].content[].image_url"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Describe this image."
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Fronalpstock_big.jpg/320px-Fronalpstock_big.jpg"
+            }
+          }
+        ]
+      }
+    ],
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "notes": "MiniMax docs say image input is not currently supported on OpenAI-compatible endpoint. Real test returned HTTP 200; the provider appears to ignore or coerce this field instead of rejecting it."
+  }
+}

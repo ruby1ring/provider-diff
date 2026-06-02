@@ -1,0 +1,38 @@
+{
+  "case_id": "ali_reasoning_thinking_budget",
+  "title": "thinking_budget 限制思考长度",
+  "category": "reasoning",
+  "parameters": [
+    "enable_thinking",
+    "thinking_budget"
+  ],
+  "requires_model_capability": "reasoning",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "qwen3-max",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用简短步骤说明 9 * 8 的计算。"
+      }
+    ],
+    "enable_thinking": true,
+    "thinking_budget": 256
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "provider_extension": true,
+    "notes": "当前 key 已可访问 qwen3-max，thinking_budget 返回 200。"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "case_id": "or_routing_models_fallback",
+  "title": "models fallback list should be accepted",
+  "category": "routing",
+  "parameters": ["models"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "models": ["openai/gpt-4o-mini", "openai/gpt-4o"],
+    "messages": [
+      {
+        "role": "user",
+        "content": "Say one short sentence about fallback routing."
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Uses models instead of model to test OpenRouter fallback routing."
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "case_id": "minimax_protocol_stream_basic",
+  "title": "Basic streaming response",
+  "category": "protocol",
+  "parameters": ["stream"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {"role": "user", "content": "Stream one short sentence."}
+    ],
+    "stream": true,
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "response_mode": "sse",
+    "required_chunk_fields": ["id", "object", "created", "model", "choices"],
+    "notes": "Validate SSE/chunk framing instead of normal JSON response parsing."
+  }
+}

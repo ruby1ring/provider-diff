@@ -1,0 +1,21 @@
+{
+  "case_id": "oa_sampling_n_two",
+  "title": "n=2 returns multiple choices",
+  "category": "sampling",
+  "parameters": ["n"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Give a short label for compatibility testing."}],
+    "n": 2,
+    "max_completion_tokens": 30
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Optional because n>1 increases generated-token cost."
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "case_id": "minimax_tools_named_function_probe",
+  "title": "Forced named function probe",
+  "category": "tools",
+  "parameters": [
+    "tool_choice"
+  ],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Call compatibility_status for parameter stream."
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "compatibility_status",
+          "description": "Return compatibility status for one parameter.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "parameter": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "accepted",
+                  "rejected",
+                  "ignored"
+                ]
+              }
+            },
+            "required": [
+              "parameter",
+              "status"
+            ]
+          }
+        }
+      }
+    ],
+    "tool_choice": {
+      "type": "function",
+      "function": {
+        "name": "compatibility_status"
+      }
+    },
+    "max_completion_tokens": 160
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "Real test returned HTTP 200 but did not force a tool call; treat forced named function as ignored by this endpoint."
+  }
+}

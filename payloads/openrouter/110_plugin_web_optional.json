@@ -1,0 +1,31 @@
+{
+  "case_id": "or_plugin_web_optional",
+  "title": "web plugin should be accepted",
+  "category": "plugins",
+  "parameters": ["plugins.web"],
+  "optional": true,
+  "requires_model_capability": "web_search",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use web search if available and answer with one sentence about OpenRouter."
+      }
+    ],
+    "plugins": [
+      {
+        "id": "web",
+        "max_results": 2
+      }
+    ],
+    "max_completion_tokens": 120
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Optional because web plugin may add cost and require model/account support."
+  }
+}

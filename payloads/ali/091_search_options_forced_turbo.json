@@ -1,0 +1,40 @@
+{
+  "case_id": "ali_search_options_forced_turbo",
+  "title": "search_options forced_search + turbo",
+  "category": "search",
+  "parameters": [
+    "enable_search",
+    "search_options"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "请搜索并简述当前年份。"
+      }
+    ],
+    "enable_search": true,
+    "search_options": {
+      "forced_search": true,
+      "search_strategy": "turbo",
+      "enable_search_extension": false
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "provider_extension": true,
+    "notes": "覆盖 forced_search、search_strategy=turbo、enable_search_extension=false。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+  }
+}

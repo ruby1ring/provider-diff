@@ -1,0 +1,48 @@
+{
+  "case_id": "deepseek_multiturn_tools",
+  "title": "多轮 tools 工作流",
+  "category": "multiturn",
+  "parameters": ["messages", "tools", "tool_choice"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "system", "content": "你只输出中文。"},
+      {"role": "user", "content": "查询深圳天气。"},
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_weather_003",
+            "type": "function",
+            "function": {
+              "name": "get_weather",
+              "arguments": "{\"city\":\"深圳\"}"
+            }
+          }
+        ]
+      },
+      {"role": "tool", "tool_call_id": "call_weather_003", "content": "{\"temperature\":28,\"condition\":\"sunny\"}"},
+      {"role": "user", "content": "请给出一句中文总结。"}
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_weather",
+          "description": "查询城市天气。",
+          "parameters": {"type": "object", "properties": {"city": {"type": "string"}}, "required": ["city"]}
+        }
+      }
+    ],
+    "tool_choice": "auto"
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "notes": "多轮场景验证 role=tool 和 tools 定义共同工作。"
+  }
+}

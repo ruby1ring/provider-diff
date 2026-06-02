@@ -1,0 +1,26 @@
+{
+  "case_id": "or_routing_provider_order",
+  "title": "provider.order should be accepted",
+  "category": "routing",
+  "parameters": ["provider.order", "provider.allow_fallbacks"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Say one short sentence about provider order."
+      }
+    ],
+    "provider": {
+      "order": ["openai"],
+      "allow_fallbacks": true
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Provider slug availability can change; validates request shape."
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "case_id": "ali_debug_top_logprobs",
+  "title": "top_logprobs 与 logprobs=true",
+  "category": "debug",
+  "parameters": [
+    "logprobs",
+    "top_logprobs"
+  ],
+  "requires_model_capability": "logprobs",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "qwen-plus-2025-04-28",
+    "messages": [
+      {
+        "role": "user",
+        "content": "输出一个中文短词。"
+      }
+    ],
+    "logprobs": true,
+    "top_logprobs": 2
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "optional_response_fields": [
+      "choices[].logprobs.content[].top_logprobs"
+    ],
+    "notes": "top_logprobs 范围为 [0,5]，仅当 logprobs=true 时生效；当前 key 对 qwen-plus-2025-04-28 已实测返回 200。"
+  }
+}

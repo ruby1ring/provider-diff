@@ -1,0 +1,34 @@
+{
+  "case_id": "or_basic_multimessage_context",
+  "title": "multi-message context should be accepted",
+  "category": "basic",
+  "parameters": ["messages"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Answer only the final user question."
+      },
+      {
+        "role": "user",
+        "content": "Remember the word: router."
+      },
+      {
+        "role": "assistant",
+        "content": "I will remember the word router."
+      },
+      {
+        "role": "user",
+        "content": "What word did I ask you to remember?"
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Validates assistant history and normal multi-turn context shape."
+  }
+}

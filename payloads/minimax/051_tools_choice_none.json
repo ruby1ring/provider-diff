@@ -1,0 +1,37 @@
+{
+  "case_id": "minimax_tools_choice_none",
+  "title": "tools with tool_choice none",
+  "category": "tools",
+  "parameters": ["tools", "tool_choice"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {"role": "user", "content": "Answer directly without using tools: say ok."}
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "record_status",
+          "description": "Record a status.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {"type": "string"}
+            },
+            "required": ["status"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "none",
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"]
+  }
+}

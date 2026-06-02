@@ -1,0 +1,22 @@
+{
+  "case_id": "minimax_reasoning_split_false",
+  "title": "reasoning_split false",
+  "category": "reasoning",
+  "parameters": ["reasoning_split"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {"role": "user", "content": "Reply with one short sentence about thinking content."}
+    ],
+    "reasoning_split": false,
+    "max_completion_tokens": 100
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "When reasoning_split is false, thinking may be embedded in content using think tags."
+  }
+}

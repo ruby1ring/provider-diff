@@ -1,0 +1,41 @@
+{
+  "case_id": "oa_tools_strict_schema",
+  "title": "strict function schema",
+  "category": "tools",
+  "parameters": ["tools[].function.strict"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Call compatibility_status for parameter stream."}],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "compatibility_status",
+          "description": "Return compatibility status for one parameter.",
+          "strict": true,
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "parameter": {"type": "string"},
+              "status": {"type": "string", "enum": ["accepted", "rejected", "warning"]}
+            },
+            "required": ["parameter", "status"]
+          }
+        }
+      }
+    ],
+    "tool_choice": {
+      "type": "function",
+      "function": {"name": "compatibility_status"}
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Strict schema support uses a subset of JSON Schema."
+  }
+}

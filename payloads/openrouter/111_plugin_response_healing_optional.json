@@ -1,0 +1,36 @@
+{
+  "case_id": "or_plugin_response_healing_optional",
+  "title": "response-healing plugin should be accepted",
+  "category": "plugins",
+  "parameters": ["plugins.response-healing", "response_format"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Return valid JSON only."
+      },
+      {
+        "role": "user",
+        "content": "Return {\"status\":\"ok\",\"healed\":false}."
+      }
+    ],
+    "response_format": {
+      "type": "json_object"
+    },
+    "plugins": [
+      {
+        "id": "response-healing"
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "content_should_parse_as_json": true,
+    "notes": "Validates response-healing plugin request shape with JSON mode."
+  }
+}

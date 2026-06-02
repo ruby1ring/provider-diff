@@ -1,0 +1,33 @@
+{
+  "case_id": "ali_sampling_presence_penalty",
+  "title": "presence_penalty 内容重复度控制",
+  "category": "sampling",
+  "parameters": [
+    "presence_penalty"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "给一个简短的头脑风暴建议。"
+      }
+    ],
+    "presence_penalty": 0.5
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "presence_penalty 文档范围为 [-2.0, 2.0]。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+  }
+}

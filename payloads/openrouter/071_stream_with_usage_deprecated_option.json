@@ -1,0 +1,27 @@
+{
+  "case_id": "or_stream_with_usage_deprecated_option",
+  "title": "stream_options.include_usage is deprecated but should not break streaming",
+  "category": "protocol",
+  "parameters": ["stream", "stream_options.include_usage"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Stream one sentence about usage fields."
+      }
+    ],
+    "stream": true,
+    "stream_options": {
+      "include_usage": true
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "response_mode": "sse",
+    "required_chunk_fields": ["id", "object", "created", "model", "choices"],
+    "notes": "Current OpenAPI says include_usage is deprecated/no-op because usage details are always included."
+  }
+}

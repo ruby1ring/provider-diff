@@ -1,0 +1,40 @@
+{
+  "case_id": "oa_response_format_json_schema",
+  "title": "response_format json_schema structured output",
+  "category": "output",
+  "parameters": ["response_format"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {"role": "developer", "content": "Return valid JSON only."},
+      {"role": "user", "content": "Return a compatibility result for parameter stream with status accepted."}
+    ],
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "compatibility_result",
+        "strict": true,
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "parameter": {"type": "string"},
+            "status": {"type": "string", "enum": ["accepted", "rejected", "warning"]},
+            "notes": {"type": "string"}
+          },
+          "required": ["parameter", "status", "notes"]
+        }
+      }
+    },
+    "max_completion_tokens": 120
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "content_should_parse_as_json": true,
+    "notes": "Structured Outputs strict mode uses a subset of JSON Schema."
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "case_id": "oa_web_search_basic",
+  "title": "web_search_options basic",
+  "category": "web_search",
+  "parameters": ["web_search_options"],
+  "requires_model_capability": "web_search",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini-search-preview",
+    "messages": [
+      {"role": "user", "content": "Search briefly and name today's date."}
+    ],
+    "web_search_options": {
+      "search_context_size": "low"
+    },
+    "max_completion_tokens": 120
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Capability-gated web search case; may return URL citation annotations."
+  }
+}

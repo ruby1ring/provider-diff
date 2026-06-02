@@ -1,0 +1,47 @@
+{
+  "case_id": "deepseek_beta_prefix_reasoning_content",
+  "title": "beta prefix 与 assistant reasoning_content",
+  "category": "beta",
+  "parameters": [
+    "messages[].prefix",
+    "messages[].reasoning_content",
+    "thinking"
+  ],
+  "requires_model_capability": "thinking",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "user",
+        "content": "继续完成这个推理结论：如果 2 + 2 = 4，那么答案是"
+      },
+      {
+        "role": "assistant",
+        "content": "答案是",
+        "prefix": true,
+        "reasoning_content": "先确认基础算术关系，2 + 2 等于 4。"
+      }
+    ],
+    "thinking": {
+      "type": "enabled"
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage",
+      "system_fingerprint"
+    ],
+    "notes": "文档说明 thinking mode 下 prefix completion 可传 assistant reasoning_content，且 prefix 必须为 true；运行前请把 Base URL 改成 https://api.deepseek.com/beta。"
+  },
+  "base_url": "https://api.deepseek.com/beta"
+}

@@ -1,0 +1,26 @@
+{
+  "case_id": "or_sampling_provider_dependent_min_p_top_a",
+  "title": "min_p and top_a provider-dependent parameter probe",
+  "category": "sampling",
+  "parameters": ["min_p", "top_a"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Return one short sentence about sampling filters."
+      }
+    ],
+    "min_p": 0.05,
+    "top_a": 0.2
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Parameters docs list min_p/top_a, but current ChatRequest OpenAPI does not. Treat this as provider-dependent."
+  }
+}

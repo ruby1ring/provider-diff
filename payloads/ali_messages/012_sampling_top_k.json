@@ -1,0 +1,37 @@
+{
+  "case_id": "am_sampling_top_k",
+  "title": "top_k provider extension should be accepted where supported",
+  "category": "sampling",
+  "parameters": [
+    "top_k"
+  ],
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "max_tokens": 64,
+    "top_k": 40,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Return one short sentence about sampling."
+      }
+    ],
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "required_response_fields": [
+      "id",
+      "type",
+      "role",
+      "content",
+      "model"
+    ],
+    "notes": "Current test config has DashScope Messages access to deepseek-v4-pro, so this case uses it for API-level compatibility validation. 关闭 thinking 后验证该参数，避免 DashScope Messages 将 reasoning token 计入 usage.output_tokens。"
+  }
+}

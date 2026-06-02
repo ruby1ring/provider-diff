@@ -1,0 +1,27 @@
+{
+  "case_id": "minimax_unknown_metadata_user_probe",
+  "title": "metadata and user probe",
+  "category": "unknown",
+  "parameters": ["metadata", "user"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {"role": "user", "content": "Reply with the word ok."}
+    ],
+    "metadata": {
+      "suite": "provider-diff",
+      "case": "minimax-metadata-probe"
+    },
+    "user": "provider-diff-user",
+    "max_completion_tokens": 20
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "metadata and user are not clearly documented for MiniMax OpenAI-compatible endpoint; optional probe."
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "case_id": "minimax_sampling_top_p",
+  "title": "top_p valid range",
+  "category": "sampling",
+  "parameters": ["top_p"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {"role": "user", "content": "Return one short sentence about nucleus sampling."}
+    ],
+    "top_p": 0.9,
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"]
+  }
+}

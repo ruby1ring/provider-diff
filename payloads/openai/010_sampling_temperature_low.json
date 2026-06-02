@@ -1,0 +1,20 @@
+{
+  "case_id": "oa_sampling_temperature_low",
+  "title": "temperature low value",
+  "category": "sampling",
+  "parameters": ["temperature"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Return one short deterministic sentence about API tests."}],
+    "temperature": 0.1,
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "usage_required_fields": ["prompt_tokens", "completion_tokens", "total_tokens"]
+  }
+}

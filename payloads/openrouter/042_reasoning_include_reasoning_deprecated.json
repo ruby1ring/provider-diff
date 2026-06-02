@@ -1,0 +1,27 @@
+{
+  "case_id": "or_reasoning_include_reasoning_deprecated",
+  "title": "deprecated include_reasoning alias probe",
+  "category": "reasoning",
+  "parameters": ["include_reasoning"],
+  "requires_model_capability": "reasoning",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-5.2",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Answer briefly: what is reasoning output?"
+      }
+    ],
+    "include_reasoning": true,
+    "max_completion_tokens": 120
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Deprecated alias listed in parameters docs. Use reasoning object for new tests."
+  }
+}

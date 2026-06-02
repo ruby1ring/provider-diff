@@ -1,0 +1,46 @@
+{
+  "case_id": "ali_reasoning_preserve_thinking_with_history",
+  "title": "preserve_thinking 带历史 reasoning_content",
+  "category": "reasoning",
+  "parameters": [
+    "messages",
+    "preserve_thinking"
+  ],
+  "requires_model_capability": "preserve-thinking",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "qwen3.6-plus",
+    "messages": [
+      {
+        "role": "user",
+        "content": "2 + 3 等于几？"
+      },
+      {
+        "role": "assistant",
+        "content": "答案是 5。",
+        "reasoning_content": "先把 2 和 3 相加，得到 5。"
+      },
+      {
+        "role": "user",
+        "content": "请参考上一轮思考方式，计算 4 + 6。"
+      }
+    ],
+    "preserve_thinking": true
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "provider_extension": true,
+    "notes": "当前 key 已可访问 qwen3.6-plus，preserve_thinking 与历史 reasoning_content 组合返回 200。"
+  }
+}

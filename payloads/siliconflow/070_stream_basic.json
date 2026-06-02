@@ -1,0 +1,24 @@
+{
+  "case_id": "sf_stream_basic",
+  "title": "stream true should return SSE chunks",
+  "category": "protocol",
+  "parameters": ["stream"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Stream a short greeting."
+      }
+    ],
+    "stream": true
+  },
+  "expect": {
+    "http_status": 200,
+    "response_mode": "sse",
+    "required_chunk_fields": ["id", "object", "created", "model", "choices"],
+    "notes": "Validate streaming protocol/chunk structure instead of a final JSON body."
+  }
+}

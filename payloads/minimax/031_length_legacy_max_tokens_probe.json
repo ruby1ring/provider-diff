@@ -1,0 +1,22 @@
+{
+  "case_id": "minimax_length_legacy_max_tokens_probe",
+  "title": "Legacy max_tokens probe",
+  "category": "length",
+  "parameters": ["max_tokens"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {"role": "user", "content": "Reply with one short sentence about legacy length fields."}
+    ],
+    "max_tokens": 40
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "OpenAI-compatible endpoint docs prefer max_completion_tokens and do not clearly document max_tokens. Keep as optional probe."
+  }
+}

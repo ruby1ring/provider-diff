@@ -1,0 +1,27 @@
+{
+  "case_id": "or_routing_zdr_optional",
+  "title": "provider.zdr should restrict to zero-data-retention endpoints",
+  "category": "routing",
+  "parameters": ["provider.zdr"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Say one short sentence about privacy routing."
+      }
+    ],
+    "provider": {
+      "zdr": true,
+      "allow_fallbacks": true
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Optional because ZDR endpoints may be unavailable for the selected model/account."
+  }
+}

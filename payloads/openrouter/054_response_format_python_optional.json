@@ -1,0 +1,26 @@
+{
+  "case_id": "or_response_format_python_optional",
+  "title": "response_format python should be accepted when supported",
+  "category": "output",
+  "parameters": ["response_format"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Return a Python expression that evaluates to 2."
+      }
+    ],
+    "response_format": {
+      "type": "python"
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Python response format is in current OpenAPI but likely model/provider dependent."
+  }
+}

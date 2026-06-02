@@ -1,0 +1,21 @@
+{
+  "case_id": "deepseek_sampling_stop_string",
+  "title": "stop 字符串停止词",
+  "category": "sampling",
+  "parameters": ["stop"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "user", "content": "输出：第一句。<END>第二句不需要。"}
+    ],
+    "stop": "<END>"
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "notes": "验证 stop 支持 string 形态。"
+  }
+}

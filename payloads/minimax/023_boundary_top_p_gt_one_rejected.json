@@ -1,0 +1,21 @@
+{
+  "case_id": "minimax_boundary_top_p_gt_one_rejected",
+  "title": "top_p greater than 1 should be rejected",
+  "category": "boundary",
+  "parameters": ["top_p"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {"role": "user", "content": "This should fail because top_p is above 1."}
+    ],
+    "top_p": 1.1,
+    "max_completion_tokens": 30
+  },
+  "expect": {
+    "http_status": 400,
+    "support_conclusion": "rejected_400",
+    "notes": "MiniMax documents top_p range as (0, 1]."
+  }
+}

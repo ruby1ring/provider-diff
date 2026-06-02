@@ -1,0 +1,23 @@
+{
+  "case_id": "or_length_max_completion_tokens",
+  "title": "max_completion_tokens should be accepted",
+  "category": "length",
+  "parameters": ["max_completion_tokens"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Answer in no more than ten words: why test max token parameters?"
+      }
+    ],
+    "max_completion_tokens": 40
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Preferred length limit in current OpenRouter ChatRequest OpenAPI."
+  }
+}

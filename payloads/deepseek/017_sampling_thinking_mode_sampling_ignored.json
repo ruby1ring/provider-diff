@@ -1,0 +1,23 @@
+{
+  "case_id": "deepseek_sampling_thinking_mode_sampling_ignored",
+  "title": "thinking 模式下 temperature 与 top_p 被接受但无效果",
+  "category": "sampling_combo",
+  "parameters": ["thinking", "temperature", "top_p"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "user", "content": "用两步说明 12 + 30 的结果。"}
+    ],
+    "thinking": {"type": "enabled"},
+    "temperature": 0.2,
+    "top_p": 0.7
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "notes": "文档说明 thinking 模式下 temperature 与 top_p accepted for compatibility but do not take effect。"
+  }
+}

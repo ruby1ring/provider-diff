@@ -1,0 +1,22 @@
+{
+  "case_id": "ali_reasoning_effort_max",
+  "title": "reasoning_effort=max",
+  "category": "reasoning",
+  "parameters": ["reasoning_effort"],
+  "requires_model_capability": "deepseek-v4-reasoning",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [{"role": "user", "content": "比较 19 和 23，输出较大的数。"}],
+    "reasoning_effort": "max"
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "provider_extension": true,
+    "notes": "文档列出的 reasoning_effort 可选值之一。"
+  }
+}

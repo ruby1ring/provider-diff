@@ -1,0 +1,28 @@
+{
+  "case_id": "oa_basic_content_array_text",
+  "title": "Text content parts in message arrays",
+  "category": "basic",
+  "parameters": ["messages[].content[].type=text"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {"type": "text", "text": "Combine these words:"},
+          {"type": "text", "text": "OpenAI"},
+          {"type": "text", "text": "compatibility"}
+        ]
+      }
+    ],
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Text-only content array accepted-path case."
+  }
+}

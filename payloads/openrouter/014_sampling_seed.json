@@ -1,0 +1,24 @@
+{
+  "case_id": "or_sampling_seed",
+  "title": "seed should be accepted",
+  "category": "sampling",
+  "parameters": ["seed"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Return exactly one color name."
+      }
+    ],
+    "seed": 42,
+    "temperature": 0.2
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Determinism is not guaranteed for every upstream model; validate acceptance only."
+  }
+}

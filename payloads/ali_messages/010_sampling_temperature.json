@@ -1,0 +1,35 @@
+{
+  "case_id": "am_sampling_temperature",
+  "title": "temperature should be accepted on Messages endpoint",
+  "category": "sampling",
+  "parameters": [
+    "temperature"
+  ],
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "max_tokens": 64,
+    "temperature": 0.2,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Write one short sentence about routing."
+      }
+    ],
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": [
+      "id",
+      "type",
+      "role",
+      "content",
+      "model"
+    ],
+    "notes": "Current test config has DashScope Messages access to deepseek-v4-pro, so this case uses it for API-level compatibility validation. 关闭 thinking 后验证该参数，避免 DashScope Messages 将 reasoning token 计入 usage.output_tokens。"
+  }
+}

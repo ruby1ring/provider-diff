@@ -1,0 +1,25 @@
+{
+  "case_id": "sf_response_format_text",
+  "title": "response_format text should be accepted",
+  "category": "output",
+  "parameters": ["response_format"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Return one sentence about JSON schemas."
+      }
+    ],
+    "response_format": {
+      "type": "text"
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Text is the default output mode, but this validates explicit response_format text."
+  }
+}

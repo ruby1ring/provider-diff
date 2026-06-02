@@ -1,0 +1,27 @@
+{
+  "case_id": "or_response_format_grammar_optional",
+  "title": "response_format grammar should be accepted when supported",
+  "category": "output",
+  "parameters": ["response_format"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Answer yes or no: is this a grammar-constrained test?"
+      }
+    ],
+    "response_format": {
+      "type": "grammar",
+      "grammar": "root ::= \"yes\" | \"no\""
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Grammar response format is in current OpenAPI but likely model/provider dependent."
+  }
+}

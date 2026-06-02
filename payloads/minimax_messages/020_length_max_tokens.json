@@ -1,0 +1,19 @@
+{
+  "case_id": "am_length_max_tokens",
+  "title": "max_tokens should limit Messages output",
+  "category": "length",
+  "parameters": ["max_tokens"],
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "max_tokens": 32,
+    "messages": [
+      { "role": "user", "content": "Explain compatibility testing in one sentence." }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "type", "role", "content", "model"]
+  }
+}

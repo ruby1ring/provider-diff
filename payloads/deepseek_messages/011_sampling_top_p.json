@@ -1,0 +1,20 @@
+{
+  "case_id": "am_sampling_top_p",
+  "title": "top_p should be accepted on Messages endpoint",
+  "category": "sampling",
+  "parameters": ["top_p"],
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "max_tokens": 64,
+    "top_p": 0.8,
+    "messages": [
+      { "role": "user", "content": "Name one benefit of structured API tests." }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "type", "role", "content", "model"]
+  }
+}

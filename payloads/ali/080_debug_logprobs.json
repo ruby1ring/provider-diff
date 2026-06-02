@@ -1,0 +1,38 @@
+{
+  "case_id": "ali_debug_logprobs",
+  "title": "logprobs 输出 token 概率",
+  "category": "debug",
+  "parameters": [
+    "logprobs"
+  ],
+  "requires_model_capability": "logprobs",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "qwen-plus-2025-04-28",
+    "messages": [
+      {
+        "role": "user",
+        "content": "输出一个短词。"
+      }
+    ],
+    "logprobs": true
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "optional_response_fields": [
+      "choices[].logprobs"
+    ],
+    "notes": "当前 key 已可访问 qwen-plus-2025-04-28，logprobs=true 返回 choices[].logprobs。"
+  }
+}

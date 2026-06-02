@@ -1,0 +1,20 @@
+{
+  "case_id": "am_sampling_temperature",
+  "title": "temperature should be accepted on Messages endpoint",
+  "category": "sampling",
+  "parameters": ["temperature"],
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "anthropic/claude-sonnet-4.5",
+    "max_tokens": 64,
+    "temperature": 0.2,
+    "messages": [
+      { "role": "user", "content": "Write one short sentence about routing." }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "type", "role", "content", "model"]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "case_id": "sf_multiturn_with_system_policy",
+  "title": "multi-turn dialogue with system policy should be accepted",
+  "category": "multiturn",
+  "parameters": ["messages"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Always answer as JSON with keys answer and confidence."
+      },
+      {
+        "role": "user",
+        "content": "The provider is SiliconFlow."
+      },
+      {
+        "role": "assistant",
+        "content": "{\"answer\":\"Noted\",\"confidence\":1}"
+      },
+      {
+        "role": "user",
+        "content": "Which provider did I name?"
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Checks system instruction preservation across turns without response_format."
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "case_id": "oa_observability_user_legacy",
+  "title": "Legacy user field",
+  "category": "observability",
+  "parameters": ["user"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {"role": "user", "content": "Reply with one short sentence about legacy fields."}
+    ],
+    "user": "provider-diff-user",
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Legacy field; docs say safety_identifier and prompt_cache_key are preferred."
+  }
+}

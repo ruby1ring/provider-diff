@@ -1,0 +1,23 @@
+{
+  "case_id": "minimax_basic_system_user",
+  "title": "system and user messages",
+  "category": "basic",
+  "parameters": ["messages[].role=system", "messages[].role=user"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {"role": "system", "content": "You are concise."},
+      {"role": "user", "content": "Explain compatibility testing in one sentence."}
+    ],
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "choice_required_fields": ["index", "message", "finish_reason"],
+    "usage_required_fields": ["prompt_tokens", "completion_tokens", "total_tokens"]
+  }
+}

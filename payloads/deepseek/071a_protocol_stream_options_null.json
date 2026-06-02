@@ -1,0 +1,23 @@
+{
+  "case_id": "deepseek_protocol_stream_options_null",
+  "title": "stream_options=null",
+  "category": "protocol",
+  "parameters": ["stream", "stream_options"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "user", "content": "用一句中文说明 stream_options 为 null 时使用默认流式配置。"}
+    ],
+    "stream": true,
+    "stream_options": null
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "response_mode": "sse",
+    "required_chunk_fields": ["id", "object", "created", "model", "choices"],
+    "notes": "文档类型为 object | null；stream_options 只在 stream=true 时有效。"
+  }
+}

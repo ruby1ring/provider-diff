@@ -1,0 +1,56 @@
+{
+  "case_id": "ali_tools_parallel_tool_calls",
+  "title": "parallel_tool_calls 并行工具调用",
+  "category": "tools",
+  "parameters": [
+    "tools",
+    "tool_choice",
+    "parallel_tool_calls"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "分别查询北京和上海天气，需要时并行调用工具。"
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_current_weather",
+          "description": "查询城市当前天气。",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "location"
+            ]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto",
+    "parallel_tool_calls": true
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "验证 parallel_tool_calls=true 可被请求接受。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+  }
+}

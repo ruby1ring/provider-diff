@@ -1,0 +1,23 @@
+{
+  "case_id": "sf_sampling_stop_array",
+  "title": "stop as array should be accepted",
+  "category": "sampling",
+  "parameters": ["stop"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Write a short line and end with DONE."
+      }
+    ],
+    "stop": ["DONE", "<END>"]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Validate array stop sequence acceptance."
+  }
+}

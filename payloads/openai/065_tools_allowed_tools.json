@@ -1,0 +1,56 @@
+{
+  "case_id": "oa_tools_allowed_tools",
+  "title": "tool_choice allowed_tools",
+  "category": "tools",
+  "parameters": ["tool_choice.allowed_tools"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Use an allowed tool to mark temperature as accepted."}],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "compatibility_status",
+          "description": "Return compatibility status.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "parameter": {"type": "string"},
+              "status": {"type": "string"}
+            },
+            "required": ["parameter"]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "record_note",
+          "description": "Record a note.",
+          "parameters": {
+            "type": "object",
+            "properties": {"note": {"type": "string"}},
+            "required": ["note"]
+          }
+        }
+      }
+    ],
+    "tool_choice": {
+      "type": "allowed_tools",
+      "allowed_tools": {
+        "mode": "required",
+        "tools": [
+          {"type": "function", "function": {"name": "compatibility_status"}}
+        ]
+      }
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Validates current allowed_tools tool_choice shape."
+  }
+}

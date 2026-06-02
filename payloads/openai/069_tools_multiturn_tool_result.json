@@ -1,0 +1,41 @@
+{
+  "case_id": "oa_tools_multiturn_tool_result",
+  "title": "Tool result message after assistant tool call",
+  "category": "tools",
+  "parameters": ["messages[].role=tool", "tool_call_id"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {"role": "user", "content": "What is the weather in Shanghai?"},
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_provider_diff_weather",
+            "type": "function",
+            "function": {
+              "name": "get_current_weather",
+              "arguments": "{\"location\":\"Shanghai\",\"unit\":\"celsius\"}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_provider_diff_weather",
+        "content": "{\"temperature\":22,\"unit\":\"celsius\",\"condition\":\"cloudy\"}"
+      },
+      {"role": "user", "content": "Summarize the tool result in one sentence."}
+    ],
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Multi-turn tool-result transcript shape."
+  }
+}

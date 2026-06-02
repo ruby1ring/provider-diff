@@ -1,0 +1,33 @@
+{
+  "case_id": "ali_sampling_stop_string",
+  "title": "stop 字符串停止词",
+  "category": "sampling",
+  "parameters": [
+    "stop"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "请输出：第一句。第二句。"
+      }
+    ],
+    "stop": "第二句"
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "验证 stop 为 string 的 accepted-path。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+  }
+}

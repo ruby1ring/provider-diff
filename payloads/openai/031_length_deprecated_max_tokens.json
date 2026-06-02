@@ -1,0 +1,19 @@
+{
+  "case_id": "oa_length_deprecated_max_tokens",
+  "title": "Deprecated max_tokens compatibility",
+  "category": "length",
+  "parameters": ["max_tokens"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Reply with one short sentence about deprecated fields."}],
+    "max_tokens": 40
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Deprecated field; do not use with o-series reasoning models."
+  }
+}

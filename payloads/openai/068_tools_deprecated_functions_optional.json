@@ -1,0 +1,34 @@
+{
+  "case_id": "oa_tools_deprecated_functions",
+  "title": "Deprecated functions and function_call",
+  "category": "tools",
+  "parameters": ["functions", "function_call"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Call compatibility_status for max_tokens."}],
+    "functions": [
+      {
+        "name": "compatibility_status",
+        "description": "Return compatibility status.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "parameter": {"type": "string"},
+            "status": {"type": "string"}
+          },
+          "required": ["parameter"]
+        }
+      }
+    ],
+    "function_call": {"name": "compatibility_status"}
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Deprecated legacy API surface; prefer tools/tool_choice in new tests."
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "case_id": "ali_sampling_combo_penalty_stop",
+  "title": "presence_penalty、repetition_penalty 与 stop 组合",
+  "category": "sampling_combo",
+  "parameters": [
+    "presence_penalty",
+    "repetition_penalty",
+    "stop"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "写两句关于测试稳定性的中文短句。"
+      }
+    ],
+    "presence_penalty": 0.3,
+    "repetition_penalty": 1.05,
+    "stop": [
+      "第二句"
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "组合验证两个重复控制参数和 stop 可以共同被请求接受。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+  }
+}

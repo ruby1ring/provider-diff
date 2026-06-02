@@ -1,0 +1,23 @@
+{
+  "case_id": "sf_observability_trace_header",
+  "title": "response should include SiliconFlow trace header when available",
+  "category": "observability",
+  "parameters": ["x-siliconcloud-trace-id"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with the word ok."
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "optional_response_headers": ["x-siliconcloud-trace-id"],
+    "notes": "Docs mention x-siliconcloud-trace-id as a trace identifier. Treat absence as warning unless runner confirms headers are exposed."
+  }
+}

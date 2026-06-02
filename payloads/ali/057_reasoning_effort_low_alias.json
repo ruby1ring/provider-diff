@@ -1,0 +1,22 @@
+{
+  "case_id": "ali_reasoning_effort_low_alias",
+  "title": "reasoning_effort=low 映射 high",
+  "category": "reasoning",
+  "parameters": ["reasoning_effort"],
+  "requires_model_capability": "deepseek-v4-reasoning",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [{"role": "user", "content": "判断 5 是否大于 3，只输出结论。"}],
+    "reasoning_effort": "low"
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "provider_extension": true,
+    "notes": "文档说明 low 会映射为 high。"
+  }
+}

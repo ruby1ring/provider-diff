@@ -1,0 +1,37 @@
+{
+  "case_id": "ali_tools_code_interpreter",
+  "title": "enable_code_interpreter 代码解释器",
+  "category": "tools",
+  "parameters": [
+    "enable_code_interpreter"
+  ],
+  "requires_model_capability": "code-interpreter",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "计算 [1,2,3,4] 的平均值，只给出结果。"
+      }
+    ],
+    "enable_code_interpreter": true,
+    "stream": true
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "provider_extension": true,
+    "notes": "DashScope 返回 Non-streaming mode does not support Code interpreter；按文档要求使用 stream=true 验证 enable_code_interpreter。",
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ]
+  }
+}

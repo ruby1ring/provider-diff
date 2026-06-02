@@ -1,0 +1,23 @@
+{
+  "case_id": "deepseek_reasoning_effort_high",
+  "title": "reasoning_effort=high",
+  "category": "reasoning",
+  "parameters": ["reasoning_effort"],
+  "requires_model_capability": "thinking",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "user", "content": "用两步说明 12 + 30 的结果。"}
+    ],
+    "reasoning_effort": "high"
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "optional_response_fields": ["choices[].message.reasoning_content", "usage.completion_tokens_details.reasoning_tokens"],
+    "notes": "文档明确支持 high，普通请求默认 high。"
+  }
+}

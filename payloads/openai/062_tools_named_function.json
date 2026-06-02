@@ -1,0 +1,38 @@
+{
+  "case_id": "oa_tools_named_function",
+  "title": "Force named function tool",
+  "category": "tools",
+  "parameters": ["tool_choice"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Call compatibility_status for parameter response_format."}],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "compatibility_status",
+          "description": "Return compatibility status for one parameter.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "parameter": {"type": "string"},
+              "status": {"type": "string", "enum": ["accepted", "rejected", "warning"]}
+            },
+            "required": ["parameter", "status"]
+          }
+        }
+      }
+    ],
+    "tool_choice": {
+      "type": "function",
+      "function": {"name": "compatibility_status"}
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"]
+  }
+}

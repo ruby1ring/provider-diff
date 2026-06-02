@@ -1,0 +1,39 @@
+{
+  "case_id": "ali_search_strategy_max",
+  "title": "search_strategy=max",
+  "category": "search",
+  "parameters": [
+    "enable_search",
+    "search_options"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "请联网搜索后用一句话回答：阿里云百炼是什么？"
+      }
+    ],
+    "enable_search": true,
+    "search_options": {
+      "forced_search": true,
+      "search_strategy": "max"
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "provider_extension": true,
+    "notes": "文档列出的 search_strategy 值之一。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+  }
+}

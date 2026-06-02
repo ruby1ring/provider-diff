@@ -1,0 +1,25 @@
+{
+  "case_id": "oa_basic_system_developer_user",
+  "title": "system, developer, and user messages",
+  "category": "basic",
+  "parameters": ["messages[].role=system", "messages[].role=developer", "messages[].role=user"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {"role": "system", "content": "You are concise."},
+      {"role": "developer", "content": "Answer with exactly one sentence."},
+      {"role": "user", "content": "What does a compatibility test check?"}
+    ],
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "choice_required_fields": ["index", "message", "finish_reason"],
+    "usage_required_fields": ["prompt_tokens", "completion_tokens", "total_tokens"],
+    "notes": "Separates system and developer role handling."
+  }
+}

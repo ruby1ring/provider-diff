@@ -1,0 +1,36 @@
+{
+  "case_id": "am_sampling_top_k",
+  "title": "top_k provider extension should be accepted where supported",
+  "category": "sampling",
+  "parameters": [
+    "top_k"
+  ],
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "max_tokens": 64,
+    "thinking": {
+      "type": "disabled"
+    },
+    "top_k": 40,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Return one short sentence about sampling."
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "required_response_fields": [
+      "id",
+      "type",
+      "role",
+      "content",
+      "model"
+    ]
+  }
+}

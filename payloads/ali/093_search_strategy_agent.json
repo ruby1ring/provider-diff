@@ -1,0 +1,42 @@
+{
+  "case_id": "ali_search_strategy_agent",
+  "title": "search_strategy=agent",
+  "category": "search",
+  "parameters": [
+    "enable_search",
+    "search_options"
+  ],
+  "requires_model_capability": "search-agent",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "qwen3-max",
+    "messages": [
+      {
+        "role": "user",
+        "content": "请联网搜索并概括 OpenAI-compatible API 的含义。"
+      }
+    ],
+    "enable_search": true,
+    "search_options": {
+      "forced_search": true,
+      "search_strategy": "agent"
+    },
+    "stream": true
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "provider_extension": true,
+    "notes": "DashScope 返回 Non-streaming mode does not support Web Search in thinking mode；stream=true 后验证 search_strategy=agent。",
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ]
+  }
+}

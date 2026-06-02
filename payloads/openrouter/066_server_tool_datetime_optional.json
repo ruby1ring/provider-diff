@@ -1,0 +1,32 @@
+{
+  "case_id": "or_server_tool_datetime_optional",
+  "title": "OpenRouter datetime server tool should be accepted",
+  "category": "tools",
+  "parameters": ["openrouter:datetime"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use the datetime tool to get the current date in UTC."
+      }
+    ],
+    "tools": [
+      {
+        "type": "openrouter:datetime",
+        "parameters": {
+          "timezone": "UTC"
+        }
+      }
+    ],
+    "tool_choice": "auto"
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "OpenRouter built-in server tool; optional because account/model/tool-loop support may vary."
+  }
+}

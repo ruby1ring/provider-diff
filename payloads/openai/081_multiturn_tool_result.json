@@ -1,0 +1,40 @@
+{
+  "case_id": "oa_multiturn_tool_result",
+  "title": "Multi-turn tool result follow-up",
+  "category": "multiturn",
+  "parameters": ["messages[].role=tool", "tool_call_id"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {"role": "user", "content": "Lookup parameter support for stream."},
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_lookup_stream",
+            "type": "function",
+            "function": {
+              "name": "lookup_parameter",
+              "arguments": "{\"parameter\":\"stream\"}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_lookup_stream",
+        "content": "{\"parameter\":\"stream\",\"status\":\"supported\"}"
+      },
+      {"role": "user", "content": "Return the status only."}
+    ],
+    "max_completion_tokens": 50
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"]
+  }
+}

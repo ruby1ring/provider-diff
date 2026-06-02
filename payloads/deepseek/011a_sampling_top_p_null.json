@@ -1,0 +1,21 @@
+{
+  "case_id": "deepseek_sampling_top_p_null",
+  "title": "top_p=null",
+  "category": "sampling",
+  "parameters": ["top_p"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "user", "content": "用一句中文说明 top_p 为 null 时使用默认采样。"}
+    ],
+    "top_p": null
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "notes": "文档类型为 number | null。"
+  }
+}

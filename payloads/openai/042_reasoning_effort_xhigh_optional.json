@@ -1,0 +1,22 @@
+{
+  "case_id": "oa_reasoning_effort_xhigh",
+  "title": "reasoning_effort xhigh on newer reasoning models",
+  "category": "reasoning",
+  "parameters": ["reasoning_effort"],
+  "requires_model_capability": "reasoning_xhigh",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.4-mini",
+    "messages": [{"role": "user", "content": "Check whether 23 is prime and answer yes or no."}],
+    "reasoning_effort": "xhigh",
+    "max_completion_tokens": 120
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "Optional because xhigh support is model-version dependent."
+  }
+}

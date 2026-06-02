@@ -1,0 +1,21 @@
+{
+  "case_id": "deepseek_sampling_stop_array",
+  "title": "stop 数组停止词",
+  "category": "sampling",
+  "parameters": ["stop"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "user", "content": "输出一行中文，然后写 END。"}
+    ],
+    "stop": ["END", "<END>"]
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "notes": "文档说明 stop array 最多支持 16 个字符串；该 case 使用两个停止词。"
+  }
+}

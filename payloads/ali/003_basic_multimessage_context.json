@@ -1,0 +1,45 @@
+{
+  "case_id": "ali_basic_multimessage_context",
+  "title": "多轮上下文 messages",
+  "category": "multiturn",
+  "parameters": [
+    "model",
+    "messages"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "system",
+        "content": "你需要记住用户给出的代号。"
+      },
+      {
+        "role": "user",
+        "content": "项目代号是 R17。"
+      },
+      {
+        "role": "assistant",
+        "content": "已记住，项目代号是 R17。"
+      },
+      {
+        "role": "user",
+        "content": "刚才的项目代号是什么？"
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "验证多轮普通文本上下文可以被接受。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+  }
+}

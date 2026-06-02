@@ -1,0 +1,23 @@
+{
+  "case_id": "minimax_sampling_combo_core",
+  "title": "Core supported sampling parameters together",
+  "category": "sampling",
+  "parameters": ["temperature", "top_p", "n"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {"role": "user", "content": "Return one compact sentence about MiniMax sampling controls."}
+    ],
+    "temperature": 0.8,
+    "top_p": 0.9,
+    "n": 1,
+    "max_completion_tokens": 70
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"]
+  }
+}

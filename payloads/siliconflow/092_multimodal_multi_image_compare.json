@@ -1,0 +1,47 @@
+{
+  "case_id": "sf_multimodal_multi_image_compare",
+  "title": "multiple image_url content parts should be accepted on GLM vision model",
+  "category": "multimodal",
+  "parameters": ["messages[].content[].image_url"],
+  "requires_model_capability": "vision",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "zai-org/GLM-4.6V",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "https://sf-maas-uat-prod.oss-cn-shanghai.aliyuncs.com/suggestion/lbygavkzjykewmmpnzfutkvedlowunms.png",
+              "detail": "auto"
+            }
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20241108/xzsgiz/football1.jpg",
+              "detail": "auto"
+            }
+          },
+          {
+            "type": "text",
+            "text": "Compare the two images in one concise sentence."
+          }
+        ]
+      }
+    ],
+    "temperature": 0.2,
+    "max_tokens": 160
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "assistant_content_non_empty": true,
+    "notes": "Capability-gated VLM case for multiple image_url content parts. Image URLs were checked from local machine and returned HTTP 200."
+  }
+}

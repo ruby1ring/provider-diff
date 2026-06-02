@@ -1,0 +1,23 @@
+{
+  "case_id": "or_basic_minimal",
+  "title": "Minimal chat completion with messages",
+  "category": "basic",
+  "parameters": ["messages", "model"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Say hi in one short sentence."
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "choice_required_fields": ["index", "message", "finish_reason"],
+    "notes": "Baseline OpenRouter accepted-path case. Usage can vary by stream/model but should usually be present."
+  }
+}

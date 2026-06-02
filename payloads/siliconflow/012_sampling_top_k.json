@@ -1,0 +1,24 @@
+{
+  "case_id": "sf_sampling_top_k",
+  "title": "top_k provider extension should be accepted",
+  "category": "sampling",
+  "parameters": ["top_k"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with a five-word sentence about testing."
+      }
+    ],
+    "top_k": 40
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "provider_extension": true,
+    "notes": "top_k is not core OpenAI chat-completions, so record it as a SiliconFlow extension if accepted."
+  }
+}

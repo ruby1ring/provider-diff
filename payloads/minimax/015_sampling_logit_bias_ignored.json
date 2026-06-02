@@ -1,0 +1,24 @@
+{
+  "case_id": "minimax_sampling_logit_bias_ignored",
+  "title": "logit_bias ignored",
+  "category": "sampling",
+  "parameters": ["logit_bias"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {"role": "user", "content": "Return one short sentence about ignored parameters."}
+    ],
+    "logit_bias": {
+      "50256": -100
+    },
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "MiniMax docs say logit_bias is ignored."
+  }
+}

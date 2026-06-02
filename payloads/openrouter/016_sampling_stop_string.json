@@ -1,0 +1,23 @@
+{
+  "case_id": "or_sampling_stop_string",
+  "title": "stop string should be accepted",
+  "category": "sampling",
+  "parameters": ["stop"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Count from one to five, separated by commas."
+      }
+    ],
+    "stop": "four"
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "OpenRouter supports stop as a string."
+  }
+}

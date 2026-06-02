@@ -1,0 +1,35 @@
+{
+  "case_id": "ali_response_format_text",
+  "title": "response_format=text",
+  "category": "output",
+  "parameters": [
+    "response_format"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句话回答：什么是 JSON？"
+      }
+    ],
+    "response_format": {
+      "type": "text"
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "文档列出的 response_format.type 值之一。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+  }
+}

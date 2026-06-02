@@ -1,0 +1,26 @@
+{
+  "case_id": "sf_sampling_combo_top_p_top_k_min_p",
+  "title": "top_p, top_k and min_p together should be accepted",
+  "category": "sampling_combo",
+  "parameters": ["top_p", "top_k", "min_p"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Give one sentence about gateway routing."
+      }
+    ],
+    "top_p": 0.85,
+    "top_k": 30,
+    "min_p": 0.03
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "provider_extension": true,
+    "notes": "Combination includes provider extensions top_k and min_p."
+  }
+}

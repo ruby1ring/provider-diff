@@ -1,0 +1,41 @@
+{
+  "case_id": "ali_basic_content_array_text",
+  "title": "messages.content 使用 array 的 text 项",
+  "category": "basic",
+  "parameters": [
+    "messages"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "请把下面两个词合成一句中文短句："
+          },
+          {
+            "type": "text",
+            "text": "兼容性，测试"
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "文档说明 user content 在多模态或显式缓存场景可为 array；这里只用 text 项降低模型能力依赖。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+  }
+}

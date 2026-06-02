@@ -1,0 +1,19 @@
+{
+  "case_id": "oa_sampling_stop_array",
+  "title": "stop as an array",
+  "category": "sampling",
+  "parameters": ["stop"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Write three labeled lines: Alpha, Beta, Gamma."}],
+    "stop": ["Beta", "Gamma"],
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"]
+  }
+}

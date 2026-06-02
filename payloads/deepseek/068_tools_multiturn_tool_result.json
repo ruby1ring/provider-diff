@@ -1,0 +1,47 @@
+{
+  "case_id": "deepseek_tools_multiturn_tool_result",
+  "title": "多轮 tool result 消息",
+  "category": "tools",
+  "parameters": ["messages", "tools", "tool_choice"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "user", "content": "上海天气如何？"},
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_weather_001",
+            "type": "function",
+            "function": {
+              "name": "get_weather",
+              "arguments": "{\"city\":\"上海\"}"
+            }
+          }
+        ]
+      },
+      {"role": "tool", "tool_call_id": "call_weather_001", "content": "{\"temperature\":24,\"condition\":\"cloudy\"}"},
+      {"role": "user", "content": "请用一句话总结。"}
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_weather",
+          "description": "查询城市天气。",
+          "parameters": {"type": "object", "properties": {"city": {"type": "string"}}, "required": ["city"]}
+        }
+      }
+    ],
+    "tool_choice": "auto"
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "notes": "验证 assistant.tool_calls 与 role=tool 的多轮消息结构。"
+  }
+}

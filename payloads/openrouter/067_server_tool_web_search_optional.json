@@ -1,0 +1,33 @@
+{
+  "case_id": "or_server_tool_web_search_optional",
+  "title": "OpenRouter web_search server tool should be accepted",
+  "category": "tools",
+  "parameters": ["openrouter:web_search"],
+  "optional": true,
+  "requires_model_capability": "web_search",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Search the web for OpenRouter and reply with one sentence."
+      }
+    ],
+    "tools": [
+      {
+        "type": "openrouter:web_search",
+        "parameters": {
+          "max_results": 2
+        }
+      }
+    ],
+    "tool_choice": "auto"
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
+    "notes": "Server web search can add cost and may require account/model capability."
+  }
+}

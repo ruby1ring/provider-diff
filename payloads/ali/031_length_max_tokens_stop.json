@@ -1,0 +1,36 @@
+{
+  "case_id": "ali_length_max_tokens_stop",
+  "title": "max_tokens 与 stop 组合",
+  "category": "length",
+  "parameters": [
+    "max_tokens",
+    "stop"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "按 1、2、3 的格式列出三个测试步骤。"
+      }
+    ],
+    "max_tokens": 48,
+    "stop": "3",
+    "enable_thinking": false
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "deepseek-v4-pro 默认 reasoning token 会计入 completion_tokens；关闭 enable_thinking 后组合验证 max_tokens 与 stop。"
+  }
+}

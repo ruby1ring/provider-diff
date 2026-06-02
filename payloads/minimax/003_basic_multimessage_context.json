@@ -1,0 +1,23 @@
+{
+  "case_id": "minimax_basic_multimessage_context",
+  "title": "Multi-message context",
+  "category": "basic",
+  "parameters": ["messages"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {"role": "system", "content": "Remember short facts from the conversation."},
+      {"role": "user", "content": "The project codename is provider-diff."},
+      {"role": "assistant", "content": "Understood."},
+      {"role": "user", "content": "What is the codename? Reply only with it."}
+    ],
+    "max_completion_tokens": 40
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"]
+  }
+}

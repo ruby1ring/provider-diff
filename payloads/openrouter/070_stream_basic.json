@@ -1,0 +1,24 @@
+{
+  "case_id": "or_stream_basic",
+  "title": "stream true should return SSE chunks",
+  "category": "protocol",
+  "parameters": ["stream"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Stream a short greeting."
+      }
+    ],
+    "stream": true
+  },
+  "expect": {
+    "http_status": 200,
+    "response_mode": "sse",
+    "required_chunk_fields": ["id", "object", "created", "model", "choices"],
+    "notes": "Validate streaming protocol/chunk structure instead of a final JSON body."
+  }
+}

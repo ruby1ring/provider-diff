@@ -1,0 +1,36 @@
+{
+  "case_id": "oa_tools_parallel_false",
+  "title": "parallel_tool_calls false",
+  "category": "tools",
+  "parameters": ["parallel_tool_calls"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Call one compatibility tool for stream."}],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "compatibility_status",
+          "description": "Return compatibility status for one parameter.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "parameter": {"type": "string"},
+              "status": {"type": "string"}
+            },
+            "required": ["parameter"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto",
+    "parallel_tool_calls": false
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"]
+  }
+}

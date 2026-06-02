@@ -1,0 +1,38 @@
+{
+  "case_id": "sf_multiturn_json_object",
+  "title": "multi-turn with json_object response_format should be accepted",
+  "category": "multiturn",
+  "parameters": ["messages", "response_format"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Return valid JSON only. No markdown."
+      },
+      {
+        "role": "user",
+        "content": "Parameter temperature was accepted."
+      },
+      {
+        "role": "assistant",
+        "content": "{\"parameter\":\"temperature\",\"status\":\"accepted\"}"
+      },
+      {
+        "role": "user",
+        "content": "Now return the same status with an added provider field set to siliconflow."
+      }
+    ],
+    "response_format": {
+      "type": "json_object"
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "content_should_parse_as_json": true,
+    "notes": "Multi-turn structured-output case."
+  }
+}

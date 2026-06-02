@@ -1,0 +1,25 @@
+{
+  "case_id": "oa_observability_metadata_store",
+  "title": "metadata and store fields",
+  "category": "observability",
+  "parameters": ["metadata", "store"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {"role": "user", "content": "Reply with the word ok."}
+    ],
+    "store": false,
+    "metadata": {
+      "suite": "provider-diff",
+      "case": "metadata-store"
+    },
+    "max_completion_tokens": 20
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"]
+  }
+}

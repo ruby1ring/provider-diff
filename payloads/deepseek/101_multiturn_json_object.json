@@ -1,0 +1,25 @@
+{
+  "case_id": "deepseek_multiturn_json_object",
+  "title": "多轮对话与 json_object",
+  "category": "multiturn",
+  "parameters": ["messages", "response_format"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "system", "content": "你必须只输出合法 JSON，不要输出 Markdown。"},
+      {"role": "user", "content": "记住 provider 是 deepseek。"},
+      {"role": "assistant", "content": "{\"ack\":true}"},
+      {"role": "user", "content": "输出 JSON：provider 和 ok 两个字段。"}
+    ],
+    "response_format": {"type": "json_object"}
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "content_should_parse_as_json": true,
+    "notes": "多轮上下文中验证 response_format=json_object。"
+  }
+}
