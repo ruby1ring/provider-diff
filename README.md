@@ -32,6 +32,25 @@ docker compose up --build
 
 Then open http://localhost:4173.
 
+## macOS DMG
+
+Build a self-contained macOS desktop app with the static UI and embedded Go backend:
+
+```sh
+npm install
+npm run dist:dmg
+```
+
+The DMG is written to `dist/`. The desktop app starts its own local backend on a free `127.0.0.1` port and passes that backend URL into the UI, so it does not require Docker Compose or a deployed frontend.
+
+The local build is unsigned unless you configure a macOS Developer ID certificate, so macOS may require right-clicking the app and choosing Open the first time. EvalScope and OpenCompass Docker services are not embedded in the DMG; their tabs still point at their local service URLs when those services are running separately.
+
+For local desktop smoke testing without producing a DMG:
+
+```sh
+npm run desktop:dev
+```
+
 If Docker Hub is slow or blocked in the target environment, use local cached base images or a reachable registry:
 
 ```sh

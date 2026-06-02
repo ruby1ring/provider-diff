@@ -84,7 +84,8 @@ const state = {
 
 const appProtocol = window.location.protocol === "file:" ? "http:" : window.location.protocol;
 const appHost = window.location.hostname || "localhost";
-const API_BASE = `${appProtocol}//${appHost}:8080`;
+const appQuery = new URLSearchParams(window.location.search);
+const API_BASE = appQuery.get("apiBase") || window.PROVIDER_DIFF_API_BASE || `${appProtocol}//${appHost}:8080`;
 const HISTORY_STORAGE_KEY = "llm-rosetta-history-v1";
 const EVALSCOPE_URL_STORAGE_KEY = "llm-rosetta-evalscope-url-v1";
 const DEFAULT_EVALSCOPE_URL = `${appProtocol}//${appHost}:9000/dashboard`;

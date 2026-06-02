@@ -1,6 +1,8 @@
 .DS_Store
 .idea/
 node_modules/
+dist/
+desktop/bin/
 
 config.yaml
 *.env

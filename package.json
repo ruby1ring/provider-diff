@@ -1,6 +1,47 @@
 {
+  "name": "provider-diff",
+  "version": "0.1.0",
+  "private": true,
+  "main": "desktop/main.js",
   "scripts": {
-    "dev": "node scripts/dev.js"
+    "dev": "node scripts/dev.js",
+    "desktop:dev": "node scripts/build-dmg.js --skip-package && electron .",
+    "dist:dmg": "node scripts/build-dmg.js"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "cn.siliconflow.provider-diff",
+    "productName": "Provider Diff",
+    "asar": false,
+    "files": [
+      "index.html",
+      "main.js",
+      "styles.css",
+      "package.json",
+      "lib/mock-data.js",
+      "assets/**",
+      "docs/**",
+      "outputs/**",
+      "payloads/**",
+      "desktop/main.js"
+    ],
+    "extraResources": [
+      {
+        "from": "desktop/bin/provider-diff-backend",
+        "to": "backend/provider-diff-backend"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "dmg"
+      ]
+    },
+    "dmg": {
+      "artifactName": "Provider-Diff-${version}-${arch}.${ext}"
+    }
+  }
 }
