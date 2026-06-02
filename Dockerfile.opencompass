@@ -14,7 +14,7 @@ COPY opencompass_web ./opencompass_web
 
 RUN pip install --upgrade pip setuptools wheel \
   && pip install --no-deps opencompass \
-  && pip install fastapi uvicorn
+  && pip install fastapi uvicorn mmengine-lite httpx requests tqdm tiktoken jieba json5 jsonlines pyyaml rich numpy
 
 RUN mkdir -p /app/outputs
 
