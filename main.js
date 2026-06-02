@@ -89,7 +89,7 @@ const HISTORY_STORAGE_KEY = "llm-rosetta-history-v1";
 const EVALSCOPE_URL_STORAGE_KEY = "llm-rosetta-evalscope-url-v1";
 const DEFAULT_EVALSCOPE_URL = `${appProtocol}//${appHost}:9000/dashboard`;
 const OPENCOMPASS_URL_STORAGE_KEY = "llm-rosetta-opencompass-url-v1";
-const DEFAULT_OPENCOMPASS_URL = "https://rank.opencompass.org.cn/home";
+const DEFAULT_OPENCOMPASS_URL = `${appProtocol}//${appHost}:9100/`;
 const MAX_HISTORY_ITEMS = 120;
 const runnableProviderByChannel = {
   deepseek: "deepseek",
@@ -2153,8 +2153,12 @@ function loadEmbedUrl(config) {
     return;
   }
   const storedUrl = normalizeEmbedUrl(localStorage.getItem(config.storageKey) || config.defaultUrl, config.defaultUrl);
-  const url = ["http://127.0.0.1:9000", "http://127.0.0.1:9000/dashboard", "http://localhost:9000/dashboard"].includes(storedUrl)
+  const legacyLocalEvalscopeUrls = ["http://127.0.0.1:9000", "http://127.0.0.1:9000/dashboard", "http://localhost:9000/dashboard"];
+  const legacyOpencompassUrls = ["https://rank.opencompass.org.cn/home", "https://hub.opencompass.org.cn/home"];
+  const url = config.storageKey === EVALSCOPE_URL_STORAGE_KEY && legacyLocalEvalscopeUrls.includes(storedUrl)
     ? DEFAULT_EVALSCOPE_URL
+    : config.storageKey === OPENCOMPASS_URL_STORAGE_KEY && legacyOpencompassUrls.includes(storedUrl)
+      ? DEFAULT_OPENCOMPASS_URL
     : storedUrl;
   if (config.input) config.input.value = url;
   config.frame.src = url;
@@ -2273,7 +2277,9 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-opencompass-preset]").forEach((button) => {
     button.addEventListener("click", () => {
-      els.opencompassUrl.value = button.dataset.opencompassPreset;
+      els.opencompassUrl.value = button.dataset.opencompassPreset === "local"
+        ? DEFAULT_OPENCOMPASS_URL
+        : button.dataset.opencompassPreset;
       const url = applyEmbedUrl(embedConfigs.opencompass);
       showToast(`OpenCompass 地址已应用：${url}`);
     });

@@ -269,8 +269,8 @@
           <section id="opencompassView" class="app-view is-hidden" data-view="opencompass">
           <div class="page-title-row">
             <div>
-              <h1>OpenCompass 榜单与模型库</h1>
-              <p>OpenCompass 主要是命令行评测框架；这里嵌入官方 CompassRank/CompassHub Web 入口。</p>
+              <h1>OpenCompass 可视化评测</h1>
+              <p>本地 OpenCompass Web 服务，可进入评测入口、查看输出目录和日志。</p>
             </div>
             <div class="view-actions">
               <button id="reloadOpencompass" class="secondary-button" type="button">刷新</button>
@@ -281,17 +281,18 @@
           <section class="panel embed-panel" aria-labelledby="opencompass-title">
             <div class="embed-toolbar">
               <div>
-                <p class="eyebrow">Official Web</p>
+                <p class="eyebrow">Local Web</p>
                 <h2 id="opencompass-title">嵌入地址</h2>
               </div>
               <div class="embed-address">
-                <input id="opencompassUrl" class="mono" type="url" value="https://rank.opencompass.org.cn/home" aria-label="OpenCompass URL" />
+                <input id="opencompassUrl" class="mono" type="url" value="http://127.0.0.1:9100/" aria-label="OpenCompass URL" />
                 <button id="saveOpencompassUrl" class="secondary-button" type="button">应用地址</button>
               </div>
             </div>
 
             <div class="embed-launch">
               <span class="muted">快捷入口</span>
+              <button class="embed-chip" type="button" data-opencompass-preset="local">Local Web</button>
               <button class="embed-chip" type="button" data-opencompass-preset="https://rank.opencompass.org.cn/home">CompassRank</button>
               <button class="embed-chip" type="button" data-opencompass-preset="https://hub.opencompass.org.cn/home">CompassHub</button>
               <a class="embed-chip" href="https://github.com/open-compass/opencompass" target="_blank" rel="noopener noreferrer">GitHub</a>
@@ -302,7 +303,7 @@
                 id="opencompassFrame"
                 class="embed-frame"
                 title="OpenCompass Web"
-                src="https://rank.opencompass.org.cn/home"
+                src="http://127.0.0.1:9100/"
                 loading="lazy"
                 referrerpolicy="no-referrer"
               ></iframe>

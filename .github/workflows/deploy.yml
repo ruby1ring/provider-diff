@@ -18,9 +18,11 @@ env:
   APP_PORT: "4173"
   BACKEND_PORT: "8080"
   EVALSCOPE_PORT: "9000"
+  OPENCOMPASS_PORT: "9100"
   GO_BASE_IMAGE: golang:1.24.8-alpine
   PYTHON_BASE_IMAGE: python:3.12-slim
   EVALSCOPE_BASE_IMAGE: python:3.12-slim
+  OPENCOMPASS_BASE_IMAGE: python:3.10-slim
   COMPOSE_BAKE: "false"
 
 jobs:
@@ -90,6 +92,7 @@ jobs:
           retry "backend" "http://127.0.0.1:${BACKEND_PORT}/healthz"
           retry "frontend" "http://127.0.0.1:${APP_PORT}/"
           retry "evalscope" "http://127.0.0.1:${EVALSCOPE_PORT}/dashboard"
+          retry "opencompass" "http://127.0.0.1:${OPENCOMPASS_PORT}/healthz"
 
       - name: Show containers
         if: always()

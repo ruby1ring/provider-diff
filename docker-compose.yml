@@ -16,6 +16,7 @@ services:
       - ./outputs:/app/outputs
     depends_on:
       - evalscope
+      - opencompass
 
   evalscope:
     build:
@@ -27,3 +28,14 @@ services:
       - "${EVALSCOPE_PORT:-9000}:9000"
     volumes:
       - ./outputs:/app/outputs
+
+  opencompass:
+    build:
+      context: .
+      dockerfile: Dockerfile.opencompass
+      args:
+        OPENCOMPASS_BASE_IMAGE: ${OPENCOMPASS_BASE_IMAGE:-python:3.10-slim}
+    ports:
+      - "${OPENCOMPASS_PORT:-9100}:9100"
+    volumes:
+      - ./outputs/opencompass:/app/outputs

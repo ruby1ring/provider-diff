@@ -4,7 +4,7 @@ Provider protocol compatibility comparison tool for OpenAI-compatible and provid
 
 ## Quick start
 
-Start the frontend, Go backend, and EvalScope service locally:
+Start the frontend and Go backend locally:
 
 ```sh
 npm run dev
@@ -24,7 +24,7 @@ Then replace the placeholder API keys in `config.yaml`.
 
 ## Docker Compose
 
-Start the frontend, Go backend, and EvalScope dashboard together:
+Start the frontend, Go backend, EvalScope dashboard, and OpenCompass Web together:
 
 ```sh
 docker compose up --build
@@ -38,6 +38,7 @@ If Docker Hub is slow or blocked in the target environment, use local cached bas
 GO_BASE_IMAGE=golang:1.24.8-alpine \
 PYTHON_BASE_IMAGE=python:3.12-slim \
 EVALSCOPE_BASE_IMAGE=python:3.12-slim \
+OPENCOMPASS_BASE_IMAGE=python:3.10-slim \
 docker compose up --build
 ```
 
@@ -46,8 +47,9 @@ Published ports:
 - `4173`: provider-diff frontend
 - `8080`: provider-diff Go backend API
 - `9000`: EvalScope dashboard at http://localhost:9000/dashboard
+- `9100`: OpenCompass Web wrapper at http://localhost:9100/
 
-OpenCompass is currently embedded as the official CompassRank/CompassHub web entry in the UI, not as a local containerized service.
+OpenCompass is also available from the main UI's OpenCompass tab. The wrapper runs OpenCompass CLI jobs, shows recent outputs, and keeps links to the official CompassRank and CompassHub pages.
 
 ## CI/CD
 
