@@ -13,8 +13,7 @@ ENV OPENCOMPASS_OUTPUT_DIR=/app/outputs
 COPY opencompass_web ./opencompass_web
 
 RUN pip install --upgrade pip setuptools wheel \
-  && pip install --no-deps opencompass \
-  && pip install fastapi uvicorn mmengine-lite httpx==0.27.2 requests tqdm tiktoken jieba json5 jsonlines pyyaml rich "numpy<2.0.0,>=1.23.4"
+  && pip install "opencompass[api]" fastapi uvicorn
 
 RUN mkdir -p /app/outputs
 
