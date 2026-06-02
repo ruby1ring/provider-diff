@@ -169,6 +169,16 @@ const supportConclusionMeta = {
 
 const requiredOpenAiFields = new Set(["id", "object", "choices", "usage", "model"]);
 const foundationalCaseParameters = new Set(["model", "messages"]);
+const PINNED_BASELINE_IDS = {
+  "deepseek:chat_completions": "report_original_deepseek_chat_completions_1780044160489",
+  "deepseek:anthropic_messages": "report_original_deepseek_anthropic_messages_1780044176834",
+  "minimax:chat_completions": "report_original_minimax_chat_completions_1780044268130",
+  "minimax:anthropic_messages": "report_original_minimax_anthropic_messages_1780044307399",
+  "siliconflow:chat_completions": "report_original_siliconflow_chat_completions_1780044822993",
+  "siliconflow:anthropic_messages": "report_original_siliconflow_anthropic_messages_1780044894258",
+  "ali:chat_completions": "report_original_ali_chat_completions_1780045286575",
+  "ali:anthropic_messages": "report_original_ali_anthropic_messages_1780045326769"
+};
 
 const caseTitleZh = {
   sf_basic_minimal: "最小 chat completion 请求",
@@ -315,8 +325,20 @@ function baselineOptions(providerId = currentProviderId(), endpointId = state.se
     .sort((left, right) => new Date(right.generated_at || 0) - new Date(left.generated_at || 0));
 }
 
+function pinnedBaselineId(providerId = currentProviderId(), endpointId = state.selectedEndpointId) {
+  if (!providerId) return "";
+  return PINNED_BASELINE_IDS[`${providerId}:${endpointId}`] || "";
+}
+
+function pinnedBaselineRecord(options = baselineOptions(), providerId = currentProviderId(), endpointId = state.selectedEndpointId) {
+  const id = pinnedBaselineId(providerId, endpointId);
+  if (!id) return null;
+  return options.find((record) => record.id === id) || null;
+}
+
 function automaticBaselineRecord() {
-  return baselineOptions()[0] || null;
+  const options = baselineOptions();
+  return pinnedBaselineRecord(options) || null;
 }
 
 function selectedBaselineRecord() {
@@ -333,17 +355,20 @@ function renderBaselineSelector() {
     .filter((record) => record.endpoint_id === state.selectedEndpointId)
     .filter((record) => providerMatches(record, currentProviderId(), state.selectedChannelId));
   const reportsWithoutPayload = currentEndpointRecords.filter((record) => !historyRecordHasBaselinePayload(record)).length;
-  const automatic = options[0] || null;
-  const defaultLabel = automatic
-    ? `自动：当前 provider 最新真实基线 · ${automatic.channel_name || automatic.channel_id || "历史基准"} · ${formatDateTime(automatic.generated_at)}`
+  const pinned = pinnedBaselineRecord(options);
+  const pinnedId = pinnedBaselineId();
+  const defaultLabel = pinned
+    ? `默认：固定官方基线 · ${pinned.channel_name || pinned.channel_id || "历史基准"} · ${pinned.model || "—"} · ${formatDateTime(pinned.generated_at)}`
     : reportsWithoutPayload
       ? `当前 provider 无可用基线（${reportsWithoutPayload} 份历史报告缺少响应体）`
-      : "当前 provider 无真实基线（请先跑/导入原厂 baseline）";
+      : options.length
+        ? "未找到固定官方基线（可手动选择历史报告）"
+        : "当前 provider 无固定官方基线（请先导入原厂 baseline）";
   els.baselineReport.innerHTML = [
     `<option value="">${escapeHtml(defaultLabel)}</option>`,
     ...options.map((record) => `
       <option value="${escapeHtml(record.id)}" ${record.id === state.selectedBaselineReportId ? "selected" : ""}>
-        固定：${escapeHtml(record.channel_name || record.channel_id || "历史基准")} · ${escapeHtml(record.model || "—")} · ${escapeHtml(formatDateTime(record.generated_at))}
+        ${record.id === pinnedId ? "固定官方基线" : "历史报告"}：${escapeHtml(record.channel_name || record.channel_id || "历史基准")} · ${escapeHtml(record.model || "—")} · ${escapeHtml(formatDateTime(record.generated_at))}
       </option>
     `)
   ].join("");
