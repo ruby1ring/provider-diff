@@ -1,3 +1,7 @@
+openai:
+  https://api.openai.com/v1
+  sk-your-openai-api-key
+
 deepseek:
   https://api.deepseek.com
   sk-your-deepseek-api-key
@@ -9,6 +13,10 @@ minimax:
 siliconflow:
   https://api.siliconflow.cn/v1
   sk-your-siliconflow-api-key
+
+openrouter:
+  https://openrouter.ai/api/v1
+  sk-your-openrouter-api-key
 
 ali:
   https://dashscope.aliyuncs.com/compatible-mode/v1

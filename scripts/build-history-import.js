@@ -31,6 +31,13 @@ const defaultBaseUrls = {
   ali: {
     chat_completions: "https://dashscope.aliyuncs.com/compatible-mode/v1",
     anthropic_messages: "https://dashscope.aliyuncs.com/apps/anthropic/v1"
+  },
+  openrouter: {
+    chat_completions: "https://openrouter.ai/api/v1",
+    anthropic_messages: "https://openrouter.ai/api/v1"
+  },
+  openai: {
+    chat_completions: "https://api.openai.com/v1"
   }
 };
 
@@ -38,7 +45,9 @@ const defaultModels = {
   deepseek: "deepseek-v4-flash",
   minimax: "MiniMax-M2.7",
   siliconflow: "Pro/zai-org/GLM-4.7",
-  ali: "qwen-plus"
+  ali: "qwen-plus",
+  openrouter: "openai/gpt-4o-mini",
+  openai: "gpt-4o-mini"
 };
 
 function readJSON(file) {
@@ -49,9 +58,32 @@ function hasResponseBody(result) {
   return Object.prototype.hasOwnProperty.call(result || {}, "response_body") && result.response_body !== undefined && result.response_body !== null;
 }
 
+function expectedSupportConclusion(result) {
+  if (result.expected_support_conclusion) return result.expected_support_conclusion;
+  if (Number(result.expected_http_status || 0) >= 400) return "rejected_400";
+  return "supported";
+}
+
+function matchesExpected(result) {
+  const expected = expectedSupportConclusion(result);
+  const expectedStatus = Number(result.expected_http_status || 0);
+  const statusMatches = !expectedStatus || Number(result.http_status || 0) === expectedStatus;
+  const conclusionMatches = (result.support_conclusion || "unknown") === expected;
+  if (!statusMatches || !conclusionMatches) return false;
+  if (expected === "rejected_400" || expected === "permission_limited") return true;
+  return !(result.assertions || []).some((assertion) => assertion && assertion.pass === false);
+}
+
 function statusCounts(results) {
+  const expectedResults = results.filter(matchesExpected);
+  const unexpectedResults = results.filter((item) => !matchesExpected(item));
   return {
     total: results.length,
+    expectedPass: expectedResults.length,
+    unexpected: unexpectedResults.length,
+    unexpectedRejected: unexpectedResults.filter((item) => item.support_conclusion === "rejected_400").length,
+    unexpectedRequestFailed: unexpectedResults.filter((item) => item.support_conclusion === "request_failed").length,
+    unexpectedSchemaMismatch: unexpectedResults.filter((item) => item.support_conclusion === "schema_mismatch").length,
     supported: results.filter((item) => item.support_conclusion === "supported").length,
     ignored: results.filter((item) => item.support_conclusion === "ignored").length,
     permissionLimited: results.filter((item) => item.support_conclusion === "permission_limited").length,

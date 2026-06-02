@@ -78,6 +78,7 @@
     "084_debug_logprobs_null.json",
     "090_metadata_user_id.json",
     "091_metadata_user_id_null.json",
+    "092_observability_usage_fields.json",
     "100_multiturn_basic.json",
     "101_multiturn_json_object.json",
     "102_multiturn_tools.json",

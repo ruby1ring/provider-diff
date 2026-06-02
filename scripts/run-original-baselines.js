@@ -6,6 +6,14 @@ const apiBase = process.env.API_BASE || "http://127.0.0.1:8080";
 
 const providers = [
   {
+    provider: "openai",
+    channel_id: "openai",
+    channel_name: "OpenAI Official",
+    endpoints: [
+      { endpoint_id: "chat_completions", base_url: "https://api.openai.com/v1" }
+    ]
+  },
+  {
     provider: "deepseek",
     channel_id: "deepseek",
     channel_name: "DeepSeek",
@@ -30,6 +38,15 @@ const providers = [
     endpoints: [
       { endpoint_id: "chat_completions", base_url: "https://api.siliconflow.cn/v1" },
       { endpoint_id: "anthropic_messages", base_url: "https://api.siliconflow.cn/v1" }
+    ]
+  },
+  {
+    provider: "openrouter",
+    channel_id: "openrouter",
+    channel_name: "OpenRouter",
+    endpoints: [
+      { endpoint_id: "chat_completions", base_url: "https://openrouter.ai/api/v1" },
+      { endpoint_id: "anthropic_messages", base_url: "https://openrouter.ai/api/v1" }
     ]
   },
   {
@@ -75,9 +92,32 @@ function hasResponseBody(result) {
   return Object.prototype.hasOwnProperty.call(result || {}, "response_body") && result.response_body !== undefined && result.response_body !== null;
 }
 
+function expectedSupportConclusion(result) {
+  if (result.expected_support_conclusion) return result.expected_support_conclusion;
+  if (Number(result.expected_http_status || 0) >= 400) return "rejected_400";
+  return "supported";
+}
+
+function matchesExpected(result) {
+  const expected = expectedSupportConclusion(result);
+  const expectedStatus = Number(result.expected_http_status || 0);
+  const statusMatches = !expectedStatus || Number(result.http_status || 0) === expectedStatus;
+  const conclusionMatches = (result.support_conclusion || "unknown") === expected;
+  if (!statusMatches || !conclusionMatches) return false;
+  if (expected === "rejected_400" || expected === "permission_limited") return true;
+  return !(result.assertions || []).some((assertion) => assertion && assertion.pass === false);
+}
+
 function stats(results) {
+  const expectedResults = results.filter(matchesExpected);
+  const unexpectedResults = results.filter((item) => !matchesExpected(item));
   return {
     total: results.length,
+    expectedPass: expectedResults.length,
+    unexpected: unexpectedResults.length,
+    unexpectedRejected: unexpectedResults.filter((item) => item.support_conclusion === "rejected_400").length,
+    unexpectedRequestFailed: unexpectedResults.filter((item) => item.support_conclusion === "request_failed").length,
+    unexpectedSchemaMismatch: unexpectedResults.filter((item) => item.support_conclusion === "schema_mismatch").length,
     supported: results.filter((item) => item.support_conclusion === "supported").length,
     ignored: results.filter((item) => item.support_conclusion === "ignored").length,
     permissionLimited: results.filter((item) => item.support_conclusion === "permission_limited").length,

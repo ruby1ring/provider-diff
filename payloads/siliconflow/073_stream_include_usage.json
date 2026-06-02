@@ -1,16 +1,20 @@
 {
-  "case_id": "deepseek_protocol_stream_include_usage",
+  "case_id": "sf_stream_include_usage",
   "title": "stream_options.include_usage 应返回 usage chunk",
   "category": "protocol",
   "parameters": ["stream", "stream_options", "stream_options.include_usage"],
   "method": "POST",
-  "path": "/chat/completions",
+  "path": "/v1/chat/completions",
   "payload": {
-    "model": "deepseek-v4-flash",
+    "model": "Pro/zai-org/GLM-4.7",
     "messages": [
-      {"role": "user", "content": "流式输出一句关于 usage 的中文说明。"}
+      {
+        "role": "user",
+        "content": "Stream one short sentence about usage accounting."
+      }
     ],
     "stream": true,
+    "enable_thinking": false,
     "max_tokens": 80,
     "stream_options": {
       "include_usage": true
@@ -25,10 +29,11 @@
       "prompt_tokens",
       "completion_tokens",
       "total_tokens",
+      "completion_tokens_details.reasoning_tokens",
+      "prompt_tokens_details.cached_tokens",
       "prompt_cache_hit_tokens",
-      "prompt_cache_miss_tokens",
-      "completion_tokens_details.reasoning_tokens"
+      "prompt_cache_miss_tokens"
     ],
-    "notes": "include_usage=true 时文档说明会在 [DONE] 前额外返回一个 choices: [] 且带 usage 的 chunk。"
+    "notes": "include_usage=true should produce at least one SSE chunk containing usage."
   }
 }

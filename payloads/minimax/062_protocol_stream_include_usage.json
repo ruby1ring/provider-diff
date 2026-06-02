@@ -1,0 +1,36 @@
+{
+  "case_id": "minimax_protocol_stream_include_usage",
+  "title": "流式响应应通过 stream_options.include_usage 返回 usage",
+  "category": "protocol",
+  "parameters": ["stream", "stream_options", "stream_options.include_usage"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Stream one short sentence about usage accounting."
+      }
+    ],
+    "stream": true,
+    "stream_options": {
+      "include_usage": true
+    },
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "response_mode": "sse",
+    "required_chunk_fields": ["id", "object", "created", "model", "choices"],
+    "usage_required_fields": [
+      "prompt_tokens",
+      "completion_tokens",
+      "total_tokens",
+      "total_characters",
+      "prompt_tokens_details.cached_tokens"
+    ],
+    "notes": "MiniMax docs mention stream_options but child behavior needs real validation; this case diagnoses include_usage usage chunks. Current MiniMax-M2.7 responses include token, character, and prompt cache usage, but not completion_tokens_details.reasoning_tokens for this non-reasoning probe."
+  }
+}

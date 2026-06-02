@@ -1,6 +1,6 @@
 {
   "case_id": "or_stream_with_usage_deprecated_option",
-  "title": "stream_options.include_usage is deprecated but should not break streaming",
+  "title": "stream_options.include_usage 已废弃但不应破坏流式返回",
   "category": "protocol",
   "parameters": ["stream", "stream_options.include_usage"],
   "method": "POST",
@@ -16,12 +16,18 @@
     "stream": true,
     "stream_options": {
       "include_usage": true
-    }
+    },
+    "max_completion_tokens": 80
   },
   "expect": {
     "http_status": 200,
     "response_mode": "sse",
     "required_chunk_fields": ["id", "object", "created", "model", "choices"],
+    "usage_required_fields": [
+      "prompt_tokens",
+      "completion_tokens",
+      "total_tokens"
+    ],
     "notes": "Current OpenAPI says include_usage is deprecated/no-op because usage details are always included."
   }
 }

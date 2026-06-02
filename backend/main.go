@@ -870,6 +870,9 @@ func evaluateAssertions(result RunCaseResult, expect map[string]any) []CaseAsser
 		if fields := stringSlice(expect["required_chunk_fields"]); len(fields) > 0 {
 			assertions = append(assertions, requiredFieldsAssertion("required_chunk_fields", firstSSEJSON(result.RawResponse), fields))
 		}
+		if fields := stringSlice(expect["usage_required_fields"]); len(fields) > 0 {
+			assertions = append(assertions, sseUsageRequiredFieldsAssertion("usage_required_fields", result.RawResponse, fields))
+		}
 		if includeUsageRequested(result.RequestBody) {
 			assertions = append(assertions, CaseAssertion{
 				Name:    "stream_options.include_usage",
@@ -1170,7 +1173,7 @@ func nestedRequiredFieldsAssertion(name string, value any, path []string, fields
 		}
 		current = array[0]
 	}
-	return requiredFieldsAssertion(name, current, fields)
+	return requiredFieldsAssertion(name, current, fieldsRelativeToPath(fields, path))
 }
 
 func contentBlockRequiredFieldsAssertion(name string, value any, fields []string) CaseAssertion {
@@ -1547,6 +1550,49 @@ func sseHasUsage(raw string) bool {
 	return false
 }
 
+func sseUsageRequiredFieldsAssertion(name string, raw string, fields []string) CaseAssertion {
+	fields = fieldsRelativeToPath(fields, []string{"usage"})
+	seenUsage := false
+	var firstMissing []string
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		line = strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if line == "" || line == "[DONE]" {
+			continue
+		}
+		parsed, ok := parseJSON([]byte(line))
+		if !ok {
+			continue
+		}
+		usage, ok := valueAt(parsed, []string{"usage"})
+		if !ok {
+			continue
+		}
+		seenUsage = true
+		object, ok := usage.(map[string]any)
+		if !ok {
+			if firstMissing == nil {
+				firstMissing = fields
+			}
+			continue
+		}
+		missing := missingFields(object, fields)
+		if len(missing) == 0 {
+			return CaseAssertion{Name: name, Pass: true, Message: "通过"}
+		}
+		if firstMissing == nil {
+			firstMissing = missing
+		}
+	}
+	if !seenUsage {
+		return CaseAssertion{Name: name, Pass: false, Message: "SSE chunk 中未找到 usage"}
+	}
+	return CaseAssertion{Name: name, Pass: false, Message: missingMessage(firstMissing)}
+}
+
 func emptyDash(value string) string {
 	if value == "" {
 		return "—"
@@ -1557,11 +1603,27 @@ func emptyDash(value string) string {
 func missingFields(object map[string]any, fields []string) []string {
 	missing := make([]string, 0)
 	for _, field := range fields {
-		if _, ok := object[field]; !ok {
+		if _, ok := valueAt(object, strings.Split(field, ".")); !ok {
 			missing = append(missing, field)
 		}
 	}
 	return missing
+}
+
+func fieldsRelativeToPath(fields []string, path []string) []string {
+	if len(path) == 0 {
+		return fields
+	}
+	prefix := strings.Join(path, ".") + "."
+	out := make([]string, 0, len(fields))
+	for _, field := range fields {
+		if strings.HasPrefix(field, prefix) {
+			out = append(out, strings.TrimPrefix(field, prefix))
+			continue
+		}
+		out = append(out, field)
+	}
+	return out
 }
 
 func missingMessage(missing []string) string {

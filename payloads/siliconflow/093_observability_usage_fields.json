@@ -1,0 +1,42 @@
+{
+  "case_id": "sf_observability_usage_fields",
+  "title": "非流式响应应包含详细 usage 字段",
+  "category": "observability",
+  "parameters": [
+    "usage",
+    "usage.prompt_tokens",
+    "usage.completion_tokens",
+    "usage.total_tokens",
+    "usage.completion_tokens_details.reasoning_tokens",
+    "usage.prompt_tokens_details.cached_tokens",
+    "usage.prompt_cache_hit_tokens",
+    "usage.prompt_cache_miss_tokens"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with one short sentence about usage accounting."
+      }
+    ],
+    "enable_thinking": false,
+    "max_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "usage_required_fields": [
+      "prompt_tokens",
+      "completion_tokens",
+      "total_tokens",
+      "completion_tokens_details.reasoning_tokens",
+      "prompt_tokens_details.cached_tokens",
+      "prompt_cache_hit_tokens",
+      "prompt_cache_miss_tokens"
+    ],
+    "notes": "Diagnoses whether non-stream JSON responses expose SiliconFlow's detailed usage fields."
+  }
+}

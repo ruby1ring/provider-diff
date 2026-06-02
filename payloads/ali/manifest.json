@@ -89,6 +89,7 @@
     "093_search_strategy_agent.json",
     "094_search_strategy_agent_max.json",
     "100_header_data_inspection.json",
-    "110_skill_ppt.json"
+    "110_skill_ppt.json",
+    "111_observability_usage_fields.json"
   ]
 }

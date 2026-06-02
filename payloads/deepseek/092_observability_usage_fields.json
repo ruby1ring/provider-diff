@@ -1,0 +1,40 @@
+{
+  "case_id": "deepseek_observability_usage_fields",
+  "title": "非流式响应应包含完整 usage 字段",
+  "category": "observability",
+  "parameters": [
+    "usage",
+    "usage.prompt_tokens",
+    "usage.completion_tokens",
+    "usage.total_tokens",
+    "usage.prompt_cache_hit_tokens",
+    "usage.prompt_cache_miss_tokens",
+    "usage.completion_tokens_details.reasoning_tokens"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句中文说明 usage 统计的作用。"
+      }
+    ],
+    "max_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "usage_required_fields": [
+      "prompt_tokens",
+      "completion_tokens",
+      "total_tokens",
+      "prompt_cache_hit_tokens",
+      "prompt_cache_miss_tokens",
+      "completion_tokens_details.reasoning_tokens"
+    ],
+    "notes": "诊断非流式 JSON 响应是否输出 DeepSeek 文档中的 token、cache 和 reasoning usage 字段。"
+  }
+}

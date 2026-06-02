@@ -73,6 +73,7 @@
     "111_observability_safety_cache.json",
     "112_observability_prompt_cache_retention_optional.json",
     "113_observability_service_tier_default.json",
-    "114_observability_user_legacy.json"
+    "114_observability_user_legacy.json",
+    "115_observability_usage_fields.json"
   ]
 }

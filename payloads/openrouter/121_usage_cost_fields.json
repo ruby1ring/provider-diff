@@ -1,8 +1,16 @@
 {
   "case_id": "or_usage_cost_fields",
-  "title": "usage should include token fields and may include OpenRouter cost fields",
+  "title": "非流式响应应包含 usage token 字段并可返回 OpenRouter cost 字段",
   "category": "observability",
-  "parameters": ["usage", "usage.cost", "usage.cost_details", "usage.is_byok"],
+  "parameters": [
+    "usage",
+    "usage.prompt_tokens",
+    "usage.completion_tokens",
+    "usage.total_tokens",
+    "usage.cost",
+    "usage.cost_details",
+    "usage.is_byok"
+  ],
   "method": "POST",
   "path": "/chat/completions",
   "payload": {

@@ -1,0 +1,38 @@
+{
+  "case_id": "minimax_observability_usage_fields",
+  "title": "非流式响应应包含详细 usage 字段",
+  "category": "observability",
+  "parameters": [
+    "usage",
+    "usage.prompt_tokens",
+    "usage.completion_tokens",
+    "usage.total_tokens",
+    "usage.total_characters",
+    "usage.prompt_tokens_details.cached_tokens"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with one short sentence about usage accounting."
+      }
+    ],
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "usage_required_fields": [
+      "prompt_tokens",
+      "completion_tokens",
+      "total_tokens",
+      "total_characters",
+      "prompt_tokens_details.cached_tokens"
+    ],
+    "notes": "Diagnoses whether non-stream JSON responses expose MiniMax token, character, and prompt cache usage fields. Reasoning token details are documented but not present in this MiniMax-M2.7 non-reasoning probe."
+  }
+}

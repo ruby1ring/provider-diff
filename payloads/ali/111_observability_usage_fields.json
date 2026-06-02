@@ -1,0 +1,42 @@
+{
+  "case_id": "ali_observability_usage_fields",
+  "title": "非流式响应应包含 usage token 字段",
+  "category": "observability",
+  "parameters": [
+    "usage",
+    "usage.prompt_tokens",
+    "usage.completion_tokens",
+    "usage.total_tokens"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句中文说明 usage 统计的作用。"
+      }
+    ],
+    "enable_thinking": false,
+    "max_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "usage_required_fields": [
+      "prompt_tokens",
+      "completion_tokens",
+      "total_tokens"
+    ],
+    "notes": "DashScope Chat Completions 文档明确响应包含 usage object；该 case 诊断 OpenAI-compatible token usage 三字段是否正常输出。"
+  }
+}

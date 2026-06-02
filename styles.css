@@ -965,28 +965,26 @@ h2 {
 
 .case-row__case {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
+  gap: 3px;
   min-width: 0;
 }
 
 .case-row__case strong {
   min-width: 0;
-  overflow: hidden;
   color: #30323a;
   font-size: 12px;
   font-weight: 650;
   line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .case-row__case code {
   color: #8588ff;
   font-family: var(--font-mono);
   font-size: 10px;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .case-row__params,
@@ -1380,6 +1378,26 @@ h2 {
   background: #fbfbff;
 }
 
+.result-case-cell {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.result-case-cell strong {
+  min-width: 0;
+  color: #30323a;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.result-case-cell span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -1461,6 +1479,31 @@ h2 {
   color: #646873;
   background: #f3f4f6;
   border: 1px solid #e5e7eb;
+}
+
+.expectation-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  margin-left: 6px;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.expectation-badge.expected {
+  color: #276749;
+  background: #edf7f1;
+  border: 1px solid #cfe8d7;
+}
+
+.expectation-badge.unexpected {
+  color: #9b2c2c;
+  background: #fff5f5;
+  border: 1px solid #fed7d7;
 }
 
 .diff-text {
@@ -1918,12 +1961,33 @@ h2 {
 
 .history-result-row {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) auto auto;
+  grid-template-columns: minmax(220px, 1.35fr) minmax(180px, 1fr) auto auto auto;
   gap: 8px;
   align-items: center;
   padding: 6px 8px;
   background: #fff;
   font-size: 11px;
+}
+
+.history-result-case {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.history-result-case strong {
+  min-width: 0;
+  color: #30323a;
+  font-size: 11px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.history-result-case code,
+.history-result-params {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .embed-panel,

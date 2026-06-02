@@ -287,20 +287,31 @@ function proxySummary(proxy = getProxyConfig()) {
 }
 
 function baselineLabel(record) {
-  if (!record) return "OpenAI 模拟基线";
+  if (!record) return "未找到当前 provider 真实基线";
   return `${record.channel_name || record.channel_id || "历史基准"} / ${record.endpoint_label || record.endpoint_id || "Endpoint"}`;
 }
 
-function baselineOptions() {
-  const endpointId = state.selectedEndpointId;
+function providerMatches(record, providerId, channelId) {
+  if (!record || (!providerId && !channelId)) return false;
+  const recordProvider = record.provider || runnableProviderByChannel[record.channel_id] || record.channel_id;
+  return recordProvider === providerId || record.channel_id === channelId;
+}
+
+function baselineOptions(providerId = currentProviderId(), endpointId = state.selectedEndpointId) {
+  const channelId = state.selectedChannelId;
   return readHistory()
     .filter((record) => record.endpoint_id === endpointId && historyRecordHasBaselinePayload(record))
+    .filter((record) => providerMatches(record, providerId, channelId))
     .sort((left, right) => new Date(right.generated_at || 0) - new Date(left.generated_at || 0));
 }
 
+function automaticBaselineRecord() {
+  return baselineOptions()[0] || null;
+}
+
 function selectedBaselineRecord() {
-  if (!state.selectedBaselineReportId) return null;
-  return readHistory().find((record) => record.id === state.selectedBaselineReportId) || null;
+  if (!state.selectedBaselineReportId) return automaticBaselineRecord();
+  return baselineOptions().find((record) => record.id === state.selectedBaselineReportId) || automaticBaselineRecord();
 }
 
 function renderBaselineSelector() {
@@ -308,16 +319,21 @@ function renderBaselineSelector() {
   const options = baselineOptions();
   const selectedStillExists = options.some((record) => record.id === state.selectedBaselineReportId);
   if (!selectedStillExists) state.selectedBaselineReportId = "";
-  const currentEndpointRecords = readHistory().filter((record) => record.endpoint_id === state.selectedEndpointId);
+  const currentEndpointRecords = readHistory()
+    .filter((record) => record.endpoint_id === state.selectedEndpointId)
+    .filter((record) => providerMatches(record, currentProviderId(), state.selectedChannelId));
   const reportsWithoutPayload = currentEndpointRecords.filter((record) => !historyRecordHasBaselinePayload(record)).length;
-  const defaultLabel = reportsWithoutPayload
-    ? `不对比历史基准（${reportsWithoutPayload} 份历史报告缺少响应体）`
-    : "不对比历史基准（先跑原厂报告后可选）";
+  const automatic = options[0] || null;
+  const defaultLabel = automatic
+    ? `自动：当前 provider 最新真实基线 · ${automatic.channel_name || automatic.channel_id || "历史基准"} · ${formatDateTime(automatic.generated_at)}`
+    : reportsWithoutPayload
+      ? `当前 provider 无可用基线（${reportsWithoutPayload} 份历史报告缺少响应体）`
+      : "当前 provider 无真实基线（请先跑/导入原厂 baseline）";
   els.baselineReport.innerHTML = [
     `<option value="">${escapeHtml(defaultLabel)}</option>`,
     ...options.map((record) => `
       <option value="${escapeHtml(record.id)}" ${record.id === state.selectedBaselineReportId ? "selected" : ""}>
-        ${escapeHtml(record.channel_name || record.channel_id || "历史基准")} · ${escapeHtml(record.model || "—")} · ${escapeHtml(formatDateTime(record.generated_at))}
+        固定：${escapeHtml(record.channel_name || record.channel_id || "历史基准")} · ${escapeHtml(record.model || "—")} · ${escapeHtml(formatDateTime(record.generated_at))}
       </option>
     `)
   ].join("");
@@ -453,7 +469,7 @@ function matchingBaselineResult(result, baseline = selectedBaselineRecord()) {
 function baselineResponseForResult(result, baseline = selectedBaselineRecord()) {
   const baselineResult = matchingBaselineResult(result, baseline);
   if (baselineResult) return baselineResult.response_body;
-  return baseline ? null : MOCK_RESPONSES["deepseek:temperature"].baseline_response;
+  return null;
 }
 
 function canonicalResultFromRaw(result = {}, fallback = {}) {
@@ -593,8 +609,51 @@ function assertionSummary(assertions = []) {
   return `断言 ${passed} / ${assertions.length} 通过。`;
 }
 
+function expectedHTTPStatusForResult(result) {
+  const status = result.expected_http_status || result.source_case?.expect?.http_status || 0;
+  return Number(status) || 0;
+}
+
+function expectedSupportConclusionForResult(result) {
+  const explicit = result.expected_support_conclusion || result.source_case?.expect?.support_conclusion;
+  if (explicit) return explicit;
+  const expectedStatus = expectedHTTPStatusForResult(result);
+  if (expectedStatus >= 400) return "rejected_400";
+  return inferSiliconFlowConclusion(result.source_case || {});
+}
+
+function failedAssertionsForResult(result) {
+  return (result.assertions || []).filter((assertion) => !assertion.pass);
+}
+
+function matchesExpectedResult(result) {
+  const expected = expectedSupportConclusionForResult(result);
+  const expectedStatus = expectedHTTPStatusForResult(result);
+  const statusMatches = !expectedStatus || Number(result.http_status || 0) === expectedStatus;
+  const conclusionMatches = (result.support_conclusion || "unknown") === expected;
+  if (!statusMatches || !conclusionMatches) return false;
+  if (expected === "rejected_400" || expected === "permission_limited") return true;
+  return failedAssertionsForResult(result).length === 0;
+}
+
+function expectationLabel(result) {
+  return matchesExpectedResult(result) ? "符合预期" : "预期外";
+}
+
+function expectationClass(result) {
+  return matchesExpectedResult(result) ? "expected" : "unexpected";
+}
+
+function expectationSummary(result) {
+  const actual = supportConclusionMeta[result.support_conclusion]?.label || supportConclusionMeta.unknown.label;
+  const expected = supportConclusionMeta[expectedSupportConclusionForResult(result)]?.label || supportConclusionMeta.supported.label;
+  const expectedStatus = expectedHTTPStatusForResult(result);
+  const statusText = expectedStatus ? `；预期 HTTP ${expectedStatus}，实际 HTTP ${result.http_status || "—"}` : "";
+  return `测试结果：${expectationLabel(result)}；实际结论：${actual}；预期结论：${expected}${statusText}。`;
+}
+
 function expectedConclusionText(result) {
-  const expected = result.expected_support_conclusion || result.source_case?.expect?.support_conclusion || inferSiliconFlowConclusion(result.source_case || {});
+  const expected = expectedSupportConclusionForResult(result);
   return supportConclusionMeta[expected]?.label || supportConclusionMeta.supported.label;
 }
 
@@ -697,6 +756,10 @@ function selectedFocusParameterCount(data) {
 
 function caseTitle(testCase) {
   return caseTitleZh[testCase.case_id] || testCase.title || testCase.case_id;
+}
+
+function resultTitle(result) {
+  return result.title || result.source_case?.title || result.case_id || "未命名 case";
 }
 
 function groupLabel(group) {
@@ -1259,8 +1322,15 @@ function responseForResult(result) {
 }
 
 function historyStats(results = []) {
+  const expectedResults = results.filter(matchesExpectedResult);
+  const unexpectedResults = results.filter((result) => !matchesExpectedResult(result));
   return {
     total: results.length,
+    expectedPass: expectedResults.length,
+    unexpected: unexpectedResults.length,
+    unexpectedRejected: unexpectedResults.filter((result) => result.support_conclusion === "rejected_400").length,
+    unexpectedRequestFailed: unexpectedResults.filter((result) => result.support_conclusion === "request_failed").length,
+    unexpectedSchemaMismatch: unexpectedResults.filter((result) => result.support_conclusion === "schema_mismatch").length,
     supported: results.filter((result) => result.support_conclusion === "supported").length,
     ignored: results.filter((result) => result.support_conclusion === "ignored").length,
     permissionLimited: results.filter((result) => result.support_conclusion === "permission_limited").length,
@@ -1276,6 +1346,11 @@ function createEmptyAggregateStats() {
   return {
     reports: 0,
     total: 0,
+    expectedPass: 0,
+    unexpected: 0,
+    unexpectedRejected: 0,
+    unexpectedRequestFailed: 0,
+    unexpectedSchemaMismatch: 0,
     supported: 0,
     ignored: 0,
     permissionLimited: 0,
@@ -1295,7 +1370,13 @@ function aggregateHistory(items = []) {
   aggregate.reports = items.length;
   for (const record of items) {
     const stats = record.stats || historyStats(record.results || []);
+    const derivedStats = historyStats(record.results || []);
     aggregate.total += stats.total || 0;
+    aggregate.expectedPass += stats.expectedPass ?? derivedStats.expectedPass;
+    aggregate.unexpected += stats.unexpected ?? derivedStats.unexpected;
+    aggregate.unexpectedRejected += stats.unexpectedRejected ?? derivedStats.unexpectedRejected;
+    aggregate.unexpectedRequestFailed += stats.unexpectedRequestFailed ?? derivedStats.unexpectedRequestFailed;
+    aggregate.unexpectedSchemaMismatch += stats.unexpectedSchemaMismatch ?? derivedStats.unexpectedSchemaMismatch;
     aggregate.supported += stats.supported || 0;
     aggregate.ignored += stats.ignored || 0;
     aggregate.permissionLimited += stats.permissionLimited || 0;
@@ -1339,9 +1420,9 @@ function renderHistorySummary(items) {
         <small>模型 ${aggregate.models.size} 个 · 最近 ${escapeHtml(latestText)}</small>
       </article>
       <article class="report-summary-card report-summary-card--pass">
-        <span>支持</span>
-        <strong>${aggregate.supported}</strong>
-        <small>${percentText(aggregate.supported, aggregate.total)}</small>
+        <span>符合预期</span>
+        <strong>${aggregate.expectedPass}</strong>
+        <small>${percentText(aggregate.expectedPass, aggregate.total)}</small>
       </article>
       <article class="report-summary-card report-summary-card--warn">
         <span>静默忽略</span>
@@ -1349,9 +1430,9 @@ function renderHistorySummary(items) {
         <small>${percentText(aggregate.ignored, aggregate.total)}</small>
       </article>
       <article class="report-summary-card report-summary-card--fail">
-        <span>400 / 失败</span>
-        <strong>${aggregate.rejected + aggregate.requestFailed}</strong>
-        <small>400 ${aggregate.rejected} · 失败 ${aggregate.requestFailed} · 断言 ${aggregate.schemaMismatch}</small>
+        <span>预期外</span>
+        <strong>${aggregate.unexpected}</strong>
+        <small>400 ${aggregate.unexpectedRejected} · 失败 ${aggregate.unexpectedRequestFailed} · 断言 ${aggregate.unexpectedSchemaMismatch}</small>
       </article>
       <article class="report-summary-card report-summary-card--diff">
         <span>可作基线</span>
@@ -1409,9 +1490,10 @@ function createHistoryRecord() {
     endpoint_label: endpoint.label,
     channel_id: channel.channel_id,
     channel_name: channel.name,
+    provider: currentProviderId() || channel.provider_id || runnableProviderByChannel[channel.channel_id] || channel.channel_id,
     base_url: els.baseUrl.value.trim(),
     model: els.modelName.value.trim(),
-    baseline_report_id: state.selectedBaselineReportId || "",
+    baseline_report_id: selectedBaselineRecord()?.id || "",
     baseline_label: baselineLabel(selectedBaselineRecord()),
     proxy: state.lastRunProxy || getProxyConfig(),
     stats: historyStats(normalizedResults),
@@ -1487,6 +1569,7 @@ async function importHistoryFiles(files) {
 }
 
 function historyRecordMarkdown(record) {
+  const stats = { ...historyStats(record.results || []), ...(record.stats || {}) };
   const lines = [
     `# llm-rosetta 历史测试报告：${record.channel_name}`,
     "",
@@ -1497,12 +1580,12 @@ function historyRecordMarkdown(record) {
     `对比基准：${record.baseline_label || "未选择历史基准"}`,
     `代理配置：${proxySummary(record.proxy)}`,
     "",
-    `总计：${record.stats.total}；支持：${record.stats.supported}；静默忽略：${record.stats.ignored}；400：${record.stats.rejected}；请求失败：${record.stats.requestFailed}；断言失败：${record.stats.schemaMismatch || 0}；结构差异：${record.stats.diffs}`,
+    `总计：${stats.total}；符合预期：${stats.expectedPass}；预期外：${stats.unexpected}；支持：${stats.supported}；静默忽略：${stats.ignored}；400：${stats.rejected}；请求失败：${stats.requestFailed}；断言失败：${stats.schemaMismatch || 0}；结构差异：${stats.diffs}`,
     "",
-    "| Case | 参数 | 分类 | 支持结论 | HTTP 状态 | 结构差异 |",
-    "|---|---|---|---|---|---|",
+    "| Case | 参数 | 分类 | 测试结果 | 实际结论 | HTTP 状态 | 结构差异 |",
+    "|---|---|---|---|---|---|---|",
     ...record.results.map((result) =>
-      `| \`${result.case_id}\` | \`${result.parameter}\` | ${categoryLabel(result.category)} | ${conclusionMeta(result).label} | ${result.http_status || conclusionMeta(result).httpStatus || "—"} | ${result.diff_count ? `${result.diff_count} 个字段差异` : "—"} |`
+      `| \`${result.case_id}\` | \`${result.parameter}\` | ${categoryLabel(result.category)} | ${expectationLabel(result)} | ${conclusionMeta(result).label} | ${result.http_status || conclusionMeta(result).httpStatus || "—"} | ${result.diff_count ? `${result.diff_count} 个字段差异` : "—"} |`
     )
   ];
   return lines.join("\n");
@@ -1547,8 +1630,8 @@ function renderHistory() {
             <th>Provider / Model</th>
             <th>Endpoint</th>
             <th>Cases</th>
-            <th>Supported</th>
-            <th>Ignored / 400 / Failed</th>
+            <th>Expected</th>
+            <th>Behavior</th>
             <th>Diffs</th>
             <th>Created At</th>
             <th>Actions</th>
@@ -1556,7 +1639,8 @@ function renderHistory() {
         </thead>
         <tbody>
           ${items.map((record) => {
-            const stats = record.stats || historyStats(record.results || []);
+            const derivedStats = historyStats(record.results || []);
+            const stats = { ...derivedStats, ...(record.stats || {}) };
             return `
               <tr class="history-row" data-history-id="${escapeHtml(record.id)}">
                 <td class="mono history-report-id">${escapeHtml(record.id.replace(/^report_/, "run/"))}</td>
@@ -1571,10 +1655,10 @@ function renderHistory() {
                 <td class="mono">${escapeHtml(record.endpoint_label || record.endpoint_id || "Chat Completions")}</td>
                 <td class="mono">${stats.total || 0}</td>
                 <td>
-                  <span class="history-stat-pill visible">${stats.supported || 0} / ${percentText(stats.supported || 0, stats.total || 0)}</span>
+                  <span class="history-stat-pill visible">${stats.expectedPass || 0} / ${percentText(stats.expectedPass || 0, stats.total || 0)}</span>
                 </td>
                 <td>
-                  <span class="history-stat-pill ${stats.requestFailed || stats.rejected ? "warning" : ""}">
+                  <span class="history-stat-pill ${stats.unexpected ? "warning" : ""}">
                     ${(stats.ignored || 0) + (stats.permissionLimited || 0)} / ${stats.rejected || 0} / ${(stats.requestFailed || 0) + (stats.schemaMismatch || 0)}
                   </span>
                 </td>
@@ -1596,6 +1680,8 @@ function renderHistory() {
                       <span class="mono">${escapeHtml(record.base_url || "—")}</span>
                       <span>${escapeHtml(proxySummary(record.proxy))}</span>
                       <span>总计 <strong>${stats.total}</strong></span>
+                      <span>符合预期 <strong>${stats.expectedPass}</strong></span>
+                      <span>预期外 <strong>${stats.unexpected}</strong></span>
                       <span>支持 <strong>${stats.supported}</strong></span>
                       <span>静默忽略 <strong>${stats.ignored}</strong></span>
                       <span>400 <strong>${stats.rejected}</strong></span>
@@ -1609,10 +1695,14 @@ function renderHistory() {
                         const meta = conclusionMeta(result);
                         return `
                           <div class="history-result-row">
-                            <span class="mono">${escapeHtml(result.case_id)}</span>
-                            <span class="mono">${escapeHtml(result.parameter)}</span>
-                            <span class="support-badge ${meta.badgeClass}">${escapeHtml(meta.label)}</span>
-                            <span class="mono muted">HTTP ${escapeHtml(result.http_status || meta.httpStatus || "—")}</span>
+	                            <span class="history-result-case">
+	                              <strong title="${escapeHtml(resultTitle(result))}">${escapeHtml(resultTitle(result))}</strong>
+	                              <code>${escapeHtml(result.case_id)}</code>
+	                            </span>
+	                            <span class="mono history-result-params">${escapeHtml(result.parameter)}</span>
+	                            <span class="support-badge ${meta.badgeClass}">${escapeHtml(meta.label)}</span>
+	                            <span class="expectation-badge ${expectationClass(result)}">${escapeHtml(expectationLabel(result))}</span>
+	                            <span class="mono muted">HTTP ${escapeHtml(result.http_status || meta.httpStatus || "—")}</span>
                           </div>
                         `;
                       }).join("")}
@@ -1841,11 +1931,12 @@ function finishRun() {
 function appendLog(result) {
   const line = document.createElement("span");
   const meta = conclusionMeta(result);
-  line.className = `log-line ${meta.status}`;
-  const mark = statusMarks[meta.status];
+  const expected = matchesExpectedResult(result);
+  line.className = `log-line ${expected ? "accepted" : meta.status}`;
+  const mark = expected ? statusMarks.accepted : statusMarks[meta.status];
   const httpStatus = result.http_status || meta.httpStatus || "—";
   const latency = result.latency_ms ? `${result.latency_ms}ms` : "—";
-  line.textContent = `${mark} ${result.parameter.padEnd(28)} ${meta.label.padEnd(14)} HTTP ${String(httpStatus).padEnd(3)} ${latency.padEnd(7)} ${result.message || ""}`;
+  line.textContent = `${mark} ${result.parameter.padEnd(28)} ${meta.label.padEnd(14)} ${expectationLabel(result).padEnd(6)} HTTP ${String(httpStatus).padEnd(3)} ${latency.padEnd(7)} ${result.message || ""}`;
   els.runLog.appendChild(line);
   els.runLog.scrollTop = els.runLog.scrollHeight;
 }
@@ -1862,16 +1953,16 @@ function filteredResults() {
   const results = state.completedResults.length ? state.completedResults : state.visibleResults;
   if (state.selectedFilter === "unsupported_400") return results.filter((result) => result.support_conclusion === "rejected_400");
   if (state.selectedFilter === "ignored") return results.filter((result) => result.support_conclusion === "ignored" || result.support_conclusion === "permission_limited");
-  if (state.selectedFilter === "request_failed") return results.filter((result) => result.support_conclusion === "request_failed" || result.support_conclusion === "schema_mismatch");
+  if (state.selectedFilter === "request_failed") return results.filter((result) => !matchesExpectedResult(result));
   if (state.selectedFilter === "diffs") return results.filter((result) => result.diff_count > 0);
   return results;
 }
 
 function renderStats() {
   const results = state.completedResults;
-  els.statPassed.textContent = results.filter((result) => result.support_conclusion === "supported").length;
+  els.statPassed.textContent = results.filter(matchesExpectedResult).length;
   els.statWarnings.textContent = results.filter((result) => result.support_conclusion === "ignored" || result.support_conclusion === "permission_limited").length;
-  els.statFailed.textContent = results.filter((result) => ["rejected_400", "request_failed", "schema_mismatch"].includes(result.support_conclusion)).length;
+  els.statFailed.textContent = results.filter((result) => !matchesExpectedResult(result)).length;
   els.statDiffs.textContent = results.filter((result) => result.diff_count > 0).length;
 }
 
@@ -1879,9 +1970,9 @@ function renderTabs() {
   const results = state.completedResults;
   const tabs = [
     ["all", `全部 (${results.length})`],
-    ["unsupported_400", `不支持且 400 (${results.filter((result) => result.support_conclusion === "rejected_400").length})`],
+    ["unsupported_400", `400 拒绝 (${results.filter((result) => result.support_conclusion === "rejected_400").length})`],
     ["ignored", `忽略/权限 (${results.filter((result) => result.support_conclusion === "ignored" || result.support_conclusion === "permission_limited").length})`],
-    ["request_failed", `失败/断言 (${results.filter((result) => result.support_conclusion === "request_failed" || result.support_conclusion === "schema_mismatch").length})`],
+    ["request_failed", `预期外 (${results.filter((result) => !matchesExpectedResult(result)).length})`],
     ["diffs", `结构差异 (${results.filter((result) => result.diff_count > 0).length})`]
   ];
 
@@ -1900,9 +1991,18 @@ function renderResults() {
     const detail = state.expandedCaseId === result.case_id ? renderDetailRow(result) : "";
     return `
       <tr class="result-row" data-case-id="${escapeHtml(result.case_id)}">
-        <td class="mono">${escapeHtml(result.parameter)}</td>
+        <td>
+          <div class="result-case-cell">
+            <strong title="${escapeHtml(resultTitle(result))}">${escapeHtml(resultTitle(result))}</strong>
+            <span class="mono muted">${escapeHtml(result.case_id)}</span>
+            <span class="mono">${escapeHtml(result.parameter)}</span>
+          </div>
+        </td>
         <td class="muted">${escapeHtml(categoryLabel(result.category))}</td>
-        <td><span class="support-badge ${meta.badgeClass}">${escapeHtml(meta.label)}</span></td>
+        <td>
+          <span class="support-badge ${meta.badgeClass}">${escapeHtml(meta.label)}</span>
+          <span class="expectation-badge ${expectationClass(result)}">${escapeHtml(expectationLabel(result))}</span>
+        </td>
         <td class="mono muted">${result.http_status || meta.httpStatus || "—"}</td>
         <td><span class="diff-text ${result.diff_count ? "" : "clean"}">${escapeHtml(diffText)}</span></td>
       </tr>
@@ -1943,7 +2043,7 @@ function renderDetailRow(result) {
             <div>
               <strong>${escapeHtml(result.parameter)}</strong>
               <p>${escapeHtml(result.message || meta.note)}</p>
-              <p>预期结论：${escapeHtml(expectedConclusionText(result))}；${escapeHtml(assertionSummary(result.assertions))}</p>
+              <p>${escapeHtml(expectationSummary(result))}；${escapeHtml(assertionSummary(result.assertions))}</p>
             </div>
           </div>
 
@@ -1982,9 +2082,9 @@ function renderDetailRow(result) {
             <div class="response-pane">
               <p class="detail-title">${escapeHtml(response.baseline_label || "基线响应")}</p>
               <div class="response-meta">
-                <span>${escapeHtml(response.baseline_meta?.model || response.baseline_meta?.channel_name || "mock")}</span>
-                <span>${escapeHtml(response.baseline_meta?.http_status || 200)}</span>
-                <span>${response.baseline_meta ? escapeHtml(formatDateTime(response.baseline_meta.generated_at)) : "模拟"}</span>
+                <span>${escapeHtml(response.baseline_meta?.model || response.baseline_meta?.channel_name || "—")}</span>
+                <span>${escapeHtml(response.baseline_meta?.http_status || "—")}</span>
+                <span>${response.baseline_meta ? escapeHtml(formatDateTime(response.baseline_meta.generated_at)) : "未命中"}</span>
               </div>
               <pre class="code-block">${syntaxJson(response.baseline_response)}</pre>
             </div>
@@ -2086,11 +2186,12 @@ async function copyText(text, label) {
 }
 
 function exportJson() {
+  const baseline = selectedBaselineRecord();
   const payload = {
     channel: getSelectedChannel(),
     baseline: {
-      report_id: state.selectedBaselineReportId || "",
-      label: baselineLabel(selectedBaselineRecord())
+      report_id: baseline?.id || "",
+      label: baselineLabel(baseline)
     },
     proxy: state.lastRunProxy || getProxyConfig(),
     results: state.completedResults.map((result) => ({
@@ -2104,10 +2205,11 @@ function exportJson() {
 
 function exportMarkdown() {
   const proxy = state.lastRunProxy || getProxyConfig();
+  const baseline = selectedBaselineRecord();
   const lines = [
     `# llm-rosetta 参数支持报告：${getSelectedChannel().name}`,
     "",
-    `对比基准：${baselineLabel(selectedBaselineRecord())}`,
+    `对比基准：${baselineLabel(baseline)}`,
     `代理配置：${proxySummary(proxy)}`,
     "",
     "| 参数 | 分类 | 支持结论 | HTTP 状态 | 结构差异 |",

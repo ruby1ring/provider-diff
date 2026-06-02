@@ -1,6 +1,6 @@
 {
   "case_id": "ali_protocol_stream_include_usage",
-  "title": "stream_options.include_usage",
+  "title": "stream_options.include_usage 应返回 usage chunk",
   "category": "protocol",
   "parameters": [
     "stream",
@@ -17,6 +17,8 @@
       }
     ],
     "stream": true,
+    "enable_thinking": false,
+    "max_tokens": 80,
     "stream_options": {
       "include_usage": true
     }
@@ -31,6 +33,11 @@
       "created",
       "model",
       "choices"
+    ],
+    "usage_required_fields": [
+      "prompt_tokens",
+      "completion_tokens",
+      "total_tokens"
     ],
     "notes": "include_usage=true 时最后一个 chunk 应包含 usage，choices 可为空数组。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
   }

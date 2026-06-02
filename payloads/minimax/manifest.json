@@ -50,12 +50,14 @@
     "054_tools_function_call_unsupported.json",
     "060_protocol_stream_basic.json",
     "061_protocol_stream_with_tools_auto.json",
+    "062_protocol_stream_include_usage.json",
     "070_cache_long_prompt_probe.json",
     "080_unsupported_image_input.json",
     "081_unsupported_audio_input.json",
     "090_response_unknown_response_format_probe.json",
     "091_unknown_stop_probe.json",
     "092_unknown_seed_probe.json",
-    "093_unknown_metadata_user_probe.json"
+    "093_unknown_metadata_user_probe.json",
+    "094_observability_usage_fields.json"
   ]
 }
