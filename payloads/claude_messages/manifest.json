@@ -1,0 +1,30 @@
+{
+  "provider": "claude_messages",
+  "base_url": "https://api.anthropic.com/v1",
+  "endpoint": "/messages",
+  "method": "POST",
+  "source": "../../docs/claude.md",
+  "default_model": "claude-sonnet-4-6",
+  "reasoning_model": "claude-sonnet-4-6",
+  "vision_model": "claude-sonnet-4-6",
+  "notes": [
+    "所有 case 都面向 Anthropic 原生 Messages API。",
+    "鉴权使用 x-api-key 与 anthropic-version；这不同于 Claude OpenAI SDK 兼容 Chat Completions endpoint。",
+    "原生 Messages 的 usage 断言使用 usage.input_tokens 和 usage.output_tokens。",
+    "开启 thinking 的 case 必须先返回 content[].type=thinking，再返回文本答案，并暴露 usage.output_tokens_details.thinking_tokens。",
+    "关闭 thinking 的 case 不应返回非空 thinking block。"
+  ],
+  "common_expect": {
+    "http_status": 200,
+    "required_response_fields": ["id", "type", "role", "content", "model", "usage"],
+    "content_required_fields": ["type"],
+    "usage_required_fields": ["input_tokens", "output_tokens"]
+  },
+  "cases": [
+    "001_messages_minimal.json",
+    "002_messages_system.json",
+    "020_length_max_tokens.json",
+    "040_reasoning_thinking_enabled.json",
+    "041_reasoning_thinking_disabled.json"
+  ]
+}

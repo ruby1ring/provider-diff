@@ -150,6 +150,27 @@ export const CHANNEL_TEMPLATES: ChannelTemplate[] = [
     }
   },
   {
+    channel_id: "claude",
+    name: "Claude Official",
+    emoji: "🧡",
+    logo: "assets/logos/claude.svg",
+    description: "Anthropic 官方",
+    summary: "OpenAI SDK compatibility",
+    default_base_url: "https://api.anthropic.com/v1",
+    default_model: "claude-sonnet-4-6",
+    parameters: {
+      Sampling: ["temperature", "top_p", "n", "stop", "seed", "frequency_penalty", "presence_penalty"],
+      Length: ["max_tokens", "max_completion_tokens"],
+      Reasoning: ["thinking", "reasoning_effort"],
+      Output: ["response_format"],
+      Tools: ["tools", "tool_choice", "parallel_tool_calls", "tools[].function.strict", "functions", "function_call"],
+      Protocol: ["stream", "stream_options", "stream_options.include_usage"],
+      Debug: ["logprobs", "top_logprobs"],
+      Metadata: ["metadata", "store", "user"],
+      Multimodal: ["messages[].content[].image_url", "messages[].content[].image_url.detail", "messages[].content[].input_audio"]
+    }
+  },
+  {
     channel_id: "deepseek",
     name: "DeepSeek",
     emoji: "🐳",
@@ -247,6 +268,8 @@ export const MOCK_PARAMETER_ORIGINS: Record<string, string> = {
   response_format: "openai-standard",
   tools: "openai-standard",
   tool_choice: "openai-standard",
+  functions: "openai-standard",
+  function_call: "openai-standard",
   parallel_tool_calls: "openai-standard",
   stream: "openai-standard",
   stream_options: "openai-standard",
@@ -259,7 +282,10 @@ export const MOCK_PARAMETER_ORIGINS: Record<string, string> = {
   service_tier: "openai-standard",
   prediction: "openai-standard",
   audio: "openai-standard",
-  thinking: "deepseek-extension",
+  "messages[].content[].image_url": "openai-standard",
+  "messages[].content[].image_url.detail": "openai-standard",
+  "messages[].content[].input_audio": "openai-standard",
+  thinking: "provider-private",
   user_id: "deepseek-extension",
   reasoning_content: "deepseek-extension",
   "messages[].prefix": "deepseek-extension",

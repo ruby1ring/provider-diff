@@ -1,0 +1,21 @@
+{
+  "case_id": "claude_basic_system_developer_hoisting",
+  "title": "system 和 developer 消息提升",
+  "category": "basic",
+  "parameters": ["messages[].role=system", "messages[].role=developer"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "system", "content": "回答要简短。"},
+      {"role": "developer", "content": "使用朴素中文。"},
+      {"role": "user", "content": "用五个字以内打个招呼。"}
+    ],
+    "max_completion_tokens": 40
+  },
+  "expect": {
+    "assistant_content_non_empty": true,
+    "notes": "Claude 文档说明 system/developer 消息会被合并为一个初始 system 消息。"
+  }
+}

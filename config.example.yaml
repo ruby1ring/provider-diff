@@ -2,6 +2,10 @@ openai:
   https://api.openai.com/v1
   sk-your-openai-api-key
 
+claude:
+  https://api.anthropic.com/v1
+  sk-your-anthropic-api-key
+
 deepseek:
   https://api.deepseek.com
   sk-your-deepseek-api-key

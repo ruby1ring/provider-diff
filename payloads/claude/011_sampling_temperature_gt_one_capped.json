@@ -1,0 +1,20 @@
+{
+  "case_id": "claude_sampling_temperature_gt_one_capped",
+  "title": "temperature 大于 1 会被封顶",
+  "category": "sampling",
+  "parameters": ["temperature"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "用一句简短的话说明 temperature 封顶。"}
+    ],
+    "temperature": 1.7,
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "assistant_content_non_empty": true,
+    "notes": "官方文档说明大于 1 的 temperature 会被封顶为 1。"
+  }
+}

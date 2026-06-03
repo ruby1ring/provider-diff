@@ -1,0 +1,18 @@
+{
+  "case_id": "claude_basic_minimal",
+  "title": "最小用户消息",
+  "category": "basic",
+  "parameters": ["model", "messages"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "用一句简短的话回复。"}
+    ],
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "assistant_content_non_empty": true
+  }
+}

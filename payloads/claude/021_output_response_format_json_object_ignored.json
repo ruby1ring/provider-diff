@@ -1,0 +1,20 @@
+{
+  "case_id": "claude_output_response_format_json_object_ignored",
+  "title": "response_format=json_object 被忽略",
+  "category": "output",
+  "parameters": ["response_format"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "返回 JSON，包含 ok=true 和 provider='claude'。"}
+    ],
+    "response_format": {"type": "json_object"},
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "support_conclusion": "ignored",
+    "notes": "官方文档说明 response_format 会被忽略；如需 schema 保证，建议使用原生 Claude Structured Outputs。"
+  }
+}

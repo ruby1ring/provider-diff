@@ -1,0 +1,22 @@
+{
+  "case_id": "claude_protocol_stream_include_usage",
+  "title": "stream_options.include_usage",
+  "category": "protocol",
+  "parameters": ["stream", "stream_options.include_usage"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "流式返回一句关于 usage 的简短话。"}
+    ],
+    "stream": true,
+    "stream_options": {"include_usage": true},
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "response_mode": "sse",
+    "required_chunk_fields": ["id", "object", "created", "model", "choices"],
+    "usage_required_fields": ["prompt_tokens", "completion_tokens", "total_tokens"]
+  }
+}

@@ -93,6 +93,7 @@ const OPENCOMPASS_URL_STORAGE_KEY = "llm-rosetta-opencompass-url-v1";
 const DEFAULT_OPENCOMPASS_URL = appQuery.get("opencompassUrl") || `${appProtocol}//${appHost}:9100/`;
 const MAX_HISTORY_ITEMS = 120;
 const runnableProviderByChannel = {
+  claude: "claude",
   deepseek: "deepseek",
   minimax: "minimax",
   openrouter: "openrouter",
@@ -229,7 +230,8 @@ const caseTitleZh = {
   am_sampling_stop_sequences: "stop_sequences 停止词",
   am_tools_auto: "Messages 接口接受 tools",
   am_protocol_stream: "stream=true 应返回 Messages SSE 流",
-  am_reasoning_thinking_budget: "推理模型 Messages 接口接受 thinking budget"
+  am_reasoning_thinking_budget: "推理模型 Messages 接口接受 thinking budget",
+  am_reasoning_thinking_disabled: "Messages 接口关闭 thinking"
 };
 
 function providerIdForChannel(channelId = state.selectedChannelId) {
@@ -266,6 +268,7 @@ const groupLabelZh = {
   Tools: "tools",
   Protocol: "协议",
   Debug: "调试",
+  Multimodal: "多模态",
   Metadata: "元数据",
   Extra: "扩展",
   Search: "搜索",
@@ -279,6 +282,7 @@ const groupLabelZh = {
 const originLabelZh = {
   "openai-standard": "OpenAI 标准",
   "provider-private": "非 OpenAI 标准",
+  "anthropic-extension": "Anthropic 扩展",
   "qwen-extension": "Qwen 扩展",
   "siliconflow-extension": "非 OpenAI 标准",
   "siliconflow-observability": "SiliconFlow 可观测性",
@@ -883,6 +887,8 @@ function buildCaseCurl(testCase) {
     deepseek_messages: "DEEPSEEK_API_KEY",
     minimax: "MINIMAX_API_KEY",
     minimax_messages: "MINIMAX_API_KEY",
+    claude: "ANTHROPIC_API_KEY",
+    claude_messages: "ANTHROPIC_API_KEY",
     openai: "OPENAI_API_KEY",
     openrouter: "OPENROUTER_API_KEY",
     openrouter_messages: "OPENROUTER_API_KEY",
@@ -890,7 +896,7 @@ function buildCaseCurl(testCase) {
     siliconflow_messages: "SILICONFLOW_API_KEY"
   };
   const envKey = providerEnvKeys[providerId] || "PROVIDER_API_KEY";
-  const authHeaderName = ["ali_messages", "deepseek_messages", "minimax_messages"].includes(providerId) ? "X-Api-Key" : "Authorization";
+  const authHeaderName = ["ali_messages", "claude_messages", "deepseek_messages", "minimax_messages"].includes(providerId) ? "X-Api-Key" : "Authorization";
   const authHeaderValue = authHeaderName === "X-Api-Key"
     ? (apiKey || `\${${envKey}}`)
     : `Bearer ${apiKey || `\${${envKey}}`}`;

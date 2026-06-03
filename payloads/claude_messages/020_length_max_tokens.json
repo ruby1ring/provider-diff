@@ -1,0 +1,19 @@
+{
+  "case_id": "am_length_max_tokens",
+  "title": "Messages max_tokens 与 usage",
+  "category": "length",
+  "parameters": ["max_tokens", "usage"],
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "max_tokens": 48,
+    "messages": [
+      {"role": "user", "content": "用一句简短的话说明 max_tokens。"}
+    ]
+  },
+  "expect": {
+    "thinking_absent": true,
+    "allowed_finish_reasons": ["end_turn", "max_tokens", "stop_sequence"]
+  }
+}

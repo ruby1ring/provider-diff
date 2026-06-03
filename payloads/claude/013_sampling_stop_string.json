@@ -1,0 +1,20 @@
+{
+  "case_id": "claude_sampling_stop_string",
+  "title": "stop 字符串",
+  "category": "sampling",
+  "parameters": ["stop"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "请严格写出：alpha STOP beta"}
+    ],
+    "stop": "STOP",
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "allowed_finish_reasons": ["stop", "length"],
+    "notes": "文档说明所有非空白 stop sequences 都可生效。"
+  }
+}

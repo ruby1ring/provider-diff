@@ -1,0 +1,21 @@
+{
+  "case_id": "claude_reasoning_thinking_disabled",
+  "title": "通过 OpenAI 兼容层关闭 Claude thinking",
+  "category": "reasoning",
+  "parameters": ["thinking"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "简短回答：9 加 6 等于多少？"}
+    ],
+    "thinking": {"type": "disabled"},
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "thinking_absent": true,
+    "assistant_content_non_empty": true,
+    "notes": "如果 OpenAI 兼容层接受 disabled thinking，Chat Completions 响应中不应出现 thinking 输出。"
+  }
+}

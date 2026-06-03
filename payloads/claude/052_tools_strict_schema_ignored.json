@@ -1,0 +1,38 @@
+{
+  "case_id": "claude_tools_strict_schema_ignored",
+  "title": "tools strict schema 被忽略",
+  "category": "tools",
+  "parameters": ["tools", "tools[].function.strict"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "请带一个工单 ID 调用 get_ticket_status。"}
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_ticket_status",
+          "description": "查询支持工单状态。",
+          "strict": true,
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "ticket_id": {"type": "string"}
+            },
+            "required": ["ticket_id"],
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "tool_choice": "required",
+    "max_completion_tokens": 120
+  },
+  "expect": {
+    "support_conclusion": "ignored",
+    "notes": "官方文档说明 tools[].function.strict 会被忽略；请求应被接受，但不保证 strict schema 遵循。"
+  }
+}

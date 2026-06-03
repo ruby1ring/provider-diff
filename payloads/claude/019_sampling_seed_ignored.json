@@ -1,0 +1,20 @@
+{
+  "case_id": "claude_sampling_seed_ignored",
+  "title": "seed 被忽略",
+  "category": "sampling",
+  "parameters": ["seed"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "用一句简短的话说明被忽略的 seed。"}
+    ],
+    "seed": 12345,
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "support_conclusion": "ignored",
+    "notes": "官方文档说明 seed 会被忽略。"
+  }
+}

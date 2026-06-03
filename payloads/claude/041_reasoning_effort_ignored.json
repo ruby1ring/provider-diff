@@ -1,0 +1,20 @@
+{
+  "case_id": "claude_reasoning_effort_ignored",
+  "title": "reasoning_effort 被忽略",
+  "category": "reasoning",
+  "parameters": ["reasoning_effort"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "用一句简短的话说明被忽略的 reasoning_effort。"}
+    ],
+    "reasoning_effort": "high",
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "support_conclusion": "ignored",
+    "notes": "官方文档说明 reasoning_effort 会被忽略；Claude 推理应使用 thinking。"
+  }
+}

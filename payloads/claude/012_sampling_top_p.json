@@ -1,0 +1,19 @@
+{
+  "case_id": "claude_sampling_top_p",
+  "title": "top_p",
+  "category": "sampling",
+  "parameters": ["top_p"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "用一句简短的话说明 nucleus sampling。"}
+    ],
+    "top_p": 0.8,
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "assistant_content_non_empty": true
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "case_id": "claude_sampling_n_two_rejected",
+  "title": "n=2 应拒绝或暴露不兼容",
+  "category": "boundary",
+  "parameters": ["n"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "这个请求用于探测 n=2 的行为。"}
+    ],
+    "n": 2,
+    "max_completion_tokens": 40
+  },
+  "expect": {
+    "http_status": 400,
+    "support_conclusion": "rejected_400",
+    "notes": "官方文档说明 n 必须严格等于 1。如果 Claude 将其强制兼容为一个 choice，应在运行结果中按兼容性漂移人工归类。"
+  }
+}

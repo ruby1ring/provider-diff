@@ -1,0 +1,35 @@
+{
+  "case_id": "claude_tools_choice_required",
+  "title": "tool_choice=required",
+  "category": "tools",
+  "parameters": ["tools", "tool_choice"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "请调用 lookup_city 工具查询上海。"}
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "lookup_city",
+          "description": "按名称查询城市。",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "city": {"type": "string"}
+            },
+            "required": ["city"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "required",
+    "max_completion_tokens": 120
+  },
+  "expect": {
+    "notes": "OpenAI-compatible tool_choice=required 应强制至少一次工具调用。"
+  }
+}

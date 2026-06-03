@@ -1,0 +1,32 @@
+{
+  "case_id": "claude_tools_deprecated_functions",
+  "title": "已废弃 functions 字段",
+  "category": "tools",
+  "parameters": ["functions", "function_call"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "请用颜色 blue 调用 get_color function。"}
+    ],
+    "functions": [
+      {
+        "name": "get_color",
+        "description": "返回颜色元数据。",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "color": {"type": "string"}
+          },
+          "required": ["color"]
+        }
+      }
+    ],
+    "function_call": {"name": "get_color"},
+    "max_completion_tokens": 120
+  },
+  "expect": {
+    "notes": "官方文档说明已废弃 functions 的 name、description 和 parameters 仍被完整支持。"
+  }
+}

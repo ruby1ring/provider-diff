@@ -1,0 +1,19 @@
+{
+  "case_id": "claude_observability_usage_fields",
+  "title": "usage 字段",
+  "category": "observability",
+  "parameters": ["usage"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "返回一句简短的话，便于检查 usage。"}
+    ],
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "usage_required_fields": ["prompt_tokens", "completion_tokens", "total_tokens"],
+    "notes": "官方文档说明 usage 的 prompt、completion 和 total token 字段被完整支持；detail objects 始终为空。"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "case_id": "am_basic_system",
+  "title": "Messages 顶层 system 与 usage",
+  "category": "basic",
+  "parameters": ["system", "messages", "usage"],
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "max_tokens": 80,
+    "system": "用一句简洁的话回答。",
+    "messages": [
+      {"role": "user", "content": "什么是 provider 兼容性测试？"}
+    ]
+  },
+  "expect": {
+    "thinking_absent": true,
+    "notes": "Messages API 使用顶层 system 字段，而不是 system role 消息。"
+  }
+}

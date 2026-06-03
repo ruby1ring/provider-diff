@@ -1,0 +1,21 @@
+{
+  "case_id": "claude_debug_logprobs_ignored",
+  "title": "logprobs 和 top_logprobs 被忽略",
+  "category": "debug",
+  "parameters": ["logprobs", "top_logprobs"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "用一句简短的话说明调试字段。"}
+    ],
+    "logprobs": true,
+    "top_logprobs": 3,
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "support_conclusion": "ignored",
+    "notes": "官方文档说明 logprobs 和 top_logprobs 会被忽略，响应里的 logprobs 始终为空。"
+  }
+}

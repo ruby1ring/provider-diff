@@ -1,0 +1,22 @@
+{
+  "case_id": "claude_reasoning_thinking_enabled",
+  "title": "通过 extra_body 传入 Claude thinking",
+  "category": "reasoning",
+  "parameters": ["thinking"],
+  "requires_model_capability": "extended_thinking",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "简短计算：如果 3 个团队各跑 4 个测试，总共跑多少个测试？"}
+    ],
+    "thinking": {"type": "enabled", "budget_tokens": 1024},
+    "max_completion_tokens": 1600
+  },
+  "expect": {
+    "thinking_absent": true,
+    "assistant_content_non_empty": true,
+    "notes": "官方 OpenAI SDK 兼容文档说明 thinking 可通过 extra_body 传入，但 Chat Completions 响应不会返回详细 thinking。"
+  }
+}

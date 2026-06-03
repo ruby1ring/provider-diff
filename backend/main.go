@@ -743,7 +743,7 @@ func responseHeaders(header http.Header) map[string]any {
 
 func providerAuthHeader(provider string) string {
 	switch provider {
-	case "ali_messages", "deepseek_messages", "minimax_messages":
+	case "ali_messages", "claude_messages", "deepseek_messages", "minimax_messages":
 		return "X-Api-Key"
 	}
 	return "Authorization"
@@ -924,6 +924,12 @@ func evaluateAssertions(result RunCaseResult, expect map[string]any) []CaseAsser
 			Pass:    ok && strings.TrimSpace(content) != "",
 			Message: "预期 choices[0].message.content 为非空字符串",
 		})
+	}
+	if required, _ := expect["thinking_required"].(bool); required {
+		assertions = append(assertions, thinkingRequiredAssertion(result.ResponseBody, expect))
+	}
+	if absent, _ := expect["thinking_absent"].(bool); absent {
+		assertions = append(assertions, thinkingAbsentAssertion(result.ResponseBody, expect))
 	}
 	assertions = append(assertions, inferredAssertions(result, expect)...)
 	return assertions
@@ -1204,6 +1210,148 @@ func contentBlockRequiredFieldsAssertion(name string, value any, fields []string
 	return CaseAssertion{Name: name, Pass: false, Message: strings.Join(missingByIndex, "；")}
 }
 
+func thinkingRequiredAssertion(value any, expect map[string]any) CaseAssertion {
+	location, _ := expect["thinking_location"].(string)
+	if location == "" {
+		location = inferredThinkingLocation(value)
+	}
+	switch location {
+	case "messages.content_block":
+		block, ok := firstContentBlockWithType(value, "thinking")
+		if !ok {
+			return CaseAssertion{Name: "thinking_required", Pass: false, Message: "预期 content[] 中存在 type=thinking 的 block"}
+		}
+		if text, _ := block["thinking"].(string); strings.TrimSpace(text) == "" {
+			return CaseAssertion{Name: "thinking_required", Pass: false, Message: "预期 thinking block.thinking 为非空字符串"}
+		}
+		if mustPrecede, _ := expect["thinking_must_precede_text"].(bool); mustPrecede && !thinkingPrecedesText(value) {
+			return CaseAssertion{Name: "thinking_required", Pass: false, Message: "预期 content[] 中 thinking block 位于 text block 之前"}
+		}
+		if fields := stringSlice(expect["thinking_required_fields"]); len(fields) > 0 {
+			missing := missingFields(block, fields)
+			return CaseAssertion{Name: "thinking_required", Pass: len(missing) == 0, Message: missingMessage(missing)}
+		}
+		return CaseAssertion{Name: "thinking_required", Pass: true, Message: "content[] 中存在非空 thinking block"}
+	case "chat.message.reasoning_content":
+		text, ok := firstStringAt(value, []string{"choices", "message", "reasoning_content"})
+		return CaseAssertion{Name: "thinking_required", Pass: ok && strings.TrimSpace(text) != "", Message: "预期 choices[0].message.reasoning_content 为非空字符串"}
+	case "chat.message.reasoning_details":
+		_, ok := firstValueAt(value, []string{"choices", "message", "reasoning_details"})
+		return CaseAssertion{Name: "thinking_required", Pass: ok, Message: "预期 choices[0].message.reasoning_details 存在"}
+	case "chat.message.content_think_tag":
+		content, ok := assistantContent(value)
+		return CaseAssertion{Name: "thinking_required", Pass: ok && containsThinkTag(content), Message: "预期 choices[0].message.content 包含 <think>...</think>"}
+	default:
+		return CaseAssertion{Name: "thinking_required", Pass: false, Message: "未知 thinking_location: " + location}
+	}
+}
+
+func thinkingAbsentAssertion(value any, expect map[string]any) CaseAssertion {
+	location, _ := expect["thinking_location"].(string)
+	locations := []string{"messages.content_block", "chat.message.reasoning_content", "chat.message.reasoning_details", "chat.message.content_think_tag"}
+	if location != "" {
+		locations = []string{location}
+	}
+	present := make([]string, 0)
+	for _, candidate := range locations {
+		if thinkingPresentAt(value, candidate) {
+			present = append(present, candidate)
+		}
+	}
+	return CaseAssertion{Name: "thinking_absent", Pass: len(present) == 0, Message: "不应出现 thinking 输出；实际位置: " + strings.Join(present, ", ")}
+}
+
+func inferredThinkingLocation(value any) string {
+	if isMessagesResponse(value) {
+		return "messages.content_block"
+	}
+	return "chat.message.reasoning_content"
+}
+
+func thinkingPresentAt(value any, location string) bool {
+	switch location {
+	case "messages.content_block":
+		if _, ok := firstContentBlockWithType(value, "redacted_thinking"); ok {
+			return true
+		}
+		block, ok := firstContentBlockWithType(value, "thinking")
+		if !ok {
+			return false
+		}
+		text, _ := block["thinking"].(string)
+		return strings.TrimSpace(text) != ""
+	case "chat.message.reasoning_content":
+		text, ok := firstStringAt(value, []string{"choices", "message", "reasoning_content"})
+		return ok && strings.TrimSpace(text) != ""
+	case "chat.message.reasoning_details":
+		_, ok := firstValueAt(value, []string{"choices", "message", "reasoning_details"})
+		return ok
+	case "chat.message.content_think_tag":
+		content, ok := assistantContent(value)
+		return ok && containsThinkTag(content)
+	default:
+		return false
+	}
+}
+
+func firstContentBlockWithType(value any, blockType string) (map[string]any, bool) {
+	content, ok := valueAt(value, []string{"content"})
+	if !ok {
+		return nil, false
+	}
+	array, ok := content.([]any)
+	if !ok {
+		return nil, false
+	}
+	for _, item := range array {
+		block, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		if typed, _ := block["type"].(string); typed == blockType {
+			return block, true
+		}
+	}
+	return nil, false
+}
+
+func thinkingPrecedesText(value any) bool {
+	content, ok := valueAt(value, []string{"content"})
+	if !ok {
+		return false
+	}
+	array, ok := content.([]any)
+	if !ok {
+		return false
+	}
+	thinkingIndex := -1
+	textIndex := -1
+	for index, item := range array {
+		block, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		switch typed, _ := block["type"].(string); typed {
+		case "thinking":
+			if thinkingIndex < 0 {
+				thinkingIndex = index
+			}
+		case "text":
+			if textIndex < 0 {
+				textIndex = index
+			}
+		}
+	}
+	return thinkingIndex >= 0 && textIndex > thinkingIndex
+}
+
+func containsThinkTag(content string) bool {
+	lower := strings.ToLower(content)
+	start := strings.Index(lower, "<think>")
+	end := strings.Index(lower, "</think>")
+	return start >= 0 && end > start+len("<think>")
+}
+
 func tokenLimit(request map[string]any) (string, int, bool) {
 	if value, ok := intFromMap(request, "max_completion_tokens"); ok && value >= 0 {
 		return "max_completion_tokens", value, true
@@ -1322,6 +1470,25 @@ func firstStringAt(value any, path []string) (string, bool) {
 		return "", false
 	}
 	return nestedString(item, path[1:])
+}
+
+func firstValueAt(value any, path []string) (any, bool) {
+	if len(path) < 2 {
+		return valueAt(value, path)
+	}
+	object, ok := value.(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	array, ok := object[path[0]].([]any)
+	if !ok || len(array) == 0 {
+		return nil, false
+	}
+	item, ok := array[0].(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	return valueAt(item, path[1:])
 }
 
 func firstPathExists(value any, path []string) bool {

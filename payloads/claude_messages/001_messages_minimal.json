@@ -1,0 +1,19 @@
+{
+  "case_id": "am_basic_minimal",
+  "title": "Messages 最小请求与 usage",
+  "category": "basic",
+  "parameters": ["model", "messages", "max_tokens", "usage"],
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "max_tokens": 80,
+    "messages": [
+      {"role": "user", "content": "用一句简短的话打个招呼。"}
+    ]
+  },
+  "expect": {
+    "thinking_absent": true,
+    "notes": "最小 Messages 请求也必须包含原生 usage 字段。"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "case_id": "claude_multimodal_audio_input_ignored",
+  "title": "input_audio 被忽略",
+  "category": "multimodal",
+  "parameters": ["messages[].content[].input_audio"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {"type": "text", "text": "用一句简短的话回复；音频部分预期会被忽略。"},
+          {
+            "type": "input_audio",
+            "input_audio": {
+              "format": "wav",
+              "data": "UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA="
+            }
+          }
+        ]
+      }
+    ],
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "support_conclusion": "ignored",
+    "notes": "官方文档说明 audio input 会被忽略，并会从输入中剥离。"
+  }
+}

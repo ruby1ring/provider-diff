@@ -1,0 +1,20 @@
+{
+  "case_id": "claude_basic_assistant_history",
+  "title": "assistant 历史消息",
+  "category": "basic",
+  "parameters": ["messages[].role=assistant"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "开始一段很短的对话。"},
+      {"role": "assistant", "content": "好的，主题是协议兼容性。"},
+      {"role": "user", "content": "用一句话继续这段对话。"}
+    ],
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "assistant_content_non_empty": true
+  }
+}

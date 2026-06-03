@@ -1,0 +1,23 @@
+{
+  "case_id": "claude_basic_content_array_text",
+  "title": "text 内容块",
+  "category": "basic",
+  "parameters": ["messages[].content[].text"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {"type": "text", "text": "用一句简短的话说明 content 数组。"}
+        ]
+      }
+    ],
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "assistant_content_non_empty": true
+  }
+}

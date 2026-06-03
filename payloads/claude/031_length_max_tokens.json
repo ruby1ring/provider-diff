@@ -1,0 +1,18 @@
+{
+  "case_id": "claude_length_max_tokens",
+  "title": "旧版 max_tokens",
+  "category": "length",
+  "parameters": ["max_tokens"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "用一句简短的话说明旧版 token 限制。"}
+    ],
+    "max_tokens": 32
+  },
+  "expect": {
+    "allowed_finish_reasons": ["stop", "length"]
+  }
+}

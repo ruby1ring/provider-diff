@@ -1,0 +1,20 @@
+{
+  "case_id": "claude_basic_multimessage_context",
+  "title": "多轮消息上下文",
+  "category": "basic",
+  "parameters": ["messages"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "请记住这个暗号：琥珀。"},
+      {"role": "assistant", "content": "我会记住暗号是琥珀。"},
+      {"role": "user", "content": "我刚才给你的暗号是什么？"}
+    ],
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "assistant_content_non_empty": true
+  }
+}

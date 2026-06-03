@@ -1,0 +1,20 @@
+{
+  "case_id": "claude_sampling_presence_penalty_ignored",
+  "title": "presence_penalty 被忽略",
+  "category": "sampling",
+  "parameters": ["presence_penalty"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "用一句简短的话说明被忽略的 presence_penalty。"}
+    ],
+    "presence_penalty": 0.8,
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "support_conclusion": "ignored",
+    "notes": "官方文档说明 presence_penalty 会被忽略。"
+  }
+}

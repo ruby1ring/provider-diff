@@ -1,0 +1,19 @@
+{
+  "case_id": "claude_sampling_n_one",
+  "title": "n=1",
+  "category": "sampling",
+  "parameters": ["n"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "为 n=1 返回一句简短的话。"}
+    ],
+    "n": 1,
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "notes": "Claude 文档说明 n 必须严格等于 1，且 choices[] 总是只有 1 个元素。"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "case_id": "claude_sampling_temperature_zero",
+  "title": "temperature=0",
+  "category": "sampling",
+  "parameters": ["temperature"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "返回一句简短、偏确定性的句子。"}
+    ],
+    "temperature": 0,
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "assistant_content_non_empty": true
+  }
+}

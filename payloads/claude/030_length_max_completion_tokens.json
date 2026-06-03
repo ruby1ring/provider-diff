@@ -1,0 +1,18 @@
+{
+  "case_id": "claude_length_max_completion_tokens",
+  "title": "max_completion_tokens",
+  "category": "length",
+  "parameters": ["max_completion_tokens"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "用一句简短的话说明 token 限制。"}
+    ],
+    "max_completion_tokens": 32
+  },
+  "expect": {
+    "allowed_finish_reasons": ["stop", "length"]
+  }
+}

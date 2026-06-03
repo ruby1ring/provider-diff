@@ -1,0 +1,36 @@
+{
+  "case_id": "claude_tools_auto",
+  "title": "tools 与 tool_choice=auto",
+  "category": "tools",
+  "parameters": ["tools", "tool_choice"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "上海现在天气如何？如有需要请使用工具。"}
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_current_weather",
+          "description": "查询某个城市的当前天气。",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {"type": "string"},
+              "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]}
+            },
+            "required": ["location"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto",
+    "max_completion_tokens": 120
+  },
+  "expect": {
+    "notes": "模型可以直接回答，也可以返回 tool_calls；这里只断言响应结构。"
+  }
+}

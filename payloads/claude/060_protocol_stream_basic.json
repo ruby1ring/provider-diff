@@ -1,0 +1,20 @@
+{
+  "case_id": "claude_protocol_stream_basic",
+  "title": "基础 stream",
+  "category": "protocol",
+  "parameters": ["stream"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {"role": "user", "content": "流式返回一句简短的话。"}
+    ],
+    "stream": true,
+    "max_completion_tokens": 60
+  },
+  "expect": {
+    "response_mode": "sse",
+    "required_chunk_fields": ["id", "object", "created", "model", "choices"]
+  }
+}
