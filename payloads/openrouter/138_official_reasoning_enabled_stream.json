@@ -1,0 +1,46 @@
+{
+  "case_id": "or_official_reasoning_enabled_stream",
+  "title": "official endpoint case: reasoning enabled",
+  "category": "official_reasoning",
+  "parameters": [
+    "stream",
+    "reasoning",
+    "reasoning.enabled"
+  ],
+  "requires_model_capability": "reasoning",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "stream": true,
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have 4 apples. I give 2 to my friend. How many apples do we have now?"
+      },
+      {
+        "role": "assistant",
+        "content": "What do you want me to do?"
+      },
+      {
+        "role": "user",
+        "content": "Please think and answer my origial question"
+      }
+    ],
+    "reasoning": {
+      "enabled": true
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ],
+    "notes": "Imported from docs/openrouter.case.md. Uses the official spelling 'origial' from the exported prompt."
+  }
+}

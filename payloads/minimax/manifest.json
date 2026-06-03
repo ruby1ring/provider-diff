@@ -43,6 +43,7 @@
     "031_length_legacy_max_tokens_probe.json",
     "040_reasoning_split_true.json",
     "041_reasoning_split_false.json",
+    "042_reasoning_thinking_content_absent_probe.json",
     "050_tools_auto.json",
     "051_tools_choice_none.json",
     "052_tools_named_function_probe.json",

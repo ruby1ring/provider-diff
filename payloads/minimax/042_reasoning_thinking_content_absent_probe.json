@@ -1,0 +1,29 @@
+{
+  "case_id": "minimax_reasoning_thinking_disabled_no_output",
+  "title": "thinking.type=disabled should suppress thinking content",
+  "category": "reasoning",
+  "parameters": ["thinking"],
+  "requires_model_capability": "reasoning",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Answer only with the final number and do not include any thinking text: 29 + 13."
+      }
+    ],
+    "thinking": {
+      "type": "disabled"
+    },
+    "max_completion_tokens": 120
+  },
+  "expect": {
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_absent": true,
+    "assistant_content_non_empty": true,
+    "notes": "MiniMax 关闭 thinking 的请求形态为 thinking.type=disabled；其 thinking 常见落点是 choices[].message.content 中的 <think>...</think>。该 case 验证关闭后响应不应再输出 thinking 内容。"
+  }
+}

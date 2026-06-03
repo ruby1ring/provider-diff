@@ -15,18 +15,18 @@ This file is a support matrix for compatibility-test design. It only covers Mini
 
 | Item | Support | Notes |
 |---|---|---|
-| Endpoint | supported | `POST https://api.minimaxi.com/v1/chat/completions` |
-| Base URL | supported | `https://api.minimaxi.com/v1` |
+| Endpoint | supported | China: `POST https://api.minimaxi.com/v1/chat/completions`; International: `POST https://api.minimax.io/v1/chat/completions` |
+| Base URL | supported | China: `https://api.minimaxi.com/v1`; International: `https://api.minimax.io/v1` |
 | Auth | required | `Authorization: Bearer <MINIMAX_API_KEY>` |
 | `Content-Type` | required | `application/json` |
-| OpenAI SDK base URL | supported | `OPENAI_BASE_URL=https://api.minimaxi.com/v1` |
+| OpenAI SDK base URL | supported | China: `OPENAI_BASE_URL=https://api.minimaxi.com/v1`; International: `OPENAI_BASE_URL=https://api.minimax.io/v1` |
 
 MiniMax also exposes an Anthropic-compatible Messages endpoint for Claude-style request bodies:
 
 | Item | Support | Notes |
 |---|---|---|
-| Messages base URL | supported | `https://api.minimaxi.com/anthropic/v1` |
-| Messages endpoint | supported | `POST https://api.minimaxi.com/anthropic/v1/messages` |
+| Messages base URL | supported | China: `https://api.minimaxi.com/anthropic/v1`; International: `https://api.minimax.io/anthropic/v1` |
+| Messages endpoint | supported | China: `POST https://api.minimaxi.com/anthropic/v1/messages`; International: `POST https://api.minimax.io/anthropic/v1/messages` |
 | Messages auth | required | `X-Api-Key: <MINIMAX_API_KEY>` plus `anthropic-version: 2023-06-01` |
 
 ## Supported Models

@@ -1,0 +1,27 @@
+{
+  "case_id": "thinking_reasoning_effort_medium",
+  "title": "reasoning_effort=medium opens thinking",
+  "category": "reasoning",
+  "parameters": ["reasoning_effort"],
+  "requires_model_capability": "reasoning",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use brief reasoning to compute 18 + 27, then give the final answer."
+      }
+    ],
+    "reasoning_effort": "medium",
+    "max_completion_tokens": 512
+  },
+  "expect": {
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "assistant_content_non_empty": true,
+    "notes": "OpenAI-style Chat Completions alias probe. 若仅 2xx 但无字段/token 证据，会被标记为断言失败。"
+  }
+}

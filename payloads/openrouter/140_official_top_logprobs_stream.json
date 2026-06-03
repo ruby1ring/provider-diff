@@ -1,0 +1,36 @@
+{
+  "case_id": "or_official_top_logprobs_stream",
+  "title": "official endpoint case: top_logprobs streaming probe",
+  "category": "official_debug",
+  "parameters": [
+    "stream",
+    "logprobs",
+    "top_logprobs"
+  ],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "stream": true,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Yes or no?"
+      }
+    ],
+    "logprobs": true,
+    "top_logprobs": 5
+  },
+  "expect": {
+    "http_status": 200,
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ],
+    "notes": "docs/openrouter.case.md has no Raw Request block for top-logprobs; this payload is reconstructed from the exported Error Details."
+  }
+}

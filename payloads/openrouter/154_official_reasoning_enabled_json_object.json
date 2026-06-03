@@ -1,0 +1,42 @@
+{
+  "case_id": "or_official_reasoning_enabled_json_object",
+  "title": "official endpoint case: reasoning enabled json_object",
+  "category": "official_output",
+  "parameters": [
+    "response_format",
+    "response_format.type=json_object",
+    "reasoning.enabled"
+  ],
+  "requires_model_capability": "json_mode",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "stream": false,
+    "response_format": {
+      "type": "json_object"
+    },
+    "messages": [
+      {
+        "role": "user",
+        "content": "Return ONLY a minified JSON object with EXACTLY these keys and constraints: {\"location\":string, \"temperature\":integer [-100..100], \"conditions\":\"sunny|cloudy|rainy|snowy\", \"unit\":\"celsius\", \"readings\":[{t:integer, ts:ISO-8601 UTC Z} x 3]}. No code fences, no extra text, no newlines. Example shape only; fill realistic values for Boston."
+      }
+    ],
+    "reasoning": {
+      "enabled": true
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "system_fingerprint"
+    ],
+    "content_should_parse_as_json": true,
+    "notes": "Imported from docs/openrouter.case.md."
+  }
+}

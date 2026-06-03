@@ -1,0 +1,98 @@
+{
+  "case_id": "or_official_reasoning_enabled_tool_choice_function",
+  "title": "official endpoint case: reasoning enabled named tool_choice",
+  "category": "official_tools",
+  "parameters": [
+    "stream",
+    "tools",
+    "tool_choice",
+    "tool_choice.function.name",
+    "reasoning.enabled"
+  ],
+  "requires_model_capability": "tools",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "stream": true,
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_current_weather",
+          "description": "Get the current weather in a given location",
+          "strict": true,
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string",
+                "description": "The city and state, e.g. San Francisco, CA"
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "celsius",
+                  "fahrenheit"
+                ]
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "location",
+              "unit"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculate",
+          "description": "Perform a mathematical calculation",
+          "strict": true,
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate, e.g. 2 + 2"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      }
+    ],
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is the weather like in Boston, MA in fahrenheit?"
+      }
+    ],
+    "tool_choice": {
+      "type": "function",
+      "function": {
+        "name": "calculate"
+      }
+    },
+    "reasoning": {
+      "enabled": true
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ],
+    "notes": "Imported from docs/openrouter.case.md. Official validation failed semantically, but the request itself returned a provider response."
+  }
+}

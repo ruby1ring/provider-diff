@@ -1,0 +1,28 @@
+{
+  "case_id": "thinking_budget_only",
+  "title": "thinking_budget=1000 probe",
+  "category": "reasoning",
+  "parameters": ["thinking_budget"],
+  "requires_model_capability": "reasoning",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use concise reasoning to compute 34 + 58, then give the final answer."
+      }
+    ],
+    "thinking_budget": 1000,
+    "max_completion_tokens": 1200
+  },
+  "expect": {
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "assistant_content_non_empty": true,
+    "provider_extension": true,
+    "notes": "单独探测 thinking_budget 是否会隐式开启 thinking。"
+  }
+}

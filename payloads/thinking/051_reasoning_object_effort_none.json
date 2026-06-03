@@ -1,0 +1,29 @@
+{
+  "case_id": "thinking_reasoning_object_effort_none",
+  "title": "reasoning.effort=none closes thinking",
+  "category": "reasoning",
+  "parameters": ["reasoning", "reasoning.effort"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Compute 64 + 28. Reply with one short sentence."
+      }
+    ],
+    "reasoning": {
+      "effort": "none"
+    },
+    "max_completion_tokens": 256
+  },
+  "expect": {
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_absent": true,
+    "assistant_content_non_empty": true,
+    "notes": "探测 reasoning object 是否存在 effort=none 关闭形态；不支持该值时通常会 400。"
+  }
+}

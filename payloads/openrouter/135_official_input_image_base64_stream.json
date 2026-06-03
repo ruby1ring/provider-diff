@@ -1,0 +1,46 @@
+{
+  "case_id": "or_official_input_image_base64_stream",
+  "title": "official endpoint case: base64 image_url input",
+  "category": "official",
+  "parameters": [
+    "stream",
+    "messages[].content[].image_url",
+    "messages[].content[].image_url.data_url"
+  ],
+  "requires_model_capability": "vision",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "stream": true,
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "What do you see in this image?"
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAMElEQVR4nO3OIQEAAAgDMJIQgv5R6AIxbibmV9tzSSUgICAgICAgICAgICAgIJAOPO8DrHnALMiOAAAAAElFTkSuQmCC"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ],
+    "notes": "Imported from docs/openrouter.case.md. The original export contains a truncated JPEG data URL; this case uses a compact valid PNG data URL to cover the same request shape."
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "case_id": "thinking_chat_template_kwargs_enable_false",
+  "title": "chat_template_kwargs.enable_thinking=false closes thinking",
+  "category": "reasoning",
+  "parameters": ["chat_template_kwargs.enable_thinking"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Compute 52 + 16. Reply with one short sentence."
+      }
+    ],
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    },
+    "max_completion_tokens": 256
+  },
+  "expect": {
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_absent": true,
+    "assistant_content_non_empty": true,
+    "provider_extension": true,
+    "notes": "vLLM/Qwen chat template 风格关闭探针。"
+  }
+}

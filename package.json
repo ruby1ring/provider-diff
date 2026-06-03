@@ -47,5 +47,8 @@
     "dmg": {
       "artifactName": "Provider-Diff-${version}-${arch}.${ext}"
     }
+  },
+  "dependencies": {
+    "@larksuite/cli": "^1.0.45"
   }
 }

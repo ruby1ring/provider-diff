@@ -1,0 +1,28 @@
+{
+  "case_id": "sf_reasoning_disable_thinking_no_output",
+  "title": "enable_thinking=false should suppress thinking output",
+  "category": "reasoning",
+  "parameters": ["enable_thinking"],
+  "requires_model_capability": "reasoning",
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-ai/DeepSeek-R1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Answer only with the final number: 29 + 13."
+      }
+    ],
+    "enable_thinking": false,
+    "max_tokens": 96
+  },
+  "expect": {
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_absent": true,
+    "assistant_content_non_empty": true,
+    "provider_extension": true,
+    "notes": "关闭 thinking 的定义是响应中不输出 thinking 内容；若仍出现 reasoning_content、reasoning_details 或 <think> 标签，应判为关闭失败。"
+  }
+}

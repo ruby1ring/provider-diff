@@ -1,0 +1,45 @@
+{
+  "case_id": "or_official_input_image_url_stream",
+  "title": "official endpoint case: image_url input",
+  "category": "official",
+  "parameters": [
+    "stream",
+    "messages[].content[].image_url"
+  ],
+  "requires_model_capability": "vision",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "stream": true,
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "What's in this image?"
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "https://live.staticflickr.com/3851/14825276609_098cac593d_b.jpg"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ],
+    "notes": "Imported from docs/openrouter.case.md. Capability-gated vision case."
+  }
+}

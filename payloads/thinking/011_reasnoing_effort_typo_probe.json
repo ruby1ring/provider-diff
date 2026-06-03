@@ -1,0 +1,26 @@
+{
+  "case_id": "thinking_reasnoing_effort_typo_probe",
+  "title": "misspelled reasnoing_effort probe",
+  "category": "reasoning",
+  "parameters": ["reasnoing_effort"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Compute 18 + 27, then give the final answer."
+      }
+    ],
+    "reasnoing_effort": "medium",
+    "max_completion_tokens": 512
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "thinking_location_probe": true,
+    "notes": "保留用户列出的拼写形态，用于发现渠道是否静默忽略未知字段或存在兼容拼写。2xx 会归为 ignored。"
+  }
+}

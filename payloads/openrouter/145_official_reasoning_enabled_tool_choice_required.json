@@ -1,0 +1,63 @@
+{
+  "case_id": "or_official_reasoning_enabled_tool_choice_required",
+  "title": "official endpoint case: reasoning enabled tool_choice required",
+  "category": "official_tools",
+  "parameters": [
+    "stream",
+    "tools",
+    "tool_choice",
+    "reasoning.enabled"
+  ],
+  "requires_model_capability": "tools",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "stream": true,
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "calculate",
+          "description": "Perform a mathematical calculation",
+          "strict": true,
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "expression": {
+                "type": "string",
+                "description": "The mathematical expression to evaluate, e.g. 2 + 2"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "expression"
+            ]
+          }
+        }
+      }
+    ],
+    "messages": [
+      {
+        "role": "user",
+        "content": "Hi, how are you?"
+      }
+    ],
+    "tool_choice": "required",
+    "reasoning": {
+      "enabled": true
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ],
+    "notes": "docs/openrouter.case.md shows this task as Running without a Raw Request block; payload inferred from the matching reasoning-disabled required case with reasoning.enabled=true."
+  }
+}

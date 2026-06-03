@@ -1,0 +1,46 @@
+{
+  "case_id": "or_official_input_video_url_stream",
+  "title": "official endpoint case: video_url input",
+  "category": "official",
+  "parameters": [
+    "stream",
+    "messages[].content[].video_url"
+  ],
+  "requires_model_capability": "vision-video",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "stream": true,
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "What is shown in this video?"
+          },
+          {
+            "type": "video_url",
+            "video_url": {
+              "url": "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/1080/Big_Buck_Bunny_1080_10s_5MB.mp4"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "optional_capability_mismatch": true,
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ],
+    "notes": "Imported from docs/openrouter.case.md. Capability-gated video input case."
+  }
+}

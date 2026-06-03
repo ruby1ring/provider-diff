@@ -2,6 +2,43 @@ package main
 
 import "testing"
 
+func TestLoadThinkingProviderCases(t *testing.T) {
+	root, err := findProjectRoot()
+	if err != nil {
+		t.Fatalf("find project root: %v", err)
+	}
+	server := &Server{root: root}
+	manifest, cases, err := server.loadProvider("thinking")
+	if err != nil {
+		t.Fatalf("load thinking provider: %v", err)
+	}
+	if manifest.Provider != "thinking" {
+		t.Fatalf("expected thinking provider, got %q", manifest.Provider)
+	}
+	if len(cases) != 13 {
+		t.Fatalf("expected 13 thinking probe cases, got %d", len(cases))
+	}
+	if cases[0].CaseID != "thinking_baseline_no_thinking" {
+		t.Fatalf("unexpected first case %q", cases[0].CaseID)
+	}
+}
+
+func TestBuildEndpointURLDoesNotDuplicateExistingEndpoint(t *testing.T) {
+	got := buildEndpointURL("https://dashscope-us.aliyuncs.com/compatible-mode/v1/chat/completions", "/chat/completions")
+	want := "https://dashscope-us.aliyuncs.com/compatible-mode/v1/chat/completions"
+	if got != want {
+		t.Fatalf("expected %q, got %q", want, got)
+	}
+}
+
+func TestBuildEndpointURLAppendsEndpointToBaseURL(t *testing.T) {
+	got := buildEndpointURL("https://dashscope-us.aliyuncs.com/compatible-mode/v1", "/chat/completions")
+	want := "https://dashscope-us.aliyuncs.com/compatible-mode/v1/chat/completions"
+	if got != want {
+		t.Fatalf("expected %q, got %q", want, got)
+	}
+}
+
 func TestAssistantContentNonEmptyAssertionPasses(t *testing.T) {
 	result := RunCaseResult{
 		HTTPStatus: 200,
@@ -330,6 +367,93 @@ func TestThinkingAbsentAssertionFailsWhenChatReasoningContentPresent(t *testing.
 	}
 }
 
+func TestThinkingEvidenceRequiredPassesForChatReasoningObject(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus: 200,
+		ResponseBody: map[string]any{
+			"choices": []any{
+				map[string]any{
+					"message": map[string]any{
+						"content": "Final answer.",
+						"reasoning": map[string]any{
+							"summary": "I checked the arithmetic.",
+						},
+					},
+				},
+			},
+		},
+	}
+	assertions := evaluateAssertions(result, map[string]any{
+		"thinking_location_probe":    true,
+		"thinking_evidence_required": true,
+	})
+	probe, ok := findAssertion(assertions, "thinking_location_probe")
+	if !ok {
+		t.Fatal("thinking_location_probe assertion was not emitted")
+	}
+	if !probe.Pass || probe.Message == "" {
+		t.Fatalf("expected location probe diagnostic to pass with a message, got %#v", probe)
+	}
+	evidence, ok := findAssertion(assertions, "thinking_evidence_required")
+	if !ok {
+		t.Fatal("thinking_evidence_required assertion was not emitted")
+	}
+	if !evidence.Pass {
+		t.Fatalf("expected reasoning object to count as thinking evidence, got message %q", evidence.Message)
+	}
+}
+
+func TestThinkingEvidenceRequiredPassesForReasoningTokens(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus: 200,
+		ResponseBody: map[string]any{
+			"choices": []any{
+				map[string]any{
+					"message": map[string]any{"content": "Final answer."},
+				},
+			},
+			"usage": map[string]any{
+				"completion_tokens_details": map[string]any{
+					"reasoning_tokens": float64(12),
+				},
+			},
+		},
+	}
+	assertions := evaluateAssertions(result, map[string]any{
+		"thinking_evidence_required": true,
+	})
+	assertion, ok := findAssertion(assertions, "thinking_evidence_required")
+	if !ok {
+		t.Fatal("thinking_evidence_required assertion was not emitted")
+	}
+	if !assertion.Pass {
+		t.Fatalf("expected reasoning tokens to count as thinking evidence, got message %q", assertion.Message)
+	}
+}
+
+func TestThinkingEvidenceRequiredFailsWhenNoEvidence(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus: 200,
+		ResponseBody: map[string]any{
+			"choices": []any{
+				map[string]any{
+					"message": map[string]any{"content": "Final answer."},
+				},
+			},
+		},
+	}
+	assertions := evaluateAssertions(result, map[string]any{
+		"thinking_evidence_required": true,
+	})
+	assertion, ok := findAssertion(assertions, "thinking_evidence_required")
+	if !ok {
+		t.Fatal("thinking_evidence_required assertion was not emitted")
+	}
+	if assertion.Pass {
+		t.Fatal("expected thinking_evidence_required to fail without thinking content or token evidence")
+	}
+}
+
 func TestThinkingAbsentAssertionPassesForMessagesTextOnly(t *testing.T) {
 	result := RunCaseResult{
 		HTTPStatus: 200,
@@ -404,6 +528,64 @@ data: [DONE]`,
 	}
 	if !assertion.Pass {
 		t.Fatalf("expected assertion to pass, got message %q", assertion.Message)
+	}
+}
+
+func TestValidateFeishuDocumentURLAllowsWikiPage(t *testing.T) {
+	parsed, err := validateFeishuDocumentURL("https://bytedance.larkoffice.com/wiki/ILuTww7Xcimb6GkhH0mcK2f4nS7")
+	if err != nil {
+		t.Fatalf("expected feishu wiki url to validate: %v", err)
+	}
+	if parsed.Hostname() != "bytedance.larkoffice.com" {
+		t.Fatalf("unexpected hostname %q", parsed.Hostname())
+	}
+}
+
+func TestValidateFeishuDocumentURLAllowsDocxPage(t *testing.T) {
+	_, err := validateFeishuDocumentURL("https://example.feishu.cn/docx/ABCDEF")
+	if err != nil {
+		t.Fatalf("expected feishu docx url to validate: %v", err)
+	}
+}
+
+func TestValidateFeishuDocumentURLRejectsNonFeishuHost(t *testing.T) {
+	_, err := validateFeishuDocumentURL("https://example.com/wiki/example-token")
+	if err == nil {
+		t.Fatal("expected non-feishu host to be rejected")
+	}
+}
+
+func TestNormalizeFeishuDocumentMode(t *testing.T) {
+	if mode, err := normalizeFeishuDocumentMode(""); err != nil || mode != "append" {
+		t.Fatalf("expected default append mode, got %q err=%v", mode, err)
+	}
+	if mode, err := normalizeFeishuDocumentMode("overwrite"); err != nil || mode != "overwrite" {
+		t.Fatalf("expected overwrite mode, got %q err=%v", mode, err)
+	}
+	if _, err := normalizeFeishuDocumentMode("delete"); err == nil {
+		t.Fatal("expected invalid mode to be rejected")
+	}
+}
+
+func TestOptionalCapabilityMismatchIsIgnored(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus:  404,
+		RawResponse: `{"error":{"message":"No endpoints found that support input video"}}`,
+	}
+	expect := map[string]any{
+		"http_status":                  200,
+		"optional_capability_mismatch": true,
+	}
+	assertions := evaluateAssertions(result, expect)
+	assertion, ok := findAssertion(assertions, "optional_capability_mismatch")
+	if !ok {
+		t.Fatal("optional_capability_mismatch assertion was not emitted")
+	}
+	if !assertion.Pass {
+		t.Fatalf("expected optional capability mismatch assertion to pass, got %q", assertion.Message)
+	}
+	if conclusion := finalizeSupportConclusionForResult(result, nil, expect); conclusion != "ignored" {
+		t.Fatalf("expected ignored conclusion, got %q", conclusion)
 	}
 }
 

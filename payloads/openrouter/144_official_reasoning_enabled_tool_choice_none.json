@@ -1,0 +1,71 @@
+{
+  "case_id": "or_official_reasoning_enabled_tool_choice_none",
+  "title": "official endpoint case: reasoning enabled tool_choice none",
+  "category": "official_tools",
+  "parameters": [
+    "stream",
+    "tools",
+    "tool_choice",
+    "reasoning.enabled"
+  ],
+  "requires_model_capability": "tools",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "stream": true,
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_current_weather",
+          "description": "Get the current weather in a given location",
+          "strict": true,
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string",
+                "description": "The city and state, e.g. San Francisco, CA"
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "celsius",
+                  "fahrenheit"
+                ]
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "location",
+              "unit"
+            ]
+          }
+        }
+      }
+    ],
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is the weather like in Boston, MA in fahrenheit?"
+      }
+    ],
+    "tool_choice": "none",
+    "reasoning": {
+      "enabled": true
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ],
+    "notes": "Imported from docs/openrouter.case.md. Official validation failed semantically, but the request itself returned a provider response."
+  }
+}

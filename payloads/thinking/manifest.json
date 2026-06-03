@@ -1,0 +1,36 @@
+{
+  "provider": "thinking",
+  "base_url": "https://api.openai.com/v1",
+  "endpoint": "/chat/completions",
+  "method": "POST",
+  "default_model": "gpt-5.1",
+  "reasoning_model": "gpt-5.1",
+  "vision_model": "",
+  "notes": [
+    "通用 thinking 探针：运行时请把 Base URL、Model 和 API Key 改成待测渠道。",
+    "每个开启 case 都会检查 HTTP 接受情况，并通过 thinking_location_probe 报告 thinking 内容落点。",
+    "thinking_evidence_required 会把非空 thinking/reasoning 字段或 usage 中 reasoning_tokens/thinking_tokens > 0 视为开启证据。",
+    "关闭 case 会检查响应中不应出现 thinking/reasoning 内容。"
+  ],
+  "common_expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices"],
+    "choice_required_fields": ["index", "message", "finish_reason"]
+  },
+  "cases": [
+    "001_baseline_no_thinking.json",
+    "010_reasoning_effort_medium.json",
+    "011_reasnoing_effort_typo_probe.json",
+    "020_enable_thinking_true.json",
+    "021_enable_thinking_false.json",
+    "030_thinking_budget_only.json",
+    "031_enable_thinking_with_budget.json",
+    "040_thinking_object_enabled.json",
+    "041_thinking_object_disabled.json",
+    "050_reasoning_object_effort_summary.json",
+    "051_reasoning_object_effort_none.json",
+    "060_chat_template_kwargs_enable_thinking_true.json",
+    "061_chat_template_kwargs_enable_thinking_false.json"
+  ]
+}

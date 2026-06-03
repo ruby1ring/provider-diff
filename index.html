@@ -16,6 +16,7 @@
         <nav class="top-nav" aria-label="Primary">
           <a class="is-active" href="#run" data-view-link="run">运行</a>
           <a href="#reports" data-view-link="reports">报告</a>
+          <a href="#feishu" data-view-link="feishu">飞书文档</a>
           <a href="#evalscope" data-view-link="evalscope">EvalScope</a>
           <a href="#opencompass" data-view-link="opencompass">OpenCompass</a>
         </nav>
@@ -60,9 +61,12 @@
                 </span>
               </label>
 
-              <label class="field">
+              <label class="field field--base-url">
                 <span>Base URL（请求地址）</span>
-                <input id="baseUrl" class="mono" type="text" />
+                <span class="endpoint-control">
+                  <select id="baseUrlPreset" class="mono" aria-label="选择 Base URL 预设"></select>
+                  <input id="baseUrl" class="mono" type="text" />
+                </span>
               </label>
 
               <label class="field">
@@ -236,8 +240,72 @@
                 </div>
               </div>
               <div id="historySummary" class="history-summary"></div>
+              <div id="historyFilters" class="history-filters"></div>
               <div id="historyList" class="history-list"></div>
             </section>
+          </section>
+          </section>
+
+          <section id="feishuView" class="app-view is-hidden" data-view="feishu">
+          <div class="page-title-row">
+            <div>
+              <h1>飞书文档</h1>
+              <p>配置飞书文档或 Wiki 链接，评测完成后通过 lark-cli 写入本次评测文档。</p>
+            </div>
+            <div class="view-actions">
+              <button id="pushFeishuNow" class="primary-button" type="button">写入本次文档</button>
+            </div>
+          </div>
+
+          <section class="panel feishu-panel" aria-labelledby="feishu-title">
+            <div class="matrix-toolbar">
+              <div>
+                <p class="eyebrow">Lark CLI</p>
+                <h2 id="feishu-title">文档写入配置</h2>
+              </div>
+              <div class="toolbar-actions">
+                <button id="saveFeishuSettings" class="secondary-button" type="button">保存配置</button>
+              </div>
+            </div>
+
+            <div class="feishu-config-grid">
+              <label class="field feishu-url-field">
+                <span>飞书文档 / Wiki 地址</span>
+                <input id="feishuDocumentUrl" class="mono" type="url" placeholder="https://bytedance.larkoffice.com/wiki/..." autocomplete="off" />
+              </label>
+              <label class="field">
+                <span>文档标题</span>
+                <input id="feishuTitlePrefix" type="text" placeholder="Provider Diff 评测完成" />
+              </label>
+              <label class="field">
+                <span>写入模式</span>
+                <select id="feishuDocumentMode">
+                  <option value="append">追加到文末</option>
+                  <option value="overwrite">覆盖全文</option>
+                </select>
+              </label>
+              <label class="toggle-control feishu-toggle">
+                <input id="feishuAutoPush" type="checkbox" />
+                <span>评测完成后自动写入</span>
+              </label>
+            </div>
+
+            <div class="feishu-hint">
+              <span id="feishuStatus" class="muted">尚未配置；请先运行 lark-cli config init --new，再填写文档或 Wiki 链接。</span>
+            </div>
+          </section>
+
+          <section class="panel feishu-document-panel" aria-labelledby="feishu-doc-title">
+            <div class="matrix-toolbar">
+              <div>
+                <p class="eyebrow">Document</p>
+                <h2 id="feishu-doc-title">本次评测结果文档</h2>
+              </div>
+              <div class="toolbar-actions">
+                <button id="copyFeishuReport" class="secondary-button" type="button">复制文档</button>
+              </div>
+            </div>
+            <textarea id="feishuReportPreview" class="mono feishu-report-preview" spellcheck="false" placeholder="完成一次评测后，这里会生成可写入飞书的 Markdown 文档。"></textarea>
           </section>
           </section>
 

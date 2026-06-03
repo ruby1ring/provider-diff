@@ -1,0 +1,90 @@
+{
+  "case_id": "or_official_reasoning_disabled_tool_call_step_5",
+  "title": "official endpoint case: reasoning disabled tool result follow-up",
+  "category": "official_tools",
+  "parameters": [
+    "stream",
+    "tools",
+    "messages[].role=tool",
+    "tool_call_id",
+    "reasoning.enabled"
+  ],
+  "requires_model_capability": "tools",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "stream": true,
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_current_weather",
+          "description": "Get the current weather in a given location",
+          "strict": true,
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string",
+                "description": "The city and state, e.g. San Francisco, CA"
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "celsius",
+                  "fahrenheit"
+                ]
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "location",
+              "unit"
+            ]
+          }
+        }
+      }
+    ],
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is the weather like in Boston, MA in fahrenheit?"
+      },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_9pw1qnYScqvGrCH58HWCvFH6",
+            "type": "function",
+            "function": {
+              "name": "get_current_weather",
+              "arguments": "{\"location\": \"Boston, MA\", \"unit\": \"fahrenheit\"}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_9pw1qnYScqvGrCH58HWCvFH6",
+        "content": "{\"temperature\": \"22\", \"unit\": \"fahrenheit\", \"description\": \"Sunny\"}"
+      }
+    ],
+    "reasoning": {
+      "enabled": false
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ],
+    "notes": "Imported from docs/openrouter.case.md."
+  }
+}

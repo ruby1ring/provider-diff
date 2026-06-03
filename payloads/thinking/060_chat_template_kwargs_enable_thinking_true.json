@@ -1,0 +1,30 @@
+{
+  "case_id": "thinking_chat_template_kwargs_enable_true",
+  "title": "chat_template_kwargs.enable_thinking=true opens thinking",
+  "category": "reasoning",
+  "parameters": ["chat_template_kwargs.enable_thinking"],
+  "requires_model_capability": "reasoning",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use brief reasoning to compute 52 + 16, then give the final answer."
+      }
+    ],
+    "chat_template_kwargs": {
+      "enable_thinking": true
+    },
+    "max_completion_tokens": 512
+  },
+  "expect": {
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "assistant_content_non_empty": true,
+    "provider_extension": true,
+    "notes": "vLLM/Qwen chat template 风格开关。"
+  }
+}

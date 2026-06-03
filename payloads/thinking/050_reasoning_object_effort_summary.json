@@ -1,0 +1,30 @@
+{
+  "case_id": "thinking_reasoning_object_effort_summary",
+  "title": "reasoning.effort=medium summary=auto opens thinking",
+  "category": "reasoning",
+  "parameters": ["reasoning", "reasoning.effort", "reasoning.summary"],
+  "requires_model_capability": "reasoning",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use concise reasoning to compute 64 + 28, then give the final answer."
+      }
+    ],
+    "reasoning": {
+      "effort": "medium",
+      "summary": "auto"
+    },
+    "max_completion_tokens": 1200
+  },
+  "expect": {
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "assistant_content_non_empty": true,
+    "notes": "OpenRouter/OpenAI Responses-inspired object 形态；探测 summary 是否导致响应中暴露 reasoning 字段。"
+  }
+}

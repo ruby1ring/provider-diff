@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -134,6 +135,18 @@ type Server struct {
 	root string
 }
 
+type FeishuDocumentRequest struct {
+	DocumentURL  string `json:"document_url"`
+	DocumentMode string `json:"document_mode"`
+	Title        string `json:"title"`
+	Markdown     string `json:"markdown"`
+}
+
+type FeishuDocumentResponse struct {
+	OK      bool   `json:"ok"`
+	Message string `json:"message,omitempty"`
+}
+
 func main() {
 	root, err := findProjectRoot()
 	if err != nil {
@@ -146,6 +159,7 @@ func main() {
 	mux.HandleFunc("/api/providers", s.handleProviders)
 	mux.HandleFunc("/api/providers/", s.handleProviderRoutes)
 	mux.HandleFunc("/api/run", s.handleRun)
+	mux.HandleFunc("/api/feishu/document", s.handleFeishuDocument)
 
 	port := strings.TrimSpace(os.Getenv("PORT"))
 	if port == "" {
@@ -154,6 +168,56 @@ func main() {
 	addr := ":" + port
 	log.Printf("llm-rosetta backend listening on http://localhost%s", addr)
 	log.Fatal(http.ListenAndServe(addr, withCORS(mux)))
+}
+
+func (s *Server) handleFeishuDocument(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/api/feishu/document" {
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	}
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	var req FeishuDocumentRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 512<<10)).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
+		return
+	}
+	title := strings.TrimSpace(req.Title)
+	if title == "" {
+		title = "Provider Diff 评测完成"
+	}
+	markdown := strings.TrimSpace(req.Markdown)
+	if markdown == "" {
+		writeError(w, http.StatusBadRequest, "markdown is required")
+		return
+	}
+	if len([]rune(markdown)) > 18000 {
+		runes := []rune(markdown)
+		markdown = string(runes[:18000]) + "\n\n（内容过长，已截断；请在本地历史报告查看完整结果。）"
+	}
+
+	documentURL, err := validateFeishuDocumentURL(req.DocumentURL)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	mode, err := normalizeFeishuDocumentMode(req.DocumentMode)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := writeFeishuDocumentWithCLI(r.Context(), s.root, documentURL.String(), mode, title, markdown); err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, FeishuDocumentResponse{
+		OK:      true,
+		Message: "written",
+	})
 }
 
 func findProjectRoot() (string, error) {
@@ -176,6 +240,117 @@ func findProjectRoot() (string, error) {
 func exists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+func validateFeishuDocumentURL(value string) (*url.URL, error) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil, errors.New("document_url is required")
+	}
+	parsed, err := url.Parse(trimmed)
+	if err != nil {
+		return nil, fmt.Errorf("invalid document_url: %w", err)
+	}
+	if parsed.Scheme != "https" {
+		return nil, errors.New("document_url must use https")
+	}
+	host := strings.ToLower(parsed.Hostname())
+	allowedSuffixes := []string{
+		"feishu.cn",
+		"larksuite.com",
+		"larkoffice.com",
+	}
+	allowed := false
+	for _, suffix := range allowedSuffixes {
+		if host == suffix || strings.HasSuffix(host, "."+suffix) {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		return nil, errors.New("document_url must be a Feishu or Lark document/wiki URL")
+	}
+	path := parsed.EscapedPath()
+	if !strings.Contains(path, "/wiki/") && !strings.Contains(path, "/docx/") && !strings.Contains(path, "/docs/") {
+		return nil, errors.New("document_url must point to a Feishu wiki/docx/docs page")
+	}
+	return parsed, nil
+}
+
+func normalizeFeishuDocumentMode(value string) (string, error) {
+	mode := strings.TrimSpace(value)
+	if mode == "" {
+		mode = "append"
+	}
+	switch mode {
+	case "append", "overwrite":
+		return mode, nil
+	default:
+		return "", errors.New("document_mode must be append or overwrite")
+	}
+}
+
+func writeFeishuDocumentWithCLI(ctx context.Context, root, documentURL, mode, title, markdown string) error {
+	cliPath, err := larkCLIPath(root)
+	if err != nil {
+		return err
+	}
+	tempFile, err := os.CreateTemp("", "provider-diff-feishu-*.md")
+	if err != nil {
+		return fmt.Errorf("create temporary markdown file: %w", err)
+	}
+	tempPath := tempFile.Name()
+	defer os.Remove(tempPath)
+	if _, err := tempFile.WriteString(markdown); err != nil {
+		tempFile.Close()
+		return fmt.Errorf("write temporary markdown file: %w", err)
+	}
+	if err := tempFile.Close(); err != nil {
+		return fmt.Errorf("close temporary markdown file: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	args := []string{
+		"docs", "+update",
+		"--api-version", "v2",
+		"--as", "user",
+		"--doc", documentURL,
+		"--mode", mode,
+		"--markdown", "@" + tempPath,
+	}
+	if mode == "overwrite" && strings.TrimSpace(title) != "" {
+		args = append(args, "--new-title", strings.TrimSpace(title))
+	}
+	cmd := exec.CommandContext(ctx, cliPath, args...)
+	cmd.Dir = root
+	output, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		return errors.New("lark-cli timed out while writing the document")
+	}
+	if err != nil {
+		text := strings.TrimSpace(string(output))
+		if text == "" {
+			text = err.Error()
+		}
+		return fmt.Errorf("lark-cli docs +update failed: %s", text)
+	}
+	return nil
+}
+
+func larkCLIPath(root string) (string, error) {
+	binaryName := "lark-cli"
+	if os.PathSeparator == '\\' {
+		binaryName = "lark-cli.cmd"
+	}
+	localPath := filepath.Join(root, "node_modules", ".bin", binaryName)
+	if exists(localPath) {
+		return localPath, nil
+	}
+	if path, err := exec.LookPath(binaryName); err == nil {
+		return path, nil
+	}
+	return "", errors.New("lark-cli is not installed; run npm install or install @larksuite/cli")
 }
 
 func withCORS(next http.Handler) http.Handler {
@@ -517,7 +692,11 @@ func buildEndpointURL(baseURL, endpoint string) string {
 	if endpoint == "" {
 		return baseURL
 	}
-	return baseURL + "/" + strings.TrimLeft(endpoint, "/")
+	endpointPath := "/" + strings.TrimLeft(endpoint, "/")
+	if strings.HasSuffix(baseURL, endpointPath) {
+		return baseURL
+	}
+	return baseURL + endpointPath
 }
 
 func runProviderCase(ctx context.Context, client *http.Client, endpointURL, apiKey, model string, manifest Manifest, tc TestCase) RunCaseResult {
@@ -542,7 +721,7 @@ func runProviderCase(ctx context.Context, client *http.Client, endpointURL, apiK
 	bodyBytes, err := json.Marshal(requestBody)
 	if err != nil {
 		result.Error = fmt.Sprintf("marshal request body: %v", err)
-		result.SupportConclusion = finalizeSupportConclusion(result.HTTPStatus, err, tc.Expect, result.Assertions)
+		result.SupportConclusion = finalizeSupportConclusionForResult(result, err, tc.Expect)
 		return result
 	}
 
@@ -551,7 +730,7 @@ func runProviderCase(ctx context.Context, client *http.Client, endpointURL, apiK
 	result.LatencyMS = time.Since(start).Milliseconds()
 	if err != nil {
 		result.Error = err.Error()
-		result.SupportConclusion = finalizeSupportConclusion(result.HTTPStatus, err, tc.Expect, result.Assertions)
+		result.SupportConclusion = finalizeSupportConclusionForResult(result, err, tc.Expect)
 		return result
 	}
 	defer resp.Body.Close()
@@ -561,7 +740,7 @@ func runProviderCase(ctx context.Context, client *http.Client, endpointURL, apiK
 	raw, readErr := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if readErr != nil {
 		result.Error = fmt.Sprintf("read response body: %v", readErr)
-		result.SupportConclusion = finalizeSupportConclusion(result.HTTPStatus, readErr, tc.Expect, result.Assertions)
+		result.SupportConclusion = finalizeSupportConclusionForResult(result, readErr, tc.Expect)
 		return result
 	}
 	result.RawResponse = string(raw)
@@ -570,9 +749,12 @@ func runProviderCase(ctx context.Context, client *http.Client, endpointURL, apiK
 	}
 	if result.HTTPStatus >= 400 {
 		result.Error = providerErrorMessage(result.ResponseBody, result.RawResponse, resp.Status)
+		if optionalCapabilityMismatch(result, tc.Expect) {
+			result.Error = ""
+		}
 	}
 	result.Assertions = evaluateAssertions(result, tc.Expect)
-	result.SupportConclusion = finalizeSupportConclusion(result.HTTPStatus, nil, tc.Expect, result.Assertions)
+	result.SupportConclusion = finalizeSupportConclusionForResult(result, nil, tc.Expect)
 	return result
 }
 
@@ -837,6 +1019,38 @@ func finalizeSupportConclusion(httpStatus int, err error, expect map[string]any,
 	return conclusion
 }
 
+func finalizeSupportConclusionForResult(result RunCaseResult, err error, expect map[string]any) string {
+	if optionalCapabilityMismatch(result, expect) {
+		return "ignored"
+	}
+	return finalizeSupportConclusion(result.HTTPStatus, err, expect, result.Assertions)
+}
+
+func optionalCapabilityMismatch(result RunCaseResult, expect map[string]any) bool {
+	enabled, _ := expect["optional_capability_mismatch"].(bool)
+	if !enabled {
+		return false
+	}
+	if result.HTTPStatus != http.StatusBadRequest && result.HTTPStatus != http.StatusNotFound && result.HTTPStatus != http.StatusUnprocessableEntity {
+		return false
+	}
+	text := strings.ToLower(result.Error + " " + result.RawResponse)
+	fragments := []string{
+		"no endpoints found that support",
+		"not supported",
+		"unsupported",
+		"does not support",
+		"support input audio",
+		"support input video",
+	}
+	for _, fragment := range fragments {
+		if strings.Contains(text, fragment) {
+			return true
+		}
+	}
+	return false
+}
+
 func hasFailedSemanticAssertion(assertions []CaseAssertion) bool {
 	for _, assertion := range assertions {
 		if assertion.Name == "http_status" {
@@ -851,6 +1065,13 @@ func hasFailedSemanticAssertion(assertions []CaseAssertion) bool {
 
 func evaluateAssertions(result RunCaseResult, expect map[string]any) []CaseAssertion {
 	assertions := make([]CaseAssertion, 0)
+	if optionalCapabilityMismatch(result, expect) {
+		return append(assertions, CaseAssertion{
+			Name:    "optional_capability_mismatch",
+			Pass:    true,
+			Message: "可选能力在当前模型/路由下不可用，按 ignored 处理",
+		})
+	}
 	if status := expectedHTTPStatus(expect); status > 0 {
 		assertions = append(assertions, CaseAssertion{
 			Name:    "http_status",
@@ -927,6 +1148,12 @@ func evaluateAssertions(result RunCaseResult, expect map[string]any) []CaseAsser
 	}
 	if required, _ := expect["thinking_required"].(bool); required {
 		assertions = append(assertions, thinkingRequiredAssertion(result.ResponseBody, expect))
+	}
+	if probe, _ := expect["thinking_location_probe"].(bool); probe {
+		assertions = append(assertions, thinkingLocationProbeAssertion(result.ResponseBody))
+	}
+	if required, _ := expect["thinking_evidence_required"].(bool); required {
+		assertions = append(assertions, thinkingEvidenceRequiredAssertion(result.ResponseBody))
 	}
 	if absent, _ := expect["thinking_absent"].(bool); absent {
 		assertions = append(assertions, thinkingAbsentAssertion(result.ResponseBody, expect))
@@ -1235,9 +1462,12 @@ func thinkingRequiredAssertion(value any, expect map[string]any) CaseAssertion {
 	case "chat.message.reasoning_content":
 		text, ok := firstStringAt(value, []string{"choices", "message", "reasoning_content"})
 		return CaseAssertion{Name: "thinking_required", Pass: ok && strings.TrimSpace(text) != "", Message: "预期 choices[0].message.reasoning_content 为非空字符串"}
+	case "chat.message.reasoning":
+		thinking, ok := firstValueAt(value, []string{"choices", "message", "reasoning"})
+		return CaseAssertion{Name: "thinking_required", Pass: ok && !emptyJSONValue(thinking), Message: "预期 choices[0].message.reasoning 存在且非空"}
 	case "chat.message.reasoning_details":
-		_, ok := firstValueAt(value, []string{"choices", "message", "reasoning_details"})
-		return CaseAssertion{Name: "thinking_required", Pass: ok, Message: "预期 choices[0].message.reasoning_details 存在"}
+		details, ok := firstValueAt(value, []string{"choices", "message", "reasoning_details"})
+		return CaseAssertion{Name: "thinking_required", Pass: ok && !emptyJSONValue(details), Message: "预期 choices[0].message.reasoning_details 存在且非空"}
 	case "chat.message.content_think_tag":
 		content, ok := assistantContent(value)
 		return CaseAssertion{Name: "thinking_required", Pass: ok && containsThinkTag(content), Message: "预期 choices[0].message.content 包含 <think>...</think>"}
@@ -1248,7 +1478,7 @@ func thinkingRequiredAssertion(value any, expect map[string]any) CaseAssertion {
 
 func thinkingAbsentAssertion(value any, expect map[string]any) CaseAssertion {
 	location, _ := expect["thinking_location"].(string)
-	locations := []string{"messages.content_block", "chat.message.reasoning_content", "chat.message.reasoning_details", "chat.message.content_think_tag"}
+	locations := []string{"messages.content_block", "chat.message.reasoning_content", "chat.message.reasoning", "chat.message.reasoning_details", "chat.message.content_think_tag"}
 	if location != "" {
 		locations = []string{location}
 	}
@@ -1261,11 +1491,54 @@ func thinkingAbsentAssertion(value any, expect map[string]any) CaseAssertion {
 	return CaseAssertion{Name: "thinking_absent", Pass: len(present) == 0, Message: "不应出现 thinking 输出；实际位置: " + strings.Join(present, ", ")}
 }
 
+func thinkingLocationProbeAssertion(value any) CaseAssertion {
+	locations := thinkingLocations(value)
+	tokenEvidence := thinkingTokenEvidence(value)
+	message := thinkingEvidenceMessage(locations, tokenEvidence)
+	return CaseAssertion{Name: "thinking_location_probe", Pass: true, Message: message}
+}
+
+func thinkingEvidenceRequiredAssertion(value any) CaseAssertion {
+	locations := thinkingLocations(value)
+	tokenEvidence := thinkingTokenEvidence(value)
+	pass := len(locations) > 0 || len(tokenEvidence) > 0
+	return CaseAssertion{Name: "thinking_evidence_required", Pass: pass, Message: thinkingEvidenceMessage(locations, tokenEvidence)}
+}
+
+func thinkingEvidenceMessage(locations, tokenEvidence []string) string {
+	parts := make([]string, 0, 2)
+	if len(locations) > 0 {
+		parts = append(parts, "thinking 内容位置: "+strings.Join(locations, ", "))
+	}
+	if len(tokenEvidence) > 0 {
+		parts = append(parts, "token 证据: "+strings.Join(tokenEvidence, ", "))
+	}
+	if len(parts) == 0 {
+		return "未探测到 thinking 内容位置或 reasoning/thinking token 证据"
+	}
+	return strings.Join(parts, "；")
+}
+
 func inferredThinkingLocation(value any) string {
 	if isMessagesResponse(value) {
 		return "messages.content_block"
 	}
 	return "chat.message.reasoning_content"
+}
+
+func thinkingLocations(value any) []string {
+	locations := make([]string, 0)
+	if _, ok := firstContentBlockWithType(value, "redacted_thinking"); ok {
+		locations = append(locations, "messages.content_block.redacted_thinking")
+	} else if thinkingPresentAt(value, "messages.content_block") {
+		locations = append(locations, "messages.content_block")
+	}
+	for _, candidate := range []string{"chat.message.reasoning_content", "chat.message.reasoning", "chat.message.reasoning_details", "chat.message.content_think_tag"} {
+		if thinkingPresentAt(value, candidate) {
+			locations = append(locations, candidate)
+		}
+	}
+	return locations
 }
 
 func thinkingPresentAt(value any, location string) bool {
@@ -1283,12 +1556,47 @@ func thinkingPresentAt(value any, location string) bool {
 	case "chat.message.reasoning_content":
 		text, ok := firstStringAt(value, []string{"choices", "message", "reasoning_content"})
 		return ok && strings.TrimSpace(text) != ""
+	case "chat.message.reasoning":
+		thinking, ok := firstValueAt(value, []string{"choices", "message", "reasoning"})
+		return ok && !emptyJSONValue(thinking)
 	case "chat.message.reasoning_details":
-		_, ok := firstValueAt(value, []string{"choices", "message", "reasoning_details"})
-		return ok
+		details, ok := firstValueAt(value, []string{"choices", "message", "reasoning_details"})
+		return ok && !emptyJSONValue(details)
 	case "chat.message.content_think_tag":
 		content, ok := assistantContent(value)
 		return ok && containsThinkTag(content)
+	default:
+		return false
+	}
+}
+
+func thinkingTokenEvidence(value any) []string {
+	evidence := make([]string, 0)
+	walkJSONPath(value, nil, func(path []string, key string, value any) {
+		lowerKey := strings.ToLower(key)
+		if lowerKey != "reasoning_tokens" && lowerKey != "thinking_tokens" {
+			return
+		}
+		count, ok := intValue(value)
+		if !ok || count <= 0 {
+			return
+		}
+		evidence = append(evidence, strings.Join(append(path, key), "."))
+	})
+	sort.Strings(evidence)
+	return evidence
+}
+
+func emptyJSONValue(value any) bool {
+	switch typed := value.(type) {
+	case nil:
+		return true
+	case string:
+		return strings.TrimSpace(typed) == ""
+	case []any:
+		return len(typed) == 0
+	case map[string]any:
+		return len(typed) == 0
 	default:
 		return false
 	}
@@ -1670,6 +1978,20 @@ func walkJSON(value any, visit func(key string, value any)) {
 	case []any:
 		for _, child := range typed {
 			walkJSON(child, visit)
+		}
+	}
+}
+
+func walkJSONPath(value any, path []string, visit func(path []string, key string, value any)) {
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, child := range typed {
+			visit(path, key, child)
+			walkJSONPath(child, append(path, key), visit)
+		}
+	case []any:
+		for index, child := range typed {
+			walkJSONPath(child, append(path, fmt.Sprintf("[%d]", index)), visit)
 		}
 	}
 }

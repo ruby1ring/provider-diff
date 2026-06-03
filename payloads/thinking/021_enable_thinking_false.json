@@ -1,0 +1,27 @@
+{
+  "case_id": "thinking_enable_thinking_false",
+  "title": "enable_thinking=false closes thinking",
+  "category": "reasoning",
+  "parameters": ["enable_thinking"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Compute 23 + 19. Reply with one short sentence."
+      }
+    ],
+    "enable_thinking": false,
+    "max_completion_tokens": 256
+  },
+  "expect": {
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_absent": true,
+    "assistant_content_non_empty": true,
+    "provider_extension": true,
+    "notes": "判断渠道是否接受 Qwen-style 关闭 thinking。"
+  }
+}

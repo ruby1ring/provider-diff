@@ -1,0 +1,31 @@
+{
+  "case_id": "or_official_yes_no_stream",
+  "title": "official endpoint case: yes-no streaming prompt",
+  "category": "official",
+  "parameters": [
+    "stream"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "stream": true,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Yes or no?"
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ],
+    "notes": "Imported from docs/openrouter.case.md. Model is intentionally omitted to match the official raw request; runner model override may be used."
+  }
+}

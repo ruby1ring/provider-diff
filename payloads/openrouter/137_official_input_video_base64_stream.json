@@ -1,0 +1,47 @@
+{
+  "case_id": "or_official_input_video_base64_stream",
+  "title": "official endpoint case: base64 video_url input",
+  "category": "official",
+  "parameters": [
+    "stream",
+    "messages[].content[].video_url",
+    "messages[].content[].video_url.data_url"
+  ],
+  "requires_model_capability": "vision-video",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "stream": true,
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "what's happening in this video"
+          },
+          {
+            "type": "video_url",
+            "video_url": {
+              "url": "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAGbW9vdg=="
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "optional_capability_mismatch": true,
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ],
+    "notes": "Imported from docs/openrouter.case.md. The original export contains a very large QuickTime data URL; this compact data URL keeps the regression fixture small while preserving the parameter shape."
+  }
+}

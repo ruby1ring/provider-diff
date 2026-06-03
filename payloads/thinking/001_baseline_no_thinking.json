@@ -1,0 +1,24 @@
+{
+  "case_id": "thinking_baseline_no_thinking",
+  "title": "baseline without explicit thinking controls",
+  "category": "reasoning",
+  "parameters": ["messages"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Compute 17 + 29. Reply with one short sentence."
+      }
+    ],
+    "max_completion_tokens": 256
+  },
+  "expect": {
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "assistant_content_non_empty": true,
+    "notes": "对照组：不显式传 thinking 参数，用于观察模型/渠道默认是否泄露或暴露 thinking。"
+  }
+}

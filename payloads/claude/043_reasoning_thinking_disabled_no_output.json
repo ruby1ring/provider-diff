@@ -1,0 +1,29 @@
+{
+  "case_id": "claude_reasoning_thinking_disabled_no_output",
+  "title": "thinking.type=disabled should suppress Claude thinking output",
+  "category": "reasoning",
+  "parameters": ["thinking"],
+  "requires_model_capability": "extended_thinking",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Answer only with the final number: 29 + 13."
+      }
+    ],
+    "thinking": {
+      "type": "disabled"
+    },
+    "max_completion_tokens": 96
+  },
+  "expect": {
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_absent": true,
+    "assistant_content_non_empty": true,
+    "notes": "关闭 thinking 的定义是 Chat Completions 响应中不输出 thinking 内容。Claude OpenAI 兼容层通常不暴露详细 thinking；该 case 单独验证 disabled 请求形态。"
+  }
+}

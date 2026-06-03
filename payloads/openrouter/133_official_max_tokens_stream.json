@@ -1,0 +1,33 @@
+{
+  "case_id": "or_official_max_tokens_stream",
+  "title": "official endpoint case: streaming with max_tokens",
+  "category": "official",
+  "parameters": [
+    "stream",
+    "max_tokens"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "stream": true,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Tell me a 1000 word bedtime story"
+      }
+    ],
+    "max_tokens": 500
+  },
+  "expect": {
+    "http_status": 200,
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ],
+    "notes": "Imported from docs/openrouter.case.md. Uses deprecated max_tokens because that is what the official raw request used."
+  }
+}

@@ -15,13 +15,13 @@
         "content": [
           {
             "type": "text",
-            "text": "Read the attached text file and say ok."
+            "text": "Read the attached PDF and say ok."
           },
           {
             "type": "file",
             "file": {
-              "filename": "compat.txt",
-              "file_data": "data:text/plain;base64,T3BlblJvdXRlciBmaWxlIHBhcnNlciBjb21wYXRpYmlsaXR5IHRlc3Qu"
+              "filename": "compat.pdf",
+              "file_data": "data:application/pdf;base64,JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+ZW5kb2JqCjIgMCBvYmo8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PmVuZG9iagozIDAgb2JqPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgMjAwIDIwMF0vQ29udGVudHMgNCAwIFIvUmVzb3VyY2VzPDwvRm9udDw8L0YxIDUgMCBSPj4+Pj4+ZW5kb2JqCjQgMCBvYmo8PC9MZW5ndGggNDQ+PnN0cmVhbQpCVCAvRjEgMTIgVGYgMjAgMTAwIFRkIChPcGVuUm91dGVyIHRlc3QpIFRqIEVUCmVuZHN0cmVhbQplbmRvYmoKNSAwIG9iajw8L1R5cGUvRm9udC9TdWJ0eXBlL1R5cGUxL0Jhc2VGb250L0hlbHZldGljYT4+ZW5kb2JqCnhyZWYKMCA2CjAwMDAwMDAwMDAgNjU1MzUgZiAKdHJhaWxlcjw8L1Jvb3QgMSAwIFIvU2l6ZSA2Pj4Kc3RhcnR4cmVmCjAKJSVFT0YK"
             }
           }
         ]
@@ -37,6 +37,6 @@
   "expect": {
     "http_status": 200,
     "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
-    "notes": "Optional because file parsing may require plugin/model/account support."
+    "notes": "Optional because file parsing may require plugin/model/account support. Claude document inputs require PDF media type."
   }
 }

@@ -1,0 +1,72 @@
+{
+  "case_id": "or_official_reasoning_disabled_structured_output",
+  "title": "official endpoint case: reasoning disabled structured output",
+  "category": "official_output",
+  "parameters": [
+    "response_format",
+    "response_format.type=json_schema",
+    "reasoning.enabled"
+  ],
+  "requires_model_capability": "structured_outputs",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "stream": false,
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "weather",
+        "strict": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "location": {
+              "type": "string",
+              "description": "City or location name",
+              "enum": [
+                "London",
+                "New York"
+              ]
+            },
+            "temperature": {
+              "type": "number",
+              "description": "Temperature in Celsius"
+            },
+            "conditions": {
+              "type": "string",
+              "description": "Weather conditions description"
+            }
+          },
+          "required": [
+            "location",
+            "temperature",
+            "conditions"
+          ]
+        }
+      }
+    },
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is the weather like in London?"
+      }
+    ],
+    "reasoning": {
+      "enabled": false
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "system_fingerprint"
+    ],
+    "content_should_parse_as_json": true,
+    "notes": "Imported from docs/openrouter.case.md."
+  }
+}

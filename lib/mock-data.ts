@@ -8,6 +8,7 @@ export type ChannelTemplate = {
   description: string;
   summary: string;
   default_base_url: string;
+  base_url_options?: Array<{ label: string; value: string }>;
   default_model: string;
   parameters: Record<string, string[]>;
   expected_rejected?: string[];
@@ -199,6 +200,11 @@ export const CHANNEL_TEMPLATES: ChannelTemplate[] = [
     description: "阿里百炼（DashScope）",
     summary: "30 parameters",
     default_base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    base_url_options: [
+      { label: "华北 2", value: "https://dashscope.aliyuncs.com/compatible-mode/v1" },
+      { label: "弗吉尼亚", value: "https://dashscope-us.aliyuncs.com/compatible-mode/v1" },
+      { label: "新加坡", value: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1" }
+    ],
     default_model: "qwen-plus",
     parameters: {
       Sampling: ["temperature", "top_p", "top_k", "repetition_penalty", "presence_penalty", "seed", "stop", "n"],
@@ -220,6 +226,10 @@ export const CHANNEL_TEMPLATES: ChannelTemplate[] = [
     description: "MiniMax 官方",
     summary: "15 parameters",
     default_base_url: "https://api.minimaxi.com/v1",
+    base_url_options: [
+      { label: "国内站", value: "https://api.minimaxi.com/v1" },
+      { label: "海外站", value: "https://api.minimax.io/v1" }
+    ],
     default_model: "MiniMax-M2",
     parameters: {
       Sampling: ["temperature", "top_p", "stop"],
@@ -239,6 +249,10 @@ export const CHANNEL_TEMPLATES: ChannelTemplate[] = [
     description: "硅基流动",
     summary: "20 parameters",
     default_base_url: "https://api.siliconflow.cn/v1",
+    base_url_options: [
+      { label: "国内站 cn", value: "https://api.siliconflow.cn/v1" },
+      { label: "海外站 com", value: "https://api.siliconflow.com/v1" }
+    ],
     default_model: "deepseek-ai/DeepSeek-V3",
     parameters: {
       Sampling: ["temperature", "top_p", "n", "seed", "stop", "frequency_penalty", "presence_penalty"],
@@ -249,6 +263,31 @@ export const CHANNEL_TEMPLATES: ChannelTemplate[] = [
       Protocol: ["stream", "stream_options"],
       Debug: ["logprobs", "top_logprobs"],
       Metadata: ["user"]
+    }
+  },
+  {
+    channel_id: "thinking",
+    name: "Thinking Probe",
+    emoji: "T",
+    logo: "assets/logos/openai.svg",
+    description: "通用推理开关探针",
+    summary: "探测 thinking 开关与内容落点",
+    default_base_url: "https://api.openai.com/v1",
+    default_model: "gpt-5.1",
+    parameters: {
+      Reasoning: [
+        "reasoning_effort",
+        "reasnoing_effort",
+        "enable_thinking",
+        "thinking_budget",
+        "thinking",
+        "reasoning",
+        "reasoning.effort",
+        "reasoning.summary",
+        "chat_template_kwargs.enable_thinking"
+      ],
+      Length: ["max_completion_tokens"],
+      Observability: ["reasoning_content", "usage.completion_tokens_details.reasoning_tokens"]
     }
   }
 ];
@@ -286,6 +325,10 @@ export const MOCK_PARAMETER_ORIGINS: Record<string, string> = {
   "messages[].content[].image_url.detail": "openai-standard",
   "messages[].content[].input_audio": "openai-standard",
   thinking: "provider-private",
+  "reasoning.effort": "openrouter-extension",
+  "reasoning.summary": "openrouter-extension",
+  reasnoing_effort: "provider-private",
+  "usage.completion_tokens_details.reasoning_tokens": "provider-private",
   user_id: "deepseek-extension",
   reasoning_content: "deepseek-extension",
   "messages[].prefix": "deepseek-extension",
@@ -295,6 +338,7 @@ export const MOCK_PARAMETER_ORIGINS: Record<string, string> = {
   enable_thinking: "qwen-extension",
   preserve_thinking: "qwen-extension",
   thinking_budget: "qwen-extension",
+  "chat_template_kwargs.enable_thinking": "provider-private",
   repetition_penalty: "dashscope-private",
   modalities: "dashscope-private",
   vl_high_resolution_images: "dashscope-private",

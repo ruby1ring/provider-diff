@@ -20,7 +20,7 @@
           {
             "type": "image_url",
             "image_url": {
-              "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Fronalpstock_big.jpg/320px-Fronalpstock_big.jpg",
+              "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAMElEQVR4nO3OIQEAAAgDMJIQgv5R6AIxbibmV9tzSSUgICAgICAgICAgICAgIJAOPO8DrHnALMiOAAAAAElFTkSuQmCC",
               "detail": "low"
             }
           }
@@ -32,6 +32,6 @@
   "expect": {
     "http_status": 200,
     "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
-    "notes": "Capability-gated vision test; URL fetch support may vary by upstream."
+    "notes": "Capability-gated vision test. Uses a small data URL instead of a remote URL so upstream image fetching does not affect protocol validation."
   }
 }

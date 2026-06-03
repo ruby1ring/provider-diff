@@ -1,0 +1,29 @@
+{
+  "case_id": "thinking_object_disabled",
+  "title": "thinking.type=disabled closes thinking",
+  "category": "reasoning",
+  "parameters": ["thinking"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Compute 41 + 17. Reply with one short sentence."
+      }
+    ],
+    "thinking": {
+      "type": "disabled"
+    },
+    "max_completion_tokens": 256
+  },
+  "expect": {
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_absent": true,
+    "assistant_content_non_empty": true,
+    "provider_extension": true,
+    "notes": "判断 object 形态是否可关闭 thinking。"
+  }
+}

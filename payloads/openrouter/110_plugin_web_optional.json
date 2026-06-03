@@ -21,7 +21,7 @@
         "max_results": 2
       }
     ],
-    "max_completion_tokens": 120
+    "max_completion_tokens": 200
   },
   "expect": {
     "http_status": 200,

@@ -47,6 +47,7 @@
     "040_reasoning_thinking_enabled.json",
     "041_reasoning_effort_ignored.json",
     "042_reasoning_thinking_disabled.json",
+    "043_reasoning_thinking_disabled_no_output.json",
     "050_tools_auto.json",
     "051_tools_choice_required.json",
     "052_tools_strict_schema_ignored.json",

@@ -1,0 +1,28 @@
+{
+  "case_id": "thinking_enable_thinking_true",
+  "title": "enable_thinking=true opens thinking",
+  "category": "reasoning",
+  "parameters": ["enable_thinking"],
+  "requires_model_capability": "reasoning",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use brief reasoning to compute 23 + 19, then give the final answer."
+      }
+    ],
+    "enable_thinking": true,
+    "max_completion_tokens": 512
+  },
+  "expect": {
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "assistant_content_non_empty": true,
+    "provider_extension": true,
+    "notes": "Qwen/SiliconFlow/DashScope 风格开关。"
+  }
+}
