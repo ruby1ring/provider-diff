@@ -58,6 +58,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          path: source
 
       - name: Show runtime
         run: |
@@ -65,6 +67,7 @@ jobs:
           docker compose version
 
       - name: Sync deploy directory
+        working-directory: source
         run: |
           mkdir -p "${DEPLOY_DIR}/outputs" "${DEPLOY_DIR}/outputs/opencompass"
           rsync -a --delete \
