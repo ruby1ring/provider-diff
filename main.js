@@ -1669,17 +1669,19 @@ function capacityCaseDisplay(testCase) {
     : "常见档位";
   if (probe.kind === "total_context") {
     return {
-      title: "最大 Total Context 上限",
-      relation: "总上下文上限",
-      meta: "档位递进",
+      kind: "total_context",
+      title: "Total Token 上限",
+      relation: "Total Token",
+      meta: "逐档测试",
       chips: [range, `保留输出 ${probe.context_output_tokens || 8} tokens`]
     };
   }
   return {
-    title: "最大 Max Output 上限",
-    relation: "输出上限",
-    meta: "档位递进",
-    chips: [range, "逐档压测"]
+    kind: "max_output",
+    title: "Max Token 上限",
+    relation: "Max Token",
+    meta: "逐档测试",
+    chips: [range, "逐档测试"]
   };
 }
 
@@ -1719,9 +1721,9 @@ function capacityCasesForProvider(providerId = currentProviderId()) {
   return [
     {
       case_id: "capacity_max_output_boundary",
-      title: "最大 Max Output 上限",
+      title: "Max Token 上限",
       category: "capacity",
-      parameters: ["Max Output"],
+      parameters: ["Max Token"],
       method: "POST",
       path: "/chat/completions",
       custom: true,
@@ -1738,9 +1740,9 @@ function capacityCasesForProvider(providerId = currentProviderId()) {
     },
     {
       case_id: "capacity_total_context_boundary",
-      title: "最大 Total Context 上限",
+      title: "Total Token 上限",
       category: "capacity",
-      parameters: ["Total Context"],
+      parameters: ["Total Token"],
       method: "POST",
       path: "/chat/completions",
       custom: true,
@@ -1879,8 +1881,8 @@ function contextualCaseTitle(title, context = {}) {
 }
 
 const caseIntentZh = {
-  capacity_max_output_boundary: "从常见档位降档请求，定位该模型可用的最大输出上限。",
-  capacity_total_context_boundary: "从常见档位降档请求，定位该模型可用的最大上下文上限。",
+  capacity_max_output_boundary: "从常见档位降档请求，定位该模型可用的 Max Token 上限。",
+  capacity_total_context_boundary: "从常见档位降档请求，定位该模型可用的 Total Token 上限。",
   sf_reasoning_enable_thinking: "开启后应返回 reasoning_content 或 reasoning tokens。",
   sf_reasoning_disable_thinking_no_output: "关闭后不应返回 thinking 内容或 reasoning tokens。",
   sf_reasoning_thinking_budget: "验证 thinking_budget 是否能约束推理预算。",
@@ -1898,10 +1900,10 @@ function capabilityRequirementText(testCase) {
 
 function capacityIntentText(capacityDisplay) {
   const [range, strategy] = capacityDisplay.chips || [];
-  if (/Total Context/i.test(capacityDisplay.title)) {
+  if (capacityDisplay.kind === "total_context") {
     return `按 ${range || "常见档位"} 递进探测，${strategy || "保留少量输出"}。`;
   }
-  return `按 ${range || "常见档位"} 递进探测，记录可用输出上限。`;
+  return `按 ${range || "常见档位"} 递进探测，记录可用 Max Token 上限。`;
 }
 
 function caseIntentText(testCase, context = {}, capacityDisplay = null, title = "") {
@@ -2155,8 +2157,8 @@ function renderParameterCatalog(channel, data = null) {
   const capacityHtml = capacityCases.length ? `
     <div class="parameter-group parameter-group--capacity">
       <div class="parameter-group__name">
-        <span>容量边界</span>
-        ${renderBulkSelect(capacityIds, "容量测试", "suite-bulk-select")}
+        <span>Max Token / Total Token</span>
+        ${renderBulkSelect(capacityIds, "本组", "suite-bulk-select")}
       </div>
       <div class="coverage-grid">
         ${capacityCases.map((testCase) => `
@@ -2212,9 +2214,9 @@ async function loadCaseSelectorForChannel() {
     const vlmCount = (data.cases || []).filter(isVlmCase).length;
     const vlmText = vlmCount ? ` · VLM ${vlmCount} 个可选 case` : "";
     const capacityCount = capacityCasesForProvider(providerId).length;
-    const capacityText = capacityCount ? ` · 容量测试 ${capacityCount} 个可选 case` : "";
+    const capacityText = capacityCount ? ` · Max Token / Total Token 测试 ${capacityCount} 个可选 case` : "";
     els.suiteTitle.textContent = `测试套件：${channel.name} / ${getSelectedEndpointTemplate().label}（${flattenParameters(channel).length} 个重点参数 · ${data.cases.length} 个 case${vlmText}${capacityText}）`;
-    els.caseSelectorHint.textContent = "默认勾选常规 case，VLM 和容量测试按需开启。";
+    els.caseSelectorHint.textContent = "默认勾选常规 case，VLM 和 Max Token / Total Token 测试按需开启。";
     state.isCaseLoading = false;
     renderParameterCatalog(channel, data);
     renderCaseSelector(data);
@@ -2272,8 +2274,8 @@ function renderVlmCaseSection(cases) {
 function renderCapacityCaseSection(cases) {
   if (!cases.length) return "";
   return renderCaseSection(
-    "容量边界测试（可选）",
-    "探测可用的最大 Max Output 和 Total Context；同一模型内逐档串行，不同 target 可并发。默认不选，避免额外消耗额度。",
+    "Max Token / Total Token 测试（可选）",
+    "分别探测 Max Token 和 Total Token；同一模型内逐档串行，不同 target 可并发。默认不选，避免额外消耗额度。",
     cases
   );
 }
@@ -2308,7 +2310,7 @@ function renderCaseOverview(data, partition) {
     <div class="case-overview">
       <div>
         <strong>先选参数，再微调用例</strong>
-        <p>单参数 ${singleCount} 个，组合 ${partition.combos.length} 个，基础场景 ${partition.scenarios.length} 个${vlmText}；默认勾选常规 case，VLM 和容量测试按需开启。</p>
+        <p>单参数 ${singleCount} 个，组合 ${partition.combos.length} 个，基础场景 ${partition.scenarios.length} 个${vlmText}；默认勾选常规 case，VLM 和 Max Token / Total Token 测试按需开启。</p>
       </div>
       <span class="mono">${focusParamCount} 个重点参数有对应 case</span>
     </div>
@@ -4070,7 +4072,7 @@ function capacityTargetLabel(result = {}) {
 }
 
 function capacityDisplayName(kind) {
-  return kind === "total_context" ? "Total Context" : "Max Output";
+  return kind === "total_context" ? "Total Token" : "Max Token";
 }
 
 function capacityResultValue(result = {}, kind = capacityKindFromResult(result)) {
