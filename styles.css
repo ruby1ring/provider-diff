@@ -86,34 +86,12 @@ a {
 }
 
 .brand-mark {
-  position: relative;
-  width: 21px;
-  height: 14px;
-}
-
-.brand-mark::before,
-.brand-mark::after {
-  position: absolute;
-  content: "";
-  border: 3px solid #70737d;
-  border-radius: 3px;
-  transform: skewX(-18deg);
-}
-
-.brand-mark::before {
-  left: 0;
-  top: 3px;
-  width: 13px;
-  height: 8px;
-  border-right: 0;
-}
-
-.brand-mark::after {
-  right: 0;
-  top: 0;
-  width: 12px;
-  height: 8px;
-  border-left: 0;
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
 .top-nav {

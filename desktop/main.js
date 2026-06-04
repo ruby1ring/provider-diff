@@ -92,7 +92,7 @@ async function startBackend() {
   });
   backendProcess.on("exit", (code) => {
     if (code !== 0 && !app.isQuitting) {
-      dialog.showErrorBox("Provider Diff 后端已退出", `后端进程退出，退出码：${code ?? "unknown"}`);
+      dialog.showErrorBox("Noctua 后端已退出", `后端进程退出，退出码：${code ?? "unknown"}`);
     }
   });
   await waitForHealth(port);
@@ -145,7 +145,8 @@ async function createWindow() {
     height: 960,
     minWidth: 1100,
     minHeight: 760,
-    title: "Provider Diff",
+    title: "Noctua",
+    icon: path.join(projectRoot(), "assets/noctua/icon.png"),
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false
@@ -161,7 +162,7 @@ async function createWindow() {
 }
 
 app.whenReady().then(createWindow).catch((error) => {
-  dialog.showErrorBox("Provider Diff 启动失败", error.message);
+  dialog.showErrorBox("Noctua 启动失败", error.message);
   app.quit();
 });
 

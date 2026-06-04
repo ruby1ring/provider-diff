@@ -104,11 +104,27 @@ const appProtocol = window.location.protocol === "file:" ? "http:" : window.loca
 const appHost = window.location.hostname || "localhost";
 const appQuery = new URLSearchParams(window.location.search);
 const API_BASE = appQuery.get("apiBase") || window.PROVIDER_DIFF_API_BASE || `${appProtocol}//${appHost}:8080`;
-const HISTORY_STORAGE_KEY = "llm-rosetta-history-v1";
-const FEISHU_CONFIG_STORAGE_KEY = "llm-rosetta-feishu-config-v1";
-const EVALSCOPE_URL_STORAGE_KEY = "llm-rosetta-evalscope-url-v1";
+const HISTORY_STORAGE_KEY = "noctua-history-v1";
+const FEISHU_CONFIG_STORAGE_KEY = "noctua-feishu-config-v1";
+const EVALSCOPE_URL_STORAGE_KEY = "noctua-evalscope-url-v1";
 const DEFAULT_EVALSCOPE_URL = appQuery.get("evalscopeUrl") || `${appProtocol}//${appHost}:9000/dashboard`;
-const OPENCOMPASS_URL_STORAGE_KEY = "llm-rosetta-opencompass-url-v1";
+const OPENCOMPASS_URL_STORAGE_KEY = "noctua-opencompass-url-v1";
+const LEGACY_HISTORY_STORAGE_KEY = "llm-rosetta-history-v1";
+const LEGACY_FEISHU_CONFIG_STORAGE_KEY = "llm-rosetta-feishu-config-v1";
+const LEGACY_EVALSCOPE_URL_STORAGE_KEY = "llm-rosetta-evalscope-url-v1";
+const LEGACY_OPENCOMPASS_URL_STORAGE_KEY = "llm-rosetta-opencompass-url-v1";
+
+function readStorageItem(key, legacyKey) {
+  let value = localStorage.getItem(key);
+  if ((value === null || value === "") && legacyKey) {
+    const legacyValue = localStorage.getItem(legacyKey);
+    if (legacyValue !== null && legacyValue !== "") {
+      localStorage.setItem(key, legacyValue);
+      value = legacyValue;
+    }
+  }
+  return value;
+}
 const DEFAULT_OPENCOMPASS_URL = appQuery.get("opencompassUrl") || `${appProtocol}//${appHost}:9100/`;
 const MAX_HISTORY_ITEMS = 120;
 const HISTORY_RAW_RESPONSE_LIMIT = 30000;
@@ -1983,7 +1999,7 @@ function renderHistorySummary(items) {
 
 function readHistory() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY) || "[]");
+    const parsed = JSON.parse(readStorageItem(HISTORY_STORAGE_KEY, LEGACY_HISTORY_STORAGE_KEY) || "[]");
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
@@ -2188,7 +2204,7 @@ async function importHistoryFiles(files) {
 function historyRecordMarkdown(record) {
   const stats = { ...historyStats(record.results || []), ...(record.stats || {}) };
   const lines = [
-    `# llm-rosetta 历史测试报告：${record.channel_name}`,
+    `# Noctua 历史测试报告：${record.channel_name}`,
     "",
     `时间：${formatDateTime(record.generated_at)}`,
     `Endpoint：${record.endpoint_label || record.endpoint_id || "Chat Completions"}`,
@@ -2256,7 +2272,7 @@ function currentRunMarkdown(record) {
     ));
     if (unexpectedResults.length > topUnexpected.length) {
       lines.push("");
-      lines.push(`还有 ${unexpectedResults.length - topUnexpected.length} 条预期外结果，请在 llm-rosetta 历史报告中查看。`);
+      lines.push(`还有 ${unexpectedResults.length - topUnexpected.length} 条预期外结果，请在 Noctua 历史报告中查看。`);
     }
   } else {
     lines.push("本次评测未发现预期外结果。");
@@ -2272,7 +2288,7 @@ function currentRunMarkdown(record) {
     ));
     if (diffResults.length > 20) {
       lines.push("");
-      lines.push(`还有 ${diffResults.length - 20} 条结构差异结果，请在 llm-rosetta 历史报告中查看。`);
+      lines.push(`还有 ${diffResults.length - 20} 条结构差异结果，请在 Noctua 历史报告中查看。`);
     }
   } else {
     lines.push("本次评测未发现结构差异。");
@@ -2362,18 +2378,18 @@ function markdownFence(value, language = "json") {
 
 function readFeishuConfig() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(FEISHU_CONFIG_STORAGE_KEY) || "{}");
+    const parsed = JSON.parse(readStorageItem(FEISHU_CONFIG_STORAGE_KEY, LEGACY_FEISHU_CONFIG_STORAGE_KEY) || "{}");
     return {
       documentUrl: String(parsed.documentUrl || "").trim(),
       documentMode: String(parsed.documentMode || "append").trim() === "overwrite" ? "overwrite" : "append",
-      titlePrefix: String(parsed.titlePrefix || "Provider Diff 评测完成").trim() || "Provider Diff 评测完成",
+      titlePrefix: String(parsed.titlePrefix || "Noctua 评测完成").trim() || "Noctua 评测完成",
       autoPush: Boolean(parsed.autoPush)
     };
   } catch {
     return {
       documentUrl: "",
       documentMode: "append",
-      titlePrefix: "Provider Diff 评测完成",
+      titlePrefix: "Noctua 评测完成",
       autoPush: false
     };
   }
@@ -2383,7 +2399,7 @@ function writeFeishuConfig() {
   const config = {
     documentUrl: els.feishuDocumentUrl.value.trim(),
     documentMode: els.feishuDocumentMode.value === "overwrite" ? "overwrite" : "append",
-    titlePrefix: els.feishuTitlePrefix.value.trim() || "Provider Diff 评测完成",
+    titlePrefix: els.feishuTitlePrefix.value.trim() || "Noctua 评测完成",
     autoPush: Boolean(els.feishuAutoPush.checked)
   };
   localStorage.setItem(FEISHU_CONFIG_STORAGE_KEY, JSON.stringify(config));
@@ -2409,7 +2425,7 @@ function renderFeishuStatus(message) {
   const config = readFeishuConfig();
   const currentDocumentUrl = els.feishuDocumentUrl?.value.trim() || "";
   const currentDocumentMode = els.feishuDocumentMode?.value === "overwrite" ? "overwrite" : "append";
-  const currentTitlePrefix = els.feishuTitlePrefix?.value.trim() || "Provider Diff 评测完成";
+  const currentTitlePrefix = els.feishuTitlePrefix?.value.trim() || "Noctua 评测完成";
   const currentAutoPush = Boolean(els.feishuAutoPush?.checked);
   const hasUnsavedConfig = currentDocumentUrl !== config.documentUrl || currentDocumentMode !== config.documentMode || currentTitlePrefix !== config.titlePrefix || currentAutoPush !== config.autoPush;
   const report = feishuReportMarkdown();
@@ -3193,7 +3209,7 @@ function exportMarkdown() {
   const proxy = state.lastRunProxy || getProxyConfig();
   const baseline = selectedBaselineRecord();
   const lines = [
-    `# llm-rosetta 参数支持报告：${getSelectedChannel().name}`,
+    `# Noctua 参数支持报告：${getSelectedChannel().name}`,
     "",
     `对比基准：${baselineLabel(baseline)}`,
     `代理配置：${proxySummary(proxy)}`,
@@ -3216,6 +3232,12 @@ function showToast(message) {
   showToast.timer = setTimeout(() => els.toast.classList.remove("is-visible"), 2400);
 }
 
+function storageLegacyKey(storageKey) {
+  if (storageKey === EVALSCOPE_URL_STORAGE_KEY) return LEGACY_EVALSCOPE_URL_STORAGE_KEY;
+  if (storageKey === OPENCOMPASS_URL_STORAGE_KEY) return LEGACY_OPENCOMPASS_URL_STORAGE_KEY;
+  return null;
+}
+
 function normalizeEmbedUrl(value, fallbackUrl) {
   const trimmed = String(value || "").trim();
   if (!trimmed) return fallbackUrl;
@@ -3226,7 +3248,7 @@ function normalizeEmbedUrl(value, fallbackUrl) {
 function applyEmbedUrl(config, { reload = true } = {}) {
   const sourceUrl = config.input
     ? config.input.value
-    : config.frame?.src || localStorage.getItem(config.storageKey) || config.defaultUrl;
+    : config.frame?.src || readStorageItem(config.storageKey, storageLegacyKey(config.storageKey)) || config.defaultUrl;
   const url = normalizeEmbedUrl(sourceUrl, config.defaultUrl);
   if (config.input) config.input.value = url;
   localStorage.setItem(config.storageKey, url);
@@ -3242,7 +3264,10 @@ function loadEmbedUrl(config) {
     localStorage.setItem(config.storageKey, config.defaultUrl);
     return;
   }
-  const storedUrl = normalizeEmbedUrl(localStorage.getItem(config.storageKey) || config.defaultUrl, config.defaultUrl);
+  const storedUrl = normalizeEmbedUrl(
+    readStorageItem(config.storageKey, storageLegacyKey(config.storageKey)) || config.defaultUrl,
+    config.defaultUrl
+  );
   const legacyLocalEvalscopeUrls = ["http://127.0.0.1:9000", "http://127.0.0.1:9000/dashboard", "http://localhost:9000/dashboard"];
   const legacyOpencompassUrls = ["https://rank.opencompass.org.cn/home", "https://hub.opencompass.org.cn/home"];
   const url = config.storageKey === EVALSCOPE_URL_STORAGE_KEY && legacyLocalEvalscopeUrls.includes(storedUrl)

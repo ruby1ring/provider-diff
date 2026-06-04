@@ -13,8 +13,8 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "cn.siliconflow.provider-diff",
-    "productName": "Provider Diff",
+    "appId": "cn.siliconflow.noctua",
+    "productName": "Noctua",
     "asar": false,
     "files": [
       "index.html",
@@ -40,12 +40,13 @@
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
+      "icon": "build/icon.icns",
       "target": [
         "dmg"
       ]
     },
     "dmg": {
-      "artifactName": "Provider-Diff-${version}-${arch}.${ext}"
+      "artifactName": "Noctua-${version}-${arch}.${ext}"
     }
   },
   "dependencies": {

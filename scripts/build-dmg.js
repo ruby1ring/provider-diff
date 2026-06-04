@@ -26,6 +26,8 @@ run("go", ["build", "-o", binaryPath, "."], {
   env: { ...process.env, GOOS: "darwin", GOARCH: process.arch === "arm64" ? "arm64" : "amd64" }
 });
 
+run("bash", [path.join(__dirname, "build-mac-icon.sh")]);
+
 if (process.argv.includes("--skip-package")) {
   process.exit(0);
 }
