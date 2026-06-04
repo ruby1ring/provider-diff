@@ -67,7 +67,7 @@ const appPath = packagedAppPath();
 run("codesign", ["--force", "--deep", "--sign", "-", appPath]);
 run("codesign", ["--verify", "--deep", "--strict", "--verbose=4", appPath]);
 
-execSync(`npx electron-builder --mac dmg --prepackaged ${JSON.stringify(appPath)}`, {
+execSync(`npx electron-builder --mac dmg --prepackaged ${JSON.stringify(appPath)} --publish never`, {
   cwd: root,
   stdio: "inherit"
 });
