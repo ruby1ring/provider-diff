@@ -18,6 +18,9 @@ const els = {
   modelName: document.querySelector("#modelName"),
   batchModeToggle: document.querySelector("#batchModeToggle"),
   batchTargetsPanel: document.querySelector("#batchTargetsPanel"),
+  batchTargetRows: document.querySelector("#batchTargetRows"),
+  batchAddTarget: document.querySelector("#batchAddTarget"),
+  batchImportTargets: document.querySelector("#batchImportTargets"),
   batchTargets: document.querySelector("#batchTargets"),
   batchConcurrency: document.querySelector("#batchConcurrency"),
   baselineReport: document.querySelector("#baselineReport"),
@@ -158,6 +161,8 @@ const LEGACY_OPENCOMPASS_URL_STORAGE_KEY = "llm-rosetta-opencompass-url-v1";
 const DEFAULT_OPENCOMPASS_URL = appQuery.get("opencompassUrl") || `${appProtocol}//${appHost}:9100/`;
 const MAX_HISTORY_ITEMS = 120;
 const HISTORY_RAW_RESPONSE_LIMIT = 30000;
+const MIN_BATCH_TARGETS = 2;
+const MAX_BATCH_TARGETS = 3;
 const HISTORY_STRING_LIMIT = 12000;
 const runnableProviderByChannel = {
   claude: "claude",
@@ -541,7 +546,7 @@ function setBaseUrlValue(value) {
 }
 
 function batchModeActive() {
-  return Boolean(state.batchModeEnabled && els.batchTargets?.value.trim());
+  return Boolean(state.batchModeEnabled && (hasBatchTargetRows() || els.batchTargets?.value.trim()));
 }
 
 function renderBatchMode() {
@@ -550,24 +555,153 @@ function renderBatchMode() {
   els.batchModeToggle.setAttribute("aria-pressed", state.batchModeEnabled ? "true" : "false");
   els.batchModeToggle.classList.toggle("is-active", state.batchModeEnabled);
   els.batchTargetsPanel.classList.toggle("is-hidden", !state.batchModeEnabled);
+  if (state.batchModeEnabled) ensureBatchTargetRows();
+  updateBatchTargetPlaceholders();
+  renderBatchTargetControlState();
+}
+
+function renderBatchTargetControlState() {
+  const disabled = state.isRunning || !state.batchModeEnabled;
   if (els.batchTargets) {
-    els.batchTargets.disabled = state.isRunning || !state.batchModeEnabled;
+    els.batchTargets.disabled = disabled;
+  }
+  if (els.batchTargetRows) {
+    els.batchTargetRows.querySelectorAll("input, button").forEach((control) => {
+      control.disabled = disabled;
+    });
+  }
+  if (els.batchAddTarget) {
+    els.batchAddTarget.disabled = disabled || batchTargetDrafts().length >= MAX_BATCH_TARGETS;
+  }
+  if (els.batchImportTargets) {
+    els.batchImportTargets.disabled = disabled;
   }
 }
 
-function parseBatchTargets() {
-  if (!state.batchModeEnabled) return [];
-  const raw = els.batchTargets?.value.trim() || "";
-  if (!raw) throw new Error("已启用 Batch，请填写 2-3 个 target，或关闭 Batch。");
-  if (raw.startsWith("[") || raw.startsWith("{")) {
-    const parsed = JSON.parse(raw);
+function hasBatchTargetRows() {
+  return batchTargetDrafts().some((target) => target.base_url || target.api_key || target.model);
+}
+
+function defaultBatchTargetDrafts() {
+  return [
+    { base_url: "", api_key: "", model: els.modelName?.value.trim() || "" },
+    { base_url: "", api_key: "", model: "" }
+  ];
+}
+
+function ensureBatchTargetRows() {
+  if (!els.batchTargetRows || els.batchTargetRows.children.length) return;
+  setBatchTargetRows(defaultBatchTargetDrafts());
+}
+
+function renderBatchTargetRow(target = {}, index = 0) {
+  const placeholders = batchTargetPlaceholders();
+  return `
+    <div class="batch-target-row" data-batch-target-row>
+      <span class="batch-target-row__index">T${index + 1}</span>
+      <label class="field batch-target-field batch-target-field--url">
+        <span>Base URL <em>可留空</em></span>
+        <input class="mono" data-batch-field="base_url" value="${escapeHtml(target.base_url || "")}" placeholder="${escapeHtml(placeholders.base_url)}" />
+      </label>
+      <label class="field batch-target-field batch-target-field--key">
+        <span>API Key <em>可留空</em></span>
+        <input class="mono" type="password" data-batch-field="api_key" value="${escapeHtml(target.api_key || "")}" placeholder="${escapeHtml(placeholders.api_key)}" autocomplete="off" />
+      </label>
+      <label class="field batch-target-field batch-target-field--model">
+        <span>Model</span>
+        <input class="mono" data-batch-field="model" value="${escapeHtml(target.model || "")}" placeholder="${escapeHtml(placeholders.model)}" />
+      </label>
+      <button class="icon-button batch-target-remove" type="button" data-remove-batch-target title="移除 target" aria-label="移除 target">×</button>
+    </div>
+  `;
+}
+
+function batchTargetPlaceholders() {
+  return {
+    base_url: els.baseUrl?.value.trim() || "https://api.siliconflow.cn/v1",
+    api_key: els.apiKey?.value.trim() ? "使用上方 API Key" : "sk-...",
+    model: els.modelName?.value.trim() || "deepseek-ai/DeepSeek-V4-Pro"
+  };
+}
+
+function updateBatchTargetPlaceholders() {
+  const placeholders = batchTargetPlaceholders();
+  els.batchTargetRows?.querySelectorAll('[data-batch-field="base_url"]').forEach((input) => {
+    input.placeholder = placeholders.base_url;
+  });
+  els.batchTargetRows?.querySelectorAll('[data-batch-field="api_key"]').forEach((input) => {
+    input.placeholder = placeholders.api_key;
+  });
+  els.batchTargetRows?.querySelectorAll('[data-batch-field="model"]').forEach((input) => {
+    input.placeholder = placeholders.model;
+  });
+}
+
+function setBatchTargetRows(targets = []) {
+  if (!els.batchTargetRows) return;
+  const limitedTargets = targets.slice(0, MAX_BATCH_TARGETS);
+  els.batchTargetRows.innerHTML = limitedTargets.map(renderBatchTargetRow).join("");
+  renderBatchTargetControlState();
+}
+
+function batchTargetDrafts() {
+  if (!els.batchTargetRows) return [];
+  return Array.from(els.batchTargetRows.querySelectorAll("[data-batch-target-row]")).map((row) => ({
+    base_url: row.querySelector('[data-batch-field="base_url"]')?.value.trim() || "",
+    api_key: row.querySelector('[data-batch-field="api_key"]')?.value.trim() || "",
+    model: row.querySelector('[data-batch-field="model"]')?.value.trim() || ""
+  }));
+}
+
+function addBatchTargetRow(target = {}) {
+  const drafts = batchTargetDrafts();
+  if (drafts.length >= MAX_BATCH_TARGETS) return;
+  setBatchTargetRows([...drafts, target]);
+}
+
+function removeBatchTargetRow(row) {
+  const rows = Array.from(els.batchTargetRows?.querySelectorAll("[data-batch-target-row]") || []);
+  const index = rows.indexOf(row);
+  if (index < 0) return;
+  const drafts = batchTargetDrafts();
+  drafts.splice(index, 1);
+  setBatchTargetRows(drafts.length ? drafts : defaultBatchTargetDrafts());
+}
+
+function batchTargetsFromRows() {
+  const defaultBaseUrl = els.baseUrl?.value.trim() || "";
+  return batchTargetDrafts()
+    .filter((target) => target.model)
+    .map((target, index) => normalizeBatchTarget({
+      provider: currentProviderId(),
+      base_url: target.base_url || defaultBaseUrl,
+      api_key: target.api_key,
+      model: target.model
+    }, index));
+}
+
+function enforceBatchTargetCount(targets) {
+  if (targets.length < MIN_BATCH_TARGETS) {
+    throw new Error(`Batch 至少填写 ${MIN_BATCH_TARGETS} 个 target；只跑一个请关闭 Batch。`);
+  }
+  if (targets.length > MAX_BATCH_TARGETS) {
+    throw new Error(`Batch 最多填写 ${MAX_BATCH_TARGETS} 个 target。`);
+  }
+  return targets;
+}
+
+function parseBatchTargetsFromText(raw) {
+  const text = String(raw || "").trim();
+  if (!text) return [];
+  if (text.startsWith("[") || text.startsWith("{")) {
+    const parsed = JSON.parse(text);
     const items = Array.isArray(parsed) ? parsed : parsed.targets;
     if (!Array.isArray(items)) {
       throw new Error("批量 JSON 需要是数组，或包含 targets 数组。");
     }
     return items.map((item, index) => normalizeBatchTarget(item, index));
   }
-  return raw
+  return text
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line && !line.startsWith("#"))
@@ -576,26 +710,82 @@ function parseBatchTargets() {
         ? line.split("|")
         : line.split(/\t|,/);
       const compact = parts.map((part) => part.trim()).filter(Boolean);
-      if (compact.length === 3) {
-        return normalizeBatchTarget({
-          provider: currentProviderId(),
-          base_url: compact[0],
-          model: compact[1],
-          api_key: compact[2]
-        }, index);
-      }
-      return normalizeBatchTarget({
-        provider: parts[0],
-        base_url: parts[1],
-        model: parts[2],
-        api_key: parts[3]
-      }, index);
+      return parseDelimitedBatchTarget(compact, index);
     });
+}
+
+function importBatchTargetsFromText() {
+  try {
+    const targets = enforceBatchTargetCount(parseBatchTargetsFromText(els.batchTargets?.value || ""));
+    setBatchTargetRows(targets);
+    showToast(`已导入 ${targets.length} 个 target。`);
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+function parseBatchTargets() {
+  if (!state.batchModeEnabled) return [];
+  const rowTargets = batchTargetsFromRows();
+  if (rowTargets.length >= MIN_BATCH_TARGETS) return enforceBatchTargetCount(rowTargets);
+  const textTargets = parseBatchTargetsFromText(els.batchTargets?.value || "");
+  if (textTargets.length) return enforceBatchTargetCount(textTargets);
+  if (rowTargets.length) return enforceBatchTargetCount(rowTargets);
+  throw new Error("已启用 Batch，请填写 2-3 个 target，或关闭 Batch。");
+}
+
+function looksLikeApiKey(value) {
+  const text = String(value || "").trim();
+  return /^(?:Bearer\s+)?sk-[A-Za-z0-9_-]{8,}$/i.test(text)
+    || /^[A-Za-z0-9_-]{32,}$/.test(text);
+}
+
+function looksLikeBaseUrl(value) {
+  return /^https?:\/\//i.test(String(value || "").trim());
+}
+
+function resolveModelAndApiKey(first, second) {
+  const firstValue = String(first || "").trim();
+  const secondValue = String(second || "").trim();
+  const firstIsKey = looksLikeApiKey(firstValue);
+  const secondIsKey = looksLikeApiKey(secondValue);
+  if (firstIsKey && !secondIsKey) {
+    return { api_key: firstValue, model: secondValue };
+  }
+  if (!firstIsKey && secondIsKey) {
+    return { model: firstValue, api_key: secondValue };
+  }
+  if (!firstIsKey && !secondIsKey && secondValue.includes("/") && !firstValue.includes("/")) {
+    return { api_key: firstValue, model: secondValue };
+  }
+  return { api_key: firstValue, model: secondValue };
+}
+
+function parseDelimitedBatchTarget(parts, index) {
+  if (parts.length === 3) {
+    return normalizeBatchTarget({
+      provider: currentProviderId(),
+      base_url: parts[0],
+      ...resolveModelAndApiKey(parts[1], parts[2])
+    }, index);
+  }
+  if (parts.length >= 4) {
+    const firstIsUrl = looksLikeBaseUrl(parts[0]);
+    const provider = firstIsUrl ? currentProviderId() : parts[0];
+    const baseUrl = firstIsUrl ? parts[0] : parts[1];
+    const modelKeyStart = firstIsUrl ? 1 : 2;
+    return normalizeBatchTarget({
+      provider,
+      base_url: baseUrl,
+      ...resolveModelAndApiKey(parts[modelKeyStart], parts[modelKeyStart + 1])
+    }, index);
+  }
+  throw new Error(`批量 target 第 ${index + 1} 行格式不对，请使用 base_url | api_key | model。`);
 }
 
 function normalizeBatchTarget(item = {}, index = 0) {
   const provider = String(item.provider || item.provider_id || currentProviderId() || "").trim();
-  const baseUrl = String(item.base_url || item.baseUrl || "").trim();
+  const baseUrl = String(item.base_url || item.baseUrl || els.baseUrl?.value.trim() || "").trim();
   const model = String(item.model || "").trim();
   const apiKey = String(item.api_key || item.apiKey || "").trim();
   if (!provider) {
@@ -4623,10 +4813,34 @@ function bindEvents() {
   els.baseUrlPreset?.addEventListener("change", () => {
     if (!els.baseUrlPreset.value) return;
     els.baseUrl.value = els.baseUrlPreset.value;
+    updateBatchTargetPlaceholders();
   });
 
   els.baseUrl?.addEventListener("input", () => {
     renderBaseUrlPreset(els.baseUrl.value);
+    updateBatchTargetPlaceholders();
+  });
+
+  els.apiKey?.addEventListener("input", updateBatchTargetPlaceholders);
+  els.modelName?.addEventListener("input", updateBatchTargetPlaceholders);
+
+  els.batchTargetRows?.addEventListener("click", (event) => {
+    const removeButton = event.target.closest("[data-remove-batch-target]");
+    if (!removeButton || state.isRunning) return;
+    removeBatchTargetRow(removeButton.closest("[data-batch-target-row]"));
+  });
+
+  els.batchTargetRows?.addEventListener("input", renderBatchTargetControlState);
+
+  els.batchAddTarget?.addEventListener("click", () => {
+    addBatchTargetRow();
+  });
+
+  els.batchImportTargets?.addEventListener("click", importBatchTargetsFromText);
+
+  els.batchTargets?.addEventListener("input", () => {
+    if (!state.batchModeEnabled) return;
+    renderBatchTargetControlState();
   });
 
   els.runTests.addEventListener("click", runTests);

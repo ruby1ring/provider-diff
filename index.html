@@ -101,19 +101,32 @@
                   <span>Batch</span>
                   <div class="batch-mode-control">
                     <button id="batchModeToggle" class="secondary-button" type="button" aria-pressed="false">开启</button>
-                    <span>默认单 target；开启后并跑 2-3 个同 provider target。</span>
+                    <span>默认单 target；开启后填写 2-3 个 target。</span>
                   </div>
                 </div>
               </div>
 
               <div id="batchTargetsPanel" class="batch-targets-panel is-hidden">
-                <label class="field field--batch-targets">
-                  <span>Batch targets <em>2-3 targets · same provider</em></span>
-                  <textarea id="batchTargets" class="mono batch-targets" rows="4" spellcheck="false" placeholder="base_url | model | api_key
-https://api.siliconflow.cn/v1 | deepseek-ai/DeepSeek-V3 | sk-...
-https://api.siliconflow.com/v1 | deepseek-ai/DeepSeek-V3 | sk-...
-https://api.siliconflow.cn/v1 | Pro/zai-org/GLM-4.7 | sk-..."></textarea>
-                </label>
+                <div class="batch-targets-header">
+                  <div class="batch-targets-title">
+                    <span>Batch targets <em>同 provider · 2-3 targets</em></span>
+                    <small>Base URL 和 API Key 留空时使用上方配置。</small>
+                  </div>
+                  <button id="batchAddTarget" class="secondary-button batch-add-target" type="button">+ target</button>
+                </div>
+                <div id="batchTargetRows" class="batch-target-rows" aria-label="Batch targets"></div>
+                <details class="batch-paste">
+                  <summary>粘贴文本导入</summary>
+                  <label class="field field--batch-targets">
+                    <span>批量文本 <em>base_url | api_key | model</em></span>
+                    <textarea id="batchTargets" class="mono batch-targets" rows="3" spellcheck="false" placeholder="https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Pro
+https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textarea>
+                  </label>
+                  <div class="batch-paste-actions">
+                    <button id="batchImportTargets" class="secondary-button" type="button">导入到表单</button>
+                    <span>也兼容 base_url | model | api_key。</span>
+                  </div>
+                </details>
               </div>
             </form>
 
