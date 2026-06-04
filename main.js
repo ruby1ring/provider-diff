@@ -2325,7 +2325,7 @@ function renderSingleParameterSection(singleMap) {
   const total = orderedEntries.reduce((sum, [, cases]) => sum + cases.length, 0);
   const allSingleCaseIds = orderedEntries.flatMap(([, cases]) => caseIdsForCases(cases));
   return `
-    <details class="case-group parameter-case-group" open>
+    <details class="case-group parameter-case-group">
       <summary>
         <span class="case-group__summary-main">
           <span class="case-group__summary-title">单参数用例</span>
@@ -2353,7 +2353,7 @@ function renderSingleParameterSection(singleMap) {
 
 function renderCaseSection(title, description, cases) {
   return `
-    <details class="case-group" open>
+    <details class="case-group">
       <summary>
         <span class="case-group__summary-main">
           <span class="case-group__summary-title">${escapeHtml(title)}</span>
