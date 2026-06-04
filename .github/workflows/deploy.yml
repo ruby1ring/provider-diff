@@ -75,6 +75,8 @@ jobs:
             --exclude "config.yaml" \
             --exclude "outputs/" \
             ./ "${DEPLOY_DIR}/"
+          rm -rf "${DEPLOY_DIR}/.git"
+          printf "%s\n" "${GITHUB_SHA}" > "${DEPLOY_DIR}/.deployed-revision"
 
       - name: Build images
         working-directory: ${{ env.DEPLOY_DIR }}
