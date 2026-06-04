@@ -149,6 +149,7 @@ const appProtocol = window.location.protocol === "file:" ? "http:" : window.loca
 const appHost = window.location.hostname || "localhost";
 const appQuery = new URLSearchParams(window.location.search);
 const API_BASE = appQuery.get("apiBase") || window.PROVIDER_DIFF_API_BASE || `${appProtocol}//${appHost}:8080`;
+const BACKEND_UNAVAILABLE_MESSAGE = `后端未连接：无法访问 ${API_BASE}。请先启动 Go 后端（默认 8080），再运行测试。`;
 const HISTORY_STORAGE_KEY = "providerx-history-v1";
 const LEGACY_HISTORY_STORAGE_KEY = "llm-rosetta-history-v1";
 const FEISHU_CONFIG_STORAGE_KEY = "providerx-feishu-config-v1";
@@ -857,6 +858,47 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function isFetchNetworkError(error) {
+  const message = String(error?.message || "");
+  return error?.name === "TypeError"
+    && /failed to fetch|load failed|networkerror|network request failed/i.test(message);
+}
+
+function backendUnavailableError(cause) {
+  const error = new Error(BACKEND_UNAVAILABLE_MESSAGE);
+  error.isBackendUnavailable = true;
+  error.cause = cause;
+  return error;
+}
+
+async function ensureBackendReady(signal) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 3000);
+  const abortFromRun = () => controller.abort();
+  if (signal?.aborted) {
+    clearTimeout(timeout);
+    const error = new Error("Run canceled");
+    error.name = "AbortError";
+    throw error;
+  }
+  signal?.addEventListener("abort", abortFromRun, { once: true });
+  try {
+    const response = await fetch(`${API_BASE}/healthz`, {
+      cache: "no-store",
+      signal: controller.signal
+    });
+    if (!response.ok) {
+      throw new Error(`healthz HTTP ${response.status}`);
+    }
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw backendUnavailableError(error);
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener("abort", abortFromRun);
+  }
 }
 
 function typeOf(value) {
@@ -3648,6 +3690,10 @@ async function runProviderTests() {
   els.progressCase.textContent = "— 正在请求后端执行真实测试 ...";
 
   try {
+    appendRunText(`→ 检查后端连接：${API_BASE}`);
+    await ensureBackendReady(state.currentRunAbortController?.signal);
+    appendRunText("→ 后端已连接，开始真实测试");
+
     state.visibleResults = targets.flatMap((target, targetIndex) => {
       const context = runContextForTarget(target);
       return selectedCases.map((testCase, caseIndex) => ({
@@ -3793,6 +3839,13 @@ async function runProviderTests() {
     if (error.name === "AbortError") {
       els.progressCase.textContent = "— 真实测试已取消";
       showToast("真实测试已取消，后端会停止未完成请求。");
+      return;
+    }
+    const backendUnavailable = error.isBackendUnavailable || isFetchNetworkError(error);
+    if (backendUnavailable) {
+      els.progressCase.textContent = "— 后端连接失败";
+      appendRunText(`✗ ${BACKEND_UNAVAILABLE_MESSAGE}`);
+      showToast(BACKEND_UNAVAILABLE_MESSAGE);
       return;
     }
     els.progressCase.textContent = "— 真实测试失败";
