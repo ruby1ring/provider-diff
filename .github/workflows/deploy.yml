@@ -15,6 +15,7 @@ concurrency:
 
 env:
   COMPOSE_PROJECT_NAME: provider-diff
+  DEPLOY_DIR: /data/services/dev-sr-02/provider-diff
   APP_PORT: "4173"
   BACKEND_PORT: "8080"
   EVALSCOPE_PORT: "9000"
@@ -63,13 +64,25 @@ jobs:
           docker --version
           docker compose version
 
+      - name: Sync deploy directory
+        run: |
+          mkdir -p "${DEPLOY_DIR}/outputs" "${DEPLOY_DIR}/outputs/opencompass"
+          rsync -a --delete \
+            --exclude ".git/" \
+            --exclude "config.yaml" \
+            --exclude "outputs/" \
+            ./ "${DEPLOY_DIR}/"
+
       - name: Build images
+        working-directory: ${{ env.DEPLOY_DIR }}
         run: docker compose -p provider-diff build --progress plain
 
       - name: Restart stack
+        working-directory: ${{ env.DEPLOY_DIR }}
         run: docker compose -p provider-diff up -d --no-build
 
       - name: Smoke test
+        working-directory: ${{ env.DEPLOY_DIR }}
         shell: bash
         run: |
           set -euo pipefail
@@ -96,4 +109,5 @@ jobs:
 
       - name: Show containers
         if: always()
+        working-directory: ${{ env.DEPLOY_DIR }}
         run: docker compose -p provider-diff ps
