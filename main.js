@@ -2347,14 +2347,13 @@ function renderCaseItem(testCase, context = {}) {
   const capacityDisplay = isCapacityCase(testCase) ? capacityCaseDisplay(testCase) : null;
   const focusParams = focusParametersForCase(testCase);
   const foundationalParams = foundationalParametersForCase(testCase);
-  const hiddenParams = new Set([context.groupParameter].filter(Boolean));
-  const visibleFocusParams = focusParams.filter((param) => !hiddenParams.has(param));
-  const params = capacityDisplay
-    ? ""
-    : [
-        ...visibleFocusParams.map((param) => `<span class="is-focus">${escapeHtml(param)}</span>`),
-        ...foundationalParams.map((param) => `<span class="is-foundational">${escapeHtml(param)}</span>`)
-      ].join("");
+  const displayParams = capacityDisplay
+    ? testCase.parameters || []
+    : [...focusParams, ...foundationalParams];
+  const params = displayParams.map((param) => {
+    const chipClass = foundationalParams.includes(param) ? "is-foundational" : "is-focus";
+    return `<span class="${chipClass}">${escapeHtml(param)}</span>`;
+  }).join("");
   const parameterChips = params;
   const title = contextualCaseTitle(capacityDisplay?.title || caseTitle(testCase), context);
   const intent = caseIntentText(testCase, context, capacityDisplay, title);
