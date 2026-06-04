@@ -167,3 +167,7 @@ npm run dev
 ```
 
 Web/Docker flows do not depend on `build/icon.icns` or Electron.
+
+## 协作开发
+
+请勿在本地长期直接修改并 push `main`。请使用功能分支 + Pull Request，流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。仓库管理员可为 `main` 配置分支保护，见 [docs/branch-protection.md](docs/branch-protection.md)。

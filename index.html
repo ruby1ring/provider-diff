@@ -4,17 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Noctua</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <div class="app-shell">
       <header class="global-header">
         <a class="brand" href="#" aria-label="Noctua home">
-          <img class="brand-mark" src="assets/noctua/icon.png" alt="" width="24" height="24" />
-          <span>Noctua</span>
+          <span class="brand-mark-wrap">
+            <img class="brand-mark" src="assets/noctua/icon.png" alt="" width="32" height="32" />
+          </span>
+          <span class="brand-name">Noctua</span>
         </a>
         <nav class="top-nav" aria-label="Primary">
-          <a class="is-active" href="#run" data-view-link="run">运行</a>
+          <a class="is-active" href="#run" data-view-link="run">接口参数评测</a>
           <a href="#reports" data-view-link="reports">报告</a>
           <a href="#feishu" data-view-link="feishu">飞书文档</a>
           <a href="#evalscope" data-view-link="evalscope">EvalScope</a>
