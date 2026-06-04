@@ -2184,7 +2184,7 @@ async function loadCaseSelectorForChannel() {
   state.isCaseLoading = true;
   els.caseGroups.innerHTML = '<div class="case-loading">正在从后端加载 cases...</div>';
   els.selectedCaseCount.textContent = "已选 0 个";
-  els.caseSelectorHint.textContent = `后端用例接口：${API_BASE}/api/providers/${providerId}/cases?${endpointQuery()}`;
+  els.caseSelectorHint.textContent = "正在加载测试用例...";
   updateRunAvailability();
 
   try {
@@ -2200,6 +2200,7 @@ async function loadCaseSelectorForChannel() {
     const capacityCount = capacityCasesForProvider(providerId).length;
     const capacityText = capacityCount ? ` · 容量测试 ${capacityCount} 个可选 case` : "";
     els.suiteTitle.textContent = `测试套件：${channel.name} / ${getSelectedEndpointTemplate().label}（${flattenParameters(channel).length} 个重点参数 · ${data.cases.length} 个 case${capacityText}）`;
+    els.caseSelectorHint.textContent = "默认勾选常规 case，容量测试按需开启。";
     state.isCaseLoading = false;
     renderParameterCatalog(channel, data);
     renderCaseSelector(data);
@@ -2213,7 +2214,7 @@ async function loadCaseSelectorForChannel() {
         <span>请先启动 8080 端口上的 Go 后端，再运行 ${escapeHtml(channel.name)} 用例。</span>
       </div>
     `;
-    els.caseSelectorHint.textContent = `加载后端用例失败：${error.message}`;
+    els.caseSelectorHint.textContent = `测试用例加载失败：${error.message}`;
     renderSelectedCaseCount();
   } finally {
     if (state.selectedChannelId === channelId) {
