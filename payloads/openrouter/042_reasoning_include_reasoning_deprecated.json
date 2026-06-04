@@ -22,6 +22,7 @@
     "http_status": 200,
     "support_conclusion": "ignored",
     "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
-    "notes": "Deprecated alias listed in parameters docs. Use reasoning object for new tests."
+    "thinking_location_probe": true,
+    "notes": "Deprecated alias listed in parameters docs. Use reasoning object for new tests. This alias probe only observes thinking evidence and does not require it."
   }
 }

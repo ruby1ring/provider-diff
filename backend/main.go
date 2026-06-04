@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -83,14 +84,15 @@ type ProxyConfig struct {
 }
 
 type RunRequest struct {
-	Provider    string      `json:"provider"`
-	EndpointID  string      `json:"endpoint_id"`
-	CaseIDs     []string    `json:"case_ids"`
-	CustomCases []TestCase  `json:"custom_cases"`
-	APIKey      string      `json:"api_key"`
-	BaseURL     string      `json:"base_url"`
-	Model       string      `json:"model"`
-	Proxy       ProxyConfig `json:"proxy"`
+	Provider       string      `json:"provider"`
+	EndpointID     string      `json:"endpoint_id"`
+	CaseIDs        []string    `json:"case_ids"`
+	CustomCases    []TestCase  `json:"custom_cases"`
+	APIKey         string      `json:"api_key"`
+	BaseURL        string      `json:"base_url"`
+	Model          string      `json:"model"`
+	Proxy          ProxyConfig `json:"proxy"`
+	MaxConcurrency int         `json:"max_concurrency,omitempty"`
 }
 
 type RunResponse struct {
@@ -102,6 +104,68 @@ type RunResponse struct {
 	Results     []RunCaseResult `json:"results"`
 	StartedAt   string          `json:"started_at"`
 	FinishedAt  string          `json:"finished_at"`
+}
+
+type RunStreamEvent struct {
+	Type        string         `json:"type"`
+	Total       int            `json:"total,omitempty"`
+	Index       int            `json:"index,omitempty"`
+	Provider    string         `json:"provider,omitempty"`
+	BaseURL     string         `json:"base_url,omitempty"`
+	EndpointURL string         `json:"endpoint_url,omitempty"`
+	Model       string         `json:"model,omitempty"`
+	Result      *RunCaseResult `json:"result,omitempty"`
+	Error       string         `json:"error,omitempty"`
+	StartedAt   string         `json:"started_at,omitempty"`
+	FinishedAt  string         `json:"finished_at,omitempty"`
+}
+
+type BatchRunRequest struct {
+	Targets        []RunRequest `json:"targets"`
+	EndpointID     string       `json:"endpoint_id"`
+	CaseIDs        []string     `json:"case_ids"`
+	CustomCases    []TestCase   `json:"custom_cases"`
+	APIKey         string       `json:"api_key"`
+	BaseURL        string       `json:"base_url"`
+	Proxy          ProxyConfig  `json:"proxy"`
+	MaxConcurrency int          `json:"max_concurrency"`
+}
+
+type BatchRunTargetResponse struct {
+	Index  int    `json:"index"`
+	Label  string `json:"label,omitempty"`
+	Error  string `json:"error,omitempty"`
+	Status int    `json:"status,omitempty"`
+	RunResponse
+}
+
+type BatchRunResponse struct {
+	Targets    []BatchRunTargetResponse `json:"targets"`
+	StartedAt  string                   `json:"started_at"`
+	FinishedAt string                   `json:"finished_at"`
+}
+
+type runRequestError struct {
+	status  int
+	message string
+}
+
+func (e runRequestError) Error() string {
+	return e.message
+}
+
+type preparedRunRequest struct {
+	Req         RunRequest
+	Manifest    Manifest
+	Selected    []TestCase
+	BaseURL     string
+	EndpointURL string
+	Client      *http.Client
+}
+
+type indexedRunCaseResult struct {
+	Index  int
+	Result RunCaseResult
 }
 
 type RunCaseResult struct {
@@ -135,6 +199,9 @@ type Server struct {
 	root string
 }
 
+const defaultRunCaseConcurrency = 20
+const statusClientClosedRequest = 499
+
 type FeishuDocumentRequest struct {
 	DocumentURL  string `json:"document_url"`
 	DocumentMode string `json:"document_mode"`
@@ -145,6 +212,46 @@ type FeishuDocumentRequest struct {
 type FeishuDocumentResponse struct {
 	OK      bool   `json:"ok"`
 	Message string `json:"message,omitempty"`
+}
+
+type PerformanceBenchmarkRequest struct {
+	Backend           string            `json:"backend"`
+	BaseURL           string            `json:"base_url"`
+	Host              string            `json:"host"`
+	Port              int               `json:"port"`
+	Endpoint          string            `json:"endpoint"`
+	Model             string            `json:"model"`
+	APIKey            string            `json:"api_key"`
+	DatasetName       string            `json:"dataset_name"`
+	DatasetPath       string            `json:"dataset_path"`
+	NumPrompts        int               `json:"num_prompts"`
+	RandomInputLen    int               `json:"random_input_len"`
+	RandomOutputLen   int               `json:"random_output_len"`
+	RandomRangeRatio  *float64          `json:"random_range_ratio"`
+	RandomPrefixLen   int               `json:"random_prefix_len"`
+	SonnetInputLen    int               `json:"sonnet_input_len"`
+	SonnetOutputLen   int               `json:"sonnet_output_len"`
+	SonnetPrefixLen   int               `json:"sonnet_prefix_len"`
+	ShareGPTOutputLen int               `json:"sharegpt_output_len"`
+	RequestRate       string            `json:"request_rate"`
+	Burstiness        float64           `json:"burstiness"`
+	MaxConcurrency    int               `json:"max_concurrency"`
+	Seed              int64             `json:"seed"`
+	PercentileMetrics string            `json:"percentile_metrics"`
+	MetricPercentiles string            `json:"metric_percentiles"`
+	Goodput           []string          `json:"goodput"`
+	Metadata          map[string]string `json:"metadata"`
+	NumWarmupRequests int               `json:"num_warmup_requests"`
+	DisableTQDM       bool              `json:"disable_tqdm"`
+	ExtraArgs         []string          `json:"extra_args"`
+	Proxy             ProxyConfig       `json:"proxy"`
+}
+
+type PerformanceBenchmarkResponse struct {
+	Result     map[string]any `json:"result"`
+	Stdout     string         `json:"stdout"`
+	Stderr     string         `json:"stderr,omitempty"`
+	ResultPath string         `json:"result_path"`
 }
 
 func main() {
@@ -159,15 +266,41 @@ func main() {
 	mux.HandleFunc("/api/providers", s.handleProviders)
 	mux.HandleFunc("/api/providers/", s.handleProviderRoutes)
 	mux.HandleFunc("/api/run", s.handleRun)
+	mux.HandleFunc("/api/run-stream", s.handleRunStream)
+	mux.HandleFunc("/api/run-batch", s.handleRunBatch)
 	mux.HandleFunc("/api/feishu/document", s.handleFeishuDocument)
+	mux.HandleFunc("/api/performance/benchmark", s.handlePerformanceBenchmark)
 
 	port := strings.TrimSpace(os.Getenv("PORT"))
 	if port == "" {
 		port = "8080"
 	}
 	addr := ":" + port
-	log.Printf("llm-rosetta backend listening on http://localhost%s", addr)
+	log.Printf("ProviderX backend listening on http://localhost%s", addr)
 	log.Fatal(http.ListenAndServe(addr, withCORS(mux)))
+}
+
+func (s *Server) handlePerformanceBenchmark(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/api/performance/benchmark" {
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	}
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	var req PerformanceBenchmarkRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
+		return
+	}
+	response, err := s.runPerformanceBenchmark(r.Context(), req)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (s *Server) handleFeishuDocument(w http.ResponseWriter, r *http.Request) {
@@ -295,7 +428,7 @@ func writeFeishuDocumentWithCLI(ctx context.Context, root, documentURL, mode, ti
 	if err != nil {
 		return err
 	}
-	tempFile, err := os.CreateTemp("", "provider-diff-feishu-*.md")
+	tempFile, err := os.CreateTemp("", "providerx-feishu-*.md")
 	if err != nil {
 		return fmt.Errorf("create temporary markdown file: %w", err)
 	}
@@ -353,6 +486,192 @@ func larkCLIPath(root string) (string, error) {
 	return "", errors.New("lark-cli is not installed; run npm install or install @larksuite/cli")
 }
 
+func (s *Server) runPerformanceBenchmark(ctx context.Context, req PerformanceBenchmarkRequest) (PerformanceBenchmarkResponse, error) {
+	if strings.TrimSpace(req.Model) == "" {
+		return PerformanceBenchmarkResponse{}, errors.New("model is required")
+	}
+	if strings.TrimSpace(req.BaseURL) == "" && strings.TrimSpace(req.Host) == "" {
+		req.Host = "127.0.0.1"
+	}
+	if req.Port == 0 {
+		req.Port = 8000
+	}
+	tempDir, err := os.MkdirTemp("", "providerx-performance-*")
+	if err != nil {
+		return PerformanceBenchmarkResponse{}, fmt.Errorf("create result directory: %w", err)
+	}
+	resultFilename := "benchmark-result.json"
+	args := performanceBenchmarkArgs(req, tempDir, resultFilename)
+	cmd, commandLabel, err := s.performanceBenchmarkCommand(ctx, args)
+	if err != nil {
+		os.RemoveAll(tempDir)
+		return PerformanceBenchmarkResponse{}, err
+	}
+	cmd.Env = performanceBenchmarkEnv(os.Environ(), req.Proxy)
+	output, err := cmd.CombinedOutput()
+	stdout := string(output)
+	resultPath := filepath.Join(tempDir, resultFilename)
+	var result map[string]any
+	readErr := readJSONFile(resultPath, &result)
+	if err != nil {
+		os.RemoveAll(tempDir)
+		message := strings.TrimSpace(stdout)
+		if message == "" {
+			message = err.Error()
+		}
+		return PerformanceBenchmarkResponse{}, fmt.Errorf("%s failed: %s", commandLabel, message)
+	}
+	if readErr != nil {
+		os.RemoveAll(tempDir)
+		return PerformanceBenchmarkResponse{}, fmt.Errorf("read benchmark result: %w", readErr)
+	}
+	return PerformanceBenchmarkResponse{
+		Result:     result,
+		Stdout:     stdout,
+		ResultPath: resultPath,
+	}, nil
+}
+
+func performanceBenchmarkArgs(req PerformanceBenchmarkRequest, resultDir, resultFilename string) []string {
+	args := []string{"--save-result", "--result-dir", resultDir, "--result-filename", resultFilename}
+	addStringArg := func(name, value string) {
+		if strings.TrimSpace(value) != "" {
+			args = append(args, name, strings.TrimSpace(value))
+		}
+	}
+	addIntArg := func(name string, value int) {
+		if value != 0 {
+			args = append(args, name, fmt.Sprintf("%d", value))
+		}
+	}
+	addFloatArg := func(name string, value float64) {
+		if value != 0 {
+			args = append(args, name, fmt.Sprintf("%g", value))
+		}
+	}
+	addStringArg("--backend", req.Backend)
+	addStringArg("--base-url", req.BaseURL)
+	addStringArg("--host", req.Host)
+	addIntArg("--port", req.Port)
+	addStringArg("--endpoint", req.Endpoint)
+	addStringArg("--model", req.Model)
+	addStringArg("--api-key", req.APIKey)
+	addStringArg("--dataset-name", req.DatasetName)
+	addStringArg("--dataset-path", req.DatasetPath)
+	addIntArg("--num-prompts", req.NumPrompts)
+	addIntArg("--random-input-len", req.RandomInputLen)
+	addIntArg("--random-output-len", req.RandomOutputLen)
+	if req.RandomRangeRatio != nil {
+		args = append(args, "--random-range-ratio", fmt.Sprintf("%g", *req.RandomRangeRatio))
+	}
+	addIntArg("--random-prefix-len", req.RandomPrefixLen)
+	addIntArg("--sonnet-input-len", req.SonnetInputLen)
+	addIntArg("--sonnet-output-len", req.SonnetOutputLen)
+	addIntArg("--sonnet-prefix-len", req.SonnetPrefixLen)
+	addIntArg("--sharegpt-output-len", req.ShareGPTOutputLen)
+	addStringArg("--request-rate", req.RequestRate)
+	addFloatArg("--burstiness", req.Burstiness)
+	addIntArg("--max-concurrency", req.MaxConcurrency)
+	if req.Seed != 0 {
+		args = append(args, "--seed", fmt.Sprintf("%d", req.Seed))
+	}
+	addStringArg("--percentile-metrics", req.PercentileMetrics)
+	addStringArg("--metric-percentiles", req.MetricPercentiles)
+	for _, item := range req.Goodput {
+		addStringArg("--goodput", item)
+	}
+	keys := sortedStringMapKeys(req.Metadata)
+	for _, key := range keys {
+		args = append(args, "--metadata", key+"="+req.Metadata[key])
+	}
+	addIntArg("--num-warmup-requests", req.NumWarmupRequests)
+	if req.DisableTQDM {
+		args = append(args, "--disable-tqdm")
+	}
+	args = append(args, req.ExtraArgs...)
+	return args
+}
+
+func (s *Server) performanceBenchmarkCommand(ctx context.Context, args []string) (*exec.Cmd, string, error) {
+	for _, candidate := range s.performanceBenchmarkBinaryCandidates() {
+		if isExecutable(candidate) {
+			cmd := exec.CommandContext(ctx, candidate, args...)
+			cmd.Dir = s.root
+			return cmd, candidate, nil
+		}
+	}
+	benchDir := filepath.Join(s.root, "llm-bench")
+	if exists(filepath.Join(benchDir, "go.mod")) {
+		runArgs := append([]string{"run", "."}, args...)
+		cmd := exec.CommandContext(ctx, "go", runArgs...)
+		cmd.Dir = benchDir
+		return cmd, "go run ./llm-bench", nil
+	}
+	return nil, "", errors.New("llm-bench binary not found and llm-bench source directory is unavailable")
+}
+
+func (s *Server) performanceBenchmarkBinaryCandidates() []string {
+	binaryName := "llm-bench"
+	if os.PathSeparator == '\\' {
+		binaryName = "llm-bench.exe"
+	}
+	candidates := []string{
+		filepath.Join(s.root, "desktop", "bin", binaryName),
+		filepath.Join(s.root, "llm-bench", binaryName),
+	}
+	if executable, err := os.Executable(); err == nil {
+		candidates = append([]string{filepath.Join(filepath.Dir(executable), binaryName)}, candidates...)
+	}
+	if path, err := exec.LookPath(binaryName); err == nil {
+		candidates = append(candidates, path)
+	}
+	return candidates
+}
+
+func isExecutable(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil || info.IsDir() {
+		return false
+	}
+	if os.PathSeparator == '\\' {
+		return true
+	}
+	return info.Mode()&0o111 != 0
+}
+
+func performanceBenchmarkEnv(base []string, proxy ProxyConfig) []string {
+	if !proxy.Enabled || strings.TrimSpace(proxy.URL) == "" {
+		return base
+	}
+	env := withoutEnvKeys(base, "HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy")
+	proxyURL := strings.TrimSpace(proxy.URL)
+	return append(env, "HTTP_PROXY="+proxyURL, "HTTPS_PROXY="+proxyURL, "http_proxy="+proxyURL, "https_proxy="+proxyURL)
+}
+
+func withoutEnvKeys(env []string, keys ...string) []string {
+	blocked := map[string]bool{}
+	for _, key := range keys {
+		blocked[key] = true
+	}
+	out := make([]string, 0, len(env))
+	for _, item := range env {
+		key, _, _ := strings.Cut(item, "=")
+		if !blocked[key] {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+func sortedStringMapKeys(values map[string]string) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 func withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -381,6 +700,246 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
 		return
 	}
+	response, runErr := s.runRequest(r.Context(), req)
+	if runErr != nil {
+		writeError(w, runErr.status, runErr.message)
+		return
+	}
+	writeJSON(w, http.StatusOK, response)
+}
+
+func (s *Server) handleRunStream(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/api/run-stream" {
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	}
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	var req RunRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
+		return
+	}
+	prepared, runErr := s.prepareRunRequest(req)
+	if runErr != nil {
+		writeError(w, runErr.status, runErr.message)
+		return
+	}
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		writeError(w, http.StatusInternalServerError, "streaming is not supported by this server")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/x-ndjson; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("X-Accel-Buffering", "no")
+
+	started := time.Now().UTC()
+	total := len(prepared.Selected)
+	maxConcurrency := runCaseConcurrency(total, prepared.Req.MaxConcurrency)
+	if err := writeRunStreamEvent(w, flusher, RunStreamEvent{
+		Type:        "start",
+		Total:       total,
+		Provider:    prepared.Manifest.Provider,
+		BaseURL:     prepared.BaseURL,
+		EndpointURL: prepared.EndpointURL,
+		Model:       prepared.Req.Model,
+		StartedAt:   started.Format(time.RFC3339),
+	}); err != nil {
+		return
+	}
+
+	results := make(chan indexedRunCaseResult, total)
+	sem := make(chan struct{}, maxConcurrency)
+	var wg sync.WaitGroup
+	for index, tc := range prepared.Selected {
+		index := index
+		tc := tc
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			select {
+			case sem <- struct{}{}:
+			case <-r.Context().Done():
+				results <- indexedRunCaseResult{Index: index, Result: canceledRunCaseResult(tc, prepared.EndpointURL, r.Context().Err())}
+				return
+			}
+			defer func() { <-sem }()
+			if r.Context().Err() != nil {
+				results <- indexedRunCaseResult{Index: index, Result: canceledRunCaseResult(tc, prepared.EndpointURL, r.Context().Err())}
+				return
+			}
+			log.Printf("run stream provider=%s case=%s index=%d/%d concurrency=%d start", prepared.Manifest.Provider, tc.CaseID, index+1, total, maxConcurrency)
+			caseEndpointURL := prepared.EndpointURL
+			if caseBaseURL := strings.TrimSpace(tc.BaseURL); caseBaseURL != "" {
+				caseEndpointURL = buildEndpointURL(caseBaseURL, prepared.Manifest.Endpoint)
+			}
+			result := runProviderCase(r.Context(), prepared.Client, caseEndpointURL, prepared.Req.APIKey, prepared.Req.Model, prepared.Manifest, tc)
+			log.Printf("run stream provider=%s case=%s index=%d/%d done status=%d latency_ms=%d conclusion=%s error=%q", prepared.Manifest.Provider, tc.CaseID, index+1, total, result.HTTPStatus, result.LatencyMS, result.SupportConclusion, result.Error)
+			results <- indexedRunCaseResult{Index: index, Result: result}
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	for item := range results {
+		if r.Context().Err() != nil {
+			return
+		}
+		result := item.Result
+		if err := writeRunStreamEvent(w, flusher, RunStreamEvent{
+			Type:   "result",
+			Total:  total,
+			Index:  item.Index,
+			Result: &result,
+		}); err != nil {
+			return
+		}
+	}
+	if r.Context().Err() != nil {
+		return
+	}
+	finished := time.Now().UTC()
+	_ = writeRunStreamEvent(w, flusher, RunStreamEvent{
+		Type:       "end",
+		Total:      total,
+		FinishedAt: finished.Format(time.RFC3339),
+	})
+}
+
+func (s *Server) handleRunBatch(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/api/run-batch" {
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	}
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	var req BatchRunRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<20)).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
+		return
+	}
+	if len(req.Targets) == 0 {
+		writeError(w, http.StatusBadRequest, "targets must contain at least one run target")
+		return
+	}
+	if len(req.Targets) > 32 {
+		writeError(w, http.StatusBadRequest, "targets cannot contain more than 32 run targets")
+		return
+	}
+
+	maxConcurrency := req.MaxConcurrency
+	if maxConcurrency <= 0 {
+		maxConcurrency = 3
+	}
+	if maxConcurrency > 8 {
+		maxConcurrency = 8
+	}
+	req.MaxConcurrency = maxConcurrency
+
+	started := time.Now().UTC()
+	targets := make([]BatchRunTargetResponse, len(req.Targets))
+	sem := make(chan struct{}, maxConcurrency)
+	var wg sync.WaitGroup
+	for index, target := range req.Targets {
+		index := index
+		target := applyBatchDefaults(target, req)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			select {
+			case sem <- struct{}{}:
+			case <-r.Context().Done():
+				targets[index] = BatchRunTargetResponse{
+					Index:  index,
+					Label:  runTargetLabel(target),
+					Error:  contextErrorMessage(r.Context().Err()),
+					Status: statusClientClosedRequest,
+				}
+				return
+			}
+			defer func() { <-sem }()
+			if r.Context().Err() != nil {
+				targets[index] = BatchRunTargetResponse{
+					Index:  index,
+					Label:  runTargetLabel(target),
+					Error:  contextErrorMessage(r.Context().Err()),
+					Status: statusClientClosedRequest,
+				}
+				return
+			}
+			label := runTargetLabel(target)
+			log.Printf("batch run target=%s index=%d/%d start", label, index+1, len(req.Targets))
+			response, runErr := s.runRequest(r.Context(), target)
+			targets[index] = BatchRunTargetResponse{
+				Index:       index,
+				Label:       label,
+				RunResponse: response,
+			}
+			if runErr != nil {
+				targets[index].Error = runErr.message
+				targets[index].Status = runErr.status
+			}
+			log.Printf("batch run target=%s index=%d/%d done error=%q", label, index+1, len(req.Targets), targets[index].Error)
+		}()
+	}
+	wg.Wait()
+	finished := time.Now().UTC()
+
+	writeJSON(w, http.StatusOK, BatchRunResponse{
+		Targets:    targets,
+		StartedAt:  started.Format(time.RFC3339),
+		FinishedAt: finished.Format(time.RFC3339),
+	})
+}
+
+func applyBatchDefaults(target RunRequest, batch BatchRunRequest) RunRequest {
+	if strings.TrimSpace(target.EndpointID) == "" {
+		target.EndpointID = batch.EndpointID
+	}
+	if len(target.CaseIDs) == 0 && len(target.CustomCases) == 0 {
+		target.CaseIDs = batch.CaseIDs
+		target.CustomCases = batch.CustomCases
+	}
+	if strings.TrimSpace(target.APIKey) == "" {
+		target.APIKey = batch.APIKey
+	}
+	if strings.TrimSpace(target.BaseURL) == "" {
+		target.BaseURL = batch.BaseURL
+	}
+	if !target.Proxy.Enabled && strings.TrimSpace(target.Proxy.URL) == "" {
+		target.Proxy = batch.Proxy
+	}
+	if target.MaxConcurrency <= 0 {
+		target.MaxConcurrency = batch.MaxConcurrency
+	}
+	return target
+}
+
+func runTargetLabel(req RunRequest) string {
+	parts := []string{}
+	if provider := strings.TrimSpace(req.Provider); provider != "" {
+		parts = append(parts, provider)
+	}
+	if model := strings.TrimSpace(req.Model); model != "" {
+		parts = append(parts, model)
+	}
+	if len(parts) == 0 {
+		return "target"
+	}
+	return strings.Join(parts, " / ")
+}
+
+func (s *Server) prepareRunRequest(req RunRequest) (preparedRunRequest, *runRequestError) {
 	req.Provider = strings.TrimSpace(req.Provider)
 	if req.Provider == "" {
 		req.Provider = "siliconflow"
@@ -388,19 +947,16 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request) {
 	req.EndpointID = strings.TrimSpace(req.EndpointID)
 	req.APIKey = strings.TrimSpace(req.APIKey)
 	if req.APIKey == "" {
-		writeError(w, http.StatusBadRequest, "api_key is required for real provider requests")
-		return
+		return preparedRunRequest{}, &runRequestError{status: http.StatusBadRequest, message: "api_key is required for real provider requests"}
 	}
 
 	manifest, cases, err := s.loadProviderForEndpoint(req.Provider, req.EndpointID)
 	if err != nil {
-		writeError(w, http.StatusNotFound, err.Error())
-		return
+		return preparedRunRequest{}, &runRequestError{status: http.StatusNotFound, message: err.Error()}
 	}
 	selected, err := selectCases(cases, req.CaseIDs, req.CustomCases)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
+		return preparedRunRequest{}, &runRequestError{status: http.StatusBadRequest, message: err.Error()}
 	}
 	baseURL := strings.TrimSpace(req.BaseURL)
 	if baseURL == "" {
@@ -409,34 +965,124 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request) {
 	endpointURL := buildEndpointURL(baseURL, manifest.Endpoint)
 	client, err := httpClient(req.Proxy)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
+		return preparedRunRequest{}, &runRequestError{status: http.StatusBadRequest, message: err.Error()}
+	}
+	return preparedRunRequest{
+		Req:         req,
+		Manifest:    manifest,
+		Selected:    selected,
+		BaseURL:     baseURL,
+		EndpointURL: endpointURL,
+		Client:      client,
+	}, nil
+}
+
+func (s *Server) runRequest(ctx context.Context, req RunRequest) (RunResponse, *runRequestError) {
+	prepared, runErr := s.prepareRunRequest(req)
+	if runErr != nil {
+		return RunResponse{}, runErr
 	}
 
 	started := time.Now().UTC()
-	results := make([]RunCaseResult, 0, len(selected))
-	for index, tc := range selected {
-		log.Printf("run provider=%s case=%s index=%d/%d start", manifest.Provider, tc.CaseID, index+1, len(selected))
-		caseEndpointURL := endpointURL
-		if caseBaseURL := strings.TrimSpace(tc.BaseURL); caseBaseURL != "" {
-			caseEndpointURL = buildEndpointURL(caseBaseURL, manifest.Endpoint)
-		}
-		result := runProviderCase(r.Context(), client, caseEndpointURL, req.APIKey, req.Model, manifest, tc)
-		log.Printf("run provider=%s case=%s index=%d/%d done status=%d latency_ms=%d conclusion=%s error=%q", manifest.Provider, tc.CaseID, index+1, len(selected), result.HTTPStatus, result.LatencyMS, result.SupportConclusion, result.Error)
-		results = append(results, result)
+	results := make([]RunCaseResult, len(prepared.Selected))
+	maxConcurrency := runCaseConcurrency(len(prepared.Selected), prepared.Req.MaxConcurrency)
+	sem := make(chan struct{}, maxConcurrency)
+	var wg sync.WaitGroup
+	for index, tc := range prepared.Selected {
+		index := index
+		tc := tc
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			select {
+			case sem <- struct{}{}:
+			case <-ctx.Done():
+				results[index] = canceledRunCaseResult(tc, prepared.EndpointURL, ctx.Err())
+				return
+			}
+			defer func() { <-sem }()
+			if ctx.Err() != nil {
+				results[index] = canceledRunCaseResult(tc, prepared.EndpointURL, ctx.Err())
+				return
+			}
+			log.Printf("run provider=%s case=%s index=%d/%d concurrency=%d start", prepared.Manifest.Provider, tc.CaseID, index+1, len(prepared.Selected), maxConcurrency)
+			caseEndpointURL := prepared.EndpointURL
+			if caseBaseURL := strings.TrimSpace(tc.BaseURL); caseBaseURL != "" {
+				caseEndpointURL = buildEndpointURL(caseBaseURL, prepared.Manifest.Endpoint)
+			}
+			result := runProviderCase(ctx, prepared.Client, caseEndpointURL, prepared.Req.APIKey, prepared.Req.Model, prepared.Manifest, tc)
+			log.Printf("run provider=%s case=%s index=%d/%d done status=%d latency_ms=%d conclusion=%s error=%q", prepared.Manifest.Provider, tc.CaseID, index+1, len(prepared.Selected), result.HTTPStatus, result.LatencyMS, result.SupportConclusion, result.Error)
+			results[index] = result
+		}()
 	}
+	wg.Wait()
 	finished := time.Now().UTC()
 
-	writeJSON(w, http.StatusOK, RunResponse{
-		Provider:    manifest.Provider,
-		BaseURL:     baseURL,
-		EndpointURL: endpointURL,
-		Model:       req.Model,
-		Proxy:       req.Proxy,
+	return RunResponse{
+		Provider:    prepared.Manifest.Provider,
+		BaseURL:     prepared.BaseURL,
+		EndpointURL: prepared.EndpointURL,
+		Model:       prepared.Req.Model,
+		Proxy:       prepared.Req.Proxy,
 		Results:     results,
 		StartedAt:   started.Format(time.RFC3339),
 		FinishedAt:  finished.Format(time.RFC3339),
-	})
+	}, nil
+}
+
+func runCaseConcurrency(total, requested int) int {
+	if total <= 0 {
+		return 1
+	}
+	limit := defaultRunCaseConcurrency
+	if requested > 0 {
+		limit = requested
+	}
+	if limit < 1 {
+		limit = 1
+	}
+	if limit > defaultRunCaseConcurrency {
+		limit = defaultRunCaseConcurrency
+	}
+	if total < limit {
+		return total
+	}
+	return limit
+}
+
+func contextErrorMessage(err error) string {
+	if errors.Is(err, context.Canceled) {
+		return "run canceled by client"
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "run deadline exceeded"
+	}
+	if err != nil {
+		return err.Error()
+	}
+	return "run canceled"
+}
+
+func canceledRunCaseResult(tc TestCase, endpointURL string, err error) RunCaseResult {
+	return RunCaseResult{
+		CaseID:                    tc.CaseID,
+		Title:                     tc.Title,
+		Category:                  tc.Category,
+		Parameters:                tc.Parameters,
+		Method:                    tc.Method,
+		URL:                       endpointURL,
+		RequestBody:               cloneMap(tc.Payload),
+		ExpectedHTTPStatus:        expectedHTTPStatus(tc.Expect),
+		ExpectedSupportConclusion: expectedSupportConclusion(tc.Expect),
+		HTTPStatus:                0,
+		Error:                     contextErrorMessage(err),
+		SupportConclusion:         "request_failed",
+		Assertions: []CaseAssertion{{
+			Name:    "run_canceled",
+			Pass:    false,
+			Message: contextErrorMessage(err),
+		}},
+	}
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -718,6 +1364,10 @@ func runProviderCase(ctx context.Context, client *http.Client, endpointURL, apiK
 		ExpectedSupportConclusion: expectedSupportConclusion(tc.Expect),
 	}
 
+	if probe, ok := capacityProbeSpec(requestBody); ok {
+		return runCapacityProbeCase(ctx, client, endpointURL, apiKey, manifest, tc, result, probe)
+	}
+
 	bodyBytes, err := json.Marshal(requestBody)
 	if err != nil {
 		result.Error = fmt.Sprintf("marshal request body: %v", err)
@@ -756,6 +1406,398 @@ func runProviderCase(ctx context.Context, client *http.Client, endpointURL, apiK
 	result.Assertions = evaluateAssertions(result, tc.Expect)
 	result.SupportConclusion = finalizeSupportConclusionForResult(result, nil, tc.Expect)
 	return result
+}
+
+type capacityProbe struct {
+	Kind                string
+	Candidates          []int
+	ContextOutputTokens int
+}
+
+type capacityAttempt struct {
+	CaseID                    string         `json:"case_id"`
+	Candidate                 int            `json:"candidate"`
+	CandidateDisplay          string         `json:"candidate_display"`
+	HTTPStatus                int            `json:"http_status"`
+	LatencyMS                 int64          `json:"latency_ms"`
+	Conclusion                string         `json:"conclusion"`
+	Error                     string         `json:"error,omitempty"`
+	FinishReason              string         `json:"finish_reason,omitempty"`
+	Usage                     map[string]any `json:"usage,omitempty"`
+	EstimatedInputTokens      int            `json:"estimated_input_tokens,omitempty"`
+	RequestedMaxOutputTokens  int            `json:"requested_max_output_tokens,omitempty"`
+	EstimatedTotalContextToks int            `json:"estimated_total_context_tokens,omitempty"`
+}
+
+func capacityProbeSpec(payload map[string]any) (capacityProbe, bool) {
+	raw, ok := payload["__capacity_probe"]
+	if !ok {
+		return capacityProbe{}, false
+	}
+	spec, ok := raw.(map[string]any)
+	if !ok {
+		return capacityProbe{}, false
+	}
+	kind, _ := spec["kind"].(string)
+	kind = strings.TrimSpace(kind)
+	if kind != "max_output" && kind != "total_context" {
+		return capacityProbe{}, false
+	}
+	candidates := capacityIntSlice(spec["candidates"])
+	if len(candidates) == 0 {
+		candidates = []int{4194304, 2097152, 1048576, 524288, 262144, 131072, 65536, 32768, 16384, 8192, 4096, 2048, 1024}
+	}
+	sort.Sort(sort.Reverse(sort.IntSlice(candidates)))
+	outputTokens, _ := intValue(spec["context_output_tokens"])
+	if outputTokens <= 0 {
+		outputTokens = 8
+	}
+	return capacityProbe{
+		Kind:                kind,
+		Candidates:          candidates,
+		ContextOutputTokens: outputTokens,
+	}, true
+}
+
+func capacityIntSlice(value any) []int {
+	items, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]int, 0, len(items))
+	seen := map[int]bool{}
+	for _, item := range items {
+		number, ok := intValue(item)
+		if !ok || number <= 0 || seen[number] {
+			continue
+		}
+		seen[number] = true
+		out = append(out, number)
+	}
+	return out
+}
+
+func runCapacityProbeCase(ctx context.Context, client *http.Client, endpointURL, apiKey string, manifest Manifest, tc TestCase, result RunCaseResult, probe capacityProbe) RunCaseResult {
+	model, _ := result.RequestBody["model"].(string)
+	if strings.TrimSpace(model) == "" {
+		model = manifest.DefaultModel
+	}
+	result.RequestBody = map[string]any{
+		"model":            model,
+		"__capacity_probe": result.RequestBody["__capacity_probe"],
+	}
+
+	attempts := []capacityAttempt{}
+	sawNonSupported := false
+	stoppedByBoundary := false
+	for _, candidate := range probe.Candidates {
+		if ctx.Err() != nil {
+			attempts = append(attempts, capacityAttempt{
+				CaseID:           capacityAttemptCaseID(tc.CaseID, candidate),
+				Candidate:        candidate,
+				CandidateDisplay: capacityTierDisplay(candidate),
+				Conclusion:       "request_failed",
+				Error:            contextErrorMessage(ctx.Err()),
+			})
+			break
+		}
+		attemptPayload, estimatedInputTokens, requestedOutputTokens := capacityAttemptPayload(manifest, probe, model, candidate)
+		bodyBytes, err := json.Marshal(attemptPayload)
+		attempt := capacityAttempt{
+			CaseID:                    capacityAttemptCaseID(tc.CaseID, candidate),
+			Candidate:                 candidate,
+			CandidateDisplay:          capacityTierDisplay(candidate),
+			EstimatedInputTokens:      estimatedInputTokens,
+			RequestedMaxOutputTokens:  requestedOutputTokens,
+			EstimatedTotalContextToks: estimatedInputTokens + requestedOutputTokens,
+		}
+		start := time.Now()
+		if err != nil {
+			attempt.LatencyMS = time.Since(start).Milliseconds()
+			attempt.Conclusion = "request_failed"
+			attempt.Error = fmt.Sprintf("marshal request body: %v", err)
+			attempts = append(attempts, attempt)
+			break
+		}
+		resp, err := doProviderRequest(ctx, client, endpointURL, apiKey, manifest, tc.Headers, bodyBytes, 0)
+		attempt.LatencyMS = time.Since(start).Milliseconds()
+		if err != nil {
+			attempt.Conclusion = "request_failed"
+			attempt.Error = err.Error()
+			attempts = append(attempts, attempt)
+		} else {
+			raw, readErr := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+			resp.Body.Close()
+			attempt.HTTPStatus = resp.StatusCode
+			if parsed, ok := parseJSON(raw); ok {
+				attempt.Usage = capacityUsageMap(parsed)
+				attempt.FinishReason = capacityFinishReason(parsed, isAnthropicMessagesEndpoint(manifest))
+			}
+			if readErr != nil {
+				attempt.Conclusion = "request_failed"
+				attempt.Error = fmt.Sprintf("read response body: %v", readErr)
+			} else {
+				attempt.Conclusion = capacityConclusion(resp.StatusCode)
+				if resp.StatusCode >= 400 {
+					var parsed any
+					if value, ok := parseJSON(raw); ok {
+						parsed = value
+					}
+					attempt.Error = providerErrorMessage(parsed, string(raw), resp.Status)
+				}
+			}
+			result.ResponseHeaders = responseHeaders(resp.Header)
+		}
+		attempts = append(attempts, attempt)
+
+		if attempt.Conclusion == "supported" && sawNonSupported {
+			stoppedByBoundary = true
+			break
+		}
+		if attempt.Conclusion == "supported" && !sawNonSupported {
+			break
+		}
+		if attempt.Conclusion != "supported" {
+			sawNonSupported = true
+		}
+	}
+
+	summary := capacitySummary(probe.Kind, attempts, probe.Candidates, stoppedByBoundary)
+	result.HTTPStatus = capacityResultHTTPStatus(attempts)
+	result.LatencyMS = capacityTotalLatency(attempts)
+	result.ResponseBody = summary
+	if raw, err := json.Marshal(summary); err == nil {
+		result.RawResponse = string(raw)
+	}
+	if supportedMax, _ := intValue(summary["supported_max"]); supportedMax > 0 {
+		result.SupportConclusion = "supported"
+		result.Assertions = []CaseAssertion{{
+			Name:    "capacity_boundary",
+			Pass:    true,
+			Message: fmt.Sprintf("%s：%s", capacityDisplayLabel(probe.Kind), summary["supported_max_display"]),
+		}}
+		return result
+	}
+	result.SupportConclusion = "request_failed"
+	result.Error = "当前候选档位内未测到支持项"
+	result.Assertions = []CaseAssertion{{
+		Name:    "capacity_boundary",
+		Pass:    false,
+		Message: result.Error,
+	}}
+	return result
+}
+
+func capacityAttemptPayload(manifest Manifest, probe capacityProbe, model string, candidate int) (map[string]any, int, int) {
+	outputTokens := candidate
+	content := "Reply exactly: OK"
+	estimatedInputTokens := 0
+	if probe.Kind == "total_context" {
+		outputTokens = probe.ContextOutputTokens
+		estimatedInputTokens = candidate - outputTokens
+		if estimatedInputTokens < 1 {
+			estimatedInputTokens = 1
+		}
+		content = capacityLongPrompt(estimatedInputTokens)
+	}
+	payload := map[string]any{
+		"model": model,
+		"messages": []map[string]any{
+			{"role": "user", "content": content},
+		},
+		capacityOutputParameter(manifest.Provider): outputTokens,
+	}
+	return payload, estimatedInputTokens, outputTokens
+}
+
+func capacityOutputParameter(provider string) string {
+	switch provider {
+	case "openai", "claude", "minimax", "openrouter":
+		return "max_completion_tokens"
+	default:
+		return "max_tokens"
+	}
+}
+
+func capacityLongPrompt(estimatedInputTokens int) string {
+	prefix := "Capacity probe. Ignore the repeated filler and reply with OK.\n\n"
+	suffix := "\n\nReply exactly: OK"
+	fillerTokens := estimatedInputTokens - 24
+	if fillerTokens < 1 {
+		fillerTokens = 1
+	}
+	return prefix + strings.Repeat("x ", fillerTokens) + suffix
+}
+
+func capacityConclusion(status int) string {
+	if status >= 200 && status < 300 {
+		return "supported"
+	}
+	if status == http.StatusUnauthorized || status == http.StatusForbidden {
+		return "auth_or_permission_failed"
+	}
+	if status == http.StatusTooManyRequests {
+		return "rate_limited"
+	}
+	if status == http.StatusBadRequest || status == http.StatusNotFound || status == http.StatusUnprocessableEntity {
+		return "rejected"
+	}
+	if status >= 500 {
+		return "server_error"
+	}
+	return "request_failed"
+}
+
+func capacitySummary(kind string, attempts []capacityAttempt, candidates []int, stoppedByBoundary bool) map[string]any {
+	supportedMax := 0
+	for _, attempt := range attempts {
+		if attempt.Conclusion == "supported" && attempt.Candidate > supportedMax {
+			supportedMax = attempt.Candidate
+		}
+	}
+	var nearestHigher *capacityAttempt
+	if supportedMax > 0 {
+		for _, attempt := range attempts {
+			if attempt.Candidate > supportedMax && attempt.Conclusion != "supported" {
+				if nearestHigher == nil || attempt.Candidate < nearestHigher.Candidate {
+					copy := attempt
+					nearestHigher = &copy
+				}
+			}
+		}
+	}
+	topCandidate := 0
+	if len(candidates) > 0 {
+		topCandidate = candidates[0]
+	}
+	topSupported := len(attempts) > 0 && attempts[0].Candidate == topCandidate && attempts[0].Conclusion == "supported"
+	upperBoundFound := supportedMax > 0 && nearestHigher != nil
+	display := capacityDisplayConclusion(supportedMax, nearestHigher, topSupported)
+	summary := map[string]any{
+		"kind":                    kind,
+		"label":                   capacityDisplayLabel(kind),
+		"supported_max":           supportedMax,
+		"supported_max_display":   capacityTierDisplay(supportedMax),
+		"top_candidate":           topCandidate,
+		"top_candidate_display":   capacityTierDisplay(topCandidate),
+		"top_candidate_supported": topSupported,
+		"upper_bound_found":       upperBoundFound,
+		"boundary_found_by_stop":  stoppedByBoundary,
+		"attempts":                attempts,
+		"capacity_display": map[string]any{
+			capacityDisplayLabel(kind): display,
+		},
+	}
+	if nearestHigher != nil {
+		summary["nearest_higher_non_supported"] = map[string]any{
+			"candidate":         nearestHigher.Candidate,
+			"candidate_display": nearestHigher.CandidateDisplay,
+			"conclusion":        nearestHigher.Conclusion,
+			"http_status":       nearestHigher.HTTPStatus,
+			"error":             nearestHigher.Error,
+		}
+	}
+	return summary
+}
+
+func capacityDisplayLabel(kind string) string {
+	if kind == "total_context" {
+		return "最大Total Context"
+	}
+	return "最大Max Output"
+}
+
+func capacityDisplayConclusion(supportedMax int, nearestHigher *capacityAttempt, topSupported bool) string {
+	if supportedMax <= 0 {
+		return "当前候选档位内未测到支持项"
+	}
+	supported := capacityTierDisplay(supportedMax)
+	if nearestHigher != nil {
+		return fmt.Sprintf("%s（%s不支持）", supported, nearestHigher.CandidateDisplay)
+	}
+	if topSupported {
+		return fmt.Sprintf(">= %s（最高候选档位已支持）", supported)
+	}
+	return fmt.Sprintf("%s（边界未完全括定）", supported)
+}
+
+func capacityTierDisplay(value int) string {
+	if value <= 0 {
+		return ""
+	}
+	const oneM = 1024 * 1024
+	if value >= oneM && value%oneM == 0 {
+		return fmt.Sprintf("%dm", value/oneM)
+	}
+	if value >= 1024 && value%1024 == 0 {
+		return fmt.Sprintf("%dk", value/1024)
+	}
+	return fmt.Sprintf("%d", value)
+}
+
+func capacityAttemptCaseID(caseID string, candidate int) string {
+	return fmt.Sprintf("%s_%s", caseID, capacityTierDisplay(candidate))
+}
+
+func capacityResultHTTPStatus(attempts []capacityAttempt) int {
+	for i := len(attempts) - 1; i >= 0; i-- {
+		if attempts[i].HTTPStatus > 0 {
+			return attempts[i].HTTPStatus
+		}
+	}
+	return 0
+}
+
+func capacityTotalLatency(attempts []capacityAttempt) int64 {
+	var total int64
+	for _, attempt := range attempts {
+		total += attempt.LatencyMS
+	}
+	return total
+}
+
+func capacityUsageMap(value any) map[string]any {
+	root, ok := value.(map[string]any)
+	if !ok {
+		return nil
+	}
+	usage, ok := root["usage"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	out := map[string]any{}
+	for _, key := range []string{"prompt_tokens", "completion_tokens", "total_tokens", "input_tokens", "output_tokens"} {
+		if item, ok := usage[key]; ok {
+			out[key] = item
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func capacityFinishReason(value any, messagesEndpoint bool) string {
+	root, ok := value.(map[string]any)
+	if !ok {
+		return ""
+	}
+	if messagesEndpoint {
+		if reason, ok := root["stop_reason"].(string); ok {
+			return reason
+		}
+		return ""
+	}
+	choices, ok := root["choices"].([]any)
+	if !ok || len(choices) == 0 {
+		return ""
+	}
+	first, ok := choices[0].(map[string]any)
+	if !ok {
+		return ""
+	}
+	reason, _ := first["finish_reason"].(string)
+	return reason
 }
 
 func doProviderRequest(ctx context.Context, client *http.Client, endpointURL, apiKey string, manifest Manifest, headers map[string]string, bodyBytes []byte, expectedStatus int) (*http.Response, error) {
@@ -1488,7 +2530,10 @@ func thinkingAbsentAssertion(value any, expect map[string]any) CaseAssertion {
 			present = append(present, candidate)
 		}
 	}
-	return CaseAssertion{Name: "thinking_absent", Pass: len(present) == 0, Message: "不应出现 thinking 输出；实际位置: " + strings.Join(present, ", ")}
+	if tokenEvidence := thinkingTokenEvidence(value); len(tokenEvidence) > 0 {
+		present = append(present, tokenEvidence...)
+	}
+	return CaseAssertion{Name: "thinking_absent", Pass: len(present) == 0, Message: "不应出现 thinking 输出或 reasoning/thinking token 证据；实际位置: " + strings.Join(present, ", ")}
 }
 
 func thinkingLocationProbeAssertion(value any) CaseAssertion {
@@ -2229,6 +3274,15 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 	if err := json.NewEncoder(w).Encode(value); err != nil {
 		log.Printf("write json: %v", err)
 	}
+}
+
+func writeRunStreamEvent(w http.ResponseWriter, flusher http.Flusher, event RunStreamEvent) error {
+	if err := json.NewEncoder(w).Encode(event); err != nil {
+		log.Printf("write run stream event: %v", err)
+		return err
+	}
+	flusher.Flush()
+	return nil
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {

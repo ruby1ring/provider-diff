@@ -1,0 +1,37 @@
+{
+  "case_id": "vllm_tools_parallel_false_optional",
+  "title": "parallel_tool_calls false with tools",
+  "category": "tools",
+  "parameters": ["tools", "parallel_tool_calls"],
+  "requires_model_capability": "tool_calling",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+    "messages": [{"role": "user", "content": "Use a tool if needed to look up a city temperature."}],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_temperature",
+          "description": "Get city temperature.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "city": {"type": "string"}
+            },
+            "required": ["city"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto",
+    "parallel_tool_calls": false,
+    "max_tokens": 96
+  },
+  "expect": {
+    "optional_capability_mismatch": true,
+    "notes": "vLLM documents parallel_tool_calls behavior for Chat Completions, but actual tool calls are model and launch-flag dependent."
+  }
+}

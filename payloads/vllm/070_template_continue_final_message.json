@@ -1,0 +1,23 @@
+{
+  "case_id": "vllm_template_continue_final_message",
+  "title": "continue_final_message assistant prefill",
+  "category": "template",
+  "parameters": ["continue_final_message", "add_generation_prompt"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+    "messages": [
+      {"role": "user", "content": "Complete this sentence with a few words."},
+      {"role": "assistant", "content": "Compatibility testing is"}
+    ],
+    "continue_final_message": true,
+    "add_generation_prompt": false,
+    "max_tokens": 32
+  },
+  "expect": {
+    "provider_extension": true,
+    "assistant_content_non_empty": true,
+    "notes": "vLLM documents continue_final_message for assistant prefill; it cannot be combined with add_generation_prompt=true."
+  }
+}

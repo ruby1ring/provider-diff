@@ -3,6 +3,8 @@
 node_modules/
 dist/
 desktop/bin/
+desktop/services/*/
+build/pyinstaller/
 
 config.yaml
 *.env

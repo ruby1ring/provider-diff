@@ -23,6 +23,6 @@
     "thinking_absent": true,
     "assistant_content_non_empty": true,
     "provider_extension": true,
-    "notes": "关闭 thinking 的定义是响应中不输出 thinking 内容；若仍出现 reasoning_content、reasoning_details 或 <think> 标签，应判为关闭失败。"
+    "notes": "关闭 thinking 的定义是响应中不输出 thinking 内容，且 usage 中没有 reasoning_tokens/thinking_tokens > 0；若仍出现 reasoning_content、reasoning_details、<think> 标签或 reasoning token，应判为关闭失败。"
   }
 }

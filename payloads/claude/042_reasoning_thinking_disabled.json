@@ -14,8 +14,9 @@
     "max_completion_tokens": 80
   },
   "expect": {
+    "thinking_location_probe": true,
     "thinking_absent": true,
     "assistant_content_non_empty": true,
-    "notes": "如果 OpenAI 兼容层接受 disabled thinking，Chat Completions 响应中不应出现 thinking 输出。"
+    "notes": "如果 OpenAI 兼容层接受 disabled thinking，Chat Completions 响应中不应出现 thinking 输出，且 usage 中不应出现 reasoning_tokens/thinking_tokens > 0。"
   }
 }

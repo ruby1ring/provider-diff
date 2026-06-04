@@ -15,8 +15,8 @@
     "max_completion_tokens": 1600
   },
   "expect": {
-    "thinking_absent": true,
+    "thinking_location_probe": true,
     "assistant_content_non_empty": true,
-    "notes": "官方 OpenAI SDK 兼容文档说明 thinking 可通过 extra_body 传入，但 Chat Completions 响应不会返回详细 thinking。"
+    "notes": "官方 OpenAI SDK 兼容文档说明 thinking 可通过 extra_body 传入，但 Chat Completions 响应不保证返回详细 thinking。该 case 只观察 thinking 内容/token 落点，不用 thinking_absent 否定已开启的请求。"
   }
 }

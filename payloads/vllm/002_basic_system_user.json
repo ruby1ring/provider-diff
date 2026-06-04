@@ -1,0 +1,19 @@
+{
+  "case_id": "vllm_basic_system_user",
+  "title": "System and user messages",
+  "category": "basic",
+  "parameters": ["messages[].role=system", "messages[].role=user"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+    "messages": [
+      {"role": "system", "content": "Answer with one concise sentence."},
+      {"role": "user", "content": "What is vLLM used for?"}
+    ],
+    "max_tokens": 64
+  },
+  "expect": {
+    "assistant_content_non_empty": true
+  }
+}

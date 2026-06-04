@@ -1,0 +1,30 @@
+{
+  "case_id": "thinking_reasoning_object_disabled",
+  "title": "reasoning.enabled=false closes thinking",
+  "category": "reasoning",
+  "parameters": ["reasoning", "reasoning.enabled"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Compute 64 + 28. Reply with one short sentence."
+      }
+    ],
+    "reasoning": {
+      "enabled": false
+    },
+    "max_completion_tokens": 256
+  },
+  "expect": {
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_absent": true,
+    "assistant_content_non_empty": true,
+    "provider_extension": true,
+    "notes": "OpenRouter-style reasoning.enabled=false 关闭探针；需要与 reasoning.enabled=true 开启 case 成对判断。"
+  }
+}

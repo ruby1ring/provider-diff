@@ -1,0 +1,19 @@
+{
+  "case_id": "vllm_basic_minimal",
+  "title": "Minimal chat completion with messages",
+  "category": "basic",
+  "parameters": ["model", "messages"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+    "messages": [
+      {"role": "user", "content": "Say hi in one short sentence."}
+    ],
+    "max_tokens": 48
+  },
+  "expect": {
+    "assistant_content_non_empty": true,
+    "notes": "Baseline vLLM OpenAI-compatible Chat Completions case."
+  }
+}

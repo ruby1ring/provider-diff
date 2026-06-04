@@ -25,6 +25,8 @@
     "http_status": 200,
     "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
     "optional_response_fields": ["choices[].message.reasoning", "choices[].message.reasoning_details", "usage.completion_tokens_details.reasoning_tokens"],
-    "notes": "Capability-gated. Runner may override model; use a reasoning-capable model."
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "notes": "Capability-gated. Runner may override model; use a reasoning-capable model. 开启判定要求出现 reasoning/reasoning_details 或 reasoning_tokens/thinking_tokens 证据。"
   }
 }

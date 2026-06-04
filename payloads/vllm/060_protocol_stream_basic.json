@@ -1,0 +1,18 @@
+{
+  "case_id": "vllm_protocol_stream_basic",
+  "title": "Basic streaming response",
+  "category": "protocol",
+  "parameters": ["stream"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+    "messages": [{"role": "user", "content": "Stream one short sentence."}],
+    "stream": true,
+    "max_tokens": 48
+  },
+  "expect": {
+    "response_mode": "sse",
+    "required_chunk_fields": ["id", "object", "created", "model", "choices"]
+  }
+}

@@ -33,7 +33,9 @@
     "optional_response_fields": [
       "choices[].message.reasoning_content"
     ],
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
     "provider_extension": true,
-    "notes": "当前 key 已可访问 qwen3-max，enable_thinking=true 返回 200 并可能包含 reasoning_content。"
+    "notes": "当前 key 已可访问 qwen3-max，enable_thinking=true 返回 200。开启判定要求出现 reasoning_content 或 reasoning_tokens/thinking_tokens 证据。"
   }
 }

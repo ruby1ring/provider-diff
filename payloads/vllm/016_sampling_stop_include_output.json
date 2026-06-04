@@ -1,0 +1,19 @@
+{
+  "case_id": "vllm_sampling_stop_include_output",
+  "title": "stop with include_stop_str_in_output extension",
+  "category": "sampling",
+  "parameters": ["stop", "include_stop_str_in_output"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+    "messages": [{"role": "user", "content": "Write exactly: compatible END then stop."}],
+    "stop": "END",
+    "include_stop_str_in_output": true,
+    "max_tokens": 64
+  },
+  "expect": {
+    "provider_extension": true,
+    "notes": "Only validates request acceptance; generated text may or may not hit the stop sequence."
+  }
+}

@@ -18,6 +18,8 @@
     "support_conclusion": "supported",
     "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
     "optional_response_fields": ["choices[].message.reasoning_content", "usage.completion_tokens_details.reasoning_tokens"],
-    "notes": "thinking 默认 enabled；该 case 显式开启。"
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "notes": "thinking 默认 enabled；该 case 显式开启。开启判定要求出现 reasoning_content 或 reasoning_tokens/thinking_tokens 证据。"
   }
 }

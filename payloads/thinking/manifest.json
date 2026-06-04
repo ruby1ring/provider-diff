@@ -10,7 +10,8 @@
     "通用 thinking 探针：运行时请把 Base URL、Model 和 API Key 改成待测渠道。",
     "每个开启 case 都会检查 HTTP 接受情况，并通过 thinking_location_probe 报告 thinking 内容落点。",
     "thinking_evidence_required 会把非空 thinking/reasoning 字段或 usage 中 reasoning_tokens/thinking_tokens > 0 视为开启证据。",
-    "关闭 case 会检查响应中不应出现 thinking/reasoning 内容。"
+    "关闭 case 会检查响应中不应出现 thinking/reasoning 内容，且 usage 中不应出现 reasoning_tokens/thinking_tokens > 0。",
+    "报告会按 OpenAI reasoning_effort、Qwen enable_thinking/thinking_budget、DeepSeek/Claude thinking object、OpenRouter reasoning object、vLLM chat_template_kwargs、MiniMax reasoning_split 分组给出能力矩阵。"
   ],
   "common_expect": {
     "http_status": 200,
@@ -22,15 +23,21 @@
     "001_baseline_no_thinking.json",
     "010_reasoning_effort_medium.json",
     "011_reasnoing_effort_typo_probe.json",
+    "012_reasoning_effort_none.json",
     "020_enable_thinking_true.json",
     "021_enable_thinking_false.json",
     "030_thinking_budget_only.json",
     "031_enable_thinking_with_budget.json",
     "040_thinking_object_enabled.json",
     "041_thinking_object_disabled.json",
+    "042_thinking_object_enabled_budget_tokens.json",
     "050_reasoning_object_effort_summary.json",
     "051_reasoning_object_effort_none.json",
+    "052_reasoning_object_enabled.json",
+    "053_reasoning_object_disabled.json",
     "060_chat_template_kwargs_enable_thinking_true.json",
-    "061_chat_template_kwargs_enable_thinking_false.json"
+    "061_chat_template_kwargs_enable_thinking_false.json",
+    "070_reasoning_split_true.json",
+    "071_reasoning_split_false.json"
   ]
 }

@@ -1,0 +1,20 @@
+{
+  "case_id": "vllm_basic_assistant_partial",
+  "title": "Conversation with prior assistant message",
+  "category": "basic",
+  "parameters": ["messages[].role=assistant"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+    "messages": [
+      {"role": "user", "content": "Name one compatibility test category."},
+      {"role": "assistant", "content": "Sampling."},
+      {"role": "user", "content": "Name one more category."}
+    ],
+    "max_tokens": 48
+  },
+  "expect": {
+    "assistant_content_non_empty": true
+  }
+}

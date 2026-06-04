@@ -17,6 +17,7 @@
     "http_status": 200,
     "support_conclusion": "supported",
     "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
-    "notes": "When reasoning_split is false, thinking may be embedded in content using think tags."
+    "thinking_location_probe": true,
+    "notes": "When reasoning_split is false, thinking may be embedded in content using think tags. 该 case 只观察落点，不把 reasoning_split=false 当作关闭 thinking。"
   }
 }

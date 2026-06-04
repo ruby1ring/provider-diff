@@ -1,0 +1,17 @@
+{
+  "case_id": "vllm_sampling_min_tokens",
+  "title": "min_tokens vLLM generation floor",
+  "category": "sampling",
+  "parameters": ["min_tokens"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+    "messages": [{"role": "user", "content": "Write a concise compatibility note."}],
+    "min_tokens": 4,
+    "max_tokens": 32
+  },
+  "expect": {
+    "provider_extension": true
+  }
+}

@@ -16,6 +16,8 @@
     "http_status": 200,
     "support_conclusion": "supported",
     "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
-    "notes": "验证 DeepSeek thinking 关闭形态。"
+    "thinking_location_probe": true,
+    "thinking_absent": true,
+    "notes": "验证 DeepSeek thinking 关闭形态；关闭判定要求没有 reasoning_content/<think>/reasoning_details，且 usage 中没有 reasoning_tokens/thinking_tokens > 0。"
   }
 }

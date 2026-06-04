@@ -1,0 +1,15 @@
+{
+  "case_id": "vllm_sampling_temperature",
+  "title": "temperature sampling",
+  "category": "sampling",
+  "parameters": ["temperature"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+    "messages": [{"role": "user", "content": "Return one short sentence about sampling."}],
+    "temperature": 0.2,
+    "max_tokens": 64
+  },
+  "expect": {}
+}

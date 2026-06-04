@@ -1,0 +1,28 @@
+{
+  "case_id": "thinking_reasoning_split_true",
+  "title": "reasoning_split=true separates thinking",
+  "category": "reasoning",
+  "parameters": ["reasoning_split"],
+  "requires_model_capability": "reasoning",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use brief reasoning to compute 29 + 13, then give the final answer."
+      }
+    ],
+    "reasoning_split": true,
+    "max_completion_tokens": 512
+  },
+  "expect": {
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "assistant_content_non_empty": true,
+    "provider_extension": true,
+    "notes": "MiniMax-style 分离 thinking 输出探针；预期常见落点是 choices[].message.reasoning_details。"
+  }
+}

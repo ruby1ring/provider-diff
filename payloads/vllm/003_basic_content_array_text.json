@@ -1,0 +1,23 @@
+{
+  "case_id": "vllm_basic_content_array_text",
+  "title": "Text content part array",
+  "category": "basic",
+  "parameters": ["messages[].content[].type=text"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {"type": "text", "text": "Return one short sentence about compatibility."}
+        ]
+      }
+    ],
+    "max_tokens": 64
+  },
+  "expect": {
+    "assistant_content_non_empty": true
+  }
+}

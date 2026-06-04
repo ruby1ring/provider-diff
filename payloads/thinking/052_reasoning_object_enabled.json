@@ -1,0 +1,30 @@
+{
+  "case_id": "thinking_reasoning_object_enabled",
+  "title": "reasoning.enabled=true opens thinking",
+  "category": "reasoning",
+  "parameters": ["reasoning", "reasoning.enabled"],
+  "requires_model_capability": "reasoning",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use concise reasoning to compute 64 + 28, then give the final answer."
+      }
+    ],
+    "reasoning": {
+      "enabled": true
+    },
+    "max_completion_tokens": 1200
+  },
+  "expect": {
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "assistant_content_non_empty": true,
+    "provider_extension": true,
+    "notes": "OpenRouter-style reasoning.enabled 探针；与 reasoning.effort/summary 分开，以区分布尔开关和级别/摘要配置。"
+  }
+}

@@ -18,6 +18,8 @@
     "support_conclusion": "supported",
     "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
     "optional_response_fields": ["choices[].message.reasoning_content", "usage.completion_tokens_details.reasoning_tokens"],
-    "notes": "文档明确支持 max。"
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "notes": "文档明确支持 max。开启判定要求出现 reasoning_content 或 reasoning_tokens/thinking_tokens 证据。"
   }
 }

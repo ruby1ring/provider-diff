@@ -1,6 +1,15 @@
 package main
 
-import "testing"
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
+	"testing"
+	"time"
+)
 
 func TestLoadThinkingProviderCases(t *testing.T) {
 	root, err := findProjectRoot()
@@ -15,8 +24,8 @@ func TestLoadThinkingProviderCases(t *testing.T) {
 	if manifest.Provider != "thinking" {
 		t.Fatalf("expected thinking provider, got %q", manifest.Provider)
 	}
-	if len(cases) != 13 {
-		t.Fatalf("expected 13 thinking probe cases, got %d", len(cases))
+	if len(cases) != 19 {
+		t.Fatalf("expected 19 thinking probe cases, got %d", len(cases))
 	}
 	if cases[0].CaseID != "thinking_baseline_no_thinking" {
 		t.Fatalf("unexpected first case %q", cases[0].CaseID)
@@ -36,6 +45,364 @@ func TestBuildEndpointURLAppendsEndpointToBaseURL(t *testing.T) {
 	want := "https://dashscope-us.aliyuncs.com/compatible-mode/v1/chat/completions"
 	if got != want {
 		t.Fatalf("expected %q, got %q", want, got)
+	}
+}
+
+func TestRunCaseConcurrencyUsesRequestedLimit(t *testing.T) {
+	tests := []struct {
+		name      string
+		total     int
+		requested int
+		want      int
+	}{
+		{name: "requested limit", total: 10, requested: 3, want: 3},
+		{name: "total below requested", total: 2, requested: 3, want: 2},
+		{name: "default limit", total: defaultRunCaseConcurrency + 5, requested: 0, want: defaultRunCaseConcurrency},
+		{name: "requested above cap", total: defaultRunCaseConcurrency + 5, requested: defaultRunCaseConcurrency + 10, want: defaultRunCaseConcurrency},
+		{name: "empty run", total: 0, requested: 3, want: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := runCaseConcurrency(tt.total, tt.requested); got != tt.want {
+				t.Fatalf("expected %d, got %d", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestHandleRunBatchRunsMultipleTargets(t *testing.T) {
+	root, err := findProjectRoot()
+	if err != nil {
+		t.Fatalf("find project root: %v", err)
+	}
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/chat/completions" {
+			t.Errorf("unexpected upstream path %q", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		io := map[string]any{
+			"id":     "chatcmpl-test",
+			"object": "chat.completion",
+			"model":  "test-model",
+			"choices": []map[string]any{{
+				"index": 0,
+				"message": map[string]any{
+					"role":    "assistant",
+					"content": "ok",
+				},
+				"finish_reason": "stop",
+			}},
+		}
+		if err := json.NewEncoder(w).Encode(io); err != nil {
+			t.Fatalf("encode upstream response: %v", err)
+		}
+	}))
+	defer upstream.Close()
+
+	reqBody := BatchRunRequest{
+		MaxConcurrency: 2,
+		Targets: []RunRequest{
+			{Provider: "siliconflow", APIKey: "test-key", BaseURL: upstream.URL, Model: "model-a"},
+			{Provider: "siliconflow", APIKey: "test-key", BaseURL: upstream.URL, Model: "model-b"},
+		},
+		CustomCases: []TestCase{{
+			CaseID:   "custom_batch",
+			Title:    "Custom batch",
+			Category: "custom",
+			Payload: map[string]any{
+				"messages": []map[string]string{{"role": "user", "content": "hi"}},
+			},
+			Expect: map[string]any{"http_status": 200},
+		}},
+	}
+	rawBody, err := json.Marshal(reqBody)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+
+	server := &Server{root: root}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/run-batch", bytes.NewReader(rawBody))
+	server.handleRunBatch(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	var response BatchRunResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(response.Targets) != 2 {
+		t.Fatalf("expected 2 targets, got %d", len(response.Targets))
+	}
+	for _, target := range response.Targets {
+		if target.Error != "" {
+			t.Fatalf("target %d failed: %s", target.Index, target.Error)
+		}
+		if len(target.Results) != 1 {
+			t.Fatalf("target %d expected 1 result, got %d", target.Index, len(target.Results))
+		}
+		if target.Results[0].HTTPStatus != http.StatusOK {
+			t.Fatalf("target %d expected upstream status 200, got %d", target.Index, target.Results[0].HTTPStatus)
+		}
+	}
+}
+
+func TestHandleRunBatchUsesCaseIDDefaultsForTargets(t *testing.T) {
+	root, err := findProjectRoot()
+	if err != nil {
+		t.Fatalf("find project root: %v", err)
+	}
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/chat/completions" {
+			t.Errorf("unexpected upstream path %q", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		response := map[string]any{
+			"id":     "chatcmpl-test",
+			"object": "chat.completion",
+			"model":  "test-model",
+			"choices": []map[string]any{{
+				"index": 0,
+				"message": map[string]any{
+					"role":    "assistant",
+					"content": "ok",
+				},
+				"finish_reason": "stop",
+			}},
+			"usage": map[string]int{
+				"prompt_tokens":     1,
+				"completion_tokens": 1,
+				"total_tokens":      2,
+			},
+		}
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Fatalf("encode upstream response: %v", err)
+		}
+	}))
+	defer upstream.Close()
+
+	reqBody := BatchRunRequest{
+		EndpointID:     "chat_completions",
+		CaseIDs:        []string{"sf_basic_minimal"},
+		MaxConcurrency: 2,
+		APIKey:         "test-key",
+		BaseURL:        upstream.URL,
+		Targets:        []RunRequest{{Provider: "siliconflow", Model: "model-a"}, {Provider: "siliconflow", Model: "model-b"}},
+	}
+	rawBody, err := json.Marshal(reqBody)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+
+	server := &Server{root: root}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/run-batch", bytes.NewReader(rawBody))
+	server.handleRunBatch(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	var response BatchRunResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(response.Targets) != 2 {
+		t.Fatalf("expected 2 targets, got %d", len(response.Targets))
+	}
+	for _, target := range response.Targets {
+		if target.Error != "" {
+			t.Fatalf("target %d failed: %s", target.Index, target.Error)
+		}
+		if len(target.Results) != 1 {
+			t.Fatalf("target %d expected 1 result, got %d", target.Index, len(target.Results))
+		}
+		if target.Results[0].CaseID != "sf_basic_minimal" {
+			t.Fatalf("target %d expected sf_basic_minimal, got %q", target.Index, target.Results[0].CaseID)
+		}
+	}
+}
+
+func TestHandleRunStreamEmitsResultEvents(t *testing.T) {
+	root, err := findProjectRoot()
+	if err != nil {
+		t.Fatalf("find project root: %v", err)
+	}
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		response := map[string]any{
+			"id":     "chatcmpl-test",
+			"object": "chat.completion",
+			"model":  "test-model",
+			"choices": []map[string]any{{
+				"index": 0,
+				"message": map[string]any{
+					"role":    "assistant",
+					"content": "ok",
+				},
+				"finish_reason": "stop",
+			}},
+		}
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Fatalf("encode upstream response: %v", err)
+		}
+	}))
+	defer upstream.Close()
+
+	reqBody := RunRequest{
+		Provider:       "siliconflow",
+		APIKey:         "test-key",
+		BaseURL:        upstream.URL,
+		Model:          "test-model",
+		MaxConcurrency: 1,
+		CustomCases: []TestCase{
+			{
+				CaseID:   "custom_stream_a",
+				Title:    "Custom stream A",
+				Category: "custom",
+				Payload: map[string]any{
+					"messages": []map[string]string{{"role": "user", "content": "hi"}},
+				},
+				Expect: map[string]any{"http_status": 200},
+			},
+			{
+				CaseID:   "custom_stream_b",
+				Title:    "Custom stream B",
+				Category: "custom",
+				Payload: map[string]any{
+					"messages": []map[string]string{{"role": "user", "content": "hello"}},
+				},
+				Expect: map[string]any{"http_status": 200},
+			},
+		},
+	}
+	rawBody, err := json.Marshal(reqBody)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+
+	server := &Server{root: root}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/run-stream", bytes.NewReader(rawBody))
+	server.handleRunStream(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	decoder := json.NewDecoder(recorder.Body)
+	events := []RunStreamEvent{}
+	for {
+		var event RunStreamEvent
+		if err := decoder.Decode(&event); err != nil {
+			break
+		}
+		events = append(events, event)
+	}
+	if len(events) != 4 {
+		t.Fatalf("expected start, 2 results, end events; got %d events", len(events))
+	}
+	if events[0].Type != "start" || events[0].Total != 2 {
+		t.Fatalf("unexpected start event: %#v", events[0])
+	}
+	resultEvents := 0
+	for _, event := range events {
+		if event.Type == "result" {
+			resultEvents += 1
+			if event.Result == nil || event.Result.HTTPStatus != http.StatusOK {
+				t.Fatalf("unexpected result event: %#v", event)
+			}
+		}
+	}
+	if resultEvents != 2 {
+		t.Fatalf("expected 2 result events, got %d", resultEvents)
+	}
+	if events[len(events)-1].Type != "end" {
+		t.Fatalf("expected end event, got %#v", events[len(events)-1])
+	}
+}
+
+func TestHandleRunRunsCasesConcurrently(t *testing.T) {
+	root, err := findProjectRoot()
+	if err != nil {
+		t.Fatalf("find project root: %v", err)
+	}
+
+	var active atomic.Int64
+	var maxActive atomic.Int64
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		current := active.Add(1)
+		defer active.Add(-1)
+		for {
+			observed := maxActive.Load()
+			if current <= observed || maxActive.CompareAndSwap(observed, current) {
+				break
+			}
+		}
+		time.Sleep(50 * time.Millisecond)
+		w.Header().Set("Content-Type", "application/json")
+		response := map[string]any{
+			"id":     "chatcmpl-test",
+			"object": "chat.completion",
+			"model":  "test-model",
+			"choices": []map[string]any{{
+				"index": 0,
+				"message": map[string]any{
+					"role":    "assistant",
+					"content": "ok",
+				},
+				"finish_reason": "stop",
+			}},
+		}
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Fatalf("encode upstream response: %v", err)
+		}
+	}))
+	defer upstream.Close()
+
+	customCases := make([]TestCase, defaultRunCaseConcurrency+5)
+	for index := range customCases {
+		customCases[index] = TestCase{
+			CaseID:   fmt.Sprintf("custom_concurrent_%02d", index),
+			Title:    "Custom concurrent",
+			Category: "custom",
+			Payload: map[string]any{
+				"messages": []map[string]string{{"role": "user", "content": "hi"}},
+			},
+			Expect: map[string]any{"http_status": 200},
+		}
+	}
+	reqBody := RunRequest{
+		Provider:    "siliconflow",
+		APIKey:      "test-key",
+		BaseURL:     upstream.URL,
+		Model:       "test-model",
+		CustomCases: customCases,
+	}
+	rawBody, err := json.Marshal(reqBody)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+
+	server := &Server{root: root}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/run", bytes.NewReader(rawBody))
+	server.handleRun(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	var response RunResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(response.Results) != len(customCases) {
+		t.Fatalf("expected %d results, got %d", len(customCases), len(response.Results))
+	}
+	if got := maxActive.Load(); got <= 1 {
+		t.Fatalf("expected concurrent upstream requests, max active was %d", got)
+	} else if got > defaultRunCaseConcurrency {
+		t.Fatalf("expected max active <= %d, got %d", defaultRunCaseConcurrency, got)
+	}
+	for index, result := range response.Results {
+		if result.CaseID != customCases[index].CaseID {
+			t.Fatalf("result %d order changed: expected %q, got %q", index, customCases[index].CaseID, result.CaseID)
+		}
 	}
 }
 
@@ -503,6 +870,34 @@ func TestThinkingAbsentAssertionFailsForRedactedThinking(t *testing.T) {
 	}
 	if assertion.Pass {
 		t.Fatal("expected thinking_absent to fail when redacted_thinking is present")
+	}
+}
+
+func TestThinkingAbsentAssertionFailsForReasoningTokens(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus: 200,
+		ResponseBody: map[string]any{
+			"choices": []any{
+				map[string]any{
+					"message": map[string]any{"content": "Final answer."},
+				},
+			},
+			"usage": map[string]any{
+				"completion_tokens_details": map[string]any{
+					"reasoning_tokens": float64(12),
+				},
+			},
+		},
+	}
+	assertions := evaluateAssertions(result, map[string]any{
+		"thinking_absent": true,
+	})
+	assertion, ok := findAssertion(assertions, "thinking_absent")
+	if !ok {
+		t.Fatal("thinking_absent assertion was not emitted")
+	}
+	if assertion.Pass {
+		t.Fatal("expected thinking_absent to fail when reasoning token evidence is present")
 	}
 }
 

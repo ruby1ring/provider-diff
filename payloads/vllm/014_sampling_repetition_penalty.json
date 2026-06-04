@@ -1,0 +1,17 @@
+{
+  "case_id": "vllm_sampling_repetition_penalty",
+  "title": "repetition_penalty vLLM sampling extension",
+  "category": "sampling",
+  "parameters": ["repetition_penalty"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+    "messages": [{"role": "user", "content": "Write a short non-repetitive sentence."}],
+    "repetition_penalty": 1.05,
+    "max_tokens": 64
+  },
+  "expect": {
+    "provider_extension": true
+  }
+}

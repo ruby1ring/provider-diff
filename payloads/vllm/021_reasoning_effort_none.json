@@ -1,0 +1,26 @@
+{
+  "case_id": "vllm_reasoning_effort_none",
+  "title": "reasoning_effort=none should disable thinking",
+  "category": "reasoning",
+  "parameters": ["reasoning_effort"],
+  "requires_model_capability": "reasoning",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "Qwen/Qwen3-8B",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Compute 23 + 19. Reply with one short sentence."
+      }
+    ],
+    "reasoning_effort": "none",
+    "max_tokens": 128
+  },
+  "expect": {
+    "thinking_location_probe": true,
+    "thinking_absent": true,
+    "assistant_content_non_empty": true,
+    "notes": "vLLM docs say reasoning_effort=none automatically injects enable_thinking=false."
+  }
+}

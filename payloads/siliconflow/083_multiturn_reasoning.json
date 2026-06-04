@@ -33,6 +33,8 @@
     "http_status": 200,
     "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
     "optional_response_fields": ["choices[].message.reasoning_content"],
-    "notes": "Do not include any previous reasoning_content in messages; docs say reasoning content is not appended to next-round context."
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "notes": "Do not include any previous reasoning_content in messages; docs say reasoning content is not appended to next-round context. 开启判定要求出现 reasoning_content 或 reasoning_tokens/thinking_tokens 证据。"
   }
 }

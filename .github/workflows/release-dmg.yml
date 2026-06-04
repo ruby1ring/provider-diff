@@ -1,0 +1,79 @@
+name: Release DMG
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-dmg-latest
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build macOS DMG
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: |
+            backend/go.mod
+            llm-bench/go.sum
+            desktop/evalscope-service/go.mod
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python packaging dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install evalscope
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build DMG
+        run: npm run dist:dmg
+
+      - name: Normalize DMG filename
+        shell: bash
+        run: |
+          set -euo pipefail
+          dmg="$(find dist -maxdepth 1 -name '*.dmg' -print -quit)"
+          if [[ -z "${dmg}" ]]; then
+            echo "No DMG found under dist/" >&2
+            exit 1
+          fi
+          cp "${dmg}" dist/ProviderX-latest-macOS.dmg
+
+      - name: Replace latest GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release delete latest --yes --cleanup-tag || true
+          git tag -f latest "${GITHUB_SHA}"
+          git push origin "refs/tags/latest" --force
+          gh release create latest dist/ProviderX-latest-macOS.dmg \
+            --title "Latest macOS DMG" \
+            --notes "Automated macOS DMG build for ${GITHUB_SHA}." \
+            --latest

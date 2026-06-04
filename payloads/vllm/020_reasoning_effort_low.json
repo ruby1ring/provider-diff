@@ -1,0 +1,26 @@
+{
+  "case_id": "vllm_reasoning_effort_low",
+  "title": "reasoning_effort=low should activate thinking",
+  "category": "reasoning",
+  "parameters": ["reasoning_effort"],
+  "requires_model_capability": "reasoning",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "Qwen/Qwen3-8B",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use brief reasoning to compute 23 + 19, then give only the final answer."
+      }
+    ],
+    "reasoning_effort": "low",
+    "max_tokens": 512
+  },
+  "expect": {
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "assistant_content_non_empty": true,
+    "notes": "vLLM docs say reasoning_effort low/medium/high automatically injects enable_thinking=true into chat_template_kwargs unless explicitly overridden."
+  }
+}

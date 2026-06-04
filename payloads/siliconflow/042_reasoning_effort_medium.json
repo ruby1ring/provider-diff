@@ -20,6 +20,8 @@
     "http_status": 200,
     "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
     "optional_response_fields": ["choices[].message.reasoning_content", "usage.completion_tokens_details.reasoning_tokens"],
-    "notes": "OpenAI-style reasoning parameter. Treat unsupported model errors as capability mismatch, not endpoint failure."
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "notes": "OpenAI-style reasoning parameter. Treat unsupported model errors as capability mismatch, not endpoint failure. 开启判定要求出现 reasoning_content 或 reasoning_tokens/thinking_tokens 证据。"
   }
 }

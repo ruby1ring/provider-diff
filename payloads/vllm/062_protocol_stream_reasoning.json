@@ -1,0 +1,28 @@
+{
+  "case_id": "vllm_protocol_stream_reasoning",
+  "title": "Streaming reasoning delta should expose thinking",
+  "category": "reasoning",
+  "parameters": ["stream", "reasoning_effort"],
+  "requires_model_capability": "reasoning",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "Qwen/Qwen3-8B",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use brief reasoning to compute 31 + 27, then give only the final answer."
+      }
+    ],
+    "reasoning_effort": "low",
+    "stream": true,
+    "max_tokens": 512
+  },
+  "expect": {
+    "response_mode": "sse",
+    "required_chunk_fields": ["id", "object", "created", "model", "choices"],
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "notes": "vLLM docs say streaming chat completions expose reasoning in chunk deltas for reasoning models."
+  }
+}

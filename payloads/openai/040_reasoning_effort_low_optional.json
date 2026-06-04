@@ -18,6 +18,8 @@
     "support_conclusion": "supported",
     "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
     "usage_required_fields": ["prompt_tokens", "completion_tokens", "total_tokens"],
-    "notes": "Capability-gated reasoning case."
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "notes": "Capability-gated reasoning case. 开启判定要求出现 reasoning_tokens/thinking_tokens 或可见 reasoning 内容证据。"
   }
 }

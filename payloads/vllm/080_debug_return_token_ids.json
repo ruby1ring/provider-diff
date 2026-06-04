@@ -1,0 +1,18 @@
+{
+  "case_id": "vllm_debug_return_token_ids",
+  "title": "return_token_ids debug extension",
+  "category": "debug",
+  "parameters": ["return_token_ids"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+    "messages": [{"role": "user", "content": "Return a short sentence."}],
+    "return_token_ids": true,
+    "max_tokens": 32
+  },
+  "expect": {
+    "provider_extension": true,
+    "notes": "Only validates request acceptance; token-id fields are vLLM-specific and can vary by version."
+  }
+}

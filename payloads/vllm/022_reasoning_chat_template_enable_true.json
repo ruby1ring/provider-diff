@@ -1,0 +1,29 @@
+{
+  "case_id": "vllm_reasoning_chat_template_enable_true",
+  "title": "chat_template_kwargs.enable_thinking=true should activate thinking",
+  "category": "reasoning",
+  "parameters": ["chat_template_kwargs.enable_thinking"],
+  "requires_model_capability": "reasoning",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "Qwen/Qwen3-8B",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use brief reasoning to compute 52 + 16, then give only the final answer."
+      }
+    ],
+    "chat_template_kwargs": {
+      "enable_thinking": true
+    },
+    "max_tokens": 512
+  },
+  "expect": {
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "assistant_content_non_empty": true,
+    "provider_extension": true,
+    "notes": "Qwen3 reasoning parser reads chat_template_kwargs.enable_thinking and treats true as thinking enabled."
+  }
+}

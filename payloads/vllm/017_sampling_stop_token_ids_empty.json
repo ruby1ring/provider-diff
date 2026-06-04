@@ -1,0 +1,18 @@
+{
+  "case_id": "vllm_sampling_stop_token_ids_empty",
+  "title": "empty stop_token_ids extension",
+  "category": "sampling",
+  "parameters": ["stop_token_ids"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+    "messages": [{"role": "user", "content": "Return one short sentence."}],
+    "stop_token_ids": [],
+    "max_tokens": 48
+  },
+  "expect": {
+    "provider_extension": true,
+    "notes": "Uses an empty list to probe parameter acceptance without relying on tokenizer-specific token ids."
+  }
+}

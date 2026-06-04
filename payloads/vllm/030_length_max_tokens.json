@@ -1,0 +1,14 @@
+{
+  "case_id": "vllm_length_max_tokens",
+  "title": "max_tokens length limit",
+  "category": "length",
+  "parameters": ["max_tokens"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+    "messages": [{"role": "user", "content": "Return a brief compatibility note."}],
+    "max_tokens": 32
+  },
+  "expect": {}
+}

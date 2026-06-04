@@ -22,6 +22,7 @@
     "http_status": 200,
     "support_conclusion": "ignored",
     "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
-    "notes": "Parameters docs list reasoning_effort, but current ChatRequest OpenAPI uses reasoning.effort. Treat 2xx as accepted/possibly mapped."
+    "thinking_location_probe": true,
+    "notes": "Parameters docs list reasoning_effort, but current ChatRequest OpenAPI uses reasoning.effort. Treat 2xx as accepted/possibly mapped; this alias probe only observes thinking evidence and does not require it."
   }
 }

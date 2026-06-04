@@ -1,0 +1,18 @@
+{
+  "case_id": "vllm_sampling_top_k",
+  "title": "top_k vLLM sampling extension",
+  "category": "sampling",
+  "parameters": ["top_k"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+    "messages": [{"role": "user", "content": "Return one short sentence about top-k sampling."}],
+    "top_k": 40,
+    "max_tokens": 64
+  },
+  "expect": {
+    "provider_extension": true,
+    "notes": "vLLM documents top_k as an extra parameter that can be merged into the JSON request body."
+  }
+}

@@ -24,6 +24,6 @@
     "thinking_location_probe": true,
     "thinking_absent": true,
     "assistant_content_non_empty": true,
-    "notes": "MiniMax 关闭 thinking 的请求形态为 thinking.type=disabled；其 thinking 常见落点是 choices[].message.content 中的 <think>...</think>。该 case 验证关闭后响应不应再输出 thinking 内容。"
+    "notes": "MiniMax 关闭 thinking 的请求形态为 thinking.type=disabled；其 thinking 常见落点是 choices[].message.content 中的 <think>...</think>。该 case 验证关闭后响应不应再输出 thinking 内容，且 usage 中不应出现 reasoning_tokens/thinking_tokens > 0。"
   }
 }

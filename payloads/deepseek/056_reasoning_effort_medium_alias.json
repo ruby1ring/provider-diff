@@ -17,6 +17,8 @@
     "http_status": 200,
     "support_conclusion": "supported",
     "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
-    "notes": "文档说明 medium 会映射到 high。"
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "notes": "文档说明 medium 会映射到 high。开启判定要求出现 reasoning_content 或 reasoning_tokens/thinking_tokens 证据。"
   }
 }

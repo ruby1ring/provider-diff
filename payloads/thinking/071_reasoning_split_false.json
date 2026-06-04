@@ -1,0 +1,28 @@
+{
+  "case_id": "thinking_reasoning_split_false",
+  "title": "reasoning_split=false keeps or suppresses separated thinking",
+  "category": "reasoning",
+  "parameters": ["reasoning_split"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Compute 29 + 13. Reply with one short sentence."
+      }
+    ],
+    "reasoning_split": false,
+    "max_completion_tokens": 256
+  },
+  "expect": {
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_absent": true,
+    "assistant_content_non_empty": true,
+    "provider_extension": true,
+    "notes": "MiniMax-style reasoning_split=false 对照探针；如果模型仍在 content 中输出 <think>，报告会标记为关闭失败并显示落点。"
+  }
+}

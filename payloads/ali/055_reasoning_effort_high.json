@@ -16,7 +16,9 @@
     "http_status": 200,
     "support_conclusion": "supported",
     "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
     "provider_extension": true,
-    "notes": "reasoning_effort 适用于 deepseek-v4-pro / deepseek-v4-flash。"
+    "notes": "reasoning_effort 适用于 deepseek-v4-pro / deepseek-v4-flash。开启判定要求出现 reasoning_content 或 reasoning_tokens/thinking_tokens 证据。"
   }
 }

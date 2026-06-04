@@ -1,0 +1,17 @@
+{
+  "case_id": "vllm_sampling_min_p",
+  "title": "min_p vLLM sampling extension",
+  "category": "sampling",
+  "parameters": ["min_p"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+    "messages": [{"role": "user", "content": "Return one short sentence about request compatibility."}],
+    "min_p": 0.05,
+    "max_tokens": 64
+  },
+  "expect": {
+    "provider_extension": true
+  }
+}

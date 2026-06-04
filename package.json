@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node scripts/dev.js",
     "desktop:dev": "node scripts/build-dmg.js --skip-package && electron .",
+    "build:evalscope-service": "node scripts/build-evalscope-service.js",
     "dist:dmg": "node scripts/build-dmg.js"
   },
   "devDependencies": {
@@ -13,14 +14,15 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "cn.siliconflow.provider-diff",
-    "productName": "Provider Diff",
+    "appId": "cn.siliconflow.providerx",
+    "productName": "ProviderX",
     "asar": false,
     "files": [
       "index.html",
       "main.js",
       "styles.css",
       "package.json",
+      "lib/providerx-rules.js",
       "lib/mock-data.js",
       "assets/**",
       "docs/**",
@@ -34,18 +36,24 @@
         "to": "backend/provider-diff-backend"
       },
       {
+        "from": "desktop/bin/llm-bench",
+        "to": "backend/llm-bench"
+      },
+      {
         "from": "desktop/services",
         "to": "services"
       }
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
+      "icon": "build/icon.icns",
       "target": [
         "dmg"
       ]
     },
     "dmg": {
-      "artifactName": "Provider-Diff-${version}-${arch}.${ext}"
+      "icon": "build/icon.icns",
+      "artifactName": "ProviderX-${version}-${arch}.${ext}"
     }
   },
   "dependencies": {

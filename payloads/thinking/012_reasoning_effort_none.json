@@ -1,0 +1,27 @@
+{
+  "case_id": "thinking_reasoning_effort_none",
+  "title": "reasoning_effort=none closes thinking",
+  "category": "reasoning",
+  "parameters": ["reasoning_effort"],
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Compute 18 + 27. Reply with one short sentence."
+      }
+    ],
+    "reasoning_effort": "none",
+    "max_completion_tokens": 256
+  },
+  "expect": {
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_absent": true,
+    "assistant_content_non_empty": true,
+    "notes": "OpenAI-style 关闭形态探针。只有对应 reasoning_effort=medium 开启 case 能证明 thinking 时，才可把该 case 视为真正关闭能力。"
+  }
+}

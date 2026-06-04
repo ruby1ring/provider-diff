@@ -30,7 +30,9 @@
       "choices",
       "usage"
     ],
+    "thinking_location_probe": true,
+    "thinking_absent": true,
     "provider_extension": true,
-    "notes": "当前 key 已可访问 qwen3-max，enable_thinking=false 返回 200。"
+    "notes": "当前 key 已可访问 qwen3-max，enable_thinking=false 返回 200。关闭判定要求没有可见 thinking 内容，且 usage 中没有 reasoning_tokens/thinking_tokens > 0。"
   }
 }

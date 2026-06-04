@@ -1,0 +1,23 @@
+{
+  "case_id": "vllm_structured_outputs_choice",
+  "title": "structured_outputs choice extension",
+  "category": "output",
+  "parameters": ["structured_outputs.choice"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+    "messages": [
+      {"role": "user", "content": "Classify this sentiment as exactly positive or negative: vLLM is useful."}
+    ],
+    "structured_outputs": {
+      "choice": ["positive", "negative"]
+    },
+    "max_tokens": 16
+  },
+  "expect": {
+    "provider_extension": true,
+    "assistant_content_non_empty": true,
+    "notes": "Uses the current structured_outputs wrapper rather than older guided_choice."
+  }
+}

@@ -17,6 +17,8 @@
     "http_status": 200,
     "support_conclusion": "supported",
     "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
-    "notes": "Optional because xhigh support is model-version dependent."
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "notes": "Optional because xhigh support is model-version dependent. 开启判定要求出现 reasoning_tokens/thinking_tokens 或可见 reasoning 内容证据。"
   }
 }

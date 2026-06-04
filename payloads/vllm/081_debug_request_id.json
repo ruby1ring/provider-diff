@@ -1,0 +1,21 @@
+{
+  "case_id": "vllm_debug_request_id",
+  "title": "request_id body extension",
+  "category": "debug",
+  "parameters": ["request_id"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "headers": {
+    "X-Request-Id": "provider-diff-vllm-probe"
+  },
+  "payload": {
+    "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+    "messages": [{"role": "user", "content": "Return one short sentence."}],
+    "request_id": "provider-diff-vllm-probe",
+    "max_tokens": 32
+  },
+  "expect": {
+    "provider_extension": true,
+    "notes": "vLLM documents request_id as an extra body parameter and X-Request-Id as a header when request-id headers are enabled."
+  }
+}

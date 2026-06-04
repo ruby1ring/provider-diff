@@ -1,0 +1,30 @@
+{
+  "case_id": "vllm_reasoning_thinking_token_budget",
+  "title": "thinking_token_budget with thinking enabled",
+  "category": "reasoning",
+  "parameters": ["thinking_token_budget", "chat_template_kwargs.enable_thinking"],
+  "requires_model_capability": "reasoning",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "Qwen/Qwen3-8B",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use brief reasoning to compute 17 * 6, then give only the final answer."
+      }
+    ],
+    "chat_template_kwargs": {
+      "enable_thinking": true
+    },
+    "thinking_token_budget": 128,
+    "max_tokens": 512
+  },
+  "expect": {
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "assistant_content_non_empty": true,
+    "provider_extension": true,
+    "notes": "vLLM documents thinking_token_budget as a maximum token budget for thinking operations."
+  }
+}

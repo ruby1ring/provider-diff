@@ -1,0 +1,17 @@
+{
+  "case_id": "vllm_length_max_completion_tokens",
+  "title": "max_completion_tokens compatibility alias",
+  "category": "length",
+  "parameters": ["max_completion_tokens"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+    "messages": [{"role": "user", "content": "Return a short sentence about max completion tokens."}],
+    "max_completion_tokens": 32
+  },
+  "expect": {
+    "optional_capability_mismatch": true,
+    "notes": "Included as an OpenAI compatibility probe; older vLLM versions may only accept max_tokens."
+  }
+}

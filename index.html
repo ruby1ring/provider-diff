@@ -3,25 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>llm-rosetta</title>
+    <title>ProviderX</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <div class="app-shell">
       <header class="global-header">
-        <a class="brand" href="#" aria-label="llm-rosetta home">
+        <a class="brand" href="#" aria-label="ProviderX home">
           <span class="brand-mark"></span>
-          <span>llm-rosetta</span>
+          <span>ProviderX</span>
         </a>
         <nav class="top-nav" aria-label="Primary">
           <a class="is-active" href="#run" data-view-link="run">运行</a>
           <a href="#reports" data-view-link="reports">报告</a>
-          <a href="#feishu" data-view-link="feishu">飞书文档</a>
-          <a href="#evalscope" data-view-link="evalscope">EvalScope</a>
-          <a href="#opencompass" data-view-link="opencompass">OpenCompass</a>
+          <a href="#performance" data-view-link="performance">性能</a>
+          <details class="top-nav-menu">
+            <summary>集成</summary>
+            <div class="top-nav-menu__panel">
+              <a href="#feishu" data-view-link="feishu">飞书文档</a>
+              <a href="#evalscope" data-view-link="evalscope">EvalScope</a>
+              <a href="#opencompass" data-view-link="opencompass">OpenCompass</a>
+            </div>
+          </details>
         </nav>
         <button class="account-button" type="button">
-          <span class="avatar">LR</span>
+          <span class="avatar">PX</span>
           <span>预览模式</span>
           <span>⌄</span>
         </button>
@@ -31,8 +37,8 @@
           <section id="runView" class="app-view" data-view="run">
           <div class="page-title-row">
             <div>
-              <h1>LLM 网关参数兼容性测试</h1>
-              <p>选择供应商、勾选 payload 用例，查看每个参数是否支持、是否静默忽略或 400 报错。</p>
+              <h1>ProviderX 真实请求测试</h1>
+              <p>配置同一 provider 的 API Key、Base URL 和 Model，选择用例后开始跑；结果会直接标出支持情况、预期外结果和响应差异。</p>
             </div>
             <div class="view-actions">
               <button id="runTests" class="primary-button" type="button">运行测试</button>
@@ -53,33 +59,62 @@
             <div id="channelCards" class="channel-grid"></div>
 
             <form class="config-form">
-              <label class="field">
-                <span>API Key（密钥）</span>
-                <span class="password-control">
-                  <input id="apiKey" type="password" placeholder="sk-..." autocomplete="off" />
-                  <button id="toggleSecret" class="icon-button" type="button" aria-label="显示 API Key" title="显示 API Key">◎</button>
-                </span>
-              </label>
+              <div class="target-row">
+                <label class="field">
+                  <span>API Key</span>
+                  <span class="password-control">
+                    <input id="apiKey" type="password" placeholder="sk-..." autocomplete="off" />
+                    <button id="toggleSecret" class="icon-button" type="button" aria-label="显示 API Key" title="显示 API Key">显示</button>
+                  </span>
+                </label>
 
-              <label class="field field--base-url">
-                <span>Base URL（请求地址）</span>
-                <span class="endpoint-control">
-                  <select id="baseUrlPreset" class="mono" aria-label="选择 Base URL 预设"></select>
-                  <input id="baseUrl" class="mono" type="text" />
-                </span>
-              </label>
+                <label class="field field--base-url">
+                  <span>Base URL</span>
+                  <span class="endpoint-control">
+                    <select id="baseUrlPreset" class="mono" aria-label="选择 Base URL 预设"></select>
+                    <input id="baseUrl" class="mono" type="text" />
+                  </span>
+                </label>
 
-              <label class="field">
-                <span>Model（模型）</span>
-                <input id="modelName" class="mono" type="text" />
-              </label>
+                <label class="field">
+                  <span>Model</span>
+                  <input id="modelName" class="mono" type="text" />
+                </label>
+              </div>
 
-              <label class="field">
-                <span>对比基准（历史原厂报告）</span>
-                <select id="baselineReport" class="mono">
-                  <option value="">不对比历史基准</option>
-                </select>
-              </label>
+              <div class="run-options-row">
+                <div class="run-options-stack">
+                  <label class="field">
+                    <span>Concurrency</span>
+                    <input id="batchConcurrency" class="mono" type="number" min="1" max="8" value="3" />
+                  </label>
+
+                  <label class="field">
+                    <span>baseline</span>
+                    <select id="baselineReport" class="mono">
+                      <option value="">No baseline</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div class="field field--batch-mode">
+                  <span>Batch</span>
+                  <div class="batch-mode-control">
+                    <button id="batchModeToggle" class="secondary-button" type="button" aria-pressed="false">开启</button>
+                    <span>默认单 target；开启后并跑 2-3 个同 provider target。</span>
+                  </div>
+                </div>
+              </div>
+
+              <div id="batchTargetsPanel" class="batch-targets-panel is-hidden">
+                <label class="field field--batch-targets">
+                  <span>Batch targets <em>2-3 targets · same provider</em></span>
+                  <textarea id="batchTargets" class="mono batch-targets" rows="4" spellcheck="false" placeholder="base_url | model | api_key
+https://api.siliconflow.cn/v1 | deepseek-ai/DeepSeek-V3 | sk-...
+https://api.siliconflow.com/v1 | deepseek-ai/DeepSeek-V3 | sk-...
+https://api.siliconflow.cn/v1 | Pro/zai-org/GLM-4.7 | sk-..."></textarea>
+                </label>
+              </div>
             </form>
 
             <section class="proxy-settings" aria-labelledby="proxy-title">
@@ -143,10 +178,6 @@
               </details>
               <div id="caseGroups" class="case-groups"></div>
             </section>
-
-            <div class="run-row">
-              <span class="muted mono">DeepSeek、SiliconFlow 和 Aliyun Bailian 会发起真实 HTTP 请求；其它渠道当前为预览结果。</span>
-            </div>
           </section>
 
           <section id="progressPanel" class="panel progress-panel is-hidden" aria-live="polite">
@@ -170,7 +201,7 @@
                 <strong id="statPassed">0</strong>
               </article>
               <article class="stat-card stat-warning">
-                <span>⚠ 不支持但不报错</span>
+                <span>⚠ 接受未证明 / 权限</span>
                 <strong id="statWarnings">0</strong>
               </article>
               <article class="stat-card stat-fail">
@@ -196,6 +227,8 @@
                 </div>
               </div>
 
+              <section id="capacitySummary" class="capacity-summary is-hidden" aria-label="容量上限摘要"></section>
+
               <div id="filterTabs" class="filter-tabs" role="tablist"></div>
 
               <div class="table-wrap">
@@ -204,7 +237,9 @@
                     <tr>
                       <th>Case / 参数</th>
                       <th>分类</th>
-                      <th>支持结论</th>
+                      <th>支持性</th>
+                      <th>预期</th>
+                      <th>证据</th>
                       <th>HTTP 状态</th>
                       <th>结构差异</th>
                     </tr>
@@ -246,6 +281,155 @@
           </section>
           </section>
 
+          <section id="performanceView" class="app-view is-hidden" data-view="performance">
+          <div class="page-title-row">
+            <div>
+              <h1>在线推理性能测试</h1>
+              <p>Go 版 vLLM serving benchmark：按 OpenAI-compatible SSE 流式接口统计 TTFT、TPOT、ITL、吞吐和 Goodput。</p>
+            </div>
+            <div class="view-actions">
+              <button id="runPerformanceBenchmark" class="primary-button" type="button">运行性能测试</button>
+            </div>
+          </div>
+
+          <section class="panel performance-panel" aria-labelledby="performance-config-title">
+            <div class="matrix-toolbar">
+              <div>
+                <p class="eyebrow">Benchmark</p>
+                <h2 id="performance-config-title">vLLM benchmark_serving 参数</h2>
+              </div>
+              <div class="toolbar-actions">
+                <button id="fillPerformanceFromRun" class="secondary-button" type="button">使用运行页配置</button>
+              </div>
+            </div>
+
+            <form class="performance-form">
+              <label class="field">
+                <span>Backend</span>
+                <select id="performanceBackend" class="mono">
+                  <option value="openai-chat">openai-chat</option>
+                  <option value="openai">openai</option>
+                  <option value="vllm">vllm</option>
+                  <option value="sglang">sglang</option>
+                </select>
+              </label>
+              <label class="field field--wide">
+                <span>Base URL</span>
+                <input id="performanceBaseUrl" class="mono" type="url" placeholder="http://127.0.0.1:8000" />
+              </label>
+              <label class="field">
+                <span>Endpoint</span>
+                <input id="performanceEndpoint" class="mono" type="text" value="/v1/chat/completions" />
+              </label>
+              <label class="field">
+                <span>Model</span>
+                <input id="performanceModel" class="mono" type="text" placeholder="meta-llama/Llama-3.1-8B-Instruct" />
+              </label>
+              <label class="field">
+                <span>API Key</span>
+                <input id="performanceApiKey" class="mono" type="password" placeholder="EMPTY / sk-..." autocomplete="off" />
+              </label>
+              <label class="field">
+                <span>Dataset</span>
+                <select id="performanceDatasetName" class="mono">
+                  <option value="random">random</option>
+                  <option value="sharegpt">sharegpt</option>
+                  <option value="sonnet">sonnet</option>
+                </select>
+              </label>
+              <label class="field field--wide">
+                <span>Dataset Path</span>
+                <input id="performanceDatasetPath" class="mono" type="text" placeholder="sharegpt/sonnet 本地文件路径，random 可留空" />
+              </label>
+              <label class="field">
+                <span>请求数</span>
+                <input id="performanceNumPrompts" class="mono" type="number" min="1" value="100" />
+              </label>
+              <label class="field">
+                <span>输入 tokens</span>
+                <input id="performanceRandomInputLen" class="mono" type="number" min="1" value="1024" />
+              </label>
+              <label class="field">
+                <span>输出 tokens</span>
+                <input id="performanceRandomOutputLen" class="mono" type="number" min="1" value="128" />
+              </label>
+              <label class="field">
+                <span>长度随机比例</span>
+                <input id="performanceRandomRangeRatio" class="mono" type="number" min="0" max="1" step="0.05" value="1" />
+              </label>
+              <label class="field">
+                <span>共享前缀 tokens</span>
+                <input id="performanceRandomPrefixLen" class="mono" type="number" min="0" value="0" />
+              </label>
+              <label class="field">
+                <span>请求速率 req/s</span>
+                <input id="performanceRequestRate" class="mono" type="text" value="inf" />
+              </label>
+              <label class="field">
+                <span>突发系数</span>
+                <input id="performanceBurstiness" class="mono" type="number" min="0.01" step="0.05" value="1" />
+              </label>
+              <label class="field">
+                <span>最大并发</span>
+                <input id="performanceMaxConcurrency" class="mono" type="number" min="0" placeholder="不限制" />
+              </label>
+              <label class="field">
+                <span>预热请求数</span>
+                <input id="performanceWarmups" class="mono" type="number" min="0" value="0" />
+              </label>
+              <label class="field">
+                <span>指标段</span>
+                <input id="performancePercentileMetrics" class="mono" type="text" value="ttft,tpot,itl,e2el" />
+              </label>
+              <label class="field">
+                <span>分位数</span>
+                <input id="performanceMetricPercentiles" class="mono" type="text" value="50,90,95,99" />
+              </label>
+              <label class="field field--wide">
+                <span>Goodput SLO</span>
+                <input id="performanceGoodput" class="mono" type="text" placeholder="ttft:200 e2el:2000" />
+              </label>
+              <label class="field field--wide">
+                <span>元数据</span>
+                <input id="performanceMetadata" class="mono" type="text" placeholder="env=local,engine=vllm" />
+              </label>
+              <label class="field field--wide">
+                <span>额外 CLI 参数</span>
+                <input id="performanceExtraArgs" class="mono" type="text" placeholder="例如 --sonnet-input-len 550 --sharegpt-output-len 128" />
+              </label>
+            </form>
+          </section>
+
+          <section id="performanceProgressPanel" class="panel progress-panel is-hidden" aria-live="polite">
+            <div class="progress-head">
+              <div class="progress-copy">
+                <span id="performanceStatus" class="mono">空闲</span>
+                <span id="performanceCommandHint" class="muted mono">等待运行</span>
+              </div>
+            </div>
+            <div class="progress-track">
+              <div id="performanceProgressBar" class="progress-bar"></div>
+            </div>
+          </section>
+
+          <section id="performanceResultsPanel" class="performance-results is-hidden">
+            <div id="performanceStats" class="performance-stats"></div>
+            <section class="panel performance-output-panel" aria-labelledby="performance-output-title">
+              <div class="matrix-toolbar">
+                <div>
+                  <p class="eyebrow">Result</p>
+                  <h2 id="performance-output-title">输出与 JSON</h2>
+                </div>
+                <div class="toolbar-actions">
+                  <button id="copyPerformanceJson" class="secondary-button" type="button">复制 JSON</button>
+                </div>
+              </div>
+              <pre id="performanceStdout" class="code-block performance-stdout"></pre>
+              <pre id="performanceJson" class="code-block performance-json"></pre>
+            </section>
+          </section>
+          </section>
+
           <section id="feishuView" class="app-view is-hidden" data-view="feishu">
           <div class="page-title-row">
             <div>
@@ -275,7 +459,7 @@
               </label>
               <label class="field">
                 <span>文档标题</span>
-                <input id="feishuTitlePrefix" type="text" placeholder="Provider Diff 评测完成" />
+                <input id="feishuTitlePrefix" type="text" placeholder="ProviderX 评测完成" />
               </label>
               <label class="field">
                 <span>写入模式</span>
@@ -383,6 +567,7 @@
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </div>
 
+    <script src="./lib/providerx-rules.js"></script>
     <script src="./lib/mock-data.js"></script>
     <script src="./main.js"></script>
   </body>
