@@ -2200,10 +2200,12 @@ async function loadCaseSelectorForChannel() {
     const capacityCount = capacityCasesForProvider(providerId).length;
     const capacityText = capacityCount ? ` · 容量测试 ${capacityCount} 个可选 case` : "";
     els.suiteTitle.textContent = `测试套件：${channel.name} / ${getSelectedEndpointTemplate().label}（${flattenParameters(channel).length} 个重点参数 · ${data.cases.length} 个 case${capacityText}）`;
+    state.isCaseLoading = false;
     renderParameterCatalog(channel, data);
     renderCaseSelector(data);
   } catch (error) {
     if (state.selectedChannelId !== channelId) return;
+    state.isCaseLoading = false;
     state.providerCases[cacheKey] = null;
     els.caseGroups.innerHTML = `
       <div class="case-error">
@@ -2387,10 +2389,11 @@ function renderCaseItem(testCase, context = {}) {
 
 function renderSelectedCaseCount() {
   const data = state.providerCases[currentCaseCacheKey()];
-  const total = (data?.cases?.length || 0) + state.customCases.length;
-  const selected = state.selectedCaseIds.size;
+  const cases = allProviderCases();
+  const total = cases.length;
+  const selected = cases.filter((testCase) => state.selectedCaseIds.has(testCase.case_id)).length;
   const focusCount = selectedFocusParameterCount(data);
-  const focusTotal = new Set(allProviderCases().flatMap(focusParametersForCase)).size;
+  const focusTotal = new Set(cases.flatMap(focusParametersForCase)).size;
   const customText = state.customCases.length ? ` · 自定义 ${state.customCases.length} 个` : "";
   els.selectedCaseCount.textContent = `已选 ${selected} / ${total} 个 case · 覆盖 ${focusCount} / ${focusTotal} 个重点参数${customText}`;
   updateRunAvailability();
