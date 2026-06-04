@@ -262,7 +262,8 @@ export const CHANNEL_TEMPLATES: ChannelTemplate[] = [
       Tools: ["tools", "tool_choice", "parallel_tool_calls"],
       Protocol: ["stream", "stream_options"],
       Debug: ["logprobs", "top_logprobs"],
-      Metadata: ["user"]
+      Metadata: ["user"],
+      Multimodal: ["messages[].content[].image_url", "messages[].content[].image_url.detail"]
     }
   },
   {

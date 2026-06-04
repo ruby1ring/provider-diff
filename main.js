@@ -1614,6 +1614,13 @@ function isCapacityCase(testCase) {
   return testCase.category === "capacity" || testCase.capacity_case;
 }
 
+function isVlmCase(testCase) {
+  const capability = String(testCase.requires_model_capability || "").toLowerCase();
+  return testCase.category === "multimodal"
+    || capability.startsWith("vision")
+    || (testCase.parameters || []).some((param) => String(param).includes("image_url"));
+}
+
 function focusParametersForCase(testCase) {
   if (isCapacityCase(testCase)) return [];
   return (testCase.parameters || []).filter((param) => !foundationalCaseParameters.has(param));
@@ -1680,8 +1687,13 @@ function partitionCases(cases = []) {
   const singles = new Map();
   const combos = [];
   const scenarios = [];
+  const vlm = [];
 
   for (const testCase of cases) {
+    if (isVlmCase(testCase)) {
+      vlm.push(testCase);
+      continue;
+    }
     const focusParams = focusParametersForCase(testCase);
     if (focusParams.length === 1) {
       const param = focusParams[0];
@@ -1696,7 +1708,7 @@ function partitionCases(cases = []) {
     scenarios.push(testCase);
   }
 
-  return { singles, combos, scenarios };
+  return { singles, combos, scenarios, vlm };
 }
 
 function capacityCasesForProvider(providerId = currentProviderId()) {
@@ -2193,14 +2205,16 @@ async function loadCaseSelectorForChannel() {
     const data = await response.json();
     if (state.selectedChannelId !== channelId) return;
     state.providerCases[cacheKey] = data;
-    state.selectedCaseIds = new Set(data.cases.map((testCase) => testCase.case_id));
+    state.selectedCaseIds = new Set(data.cases.filter((testCase) => !isVlmCase(testCase)).map((testCase) => testCase.case_id));
     const endpoint = getChannelEndpoint(channel);
     setBaseUrlValue(endpoint?.default_base_url || data.base_url || channel.default_base_url);
     els.modelName.value = endpoint?.default_model || data.default_model || channel.default_model;
+    const vlmCount = (data.cases || []).filter(isVlmCase).length;
+    const vlmText = vlmCount ? ` · VLM ${vlmCount} 个可选 case` : "";
     const capacityCount = capacityCasesForProvider(providerId).length;
     const capacityText = capacityCount ? ` · 容量测试 ${capacityCount} 个可选 case` : "";
-    els.suiteTitle.textContent = `测试套件：${channel.name} / ${getSelectedEndpointTemplate().label}（${flattenParameters(channel).length} 个重点参数 · ${data.cases.length} 个 case${capacityText}）`;
-    els.caseSelectorHint.textContent = "默认勾选常规 case，容量测试按需开启。";
+    els.suiteTitle.textContent = `测试套件：${channel.name} / ${getSelectedEndpointTemplate().label}（${flattenParameters(channel).length} 个重点参数 · ${data.cases.length} 个 case${vlmText}${capacityText}）`;
+    els.caseSelectorHint.textContent = "默认勾选常规 case，VLM 和容量测试按需开启。";
     state.isCaseLoading = false;
     renderParameterCatalog(channel, data);
     renderCaseSelector(data);
@@ -2235,6 +2249,7 @@ function renderCaseSelector(data) {
   const capacityCases = capacityCasesForProvider();
   els.caseGroups.innerHTML = [
     renderCaseOverview(data, partition),
+    renderVlmCaseSection(partition.vlm),
     renderCapacityCaseSection(capacityCases),
     renderCustomCaseSection(),
     renderSingleParameterSection(partition.singles),
@@ -2243,6 +2258,15 @@ function renderCaseSelector(data) {
   ].join("");
   syncBulkCheckboxes(els.caseGroups);
   renderSelectedCaseCount();
+}
+
+function renderVlmCaseSection(cases) {
+  if (!cases.length) return "";
+  return renderCaseSection(
+    "VLM 图像用例（可选）",
+    "这部分会使用图像输入，需要视觉模型。默认不选；切到 VLM 模型后再开启。",
+    cases
+  );
 }
 
 function renderCapacityCaseSection(cases) {
@@ -2279,11 +2303,12 @@ function renderContextualCaseTable(cases, context = {}) {
 function renderCaseOverview(data, partition) {
   const singleCount = Array.from(partition.singles.values()).reduce((sum, cases) => sum + cases.length, 0);
   const focusParamCount = new Set((data.cases || []).flatMap(focusParametersForCase)).size;
+  const vlmText = partition.vlm.length ? `，VLM ${partition.vlm.length} 个可选` : "";
   return `
     <div class="case-overview">
       <div>
         <strong>先选参数，再微调用例</strong>
-        <p>单参数 ${singleCount} 个，组合 ${partition.combos.length} 个，基础场景 ${partition.scenarios.length} 个；默认勾选常规 case，容量测试按需开启。</p>
+        <p>单参数 ${singleCount} 个，组合 ${partition.combos.length} 个，基础场景 ${partition.scenarios.length} 个${vlmText}；默认勾选常规 case，VLM 和容量测试按需开启。</p>
       </div>
       <span class="mono">${focusParamCount} 个重点参数有对应 case</span>
     </div>
