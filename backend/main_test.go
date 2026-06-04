@@ -318,6 +318,102 @@ func TestHandleRunStreamEmitsResultEvents(t *testing.T) {
 	}
 }
 
+func TestHandleRunBatchStreamEmitsTargetResultEvents(t *testing.T) {
+	root, err := findProjectRoot()
+	if err != nil {
+		t.Fatalf("find project root: %v", err)
+	}
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/chat/completions" {
+			t.Errorf("unexpected upstream path %q", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		response := map[string]any{
+			"id":     "chatcmpl-test",
+			"object": "chat.completion",
+			"model":  "test-model",
+			"choices": []map[string]any{{
+				"index": 0,
+				"message": map[string]any{
+					"role":    "assistant",
+					"content": "ok",
+				},
+				"finish_reason": "stop",
+			}},
+		}
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Fatalf("encode upstream response: %v", err)
+		}
+	}))
+	defer upstream.Close()
+
+	reqBody := BatchRunRequest{
+		MaxConcurrency: 2,
+		Targets: []RunRequest{
+			{Provider: "siliconflow", APIKey: "test-key", BaseURL: upstream.URL, Model: "model-a"},
+			{Provider: "siliconflow", APIKey: "test-key", BaseURL: upstream.URL, Model: "model-b"},
+		},
+		CustomCases: []TestCase{{
+			CaseID:   "custom_batch_stream",
+			Title:    "Custom batch stream",
+			Category: "custom",
+			Payload: map[string]any{
+				"messages": []map[string]string{{"role": "user", "content": "hi"}},
+			},
+			Expect: map[string]any{"http_status": 200},
+		}},
+	}
+	rawBody, err := json.Marshal(reqBody)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+
+	server := &Server{root: root}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/run-batch-stream", bytes.NewReader(rawBody))
+	server.handleRunBatchStream(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+
+	decoder := json.NewDecoder(recorder.Body)
+	events := []RunStreamEvent{}
+	for {
+		var event RunStreamEvent
+		if err := decoder.Decode(&event); err != nil {
+			break
+		}
+		events = append(events, event)
+	}
+	if len(events) != 8 {
+		t.Fatalf("expected start, 2 target_start, 2 result, 2 target_end, end events; got %d events: %#v", len(events), events)
+	}
+	if events[0].Type != "start" || events[0].Total != 2 || events[0].TargetTotal != 2 {
+		t.Fatalf("unexpected start event: %#v", events[0])
+	}
+	resultTargets := map[int]bool{}
+	resultEvents := 0
+	for _, event := range events {
+		if event.Type != "result" {
+			continue
+		}
+		resultEvents += 1
+		resultTargets[event.TargetIndex] = true
+		if event.Result == nil || event.Result.HTTPStatus != http.StatusOK {
+			t.Fatalf("unexpected result event: %#v", event)
+		}
+	}
+	if resultEvents != 2 {
+		t.Fatalf("expected 2 result events, got %d", resultEvents)
+	}
+	if !resultTargets[0] || !resultTargets[1] {
+		t.Fatalf("expected result events for target 0 and 1, got %#v", resultTargets)
+	}
+	if events[len(events)-1].Type != "end" {
+		t.Fatalf("expected end event, got %#v", events[len(events)-1])
+	}
+}
+
 func TestHandleRunRunsCasesConcurrently(t *testing.T) {
 	root, err := findProjectRoot()
 	if err != nil {

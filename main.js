@@ -3724,14 +3724,21 @@ async function runProviderTests() {
     const runConcurrency = batchConcurrency();
     const capacitySelected = selectedCases.filter(isCapacityCase);
     if (capacitySelected.length) {
-      appendRunText(`→ 含容量探测 ${capacitySelected.length} 个：会逐档发真实请求，可能需要数分钟；${batchTextPresent ? "批量 target 当前会在整批完成后显示。" : "已完成 case 会实时显示。"}`);
+      appendRunText(`→ 含 Max Token / Total Token 测试 ${capacitySelected.length} 个：会逐档发真实请求，可能需要数分钟；已完成 case 会实时显示。`);
     }
     if (batchTextPresent) {
       const selectedBuiltInCaseIds = selectedCases.filter((testCase) => !testCase.custom).map((testCase) => testCase.case_id);
       const selectedCustomCases = selectedCases.filter((testCase) => testCase.custom);
-      appendRunText(`→ 批量启动 ${targets.length} 个 target，并发 ${runConcurrency}，每个 target ${selectedCases.length} 个 case`);
+      const targetContexts = targets.map((target) => runContextForTarget(target));
+      state.batchRunRecords = targetContexts.map((context) => ({ context, results: [] }));
+      const targetProgress = targets.map((target, index) => ({
+        completed: 0,
+        total: selectedCases.length,
+        label: `${target.provider} / ${target.model || `target ${index + 1}`}`
+      }));
+      appendRunText(`→ 批量启动 ${targets.length} 个 target，并发 ${runConcurrency}，每个 target ${selectedCases.length} 个 case，实时返回结果`);
       targets.forEach((target, index) => appendRunText(`→ target ${index + 1}: ${target.provider} / ${target.model}`));
-      const response = await fetch(`${API_BASE}/api/run-batch`, {
+      const response = await fetch(`${API_BASE}/api/run-batch-stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: state.currentRunAbortController?.signal,
@@ -3744,29 +3751,70 @@ async function runProviderTests() {
           max_concurrency: runConcurrency
         })
       });
-      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
         throw new Error(data.error || `HTTP ${response.status}`);
       }
       if (!state.isRunning) return;
       let count = 0;
-      for (const targetResponse of data.targets || []) {
-        const target = targets[targetResponse.index] || targets[0] || {};
-        const context = runContextForTarget(target);
-        const mappedResults = (targetResponse.results || []).map((result, index) => mapRunResult(result, context, index));
-        if (targetResponse.error) {
-          appendRunText(`✗ ${targetResponse.label || context.model} 失败：${targetResponse.error}`);
+      let streamTotal = totalRuns;
+      let sawEnd = false;
+      await readRunStream(response, (event) => {
+        if (!state.isRunning) return;
+        if (event.type === "start") {
+          streamTotal = event.total || totalRuns;
+          els.progressCount.textContent = `0 / ${streamTotal}`;
+          els.progressCase.textContent = `— 后端已开始执行 ${targets.length} 个 target，等待首个 case 完成 ...`;
+          return;
         }
-        for (const result of mappedResults) {
-          state.completedResults.push(result);
-          appendLog(result);
-          count += 1;
-          els.progressCount.textContent = `${count} / ${totalRuns}`;
-          els.progressBar.style.width = `${Math.round((count / totalRuns) * 100)}%`;
+        if (event.type === "target_start") {
+          const targetNumber = Number.isInteger(event.target_index) ? event.target_index + 1 : "?";
+          appendRunText(`→ target ${targetNumber} 开始：${event.target_label || "target"}，${event.target_total || selectedCases.length} 个 case`);
+          return;
         }
-        if (mappedResults.length) {
-          state.batchRunRecords.push({ context, results: mappedResults });
+        if (event.type === "target_error") {
+          const targetNumber = Number.isInteger(event.target_index) ? event.target_index + 1 : "?";
+          appendRunText(`✗ target ${targetNumber} 失败：${event.error || "unknown error"}`);
+          return;
         }
+        if (event.type === "target_end") {
+          const targetNumber = Number.isInteger(event.target_index) ? event.target_index + 1 : "?";
+          const progress = targetProgress[event.target_index];
+          appendRunText(`✓ target ${targetNumber} 完成：${event.target_label || progress?.label || "target"}`);
+          return;
+        }
+        if (event.type === "error") {
+          throw new Error(event.error || "batch stream run failed");
+        }
+        if (event.type === "end") {
+          sawEnd = true;
+          return;
+        }
+        if (event.type !== "result" || !event.result) return;
+        const targetIndex = Number.isInteger(event.target_index) ? event.target_index : 0;
+        const context = targetContexts[targetIndex] || targetContexts[0] || runContextForTarget(targets[0]);
+        const mapped = mapRunResult(event.result, context, Number.isInteger(event.index) ? event.index : count);
+        state.completedResults.push(mapped);
+        if (!state.batchRunRecords[targetIndex]) {
+          state.batchRunRecords[targetIndex] = { context, results: [] };
+        }
+        state.batchRunRecords[targetIndex].results.push(mapped);
+        appendLog(mapped);
+        count += 1;
+        if (targetProgress[targetIndex]) targetProgress[targetIndex].completed += 1;
+        const targetStatus = targetProgress
+          .map((item, index) => `T${index + 1} ${item.completed}/${item.total}`)
+          .join(" · ");
+        els.progressCount.textContent = `${count} / ${streamTotal}`;
+        els.progressCase.textContent = `— 已完成 ${count}/${streamTotal}: T${targetIndex + 1} ${resultTitle(mapped)} · ${targetStatus}`;
+        els.progressBar.style.width = `${Math.round((count / streamTotal) * 100)}%`;
+        renderStats();
+        renderTabs();
+        renderResults();
+        els.resultsPanel.classList.remove("is-hidden");
+      });
+      if (!sawEnd && count < streamTotal && state.isRunning) {
+        throw new Error(`batch stream ended early: ${count}/${streamTotal}`);
       }
     } else {
       const target = targets[0];

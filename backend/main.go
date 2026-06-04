@@ -110,6 +110,10 @@ type RunStreamEvent struct {
 	Type        string         `json:"type"`
 	Total       int            `json:"total,omitempty"`
 	Index       int            `json:"index,omitempty"`
+	TargetIndex int            `json:"target_index"`
+	TargetLabel string         `json:"target_label,omitempty"`
+	TargetTotal int            `json:"target_total,omitempty"`
+	Status      int            `json:"status,omitempty"`
 	Provider    string         `json:"provider,omitempty"`
 	BaseURL     string         `json:"base_url,omitempty"`
 	EndpointURL string         `json:"endpoint_url,omitempty"`
@@ -143,6 +147,14 @@ type BatchRunResponse struct {
 	Targets    []BatchRunTargetResponse `json:"targets"`
 	StartedAt  string                   `json:"started_at"`
 	FinishedAt string                   `json:"finished_at"`
+}
+
+type batchRunStreamTarget struct {
+	Index    int
+	Label    string
+	Target   RunRequest
+	Prepared preparedRunRequest
+	RunErr   *runRequestError
 }
 
 type runRequestError struct {
@@ -268,6 +280,7 @@ func main() {
 	mux.HandleFunc("/api/run", s.handleRun)
 	mux.HandleFunc("/api/run-stream", s.handleRunStream)
 	mux.HandleFunc("/api/run-batch", s.handleRunBatch)
+	mux.HandleFunc("/api/run-batch-stream", s.handleRunBatchStream)
 	mux.HandleFunc("/api/feishu/document", s.handleFeishuDocument)
 	mux.HandleFunc("/api/performance/benchmark", s.handlePerformanceBenchmark)
 
@@ -899,6 +912,229 @@ func (s *Server) handleRunBatch(w http.ResponseWriter, r *http.Request) {
 		Targets:    targets,
 		StartedAt:  started.Format(time.RFC3339),
 		FinishedAt: finished.Format(time.RFC3339),
+	})
+}
+
+func (s *Server) handleRunBatchStream(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/api/run-batch-stream" {
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	}
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	var req BatchRunRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<20)).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
+		return
+	}
+	if len(req.Targets) == 0 {
+		writeError(w, http.StatusBadRequest, "targets must contain at least one run target")
+		return
+	}
+	if len(req.Targets) > 32 {
+		writeError(w, http.StatusBadRequest, "targets cannot contain more than 32 run targets")
+		return
+	}
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		writeError(w, http.StatusInternalServerError, "streaming is not supported by this server")
+		return
+	}
+
+	maxConcurrency := req.MaxConcurrency
+	if maxConcurrency <= 0 {
+		maxConcurrency = 3
+	}
+	if maxConcurrency > 8 {
+		maxConcurrency = 8
+	}
+	req.MaxConcurrency = maxConcurrency
+
+	targets := make([]batchRunStreamTarget, 0, len(req.Targets))
+	total := 0
+	for index, rawTarget := range req.Targets {
+		target := applyBatchDefaults(rawTarget, req)
+		label := runTargetLabel(target)
+		prepared, runErr := s.prepareRunRequest(target)
+		if runErr == nil {
+			total += len(prepared.Selected)
+		}
+		targets = append(targets, batchRunStreamTarget{
+			Index:    index,
+			Label:    label,
+			Target:   target,
+			Prepared: prepared,
+			RunErr:   runErr,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/x-ndjson; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("X-Accel-Buffering", "no")
+
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
+	events := make(chan RunStreamEvent, max(16, len(targets)*2))
+	writeDone := make(chan struct{})
+	go func() {
+		defer close(writeDone)
+		for event := range events {
+			if ctx.Err() != nil {
+				return
+			}
+			if err := writeRunStreamEvent(w, flusher, event); err != nil {
+				cancel()
+				return
+			}
+		}
+	}()
+
+	sendEvent := func(event RunStreamEvent) bool {
+		select {
+		case events <- event:
+			return true
+		case <-ctx.Done():
+			return false
+		}
+	}
+
+	started := time.Now().UTC()
+	if !sendEvent(RunStreamEvent{
+		Type:        "start",
+		Total:       total,
+		TargetTotal: len(targets),
+		StartedAt:   started.Format(time.RFC3339),
+	}) {
+		close(events)
+		<-writeDone
+		return
+	}
+
+	sem := make(chan struct{}, maxConcurrency)
+	var wg sync.WaitGroup
+	for _, item := range targets {
+		item := item
+		if item.RunErr != nil {
+			sendEvent(RunStreamEvent{
+				Type:        "target_error",
+				TargetIndex: item.Index,
+				TargetLabel: item.Label,
+				Status:      item.RunErr.status,
+				Error:       item.RunErr.message,
+			})
+			continue
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			select {
+			case sem <- struct{}{}:
+			case <-ctx.Done():
+				return
+			}
+			defer func() { <-sem }()
+			s.runBatchStreamTarget(ctx, item, total, sendEvent)
+		}()
+	}
+
+	wg.Wait()
+	if ctx.Err() == nil {
+		finished := time.Now().UTC()
+		sendEvent(RunStreamEvent{
+			Type:       "end",
+			Total:      total,
+			FinishedAt: finished.Format(time.RFC3339),
+		})
+	}
+	close(events)
+	<-writeDone
+}
+
+func (s *Server) runBatchStreamTarget(ctx context.Context, item batchRunStreamTarget, total int, sendEvent func(RunStreamEvent) bool) {
+	prepared := item.Prepared
+	targetTotal := len(prepared.Selected)
+	if !sendEvent(RunStreamEvent{
+		Type:        "target_start",
+		Total:       total,
+		TargetIndex: item.Index,
+		TargetLabel: item.Label,
+		TargetTotal: targetTotal,
+		Provider:    prepared.Manifest.Provider,
+		BaseURL:     prepared.BaseURL,
+		EndpointURL: prepared.EndpointURL,
+		Model:       prepared.Req.Model,
+		StartedAt:   time.Now().UTC().Format(time.RFC3339),
+	}) {
+		return
+	}
+
+	results := make(chan indexedRunCaseResult, targetTotal)
+	maxConcurrency := runCaseConcurrency(targetTotal, prepared.Req.MaxConcurrency)
+	sem := make(chan struct{}, maxConcurrency)
+	var wg sync.WaitGroup
+	for index, tc := range prepared.Selected {
+		index := index
+		tc := tc
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			select {
+			case sem <- struct{}{}:
+			case <-ctx.Done():
+				results <- indexedRunCaseResult{Index: index, Result: canceledRunCaseResult(tc, prepared.EndpointURL, ctx.Err())}
+				return
+			}
+			defer func() { <-sem }()
+			if ctx.Err() != nil {
+				results <- indexedRunCaseResult{Index: index, Result: canceledRunCaseResult(tc, prepared.EndpointURL, ctx.Err())}
+				return
+			}
+			log.Printf("batch stream target=%s case=%s index=%d/%d concurrency=%d start", item.Label, tc.CaseID, index+1, targetTotal, maxConcurrency)
+			caseEndpointURL := prepared.EndpointURL
+			if caseBaseURL := strings.TrimSpace(tc.BaseURL); caseBaseURL != "" {
+				caseEndpointURL = buildEndpointURL(caseBaseURL, prepared.Manifest.Endpoint)
+			}
+			result := runProviderCase(ctx, prepared.Client, caseEndpointURL, prepared.Req.APIKey, prepared.Req.Model, prepared.Manifest, tc)
+			log.Printf("batch stream target=%s case=%s index=%d/%d done status=%d latency_ms=%d conclusion=%s error=%q", item.Label, tc.CaseID, index+1, targetTotal, result.HTTPStatus, result.LatencyMS, result.SupportConclusion, result.Error)
+			results <- indexedRunCaseResult{Index: index, Result: result}
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	for resultItem := range results {
+		if ctx.Err() != nil {
+			return
+		}
+		result := resultItem.Result
+		if !sendEvent(RunStreamEvent{
+			Type:        "result",
+			Total:       total,
+			Index:       resultItem.Index,
+			TargetIndex: item.Index,
+			TargetLabel: item.Label,
+			TargetTotal: targetTotal,
+			Result:      &result,
+		}) {
+			return
+		}
+	}
+	if ctx.Err() != nil {
+		return
+	}
+	sendEvent(RunStreamEvent{
+		Type:        "target_end",
+		Total:       total,
+		TargetIndex: item.Index,
+		TargetLabel: item.Label,
+		TargetTotal: targetTotal,
+		FinishedAt:  time.Now().UTC().Format(time.RFC3339),
 	})
 }
 
