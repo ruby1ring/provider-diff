@@ -35,14 +35,18 @@ Goal: measure the largest accepted common total context tier.
 Payload shape:
 
 - Use a small output budget, default `8`.
-- For a candidate total context tier `N`, generate approximately `N - output_budget` input tokens with deterministic filler.
+- For a candidate total context tier `N`, subtract a safety margin before generating deterministic filler.
+- The default safety margin is `5%` of the candidate tier.
+- Example: the `256k` tier is displayed and concluded as `256k`, but the request is built at about `243.2k` total context.
 - Ask the model to ignore the filler and reply `OK`.
 
 Interpretation:
 
 - Candidate values represent estimated total context tokens, not just input tokens.
+- The structured conclusion stays on common tiers such as `128k`, `256k`, `512k`, and `1m`.
+- Attempt details include `tested_total_context_tokens` and `tested_total_context_display`, which show the lower, safety-margin-adjusted size that was actually sent.
 - Provider-counted `usage.prompt_tokens`, `usage.input_tokens`, `usage.total_tokens`, or equivalent fields are recorded when available.
-- Because tokenizers vary, the reported conclusion includes both the requested estimate and provider-counted usage.
+- Because tokenizers vary, the report includes the display tier, the tested size, and provider-counted usage.
 
 ## Boundary Rule
 
@@ -63,6 +67,8 @@ The report fields are:
 - `supported_max_display`: largest supported common tier in K/M form.
 - `upper_bound_found`: true when a higher non-supported candidate brackets `supported_max`.
 - `nearest_higher_non_supported.candidate_display`: the closest tested higher tier that failed or was rejected.
+- `tested_total_context_display`: for Total Context attempts, the safety-margin-adjusted context size actually sent for that display tier.
+- `context_safety_margin_percent`: configured Total Context safety margin, default `5`.
 - `top_candidate_supported`: true when the largest configured candidate passed; in that case the upper bound was not found and the ladder should be expanded upward.
 - `non_monotonic_results`: true when lower candidates fail after a higher candidate passed; this usually means transient provider errors or non-length-related instability.
 - `stop_reason`: why the probe stopped.

@@ -38,11 +38,12 @@ Useful options:
 node scripts/probe-capacity.js --providers openai,deepseek
 node scripts/probe-capacity.js --endpoint-id all --providers claude,openrouter
 node scripts/probe-capacity.js --providers vllm --model vllm=Qwen/Qwen3-8B --context-candidates 512k,256k,128k
+node scripts/probe-capacity.js --providers siliconflow --context-safety-margin-ratio 0.05
 node scripts/probe-capacity.js --providers ali,deepseek,minimax --max-concurrency 3
 node scripts/probe-capacity.js --dry-run
 ```
 
-`max_output` is an acceptance probe for common output budget tiers (`max_tokens` or `max_completion_tokens`); it confirms the largest requested tier the endpoint accepts, not that the model actually generated that many tokens. `total_context` sends generated filler text sized to `candidate - context_output_tokens` and records provider `usage` when available, so the report includes both the requested estimate and the provider-counted tokens. K/M labels use 1024 units: `128k = 131072`, `1m = 1048576`. The default mode stops only after a tier boundary is bracketed: one higher non-supported tier followed by a supported tier. Use `--exhaustive` to force every configured tier to run.
+`max_output` is an acceptance probe for common output budget tiers (`max_tokens` or `max_completion_tokens`); it confirms the largest requested tier the endpoint accepts, not that the model actually generated that many tokens. `total_context` keeps the conclusion on common tiers such as `128k`, `256k`, and `1m`, but the actual long prompt is built with a proportional safety margin to avoid tokenizer and message-wrapper edge effects. The default margin ratio is `5%`, so each tier is tested at about `95%` of the displayed tier; attempt details include `tested_total_context_display` and provider `usage` when available. K/M labels use 1024 units: `128k = 131072`, `1m = 1048576`. The default mode stops only after a tier boundary is bracketed: one higher non-supported tier followed by a supported tier. Use `--exhaustive` to force every configured tier to run.
 
 Capacity probes support target-level concurrency with `--max-concurrency`. Each provider/model target runs independently, while candidate tiers inside one target remain sequential so boundary detection stays correct.
 

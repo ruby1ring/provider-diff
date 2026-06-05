@@ -552,6 +552,56 @@ func TestAssistantContentNonEmptyAssertionFailsOnBlankContent(t *testing.T) {
 	}
 }
 
+func TestAssistantContentStartsWithAssertionPasses(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus: 200,
+		ResponseBody: map[string]any{
+			"choices": []any{
+				map[string]any{
+					"message": map[string]any{
+						"content": "兼容性测试的目标是减少接入差异。",
+					},
+				},
+			},
+		},
+	}
+	assertions := evaluateAssertions(result, map[string]any{
+		"assistant_content_starts_with": "兼容性测试的目标是",
+	})
+	assertion, ok := findAssertion(assertions, "assistant_content_starts_with")
+	if !ok {
+		t.Fatal("assistant_content_starts_with assertion was not emitted")
+	}
+	if !assertion.Pass {
+		t.Fatalf("expected assertion to pass, got message %q", assertion.Message)
+	}
+}
+
+func TestAssistantContentStartsWithAssertionFails(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus: 200,
+		ResponseBody: map[string]any{
+			"choices": []any{
+				map[string]any{
+					"message": map[string]any{
+						"content": "测试目标是减少接入差异。",
+					},
+				},
+			},
+		},
+	}
+	assertions := evaluateAssertions(result, map[string]any{
+		"assistant_content_starts_with": "兼容性测试的目标是",
+	})
+	assertion, ok := findAssertion(assertions, "assistant_content_starts_with")
+	if !ok {
+		t.Fatal("assistant_content_starts_with assertion was not emitted")
+	}
+	if assertion.Pass {
+		t.Fatal("expected assertion to fail when assistant content does not start with prefix")
+	}
+}
+
 func TestSSEUsageRequiredFieldsAssertionPasses(t *testing.T) {
 	result := RunCaseResult{
 		HTTPStatus: 200,
@@ -1077,6 +1127,51 @@ func TestOptionalCapabilityMismatchIsIgnored(t *testing.T) {
 	}
 	if conclusion := finalizeSupportConclusionForResult(result, nil, expect); conclusion != "ignored" {
 		t.Fatalf("expected ignored conclusion, got %q", conclusion)
+	}
+}
+
+func TestCapacityTotalContextUsesSafetyMargin(t *testing.T) {
+	candidate := 256 * 1024
+	probe := capacityProbe{
+		Kind:                     "total_context",
+		ContextOutputTokens:      8,
+		ContextSafetyMarginRatio: 0.05,
+	}
+	payload, estimatedInputTokens, requestedOutputTokens, testedTotalContextTokens, appliedMargin := capacityAttemptPayload(
+		Manifest{Provider: "siliconflow"},
+		probe,
+		"test-model",
+		candidate,
+	)
+	wantMargin := int(float64(candidate)*0.05 + 0.5)
+	wantTestedTotal := candidate - wantMargin
+	if testedTotalContextTokens != wantTestedTotal {
+		t.Fatalf("expected 256k tier to be tested at 95%%, got %d", testedTotalContextTokens)
+	}
+	if appliedMargin != wantMargin {
+		t.Fatalf("expected 5%% applied margin, got %d", appliedMargin)
+	}
+	if estimatedInputTokens != wantTestedTotal-8 {
+		t.Fatalf("expected input estimate to subtract output budget, got %d", estimatedInputTokens)
+	}
+	if requestedOutputTokens != 8 {
+		t.Fatalf("expected output budget 8, got %d", requestedOutputTokens)
+	}
+	if got := payload["max_tokens"]; got != 8 {
+		t.Fatalf("expected max_tokens=8 in payload, got %#v", got)
+	}
+}
+
+func TestCapacityTotalContextSafetyMarginAppliesToEveryTier(t *testing.T) {
+	for _, candidate := range []int{1024 * 1024, 512 * 1024, 128 * 1024, 32 * 1024} {
+		testedTotalContextTokens, appliedMargin := capacityTestedTotalContextTokens(candidate, 0.05, 8)
+		wantMargin := int(float64(candidate)*0.05 + 0.5)
+		if appliedMargin != wantMargin {
+			t.Fatalf("candidate %d expected 5%% margin %d, got %d", candidate, wantMargin, appliedMargin)
+		}
+		if testedTotalContextTokens != candidate-wantMargin {
+			t.Fatalf("candidate %d expected tested total %d, got %d", candidate, candidate-wantMargin, testedTotalContextTokens)
+		}
 	}
 }
 

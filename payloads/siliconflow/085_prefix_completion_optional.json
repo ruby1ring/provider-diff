@@ -1,0 +1,33 @@
+{
+  "case_id": "sf_prefix_completion",
+  "title": "前缀续写",
+  "category": "beta",
+  "parameters": ["messages[].prefix"],
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-ai/DeepSeek-V4-Flash",
+    "messages": [
+      {
+        "role": "user",
+        "content": "请补全这句话，保持一句话：兼容性测试的目标是"
+      },
+      {
+        "role": "assistant",
+        "content": "兼容性测试的目标是",
+        "prefix": true
+      }
+    ],
+    "temperature": 0.2,
+    "max_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "assistant_content_non_empty": true,
+    "assistant_content_starts_with": "兼容性测试的目标是",
+    "notes": "验证 SiliconFlow 是否透传 DeepSeek 风格的 messages[].prefix 前缀续写能力。适合 deepseek-ai/DeepSeek-V4-Flash 或 deepseek-ai/DeepSeek-V4-Pro；默认不选。"
+  }
+}

@@ -57,6 +57,7 @@
     "082_multiturn_json_object.json",
     "083_multiturn_reasoning.json",
     "084_multiturn_tools.json",
+    "085_prefix_completion_optional.json",
     "090_observability_trace_header.json",
     "091_multimodal_image_url.json",
     "092_multimodal_multi_image_compare.json",

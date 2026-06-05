@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1645,15 +1646,20 @@ func runProviderCase(ctx context.Context, client *http.Client, endpointURL, apiK
 }
 
 type capacityProbe struct {
-	Kind                string
-	Candidates          []int
-	ContextOutputTokens int
+	Kind                     string
+	Candidates               []int
+	ContextOutputTokens      int
+	ContextSafetyMarginRatio float64
 }
 
 type capacityAttempt struct {
 	CaseID                    string         `json:"case_id"`
 	Candidate                 int            `json:"candidate"`
 	CandidateDisplay          string         `json:"candidate_display"`
+	TestedTotalContextTokens  int            `json:"tested_total_context_tokens,omitempty"`
+	TestedTotalContextDisplay string         `json:"tested_total_context_display,omitempty"`
+	AppliedSafetyMarginTokens int            `json:"applied_context_safety_margin_tokens,omitempty"`
+	ContextSafetyMarginRatio  float64        `json:"context_safety_margin_ratio,omitempty"`
 	HTTPStatus                int            `json:"http_status"`
 	LatencyMS                 int64          `json:"latency_ms"`
 	Conclusion                string         `json:"conclusion"`
@@ -1688,10 +1694,15 @@ func capacityProbeSpec(payload map[string]any) (capacityProbe, bool) {
 	if outputTokens <= 0 {
 		outputTokens = 8
 	}
+	contextSafetyMarginRatio, ok := floatValue(spec["context_safety_margin_ratio"])
+	if !ok || contextSafetyMarginRatio <= 0 || contextSafetyMarginRatio >= 1 {
+		contextSafetyMarginRatio = 0.05
+	}
 	return capacityProbe{
-		Kind:                kind,
-		Candidates:          candidates,
-		ContextOutputTokens: outputTokens,
+		Kind:                     kind,
+		Candidates:               candidates,
+		ContextOutputTokens:      outputTokens,
+		ContextSafetyMarginRatio: contextSafetyMarginRatio,
 	}, true
 }
 
@@ -1737,12 +1748,16 @@ func runCapacityProbeCase(ctx context.Context, client *http.Client, endpointURL,
 			})
 			break
 		}
-		attemptPayload, estimatedInputTokens, requestedOutputTokens := capacityAttemptPayload(manifest, probe, model, candidate)
+		attemptPayload, estimatedInputTokens, requestedOutputTokens, testedTotalContextTokens, appliedSafetyMarginTokens := capacityAttemptPayload(manifest, probe, model, candidate)
 		bodyBytes, err := json.Marshal(attemptPayload)
 		attempt := capacityAttempt{
 			CaseID:                    capacityAttemptCaseID(tc.CaseID, candidate),
 			Candidate:                 candidate,
 			CandidateDisplay:          capacityTierDisplay(candidate),
+			TestedTotalContextTokens:  testedTotalContextTokens,
+			TestedTotalContextDisplay: capacityTierDisplay(testedTotalContextTokens),
+			AppliedSafetyMarginTokens: appliedSafetyMarginTokens,
+			ContextSafetyMarginRatio:  probe.ContextSafetyMarginRatio,
 			EstimatedInputTokens:      estimatedInputTokens,
 			RequestedMaxOutputTokens:  requestedOutputTokens,
 			EstimatedTotalContextToks: estimatedInputTokens + requestedOutputTokens,
@@ -1798,7 +1813,7 @@ func runCapacityProbeCase(ctx context.Context, client *http.Client, endpointURL,
 		}
 	}
 
-	summary := capacitySummary(probe.Kind, attempts, probe.Candidates, stoppedByBoundary)
+	summary := capacitySummary(probe, attempts, stoppedByBoundary)
 	result.HTTPStatus = capacityResultHTTPStatus(attempts)
 	result.LatencyMS = capacityTotalLatency(attempts)
 	result.ResponseBody = summary
@@ -1824,13 +1839,16 @@ func runCapacityProbeCase(ctx context.Context, client *http.Client, endpointURL,
 	return result
 }
 
-func capacityAttemptPayload(manifest Manifest, probe capacityProbe, model string, candidate int) (map[string]any, int, int) {
+func capacityAttemptPayload(manifest Manifest, probe capacityProbe, model string, candidate int) (map[string]any, int, int, int, int) {
 	outputTokens := candidate
 	content := "Reply exactly: OK"
 	estimatedInputTokens := 0
+	testedTotalContextTokens := 0
+	appliedSafetyMarginTokens := 0
 	if probe.Kind == "total_context" {
 		outputTokens = probe.ContextOutputTokens
-		estimatedInputTokens = candidate - outputTokens
+		testedTotalContextTokens, appliedSafetyMarginTokens = capacityTestedTotalContextTokens(candidate, probe.ContextSafetyMarginRatio, outputTokens)
+		estimatedInputTokens = testedTotalContextTokens - outputTokens
 		if estimatedInputTokens < 1 {
 			estimatedInputTokens = 1
 		}
@@ -1843,7 +1861,31 @@ func capacityAttemptPayload(manifest Manifest, probe capacityProbe, model string
 		},
 		capacityOutputParameter(manifest.Provider): outputTokens,
 	}
-	return payload, estimatedInputTokens, outputTokens
+	return payload, estimatedInputTokens, outputTokens, testedTotalContextTokens, appliedSafetyMarginTokens
+}
+
+func capacityTestedTotalContextTokens(candidate int, safetyMarginRatio float64, outputTokens int) (int, int) {
+	if candidate <= 0 {
+		return 0, 0
+	}
+	ratio := safetyMarginRatio
+	if ratio < 0 {
+		ratio = 0
+	}
+	if ratio >= 1 {
+		ratio = 0.05
+	}
+	margin := int(float64(candidate)*ratio + 0.5)
+	testedTotal := candidate - margin
+	minTotal := outputTokens + 1
+	if testedTotal < minTotal {
+		testedTotal = minTotal
+		margin = candidate - testedTotal
+		if margin < 0 {
+			margin = 0
+		}
+	}
+	return testedTotal, margin
 }
 
 func capacityOutputParameter(provider string) string {
@@ -1884,11 +1926,14 @@ func capacityConclusion(status int) string {
 	return "request_failed"
 }
 
-func capacitySummary(kind string, attempts []capacityAttempt, candidates []int, stoppedByBoundary bool) map[string]any {
+func capacitySummary(probe capacityProbe, attempts []capacityAttempt, stoppedByBoundary bool) map[string]any {
 	supportedMax := 0
+	var supportedAttempt *capacityAttempt
 	for _, attempt := range attempts {
 		if attempt.Conclusion == "supported" && attempt.Candidate > supportedMax {
 			supportedMax = attempt.Candidate
+			copy := attempt
+			supportedAttempt = &copy
 		}
 	}
 	var nearestHigher *capacityAttempt
@@ -1903,15 +1948,15 @@ func capacitySummary(kind string, attempts []capacityAttempt, candidates []int, 
 		}
 	}
 	topCandidate := 0
-	if len(candidates) > 0 {
-		topCandidate = candidates[0]
+	if len(probe.Candidates) > 0 {
+		topCandidate = probe.Candidates[0]
 	}
 	topSupported := len(attempts) > 0 && attempts[0].Candidate == topCandidate && attempts[0].Conclusion == "supported"
 	upperBoundFound := supportedMax > 0 && nearestHigher != nil
-	display := capacityDisplayConclusion(supportedMax, nearestHigher, topSupported)
+	display := capacityDisplayConclusion(probe.Kind, supportedMax, supportedAttempt, nearestHigher, topSupported)
 	summary := map[string]any{
-		"kind":                    kind,
-		"label":                   capacityDisplayLabel(kind),
+		"kind":                    probe.Kind,
+		"label":                   capacityDisplayLabel(probe.Kind),
 		"supported_max":           supportedMax,
 		"supported_max_display":   capacityTierDisplay(supportedMax),
 		"top_candidate":           topCandidate,
@@ -1921,16 +1966,26 @@ func capacitySummary(kind string, attempts []capacityAttempt, candidates []int, 
 		"boundary_found_by_stop":  stoppedByBoundary,
 		"attempts":                attempts,
 		"capacity_display": map[string]any{
-			capacityDisplayLabel(kind): display,
+			capacityDisplayLabel(probe.Kind): display,
 		},
+	}
+	if probe.Kind == "total_context" {
+		summary["context_safety_margin_ratio"] = probe.ContextSafetyMarginRatio
+		summary["context_safety_margin_percent"] = probe.ContextSafetyMarginRatio * 100
+		if supportedAttempt != nil {
+			summary["supported_tested_total_context_tokens"] = supportedAttempt.TestedTotalContextTokens
+			summary["supported_tested_total_context_display"] = supportedAttempt.TestedTotalContextDisplay
+		}
 	}
 	if nearestHigher != nil {
 		summary["nearest_higher_non_supported"] = map[string]any{
-			"candidate":         nearestHigher.Candidate,
-			"candidate_display": nearestHigher.CandidateDisplay,
-			"conclusion":        nearestHigher.Conclusion,
-			"http_status":       nearestHigher.HTTPStatus,
-			"error":             nearestHigher.Error,
+			"candidate":                    nearestHigher.Candidate,
+			"candidate_display":            nearestHigher.CandidateDisplay,
+			"tested_total_context_tokens":  nearestHigher.TestedTotalContextTokens,
+			"tested_total_context_display": nearestHigher.TestedTotalContextDisplay,
+			"conclusion":                   nearestHigher.Conclusion,
+			"http_status":                  nearestHigher.HTTPStatus,
+			"error":                        nearestHigher.Error,
 		}
 	}
 	return summary
@@ -1943,18 +1998,22 @@ func capacityDisplayLabel(kind string) string {
 	return "最大Max Output"
 }
 
-func capacityDisplayConclusion(supportedMax int, nearestHigher *capacityAttempt, topSupported bool) string {
+func capacityDisplayConclusion(kind string, supportedMax int, supportedAttempt, nearestHigher *capacityAttempt, topSupported bool) string {
 	if supportedMax <= 0 {
 		return "当前候选档位内未测到支持项"
 	}
 	supported := capacityTierDisplay(supportedMax)
+	tested := ""
+	if kind == "total_context" && supportedAttempt != nil && supportedAttempt.TestedTotalContextDisplay != "" {
+		tested = fmt.Sprintf("按%s探测，", supportedAttempt.TestedTotalContextDisplay)
+	}
 	if nearestHigher != nil {
-		return fmt.Sprintf("%s（%s不支持）", supported, nearestHigher.CandidateDisplay)
+		return fmt.Sprintf("%s（%s%s不支持）", supported, tested, nearestHigher.CandidateDisplay)
 	}
 	if topSupported {
-		return fmt.Sprintf(">= %s（最高候选档位已支持）", supported)
+		return fmt.Sprintf(">= %s（%s最高候选档位已支持）", supported, tested)
 	}
-	return fmt.Sprintf("%s（边界未完全括定）", supported)
+	return fmt.Sprintf("%s（%s边界未完全括定）", supported, tested)
 }
 
 func capacityTierDisplay(value int) string {
@@ -1968,7 +2027,17 @@ func capacityTierDisplay(value int) string {
 	if value >= 1024 && value%1024 == 0 {
 		return fmt.Sprintf("%dk", value/1024)
 	}
+	if value >= oneM {
+		return trimCapacityDecimal(float64(value)/float64(oneM)) + "m"
+	}
+	if value >= 1024 {
+		return trimCapacityDecimal(float64(value)/1024) + "k"
+	}
 	return fmt.Sprintf("%d", value)
+}
+
+func trimCapacityDecimal(value float64) string {
+	return strconv.FormatFloat(value, 'f', 1, 64)
 }
 
 func capacityAttemptCaseID(caseID string, candidate int) string {
@@ -2422,6 +2491,14 @@ func evaluateAssertions(result RunCaseResult, expect map[string]any) []CaseAsser
 			Name:    "assistant_content_non_empty",
 			Pass:    ok && strings.TrimSpace(content) != "",
 			Message: "预期 choices[0].message.content 为非空字符串",
+		})
+	}
+	if prefix, _ := expect["assistant_content_starts_with"].(string); strings.TrimSpace(prefix) != "" {
+		content, ok := assistantContent(result.ResponseBody)
+		assertions = append(assertions, CaseAssertion{
+			Name:    "assistant_content_starts_with",
+			Pass:    ok && strings.HasPrefix(strings.TrimSpace(content), prefix),
+			Message: fmt.Sprintf("预期 choices[0].message.content 以 %q 开头", prefix),
 		})
 	}
 	if required, _ := expect["thinking_required"].(bool); required {
@@ -2987,6 +3064,24 @@ func intValue(value any) (int, bool) {
 	case json.Number:
 		number, err := typed.Int64()
 		return int(number), err == nil
+	default:
+		return 0, false
+	}
+}
+
+func floatValue(value any) (float64, bool) {
+	switch typed := value.(type) {
+	case float64:
+		return typed, true
+	case float32:
+		return float64(typed), true
+	case int:
+		return float64(typed), true
+	case int64:
+		return float64(typed), true
+	case json.Number:
+		number, err := typed.Float64()
+		return number, err == nil
 	default:
 		return 0, false
 	}

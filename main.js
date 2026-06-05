@@ -271,12 +271,19 @@ const PINNED_BASELINE_IDS = {
 };
 
 const CAPACITY_CANDIDATES = [4194304, 2097152, 1048576, 524288, 262144, 131072, 65536, 32768, 16384, 8192, 4096, 2048, 1024];
+const CONTEXT_CAPACITY_SAFETY_MARGIN_RATIO = 0.05;
 
 function formatCapacityTier(value) {
   const oneM = 1024 * 1024;
   if (value >= oneM && value % oneM === 0) return `${value / oneM}m`;
   if (value >= 1024 && value % 1024 === 0) return `${value / 1024}k`;
+  if (value >= oneM) return `${trimNumber(value / oneM, 1)}m`;
+  if (value >= 1024) return `${trimNumber(value / 1024, 1)}k`;
   return String(value);
+}
+
+function trimNumber(value, digits = 1) {
+  return Number(value.toFixed(digits)).toString();
 }
 
 const caseTitleZh = {
@@ -317,6 +324,7 @@ const caseTitleZh = {
   sf_multiturn_json_object: "多轮对话与 json_object",
   sf_multiturn_reasoning: "多轮推理上下文",
   sf_multiturn_tools: "多轮 tools 工作流",
+  sf_prefix_completion: "前缀续写",
   sf_observability_trace_header: "x-siliconcloud-trace-id 响应头",
   sf_observability_usage_fields: "非流式 usage 字段完整性",
   sf_multimodal_image_url: "VLM image_url 图像输入",
@@ -1663,6 +1671,14 @@ function isVlmCase(testCase) {
     || (testCase.parameters || []).some((param) => String(param).includes("image_url"));
 }
 
+function isOptionalExtensionCase(testCase) {
+  return Boolean(testCase.optional) && !isVlmCase(testCase) && !isCapacityCase(testCase);
+}
+
+function isDefaultSelectedCase(testCase) {
+  return !testCase.optional && !isVlmCase(testCase);
+}
+
 function focusParametersForCase(testCase) {
   if (isCapacityCase(testCase)) return [];
   return (testCase.parameters || []).filter((param) => !foundationalCaseParameters.has(param));
@@ -1710,18 +1726,19 @@ function capacityCaseDisplay(testCase) {
     ? `${formatCapacityTier(candidates[0])} → ${formatCapacityTier(candidates[candidates.length - 1])}`
     : "常见档位";
   if (probe.kind === "total_context") {
+    const ratio = Number(probe.context_safety_margin_ratio || CONTEXT_CAPACITY_SAFETY_MARGIN_RATIO);
     return {
       kind: "total_context",
-      title: "Total Token 上限",
-      relation: "Total Token",
+      title: "最大Total Context",
+      relation: "最大Total Context",
       meta: "逐档测试",
-      chips: [range, `保留输出 ${probe.context_output_tokens || 8} tokens`]
+      chips: [range, `按档位减 ${trimNumber(ratio * 100, 1)}% 探测`, `保留输出 ${probe.context_output_tokens || 8} tokens`]
     };
   }
   return {
     kind: "max_output",
-    title: "Max Token 上限",
-    relation: "Max Token",
+    title: "最大Max Output",
+    relation: "最大Max Output",
     meta: "逐档测试",
     chips: [range, "逐档测试"]
   };
@@ -1732,10 +1749,15 @@ function partitionCases(cases = []) {
   const combos = [];
   const scenarios = [];
   const vlm = [];
+  const optional = [];
 
   for (const testCase of cases) {
     if (isVlmCase(testCase)) {
       vlm.push(testCase);
+      continue;
+    }
+    if (isOptionalExtensionCase(testCase)) {
+      optional.push(testCase);
       continue;
     }
     const focusParams = focusParametersForCase(testCase);
@@ -1752,7 +1774,7 @@ function partitionCases(cases = []) {
     scenarios.push(testCase);
   }
 
-  return { singles, combos, scenarios, vlm };
+  return { singles, combos, scenarios, vlm, optional };
 }
 
 function capacityCasesForProvider(providerId = currentProviderId()) {
@@ -1763,9 +1785,9 @@ function capacityCasesForProvider(providerId = currentProviderId()) {
   return [
     {
       case_id: "capacity_max_output_boundary",
-      title: "Max Token 上限",
+      title: "最大Max Output",
       category: "capacity",
-      parameters: ["Max Token"],
+      parameters: ["最大Max Output"],
       method: "POST",
       path: "/chat/completions",
       custom: true,
@@ -1782,9 +1804,9 @@ function capacityCasesForProvider(providerId = currentProviderId()) {
     },
     {
       case_id: "capacity_total_context_boundary",
-      title: "Total Token 上限",
+      title: "最大Total Context",
       category: "capacity",
-      parameters: ["Total Token"],
+      parameters: ["最大Total Context"],
       method: "POST",
       path: "/chat/completions",
       custom: true,
@@ -1794,11 +1816,12 @@ function capacityCasesForProvider(providerId = currentProviderId()) {
         __capacity_probe: {
           kind: "total_context",
           candidates: CAPACITY_CANDIDATES,
+          context_safety_margin_ratio: CONTEXT_CAPACITY_SAFETY_MARGIN_RATIO,
           context_output_tokens: 8
         }
       },
       expect: { http_status: 200, support_conclusion: "supported" },
-      notes: [`按常见总上下文档位从高到低测试：${candidateText}`]
+      notes: [`按常见总上下文档位从高到低测试：${candidateText}；实际请求按每档减 ${trimNumber(CONTEXT_CAPACITY_SAFETY_MARGIN_RATIO * 100, 1)}% 构造，避免 tokenizer 临界误差。`]
     }
   ];
 }
@@ -1923,13 +1946,14 @@ function contextualCaseTitle(title, context = {}) {
 }
 
 const caseIntentZh = {
-  capacity_max_output_boundary: "从常见档位降档请求，定位该模型可用的 Max Token 上限。",
-  capacity_total_context_boundary: "从常见档位降档请求，定位该模型可用的 Total Token 上限。",
+  capacity_max_output_boundary: "从常见档位降档请求，定位该模型可用的 最大Max Output。",
+  capacity_total_context_boundary: "从常见档位降档请求，定位该模型可用的 最大Total Context。",
   sf_reasoning_enable_thinking: "开启后应返回 reasoning_content 或 reasoning tokens。",
   sf_reasoning_disable_thinking_no_output: "关闭后不应返回 thinking 内容或 reasoning tokens。",
   sf_reasoning_thinking_budget: "验证 thinking_budget 是否能约束推理预算。",
   sf_reasoning_effort_medium: "验证 OpenAI-style reasoning_effort 是否被接收。",
   sf_reasoning_combo_budget_effort: "验证多种推理控制参数同时传入时是否被接收。",
+  sf_prefix_completion: "验证返回内容是否真的从给定 assistant 前缀继续生成，适合 DeepSeek-V4-Pro / Flash。",
   sf_sampling_frequency_penalty: "验证合法范围内的频率惩罚参数是否被接收。",
   sf_length_max_tokens: "验证输出长度限制是否被接收并生效。",
   sf_length_max_tokens_stop: "验证长度限制和停止词同时传入时是否被接收。"
@@ -1941,11 +1965,11 @@ function capabilityRequirementText(testCase) {
 }
 
 function capacityIntentText(capacityDisplay) {
-  const [range, strategy] = capacityDisplay.chips || [];
+  const [range, margin, outputBudget] = capacityDisplay.chips || [];
   if (capacityDisplay.kind === "total_context") {
-    return `按 ${range || "常见档位"} 递进探测，${strategy || "保留少量输出"}。`;
+    return `按 ${range || "常见档位"} 递进探测，${margin || "按档位预留安全余量"}，${outputBudget || "保留少量输出"}。`;
   }
-  return `按 ${range || "常见档位"} 递进探测，记录可用 Max Token 上限。`;
+  return `按 ${range || "常见档位"} 递进探测，记录可用 最大Max Output。`;
 }
 
 function caseIntentText(testCase, context = {}, capacityDisplay = null, title = "") {
@@ -2199,7 +2223,7 @@ function renderParameterCatalog(channel, data = null) {
   const capacityHtml = capacityCases.length ? `
     <div class="parameter-group parameter-group--capacity">
       <div class="parameter-group__name">
-        <span>Max Token / Total Token</span>
+        <span>最大Max Output / 最大Total Context</span>
         ${renderBulkSelect(capacityIds, "本组", "suite-bulk-select")}
       </div>
       <div class="coverage-grid">
@@ -2249,16 +2273,18 @@ async function loadCaseSelectorForChannel() {
     const data = await response.json();
     if (state.selectedChannelId !== channelId) return;
     state.providerCases[cacheKey] = data;
-    state.selectedCaseIds = new Set(data.cases.filter((testCase) => !isVlmCase(testCase)).map((testCase) => testCase.case_id));
+    state.selectedCaseIds = new Set(data.cases.filter(isDefaultSelectedCase).map((testCase) => testCase.case_id));
     const endpoint = getChannelEndpoint(channel);
     setBaseUrlValue(endpoint?.default_base_url || data.base_url || channel.default_base_url);
     els.modelName.value = endpoint?.default_model || data.default_model || channel.default_model;
     const vlmCount = (data.cases || []).filter(isVlmCase).length;
     const vlmText = vlmCount ? ` · VLM ${vlmCount} 个可选 case` : "";
+    const optionalCount = (data.cases || []).filter(isOptionalExtensionCase).length;
+    const optionalText = optionalCount ? ` · 扩展 ${optionalCount} 个可选 case` : "";
     const capacityCount = capacityCasesForProvider(providerId).length;
-    const capacityText = capacityCount ? ` · Max Token / Total Token 测试 ${capacityCount} 个可选 case` : "";
-    els.suiteTitle.textContent = `测试套件：${channel.name} / ${getSelectedEndpointTemplate().label}（${flattenParameters(channel).length} 个重点参数 · ${data.cases.length} 个 case${vlmText}${capacityText}）`;
-    els.caseSelectorHint.textContent = "默认勾选常规 case，VLM 和 Max Token / Total Token 测试按需开启。";
+    const capacityText = capacityCount ? ` · 最大Max Output / 最大Total Context 测试 ${capacityCount} 个可选 case` : "";
+    els.suiteTitle.textContent = `测试套件：${channel.name} / ${getSelectedEndpointTemplate().label}（${flattenParameters(channel).length} 个重点参数 · ${data.cases.length} 个 case${optionalText}${vlmText}${capacityText}）`;
+    els.caseSelectorHint.textContent = "默认勾选常规 case，扩展、VLM 和 最大Max Output / 最大Total Context 测试按需开启。";
     state.isCaseLoading = false;
     renderParameterCatalog(channel, data);
     renderCaseSelector(data);
@@ -2293,6 +2319,7 @@ function renderCaseSelector(data) {
   const capacityCases = capacityCasesForProvider();
   els.caseGroups.innerHTML = [
     renderCaseOverview(data, partition),
+    renderOptionalCaseSection(partition.optional),
     renderVlmCaseSection(partition.vlm),
     renderCapacityCaseSection(capacityCases),
     renderCustomCaseSection(),
@@ -2302,6 +2329,15 @@ function renderCaseSelector(data) {
   ].join("");
   syncBulkCheckboxes(els.caseGroups);
   renderSelectedCaseCount();
+}
+
+function renderOptionalCaseSection(cases) {
+  if (!cases.length) return "";
+  return renderCaseSection(
+    "可选扩展用例",
+    "这些 case 会验证 provider 或模型扩展能力，例如前缀续写、stream 与 tools 组合；默认不选。",
+    cases
+  );
 }
 
 function renderVlmCaseSection(cases) {
@@ -2316,8 +2352,8 @@ function renderVlmCaseSection(cases) {
 function renderCapacityCaseSection(cases) {
   if (!cases.length) return "";
   return renderCaseSection(
-    "Max Token / Total Token 测试（可选）",
-    "分别探测 Max Token 和 Total Token；同一模型内逐档串行，不同 target 可并发。默认不选，避免额外消耗额度。",
+    "最大Max Output / 最大Total Context 测试（可选）",
+    "分别探测 最大Max Output 和 最大Total Context；同一模型内逐档串行，不同 target 可并发。默认不选，避免额外消耗额度。",
     cases
   );
 }
@@ -2352,7 +2388,7 @@ function renderCaseOverview(data, partition) {
     <div class="case-overview">
       <div>
         <strong>先选参数，再微调用例</strong>
-        <p>单参数 ${singleCount} 个，组合 ${partition.combos.length} 个，基础场景 ${partition.scenarios.length} 个${vlmText}；默认勾选常规 case，VLM 和 Max Token / Total Token 测试按需开启。</p>
+        <p>单参数 ${singleCount} 个，组合 ${partition.combos.length} 个，基础场景 ${partition.scenarios.length} 个${vlmText}；默认勾选常规 case，VLM 和 最大Max Output / 最大Total Context 测试按需开启。</p>
       </div>
       <span class="mono">${focusParamCount} 个重点参数有对应 case</span>
     </div>
@@ -3724,7 +3760,7 @@ async function runProviderTests() {
     const runConcurrency = batchConcurrency();
     const capacitySelected = selectedCases.filter(isCapacityCase);
     if (capacitySelected.length) {
-      appendRunText(`→ 含 Max Token / Total Token 测试 ${capacitySelected.length} 个：会逐档发真实请求，可能需要数分钟；已完成 case 会实时显示。`);
+      appendRunText(`→ 含 最大Max Output / 最大Total Context 测试 ${capacitySelected.length} 个：会逐档发真实请求，可能需要数分钟；已完成 case 会实时显示。`);
     }
     if (batchTextPresent) {
       const selectedBuiltInCaseIds = selectedCases.filter((testCase) => !testCase.custom).map((testCase) => testCase.case_id);
@@ -4173,7 +4209,7 @@ function capacityTargetLabel(result = {}) {
 }
 
 function capacityDisplayName(kind) {
-  return kind === "total_context" ? "Total Token" : "Max Token";
+  return kind === "total_context" ? "最大Total Context" : "最大Max Output";
 }
 
 function capacityResultValue(result = {}, kind = capacityKindFromResult(result)) {
