@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -110,6 +111,10 @@ type RunStreamEvent struct {
 	Type        string         `json:"type"`
 	Total       int            `json:"total,omitempty"`
 	Index       int            `json:"index,omitempty"`
+	TargetIndex int            `json:"target_index"`
+	TargetLabel string         `json:"target_label,omitempty"`
+	TargetTotal int            `json:"target_total,omitempty"`
+	Status      int            `json:"status,omitempty"`
 	Provider    string         `json:"provider,omitempty"`
 	BaseURL     string         `json:"base_url,omitempty"`
 	EndpointURL string         `json:"endpoint_url,omitempty"`
@@ -143,6 +148,14 @@ type BatchRunResponse struct {
 	Targets    []BatchRunTargetResponse `json:"targets"`
 	StartedAt  string                   `json:"started_at"`
 	FinishedAt string                   `json:"finished_at"`
+}
+
+type batchRunStreamTarget struct {
+	Index    int
+	Label    string
+	Target   RunRequest
+	Prepared preparedRunRequest
+	RunErr   *runRequestError
 }
 
 type runRequestError struct {
@@ -268,6 +281,7 @@ func main() {
 	mux.HandleFunc("/api/run", s.handleRun)
 	mux.HandleFunc("/api/run-stream", s.handleRunStream)
 	mux.HandleFunc("/api/run-batch", s.handleRunBatch)
+	mux.HandleFunc("/api/run-batch-stream", s.handleRunBatchStream)
 	mux.HandleFunc("/api/feishu/document", s.handleFeishuDocument)
 	mux.HandleFunc("/api/performance/benchmark", s.handlePerformanceBenchmark)
 
@@ -902,6 +916,229 @@ func (s *Server) handleRunBatch(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *Server) handleRunBatchStream(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/api/run-batch-stream" {
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	}
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	var req BatchRunRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<20)).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
+		return
+	}
+	if len(req.Targets) == 0 {
+		writeError(w, http.StatusBadRequest, "targets must contain at least one run target")
+		return
+	}
+	if len(req.Targets) > 32 {
+		writeError(w, http.StatusBadRequest, "targets cannot contain more than 32 run targets")
+		return
+	}
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		writeError(w, http.StatusInternalServerError, "streaming is not supported by this server")
+		return
+	}
+
+	maxConcurrency := req.MaxConcurrency
+	if maxConcurrency <= 0 {
+		maxConcurrency = 3
+	}
+	if maxConcurrency > 8 {
+		maxConcurrency = 8
+	}
+	req.MaxConcurrency = maxConcurrency
+
+	targets := make([]batchRunStreamTarget, 0, len(req.Targets))
+	total := 0
+	for index, rawTarget := range req.Targets {
+		target := applyBatchDefaults(rawTarget, req)
+		label := runTargetLabel(target)
+		prepared, runErr := s.prepareRunRequest(target)
+		if runErr == nil {
+			total += len(prepared.Selected)
+		}
+		targets = append(targets, batchRunStreamTarget{
+			Index:    index,
+			Label:    label,
+			Target:   target,
+			Prepared: prepared,
+			RunErr:   runErr,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/x-ndjson; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("X-Accel-Buffering", "no")
+
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
+	events := make(chan RunStreamEvent, max(16, len(targets)*2))
+	writeDone := make(chan struct{})
+	go func() {
+		defer close(writeDone)
+		for event := range events {
+			if ctx.Err() != nil {
+				return
+			}
+			if err := writeRunStreamEvent(w, flusher, event); err != nil {
+				cancel()
+				return
+			}
+		}
+	}()
+
+	sendEvent := func(event RunStreamEvent) bool {
+		select {
+		case events <- event:
+			return true
+		case <-ctx.Done():
+			return false
+		}
+	}
+
+	started := time.Now().UTC()
+	if !sendEvent(RunStreamEvent{
+		Type:        "start",
+		Total:       total,
+		TargetTotal: len(targets),
+		StartedAt:   started.Format(time.RFC3339),
+	}) {
+		close(events)
+		<-writeDone
+		return
+	}
+
+	sem := make(chan struct{}, maxConcurrency)
+	var wg sync.WaitGroup
+	for _, item := range targets {
+		item := item
+		if item.RunErr != nil {
+			sendEvent(RunStreamEvent{
+				Type:        "target_error",
+				TargetIndex: item.Index,
+				TargetLabel: item.Label,
+				Status:      item.RunErr.status,
+				Error:       item.RunErr.message,
+			})
+			continue
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			select {
+			case sem <- struct{}{}:
+			case <-ctx.Done():
+				return
+			}
+			defer func() { <-sem }()
+			s.runBatchStreamTarget(ctx, item, total, sendEvent)
+		}()
+	}
+
+	wg.Wait()
+	if ctx.Err() == nil {
+		finished := time.Now().UTC()
+		sendEvent(RunStreamEvent{
+			Type:       "end",
+			Total:      total,
+			FinishedAt: finished.Format(time.RFC3339),
+		})
+	}
+	close(events)
+	<-writeDone
+}
+
+func (s *Server) runBatchStreamTarget(ctx context.Context, item batchRunStreamTarget, total int, sendEvent func(RunStreamEvent) bool) {
+	prepared := item.Prepared
+	targetTotal := len(prepared.Selected)
+	if !sendEvent(RunStreamEvent{
+		Type:        "target_start",
+		Total:       total,
+		TargetIndex: item.Index,
+		TargetLabel: item.Label,
+		TargetTotal: targetTotal,
+		Provider:    prepared.Manifest.Provider,
+		BaseURL:     prepared.BaseURL,
+		EndpointURL: prepared.EndpointURL,
+		Model:       prepared.Req.Model,
+		StartedAt:   time.Now().UTC().Format(time.RFC3339),
+	}) {
+		return
+	}
+
+	results := make(chan indexedRunCaseResult, targetTotal)
+	maxConcurrency := runCaseConcurrency(targetTotal, prepared.Req.MaxConcurrency)
+	sem := make(chan struct{}, maxConcurrency)
+	var wg sync.WaitGroup
+	for index, tc := range prepared.Selected {
+		index := index
+		tc := tc
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			select {
+			case sem <- struct{}{}:
+			case <-ctx.Done():
+				results <- indexedRunCaseResult{Index: index, Result: canceledRunCaseResult(tc, prepared.EndpointURL, ctx.Err())}
+				return
+			}
+			defer func() { <-sem }()
+			if ctx.Err() != nil {
+				results <- indexedRunCaseResult{Index: index, Result: canceledRunCaseResult(tc, prepared.EndpointURL, ctx.Err())}
+				return
+			}
+			log.Printf("batch stream target=%s case=%s index=%d/%d concurrency=%d start", item.Label, tc.CaseID, index+1, targetTotal, maxConcurrency)
+			caseEndpointURL := prepared.EndpointURL
+			if caseBaseURL := strings.TrimSpace(tc.BaseURL); caseBaseURL != "" {
+				caseEndpointURL = buildEndpointURL(caseBaseURL, prepared.Manifest.Endpoint)
+			}
+			result := runProviderCase(ctx, prepared.Client, caseEndpointURL, prepared.Req.APIKey, prepared.Req.Model, prepared.Manifest, tc)
+			log.Printf("batch stream target=%s case=%s index=%d/%d done status=%d latency_ms=%d conclusion=%s error=%q", item.Label, tc.CaseID, index+1, targetTotal, result.HTTPStatus, result.LatencyMS, result.SupportConclusion, result.Error)
+			results <- indexedRunCaseResult{Index: index, Result: result}
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	for resultItem := range results {
+		if ctx.Err() != nil {
+			return
+		}
+		result := resultItem.Result
+		if !sendEvent(RunStreamEvent{
+			Type:        "result",
+			Total:       total,
+			Index:       resultItem.Index,
+			TargetIndex: item.Index,
+			TargetLabel: item.Label,
+			TargetTotal: targetTotal,
+			Result:      &result,
+		}) {
+			return
+		}
+	}
+	if ctx.Err() != nil {
+		return
+	}
+	sendEvent(RunStreamEvent{
+		Type:        "target_end",
+		Total:       total,
+		TargetIndex: item.Index,
+		TargetLabel: item.Label,
+		TargetTotal: targetTotal,
+		FinishedAt:  time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
 func applyBatchDefaults(target RunRequest, batch BatchRunRequest) RunRequest {
 	if strings.TrimSpace(target.EndpointID) == "" {
 		target.EndpointID = batch.EndpointID
@@ -1409,15 +1646,20 @@ func runProviderCase(ctx context.Context, client *http.Client, endpointURL, apiK
 }
 
 type capacityProbe struct {
-	Kind                string
-	Candidates          []int
-	ContextOutputTokens int
+	Kind                     string
+	Candidates               []int
+	ContextOutputTokens      int
+	ContextSafetyMarginRatio float64
 }
 
 type capacityAttempt struct {
 	CaseID                    string         `json:"case_id"`
 	Candidate                 int            `json:"candidate"`
 	CandidateDisplay          string         `json:"candidate_display"`
+	TestedTotalContextTokens  int            `json:"tested_total_context_tokens,omitempty"`
+	TestedTotalContextDisplay string         `json:"tested_total_context_display,omitempty"`
+	AppliedSafetyMarginTokens int            `json:"applied_context_safety_margin_tokens,omitempty"`
+	ContextSafetyMarginRatio  float64        `json:"context_safety_margin_ratio,omitempty"`
 	HTTPStatus                int            `json:"http_status"`
 	LatencyMS                 int64          `json:"latency_ms"`
 	Conclusion                string         `json:"conclusion"`
@@ -1452,10 +1694,15 @@ func capacityProbeSpec(payload map[string]any) (capacityProbe, bool) {
 	if outputTokens <= 0 {
 		outputTokens = 8
 	}
+	contextSafetyMarginRatio, ok := floatValue(spec["context_safety_margin_ratio"])
+	if !ok || contextSafetyMarginRatio <= 0 || contextSafetyMarginRatio >= 1 {
+		contextSafetyMarginRatio = 0.05
+	}
 	return capacityProbe{
-		Kind:                kind,
-		Candidates:          candidates,
-		ContextOutputTokens: outputTokens,
+		Kind:                     kind,
+		Candidates:               candidates,
+		ContextOutputTokens:      outputTokens,
+		ContextSafetyMarginRatio: contextSafetyMarginRatio,
 	}, true
 }
 
@@ -1501,12 +1748,16 @@ func runCapacityProbeCase(ctx context.Context, client *http.Client, endpointURL,
 			})
 			break
 		}
-		attemptPayload, estimatedInputTokens, requestedOutputTokens := capacityAttemptPayload(manifest, probe, model, candidate)
+		attemptPayload, estimatedInputTokens, requestedOutputTokens, testedTotalContextTokens, appliedSafetyMarginTokens := capacityAttemptPayload(manifest, probe, model, candidate)
 		bodyBytes, err := json.Marshal(attemptPayload)
 		attempt := capacityAttempt{
 			CaseID:                    capacityAttemptCaseID(tc.CaseID, candidate),
 			Candidate:                 candidate,
 			CandidateDisplay:          capacityTierDisplay(candidate),
+			TestedTotalContextTokens:  testedTotalContextTokens,
+			TestedTotalContextDisplay: capacityTierDisplay(testedTotalContextTokens),
+			AppliedSafetyMarginTokens: appliedSafetyMarginTokens,
+			ContextSafetyMarginRatio:  probe.ContextSafetyMarginRatio,
 			EstimatedInputTokens:      estimatedInputTokens,
 			RequestedMaxOutputTokens:  requestedOutputTokens,
 			EstimatedTotalContextToks: estimatedInputTokens + requestedOutputTokens,
@@ -1562,7 +1813,7 @@ func runCapacityProbeCase(ctx context.Context, client *http.Client, endpointURL,
 		}
 	}
 
-	summary := capacitySummary(probe.Kind, attempts, probe.Candidates, stoppedByBoundary)
+	summary := capacitySummary(probe, attempts, stoppedByBoundary)
 	result.HTTPStatus = capacityResultHTTPStatus(attempts)
 	result.LatencyMS = capacityTotalLatency(attempts)
 	result.ResponseBody = summary
@@ -1588,13 +1839,16 @@ func runCapacityProbeCase(ctx context.Context, client *http.Client, endpointURL,
 	return result
 }
 
-func capacityAttemptPayload(manifest Manifest, probe capacityProbe, model string, candidate int) (map[string]any, int, int) {
+func capacityAttemptPayload(manifest Manifest, probe capacityProbe, model string, candidate int) (map[string]any, int, int, int, int) {
 	outputTokens := candidate
 	content := "Reply exactly: OK"
 	estimatedInputTokens := 0
+	testedTotalContextTokens := 0
+	appliedSafetyMarginTokens := 0
 	if probe.Kind == "total_context" {
 		outputTokens = probe.ContextOutputTokens
-		estimatedInputTokens = candidate - outputTokens
+		testedTotalContextTokens, appliedSafetyMarginTokens = capacityTestedTotalContextTokens(candidate, probe.ContextSafetyMarginRatio, outputTokens)
+		estimatedInputTokens = testedTotalContextTokens - outputTokens
 		if estimatedInputTokens < 1 {
 			estimatedInputTokens = 1
 		}
@@ -1607,7 +1861,31 @@ func capacityAttemptPayload(manifest Manifest, probe capacityProbe, model string
 		},
 		capacityOutputParameter(manifest.Provider): outputTokens,
 	}
-	return payload, estimatedInputTokens, outputTokens
+	return payload, estimatedInputTokens, outputTokens, testedTotalContextTokens, appliedSafetyMarginTokens
+}
+
+func capacityTestedTotalContextTokens(candidate int, safetyMarginRatio float64, outputTokens int) (int, int) {
+	if candidate <= 0 {
+		return 0, 0
+	}
+	ratio := safetyMarginRatio
+	if ratio < 0 {
+		ratio = 0
+	}
+	if ratio >= 1 {
+		ratio = 0.05
+	}
+	margin := int(float64(candidate)*ratio + 0.5)
+	testedTotal := candidate - margin
+	minTotal := outputTokens + 1
+	if testedTotal < minTotal {
+		testedTotal = minTotal
+		margin = candidate - testedTotal
+		if margin < 0 {
+			margin = 0
+		}
+	}
+	return testedTotal, margin
 }
 
 func capacityOutputParameter(provider string) string {
@@ -1648,11 +1926,14 @@ func capacityConclusion(status int) string {
 	return "request_failed"
 }
 
-func capacitySummary(kind string, attempts []capacityAttempt, candidates []int, stoppedByBoundary bool) map[string]any {
+func capacitySummary(probe capacityProbe, attempts []capacityAttempt, stoppedByBoundary bool) map[string]any {
 	supportedMax := 0
+	var supportedAttempt *capacityAttempt
 	for _, attempt := range attempts {
 		if attempt.Conclusion == "supported" && attempt.Candidate > supportedMax {
 			supportedMax = attempt.Candidate
+			copy := attempt
+			supportedAttempt = &copy
 		}
 	}
 	var nearestHigher *capacityAttempt
@@ -1667,15 +1948,15 @@ func capacitySummary(kind string, attempts []capacityAttempt, candidates []int, 
 		}
 	}
 	topCandidate := 0
-	if len(candidates) > 0 {
-		topCandidate = candidates[0]
+	if len(probe.Candidates) > 0 {
+		topCandidate = probe.Candidates[0]
 	}
 	topSupported := len(attempts) > 0 && attempts[0].Candidate == topCandidate && attempts[0].Conclusion == "supported"
 	upperBoundFound := supportedMax > 0 && nearestHigher != nil
-	display := capacityDisplayConclusion(supportedMax, nearestHigher, topSupported)
+	display := capacityDisplayConclusion(probe.Kind, supportedMax, supportedAttempt, nearestHigher, topSupported)
 	summary := map[string]any{
-		"kind":                    kind,
-		"label":                   capacityDisplayLabel(kind),
+		"kind":                    probe.Kind,
+		"label":                   capacityDisplayLabel(probe.Kind),
 		"supported_max":           supportedMax,
 		"supported_max_display":   capacityTierDisplay(supportedMax),
 		"top_candidate":           topCandidate,
@@ -1685,16 +1966,26 @@ func capacitySummary(kind string, attempts []capacityAttempt, candidates []int, 
 		"boundary_found_by_stop":  stoppedByBoundary,
 		"attempts":                attempts,
 		"capacity_display": map[string]any{
-			capacityDisplayLabel(kind): display,
+			capacityDisplayLabel(probe.Kind): display,
 		},
+	}
+	if probe.Kind == "total_context" {
+		summary["context_safety_margin_ratio"] = probe.ContextSafetyMarginRatio
+		summary["context_safety_margin_percent"] = probe.ContextSafetyMarginRatio * 100
+		if supportedAttempt != nil {
+			summary["supported_tested_total_context_tokens"] = supportedAttempt.TestedTotalContextTokens
+			summary["supported_tested_total_context_display"] = supportedAttempt.TestedTotalContextDisplay
+		}
 	}
 	if nearestHigher != nil {
 		summary["nearest_higher_non_supported"] = map[string]any{
-			"candidate":         nearestHigher.Candidate,
-			"candidate_display": nearestHigher.CandidateDisplay,
-			"conclusion":        nearestHigher.Conclusion,
-			"http_status":       nearestHigher.HTTPStatus,
-			"error":             nearestHigher.Error,
+			"candidate":                    nearestHigher.Candidate,
+			"candidate_display":            nearestHigher.CandidateDisplay,
+			"tested_total_context_tokens":  nearestHigher.TestedTotalContextTokens,
+			"tested_total_context_display": nearestHigher.TestedTotalContextDisplay,
+			"conclusion":                   nearestHigher.Conclusion,
+			"http_status":                  nearestHigher.HTTPStatus,
+			"error":                        nearestHigher.Error,
 		}
 	}
 	return summary
@@ -1707,18 +1998,22 @@ func capacityDisplayLabel(kind string) string {
 	return "最大Max Output"
 }
 
-func capacityDisplayConclusion(supportedMax int, nearestHigher *capacityAttempt, topSupported bool) string {
+func capacityDisplayConclusion(kind string, supportedMax int, supportedAttempt, nearestHigher *capacityAttempt, topSupported bool) string {
 	if supportedMax <= 0 {
 		return "当前候选档位内未测到支持项"
 	}
 	supported := capacityTierDisplay(supportedMax)
+	tested := ""
+	if kind == "total_context" && supportedAttempt != nil && supportedAttempt.TestedTotalContextDisplay != "" {
+		tested = fmt.Sprintf("按%s探测，", supportedAttempt.TestedTotalContextDisplay)
+	}
 	if nearestHigher != nil {
-		return fmt.Sprintf("%s（%s不支持）", supported, nearestHigher.CandidateDisplay)
+		return fmt.Sprintf("%s（%s%s不支持）", supported, tested, nearestHigher.CandidateDisplay)
 	}
 	if topSupported {
-		return fmt.Sprintf(">= %s（最高候选档位已支持）", supported)
+		return fmt.Sprintf(">= %s（%s最高候选档位已支持）", supported, tested)
 	}
-	return fmt.Sprintf("%s（边界未完全括定）", supported)
+	return fmt.Sprintf("%s（%s边界未完全括定）", supported, tested)
 }
 
 func capacityTierDisplay(value int) string {
@@ -1732,7 +2027,17 @@ func capacityTierDisplay(value int) string {
 	if value >= 1024 && value%1024 == 0 {
 		return fmt.Sprintf("%dk", value/1024)
 	}
+	if value >= oneM {
+		return trimCapacityDecimal(float64(value)/float64(oneM)) + "m"
+	}
+	if value >= 1024 {
+		return trimCapacityDecimal(float64(value)/1024) + "k"
+	}
 	return fmt.Sprintf("%d", value)
+}
+
+func trimCapacityDecimal(value float64) string {
+	return strconv.FormatFloat(value, 'f', 1, 64)
 }
 
 func capacityAttemptCaseID(caseID string, candidate int) string {
@@ -2186,6 +2491,14 @@ func evaluateAssertions(result RunCaseResult, expect map[string]any) []CaseAsser
 			Name:    "assistant_content_non_empty",
 			Pass:    ok && strings.TrimSpace(content) != "",
 			Message: "预期 choices[0].message.content 为非空字符串",
+		})
+	}
+	if prefix, _ := expect["assistant_content_starts_with"].(string); strings.TrimSpace(prefix) != "" {
+		content, ok := assistantContent(result.ResponseBody)
+		assertions = append(assertions, CaseAssertion{
+			Name:    "assistant_content_starts_with",
+			Pass:    ok && strings.HasPrefix(strings.TrimSpace(content), prefix),
+			Message: fmt.Sprintf("预期 choices[0].message.content 以 %q 开头", prefix),
 		})
 	}
 	if required, _ := expect["thinking_required"].(bool); required {
@@ -2751,6 +3064,24 @@ func intValue(value any) (int, bool) {
 	case json.Number:
 		number, err := typed.Int64()
 		return int(number), err == nil
+	default:
+		return 0, false
+	}
+}
+
+func floatValue(value any) (float64, bool) {
+	switch typed := value.(type) {
+	case float64:
+		return typed, true
+	case float32:
+		return float64(typed), true
+	case int:
+		return float64(typed), true
+	case int64:
+		return float64(typed), true
+	case json.Number:
+		number, err := typed.Float64()
+		return number, err == nil
 	default:
 		return 0, false
 	}

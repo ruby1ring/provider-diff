@@ -549,11 +549,163 @@ h2 {
 
 .batch-targets-panel {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   border: 1px solid #e6e6ee;
   border-radius: 7px;
-  padding: 8px;
+  padding: 10px;
   background: #fbfbfc;
+}
+
+.batch-targets-header,
+.batch-paste-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.batch-targets-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.batch-targets-title span {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  color: #30323a;
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.batch-targets-title span em,
+.batch-paste summary,
+.batch-paste-actions span {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 650;
+}
+
+.batch-targets-title small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.batch-add-target {
+  flex: 0 0 auto;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 28px;
+}
+
+.batch-target-rows {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.batch-target-row {
+  display: grid;
+  grid-template-columns: 34px minmax(190px, 1fr) minmax(160px, 0.8fr) minmax(220px, 1.05fr) 36px;
+  grid-template-areas: "index url key model remove";
+  gap: 8px;
+  align-items: end;
+  min-width: 0;
+  border: 1px solid #e5e5ea;
+  border-radius: 6px;
+  padding: 8px;
+  background: #fff;
+}
+
+.batch-target-row__index {
+  grid-area: index;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  border: 1px solid #eeeeef;
+  border-radius: 6px;
+  color: #626570;
+  background: #f8f8fa;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.batch-target-field {
+  gap: 5px;
+}
+
+.batch-target-field--url {
+  grid-area: url;
+}
+
+.batch-target-field--key {
+  grid-area: key;
+}
+
+.batch-target-field--model {
+  grid-area: model;
+}
+
+.batch-target-field span {
+  white-space: nowrap;
+}
+
+.batch-target-remove {
+  grid-area: remove;
+  align-self: end;
+  color: #777982;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.batch-paste {
+  border-top: 1px solid #eeeeef;
+  padding-top: 8px;
+}
+
+.batch-paste summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.batch-paste summary::-webkit-details-marker {
+  display: none;
+}
+
+.batch-paste summary::before {
+  content: "+";
+  margin-right: 6px;
+  color: var(--purple);
+}
+
+.batch-paste[open] summary::before {
+  content: "-";
+}
+
+.batch-paste .field {
+  margin-top: 8px;
+}
+
+.batch-paste-actions {
+  justify-content: flex-start;
+  margin-top: 8px;
+}
+
+.batch-paste-actions .secondary-button {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 28px;
 }
 
 .field input,
@@ -3030,6 +3182,12 @@ h2 {
     justify-content: flex-start;
   }
 
+  .batch-targets-header,
+  .batch-paste-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .case-overview,
   .case-group summary,
   .parameter-case-block__head {
@@ -3101,6 +3259,14 @@ h2 {
 
   .batch-mode-control span {
     white-space: normal;
+  }
+
+  .batch-target-row {
+    grid-template-columns: 34px minmax(0, 1fr) 36px;
+    grid-template-areas:
+      "index model remove"
+      ". url ."
+      ". key .";
   }
 
   .case-row {

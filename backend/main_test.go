@@ -318,6 +318,102 @@ func TestHandleRunStreamEmitsResultEvents(t *testing.T) {
 	}
 }
 
+func TestHandleRunBatchStreamEmitsTargetResultEvents(t *testing.T) {
+	root, err := findProjectRoot()
+	if err != nil {
+		t.Fatalf("find project root: %v", err)
+	}
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/chat/completions" {
+			t.Errorf("unexpected upstream path %q", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		response := map[string]any{
+			"id":     "chatcmpl-test",
+			"object": "chat.completion",
+			"model":  "test-model",
+			"choices": []map[string]any{{
+				"index": 0,
+				"message": map[string]any{
+					"role":    "assistant",
+					"content": "ok",
+				},
+				"finish_reason": "stop",
+			}},
+		}
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Fatalf("encode upstream response: %v", err)
+		}
+	}))
+	defer upstream.Close()
+
+	reqBody := BatchRunRequest{
+		MaxConcurrency: 2,
+		Targets: []RunRequest{
+			{Provider: "siliconflow", APIKey: "test-key", BaseURL: upstream.URL, Model: "model-a"},
+			{Provider: "siliconflow", APIKey: "test-key", BaseURL: upstream.URL, Model: "model-b"},
+		},
+		CustomCases: []TestCase{{
+			CaseID:   "custom_batch_stream",
+			Title:    "Custom batch stream",
+			Category: "custom",
+			Payload: map[string]any{
+				"messages": []map[string]string{{"role": "user", "content": "hi"}},
+			},
+			Expect: map[string]any{"http_status": 200},
+		}},
+	}
+	rawBody, err := json.Marshal(reqBody)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+
+	server := &Server{root: root}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/run-batch-stream", bytes.NewReader(rawBody))
+	server.handleRunBatchStream(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+
+	decoder := json.NewDecoder(recorder.Body)
+	events := []RunStreamEvent{}
+	for {
+		var event RunStreamEvent
+		if err := decoder.Decode(&event); err != nil {
+			break
+		}
+		events = append(events, event)
+	}
+	if len(events) != 8 {
+		t.Fatalf("expected start, 2 target_start, 2 result, 2 target_end, end events; got %d events: %#v", len(events), events)
+	}
+	if events[0].Type != "start" || events[0].Total != 2 || events[0].TargetTotal != 2 {
+		t.Fatalf("unexpected start event: %#v", events[0])
+	}
+	resultTargets := map[int]bool{}
+	resultEvents := 0
+	for _, event := range events {
+		if event.Type != "result" {
+			continue
+		}
+		resultEvents += 1
+		resultTargets[event.TargetIndex] = true
+		if event.Result == nil || event.Result.HTTPStatus != http.StatusOK {
+			t.Fatalf("unexpected result event: %#v", event)
+		}
+	}
+	if resultEvents != 2 {
+		t.Fatalf("expected 2 result events, got %d", resultEvents)
+	}
+	if !resultTargets[0] || !resultTargets[1] {
+		t.Fatalf("expected result events for target 0 and 1, got %#v", resultTargets)
+	}
+	if events[len(events)-1].Type != "end" {
+		t.Fatalf("expected end event, got %#v", events[len(events)-1])
+	}
+}
+
 func TestHandleRunRunsCasesConcurrently(t *testing.T) {
 	root, err := findProjectRoot()
 	if err != nil {
@@ -453,6 +549,56 @@ func TestAssistantContentNonEmptyAssertionFailsOnBlankContent(t *testing.T) {
 	}
 	if assertion.Pass {
 		t.Fatal("expected assertion to fail for blank assistant content")
+	}
+}
+
+func TestAssistantContentStartsWithAssertionPasses(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus: 200,
+		ResponseBody: map[string]any{
+			"choices": []any{
+				map[string]any{
+					"message": map[string]any{
+						"content": "兼容性测试的目标是减少接入差异。",
+					},
+				},
+			},
+		},
+	}
+	assertions := evaluateAssertions(result, map[string]any{
+		"assistant_content_starts_with": "兼容性测试的目标是",
+	})
+	assertion, ok := findAssertion(assertions, "assistant_content_starts_with")
+	if !ok {
+		t.Fatal("assistant_content_starts_with assertion was not emitted")
+	}
+	if !assertion.Pass {
+		t.Fatalf("expected assertion to pass, got message %q", assertion.Message)
+	}
+}
+
+func TestAssistantContentStartsWithAssertionFails(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus: 200,
+		ResponseBody: map[string]any{
+			"choices": []any{
+				map[string]any{
+					"message": map[string]any{
+						"content": "测试目标是减少接入差异。",
+					},
+				},
+			},
+		},
+	}
+	assertions := evaluateAssertions(result, map[string]any{
+		"assistant_content_starts_with": "兼容性测试的目标是",
+	})
+	assertion, ok := findAssertion(assertions, "assistant_content_starts_with")
+	if !ok {
+		t.Fatal("assistant_content_starts_with assertion was not emitted")
+	}
+	if assertion.Pass {
+		t.Fatal("expected assertion to fail when assistant content does not start with prefix")
 	}
 }
 
@@ -981,6 +1127,51 @@ func TestOptionalCapabilityMismatchIsIgnored(t *testing.T) {
 	}
 	if conclusion := finalizeSupportConclusionForResult(result, nil, expect); conclusion != "ignored" {
 		t.Fatalf("expected ignored conclusion, got %q", conclusion)
+	}
+}
+
+func TestCapacityTotalContextUsesSafetyMargin(t *testing.T) {
+	candidate := 256 * 1024
+	probe := capacityProbe{
+		Kind:                     "total_context",
+		ContextOutputTokens:      8,
+		ContextSafetyMarginRatio: 0.05,
+	}
+	payload, estimatedInputTokens, requestedOutputTokens, testedTotalContextTokens, appliedMargin := capacityAttemptPayload(
+		Manifest{Provider: "siliconflow"},
+		probe,
+		"test-model",
+		candidate,
+	)
+	wantMargin := int(float64(candidate)*0.05 + 0.5)
+	wantTestedTotal := candidate - wantMargin
+	if testedTotalContextTokens != wantTestedTotal {
+		t.Fatalf("expected 256k tier to be tested at 95%%, got %d", testedTotalContextTokens)
+	}
+	if appliedMargin != wantMargin {
+		t.Fatalf("expected 5%% applied margin, got %d", appliedMargin)
+	}
+	if estimatedInputTokens != wantTestedTotal-8 {
+		t.Fatalf("expected input estimate to subtract output budget, got %d", estimatedInputTokens)
+	}
+	if requestedOutputTokens != 8 {
+		t.Fatalf("expected output budget 8, got %d", requestedOutputTokens)
+	}
+	if got := payload["max_tokens"]; got != 8 {
+		t.Fatalf("expected max_tokens=8 in payload, got %#v", got)
+	}
+}
+
+func TestCapacityTotalContextSafetyMarginAppliesToEveryTier(t *testing.T) {
+	for _, candidate := range []int{1024 * 1024, 512 * 1024, 128 * 1024, 32 * 1024} {
+		testedTotalContextTokens, appliedMargin := capacityTestedTotalContextTokens(candidate, 0.05, 8)
+		wantMargin := int(float64(candidate)*0.05 + 0.5)
+		if appliedMargin != wantMargin {
+			t.Fatalf("candidate %d expected 5%% margin %d, got %d", candidate, wantMargin, appliedMargin)
+		}
+		if testedTotalContextTokens != candidate-wantMargin {
+			t.Fatalf("candidate %d expected tested total %d, got %d", candidate, candidate-wantMargin, testedTotalContextTokens)
+		}
 	}
 }
 

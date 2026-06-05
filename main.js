@@ -18,6 +18,9 @@ const els = {
   modelName: document.querySelector("#modelName"),
   batchModeToggle: document.querySelector("#batchModeToggle"),
   batchTargetsPanel: document.querySelector("#batchTargetsPanel"),
+  batchTargetRows: document.querySelector("#batchTargetRows"),
+  batchAddTarget: document.querySelector("#batchAddTarget"),
+  batchImportTargets: document.querySelector("#batchImportTargets"),
   batchTargets: document.querySelector("#batchTargets"),
   batchConcurrency: document.querySelector("#batchConcurrency"),
   baselineReport: document.querySelector("#baselineReport"),
@@ -146,6 +149,7 @@ const appProtocol = window.location.protocol === "file:" ? "http:" : window.loca
 const appHost = window.location.hostname || "localhost";
 const appQuery = new URLSearchParams(window.location.search);
 const API_BASE = appQuery.get("apiBase") || window.PROVIDER_DIFF_API_BASE || `${appProtocol}//${appHost}:8080`;
+const BACKEND_UNAVAILABLE_MESSAGE = `后端未连接：无法访问 ${API_BASE}。请先启动 Go 后端（默认 8080），再运行测试。`;
 const HISTORY_STORAGE_KEY = "providerx-history-v1";
 const LEGACY_HISTORY_STORAGE_KEY = "llm-rosetta-history-v1";
 const FEISHU_CONFIG_STORAGE_KEY = "providerx-feishu-config-v1";
@@ -158,6 +162,8 @@ const LEGACY_OPENCOMPASS_URL_STORAGE_KEY = "llm-rosetta-opencompass-url-v1";
 const DEFAULT_OPENCOMPASS_URL = appQuery.get("opencompassUrl") || `${appProtocol}//${appHost}:9100/`;
 const MAX_HISTORY_ITEMS = 120;
 const HISTORY_RAW_RESPONSE_LIMIT = 30000;
+const MIN_BATCH_TARGETS = 2;
+const MAX_BATCH_TARGETS = 3;
 const HISTORY_STRING_LIMIT = 12000;
 const runnableProviderByChannel = {
   claude: "claude",
@@ -265,12 +271,19 @@ const PINNED_BASELINE_IDS = {
 };
 
 const CAPACITY_CANDIDATES = [4194304, 2097152, 1048576, 524288, 262144, 131072, 65536, 32768, 16384, 8192, 4096, 2048, 1024];
+const CONTEXT_CAPACITY_SAFETY_MARGIN_RATIO = 0.05;
 
 function formatCapacityTier(value) {
   const oneM = 1024 * 1024;
   if (value >= oneM && value % oneM === 0) return `${value / oneM}m`;
   if (value >= 1024 && value % 1024 === 0) return `${value / 1024}k`;
+  if (value >= oneM) return `${trimNumber(value / oneM, 1)}m`;
+  if (value >= 1024) return `${trimNumber(value / 1024, 1)}k`;
   return String(value);
+}
+
+function trimNumber(value, digits = 1) {
+  return Number(value.toFixed(digits)).toString();
 }
 
 const caseTitleZh = {
@@ -311,6 +324,7 @@ const caseTitleZh = {
   sf_multiturn_json_object: "多轮对话与 json_object",
   sf_multiturn_reasoning: "多轮推理上下文",
   sf_multiturn_tools: "多轮 tools 工作流",
+  sf_prefix_completion: "前缀续写",
   sf_observability_trace_header: "x-siliconcloud-trace-id 响应头",
   sf_observability_usage_fields: "非流式 usage 字段完整性",
   sf_multimodal_image_url: "VLM image_url 图像输入",
@@ -541,7 +555,7 @@ function setBaseUrlValue(value) {
 }
 
 function batchModeActive() {
-  return Boolean(state.batchModeEnabled && els.batchTargets?.value.trim());
+  return Boolean(state.batchModeEnabled && (hasBatchTargetRows() || els.batchTargets?.value.trim()));
 }
 
 function renderBatchMode() {
@@ -550,24 +564,153 @@ function renderBatchMode() {
   els.batchModeToggle.setAttribute("aria-pressed", state.batchModeEnabled ? "true" : "false");
   els.batchModeToggle.classList.toggle("is-active", state.batchModeEnabled);
   els.batchTargetsPanel.classList.toggle("is-hidden", !state.batchModeEnabled);
+  if (state.batchModeEnabled) ensureBatchTargetRows();
+  updateBatchTargetPlaceholders();
+  renderBatchTargetControlState();
+}
+
+function renderBatchTargetControlState() {
+  const disabled = state.isRunning || !state.batchModeEnabled;
   if (els.batchTargets) {
-    els.batchTargets.disabled = state.isRunning || !state.batchModeEnabled;
+    els.batchTargets.disabled = disabled;
+  }
+  if (els.batchTargetRows) {
+    els.batchTargetRows.querySelectorAll("input, button").forEach((control) => {
+      control.disabled = disabled;
+    });
+  }
+  if (els.batchAddTarget) {
+    els.batchAddTarget.disabled = disabled || batchTargetDrafts().length >= MAX_BATCH_TARGETS;
+  }
+  if (els.batchImportTargets) {
+    els.batchImportTargets.disabled = disabled;
   }
 }
 
-function parseBatchTargets() {
-  if (!state.batchModeEnabled) return [];
-  const raw = els.batchTargets?.value.trim() || "";
-  if (!raw) throw new Error("已启用 Batch，请填写 2-3 个 target，或关闭 Batch。");
-  if (raw.startsWith("[") || raw.startsWith("{")) {
-    const parsed = JSON.parse(raw);
+function hasBatchTargetRows() {
+  return batchTargetDrafts().some((target) => target.base_url || target.api_key || target.model);
+}
+
+function defaultBatchTargetDrafts() {
+  return [
+    { base_url: "", api_key: "", model: els.modelName?.value.trim() || "" },
+    { base_url: "", api_key: "", model: "" }
+  ];
+}
+
+function ensureBatchTargetRows() {
+  if (!els.batchTargetRows || els.batchTargetRows.children.length) return;
+  setBatchTargetRows(defaultBatchTargetDrafts());
+}
+
+function renderBatchTargetRow(target = {}, index = 0) {
+  const placeholders = batchTargetPlaceholders();
+  return `
+    <div class="batch-target-row" data-batch-target-row>
+      <span class="batch-target-row__index">T${index + 1}</span>
+      <label class="field batch-target-field batch-target-field--url">
+        <span>Base URL <em>可留空</em></span>
+        <input class="mono" data-batch-field="base_url" value="${escapeHtml(target.base_url || "")}" placeholder="${escapeHtml(placeholders.base_url)}" />
+      </label>
+      <label class="field batch-target-field batch-target-field--key">
+        <span>API Key <em>可留空</em></span>
+        <input class="mono" type="password" data-batch-field="api_key" value="${escapeHtml(target.api_key || "")}" placeholder="${escapeHtml(placeholders.api_key)}" autocomplete="off" />
+      </label>
+      <label class="field batch-target-field batch-target-field--model">
+        <span>Model</span>
+        <input class="mono" data-batch-field="model" value="${escapeHtml(target.model || "")}" placeholder="${escapeHtml(placeholders.model)}" />
+      </label>
+      <button class="icon-button batch-target-remove" type="button" data-remove-batch-target title="移除 target" aria-label="移除 target">×</button>
+    </div>
+  `;
+}
+
+function batchTargetPlaceholders() {
+  return {
+    base_url: els.baseUrl?.value.trim() || "https://api.siliconflow.cn/v1",
+    api_key: els.apiKey?.value.trim() ? "使用上方 API Key" : "sk-...",
+    model: els.modelName?.value.trim() || "deepseek-ai/DeepSeek-V4-Pro"
+  };
+}
+
+function updateBatchTargetPlaceholders() {
+  const placeholders = batchTargetPlaceholders();
+  els.batchTargetRows?.querySelectorAll('[data-batch-field="base_url"]').forEach((input) => {
+    input.placeholder = placeholders.base_url;
+  });
+  els.batchTargetRows?.querySelectorAll('[data-batch-field="api_key"]').forEach((input) => {
+    input.placeholder = placeholders.api_key;
+  });
+  els.batchTargetRows?.querySelectorAll('[data-batch-field="model"]').forEach((input) => {
+    input.placeholder = placeholders.model;
+  });
+}
+
+function setBatchTargetRows(targets = []) {
+  if (!els.batchTargetRows) return;
+  const limitedTargets = targets.slice(0, MAX_BATCH_TARGETS);
+  els.batchTargetRows.innerHTML = limitedTargets.map(renderBatchTargetRow).join("");
+  renderBatchTargetControlState();
+}
+
+function batchTargetDrafts() {
+  if (!els.batchTargetRows) return [];
+  return Array.from(els.batchTargetRows.querySelectorAll("[data-batch-target-row]")).map((row) => ({
+    base_url: row.querySelector('[data-batch-field="base_url"]')?.value.trim() || "",
+    api_key: row.querySelector('[data-batch-field="api_key"]')?.value.trim() || "",
+    model: row.querySelector('[data-batch-field="model"]')?.value.trim() || ""
+  }));
+}
+
+function addBatchTargetRow(target = {}) {
+  const drafts = batchTargetDrafts();
+  if (drafts.length >= MAX_BATCH_TARGETS) return;
+  setBatchTargetRows([...drafts, target]);
+}
+
+function removeBatchTargetRow(row) {
+  const rows = Array.from(els.batchTargetRows?.querySelectorAll("[data-batch-target-row]") || []);
+  const index = rows.indexOf(row);
+  if (index < 0) return;
+  const drafts = batchTargetDrafts();
+  drafts.splice(index, 1);
+  setBatchTargetRows(drafts.length ? drafts : defaultBatchTargetDrafts());
+}
+
+function batchTargetsFromRows() {
+  const defaultBaseUrl = els.baseUrl?.value.trim() || "";
+  return batchTargetDrafts()
+    .filter((target) => target.model)
+    .map((target, index) => normalizeBatchTarget({
+      provider: currentProviderId(),
+      base_url: target.base_url || defaultBaseUrl,
+      api_key: target.api_key,
+      model: target.model
+    }, index));
+}
+
+function enforceBatchTargetCount(targets) {
+  if (targets.length < MIN_BATCH_TARGETS) {
+    throw new Error(`Batch 至少填写 ${MIN_BATCH_TARGETS} 个 target；只跑一个请关闭 Batch。`);
+  }
+  if (targets.length > MAX_BATCH_TARGETS) {
+    throw new Error(`Batch 最多填写 ${MAX_BATCH_TARGETS} 个 target。`);
+  }
+  return targets;
+}
+
+function parseBatchTargetsFromText(raw) {
+  const text = String(raw || "").trim();
+  if (!text) return [];
+  if (text.startsWith("[") || text.startsWith("{")) {
+    const parsed = JSON.parse(text);
     const items = Array.isArray(parsed) ? parsed : parsed.targets;
     if (!Array.isArray(items)) {
       throw new Error("批量 JSON 需要是数组，或包含 targets 数组。");
     }
     return items.map((item, index) => normalizeBatchTarget(item, index));
   }
-  return raw
+  return text
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line && !line.startsWith("#"))
@@ -576,26 +719,82 @@ function parseBatchTargets() {
         ? line.split("|")
         : line.split(/\t|,/);
       const compact = parts.map((part) => part.trim()).filter(Boolean);
-      if (compact.length === 3) {
-        return normalizeBatchTarget({
-          provider: currentProviderId(),
-          base_url: compact[0],
-          model: compact[1],
-          api_key: compact[2]
-        }, index);
-      }
-      return normalizeBatchTarget({
-        provider: parts[0],
-        base_url: parts[1],
-        model: parts[2],
-        api_key: parts[3]
-      }, index);
+      return parseDelimitedBatchTarget(compact, index);
     });
+}
+
+function importBatchTargetsFromText() {
+  try {
+    const targets = enforceBatchTargetCount(parseBatchTargetsFromText(els.batchTargets?.value || ""));
+    setBatchTargetRows(targets);
+    showToast(`已导入 ${targets.length} 个 target。`);
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+function parseBatchTargets() {
+  if (!state.batchModeEnabled) return [];
+  const rowTargets = batchTargetsFromRows();
+  if (rowTargets.length >= MIN_BATCH_TARGETS) return enforceBatchTargetCount(rowTargets);
+  const textTargets = parseBatchTargetsFromText(els.batchTargets?.value || "");
+  if (textTargets.length) return enforceBatchTargetCount(textTargets);
+  if (rowTargets.length) return enforceBatchTargetCount(rowTargets);
+  throw new Error("已启用 Batch，请填写 2-3 个 target，或关闭 Batch。");
+}
+
+function looksLikeApiKey(value) {
+  const text = String(value || "").trim();
+  return /^(?:Bearer\s+)?sk-[A-Za-z0-9_-]{8,}$/i.test(text)
+    || /^[A-Za-z0-9_-]{32,}$/.test(text);
+}
+
+function looksLikeBaseUrl(value) {
+  return /^https?:\/\//i.test(String(value || "").trim());
+}
+
+function resolveModelAndApiKey(first, second) {
+  const firstValue = String(first || "").trim();
+  const secondValue = String(second || "").trim();
+  const firstIsKey = looksLikeApiKey(firstValue);
+  const secondIsKey = looksLikeApiKey(secondValue);
+  if (firstIsKey && !secondIsKey) {
+    return { api_key: firstValue, model: secondValue };
+  }
+  if (!firstIsKey && secondIsKey) {
+    return { model: firstValue, api_key: secondValue };
+  }
+  if (!firstIsKey && !secondIsKey && secondValue.includes("/") && !firstValue.includes("/")) {
+    return { api_key: firstValue, model: secondValue };
+  }
+  return { api_key: firstValue, model: secondValue };
+}
+
+function parseDelimitedBatchTarget(parts, index) {
+  if (parts.length === 3) {
+    return normalizeBatchTarget({
+      provider: currentProviderId(),
+      base_url: parts[0],
+      ...resolveModelAndApiKey(parts[1], parts[2])
+    }, index);
+  }
+  if (parts.length >= 4) {
+    const firstIsUrl = looksLikeBaseUrl(parts[0]);
+    const provider = firstIsUrl ? currentProviderId() : parts[0];
+    const baseUrl = firstIsUrl ? parts[0] : parts[1];
+    const modelKeyStart = firstIsUrl ? 1 : 2;
+    return normalizeBatchTarget({
+      provider,
+      base_url: baseUrl,
+      ...resolveModelAndApiKey(parts[modelKeyStart], parts[modelKeyStart + 1])
+    }, index);
+  }
+  throw new Error(`批量 target 第 ${index + 1} 行格式不对，请使用 base_url | api_key | model。`);
 }
 
 function normalizeBatchTarget(item = {}, index = 0) {
   const provider = String(item.provider || item.provider_id || currentProviderId() || "").trim();
-  const baseUrl = String(item.base_url || item.baseUrl || "").trim();
+  const baseUrl = String(item.base_url || item.baseUrl || els.baseUrl?.value.trim() || "").trim();
   const model = String(item.model || "").trim();
   const apiKey = String(item.api_key || item.apiKey || "").trim();
   if (!provider) {
@@ -667,6 +866,47 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function isFetchNetworkError(error) {
+  const message = String(error?.message || "");
+  return error?.name === "TypeError"
+    && /failed to fetch|load failed|networkerror|network request failed/i.test(message);
+}
+
+function backendUnavailableError(cause) {
+  const error = new Error(BACKEND_UNAVAILABLE_MESSAGE);
+  error.isBackendUnavailable = true;
+  error.cause = cause;
+  return error;
+}
+
+async function ensureBackendReady(signal) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 3000);
+  const abortFromRun = () => controller.abort();
+  if (signal?.aborted) {
+    clearTimeout(timeout);
+    const error = new Error("Run canceled");
+    error.name = "AbortError";
+    throw error;
+  }
+  signal?.addEventListener("abort", abortFromRun, { once: true });
+  try {
+    const response = await fetch(`${API_BASE}/healthz`, {
+      cache: "no-store",
+      signal: controller.signal
+    });
+    if (!response.ok) {
+      throw new Error(`healthz HTTP ${response.status}`);
+    }
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw backendUnavailableError(error);
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener("abort", abortFromRun);
+  }
 }
 
 function typeOf(value) {
@@ -1424,6 +1664,21 @@ function isCapacityCase(testCase) {
   return testCase.category === "capacity" || testCase.capacity_case;
 }
 
+function isVlmCase(testCase) {
+  const capability = String(testCase.requires_model_capability || "").toLowerCase();
+  return testCase.category === "multimodal"
+    || capability.startsWith("vision")
+    || (testCase.parameters || []).some((param) => String(param).includes("image_url"));
+}
+
+function isOptionalExtensionCase(testCase) {
+  return Boolean(testCase.optional) && !isVlmCase(testCase) && !isCapacityCase(testCase);
+}
+
+function isDefaultSelectedCase(testCase) {
+  return !testCase.optional && !isVlmCase(testCase);
+}
+
 function focusParametersForCase(testCase) {
   if (isCapacityCase(testCase)) return [];
   return (testCase.parameters || []).filter((param) => !foundationalCaseParameters.has(param));
@@ -1471,18 +1726,21 @@ function capacityCaseDisplay(testCase) {
     ? `${formatCapacityTier(candidates[0])} → ${formatCapacityTier(candidates[candidates.length - 1])}`
     : "常见档位";
   if (probe.kind === "total_context") {
+    const ratio = Number(probe.context_safety_margin_ratio || CONTEXT_CAPACITY_SAFETY_MARGIN_RATIO);
     return {
-      title: "最大 Total Context 上限",
-      relation: "总上下文上限",
-      meta: "档位递进",
-      chips: [range, `保留输出 ${probe.context_output_tokens || 8} tokens`]
+      kind: "total_context",
+      title: "最大Total Context",
+      relation: "最大Total Context",
+      meta: "逐档测试",
+      chips: [range, `按档位减 ${trimNumber(ratio * 100, 1)}% 探测`, `保留输出 ${probe.context_output_tokens || 8} tokens`]
     };
   }
   return {
-    title: "最大 Max Output 上限",
-    relation: "输出上限",
-    meta: "档位递进",
-    chips: [range, "逐档压测"]
+    kind: "max_output",
+    title: "最大Max Output",
+    relation: "最大Max Output",
+    meta: "逐档测试",
+    chips: [range, "逐档测试"]
   };
 }
 
@@ -1490,8 +1748,18 @@ function partitionCases(cases = []) {
   const singles = new Map();
   const combos = [];
   const scenarios = [];
+  const vlm = [];
+  const optional = [];
 
   for (const testCase of cases) {
+    if (isVlmCase(testCase)) {
+      vlm.push(testCase);
+      continue;
+    }
+    if (isOptionalExtensionCase(testCase)) {
+      optional.push(testCase);
+      continue;
+    }
     const focusParams = focusParametersForCase(testCase);
     if (focusParams.length === 1) {
       const param = focusParams[0];
@@ -1506,7 +1774,7 @@ function partitionCases(cases = []) {
     scenarios.push(testCase);
   }
 
-  return { singles, combos, scenarios };
+  return { singles, combos, scenarios, vlm, optional };
 }
 
 function capacityCasesForProvider(providerId = currentProviderId()) {
@@ -1517,9 +1785,9 @@ function capacityCasesForProvider(providerId = currentProviderId()) {
   return [
     {
       case_id: "capacity_max_output_boundary",
-      title: "最大 Max Output 上限",
+      title: "最大Max Output",
       category: "capacity",
-      parameters: ["Max Output"],
+      parameters: ["最大Max Output"],
       method: "POST",
       path: "/chat/completions",
       custom: true,
@@ -1536,9 +1804,9 @@ function capacityCasesForProvider(providerId = currentProviderId()) {
     },
     {
       case_id: "capacity_total_context_boundary",
-      title: "最大 Total Context 上限",
+      title: "最大Total Context",
       category: "capacity",
-      parameters: ["Total Context"],
+      parameters: ["最大Total Context"],
       method: "POST",
       path: "/chat/completions",
       custom: true,
@@ -1548,11 +1816,12 @@ function capacityCasesForProvider(providerId = currentProviderId()) {
         __capacity_probe: {
           kind: "total_context",
           candidates: CAPACITY_CANDIDATES,
+          context_safety_margin_ratio: CONTEXT_CAPACITY_SAFETY_MARGIN_RATIO,
           context_output_tokens: 8
         }
       },
       expect: { http_status: 200, support_conclusion: "supported" },
-      notes: [`按常见总上下文档位从高到低测试：${candidateText}`]
+      notes: [`按常见总上下文档位从高到低测试：${candidateText}；实际请求按每档减 ${trimNumber(CONTEXT_CAPACITY_SAFETY_MARGIN_RATIO * 100, 1)}% 构造，避免 tokenizer 临界误差。`]
     }
   ];
 }
@@ -1677,13 +1946,14 @@ function contextualCaseTitle(title, context = {}) {
 }
 
 const caseIntentZh = {
-  capacity_max_output_boundary: "从常见档位降档请求，定位该模型可用的最大输出上限。",
-  capacity_total_context_boundary: "从常见档位降档请求，定位该模型可用的最大上下文上限。",
+  capacity_max_output_boundary: "从常见档位降档请求，定位该模型可用的 最大Max Output。",
+  capacity_total_context_boundary: "从常见档位降档请求，定位该模型可用的 最大Total Context。",
   sf_reasoning_enable_thinking: "开启后应返回 reasoning_content 或 reasoning tokens。",
   sf_reasoning_disable_thinking_no_output: "关闭后不应返回 thinking 内容或 reasoning tokens。",
   sf_reasoning_thinking_budget: "验证 thinking_budget 是否能约束推理预算。",
   sf_reasoning_effort_medium: "验证 OpenAI-style reasoning_effort 是否被接收。",
   sf_reasoning_combo_budget_effort: "验证多种推理控制参数同时传入时是否被接收。",
+  sf_prefix_completion: "验证返回内容是否真的从给定 assistant 前缀继续生成，适合 DeepSeek-V4-Pro / Flash。",
   sf_sampling_frequency_penalty: "验证合法范围内的频率惩罚参数是否被接收。",
   sf_length_max_tokens: "验证输出长度限制是否被接收并生效。",
   sf_length_max_tokens_stop: "验证长度限制和停止词同时传入时是否被接收。"
@@ -1695,11 +1965,11 @@ function capabilityRequirementText(testCase) {
 }
 
 function capacityIntentText(capacityDisplay) {
-  const [range, strategy] = capacityDisplay.chips || [];
-  if (/Total Context/i.test(capacityDisplay.title)) {
-    return `按 ${range || "常见档位"} 递进探测，${strategy || "保留少量输出"}。`;
+  const [range, margin, outputBudget] = capacityDisplay.chips || [];
+  if (capacityDisplay.kind === "total_context") {
+    return `按 ${range || "常见档位"} 递进探测，${margin || "按档位预留安全余量"}，${outputBudget || "保留少量输出"}。`;
   }
-  return `按 ${range || "常见档位"} 递进探测，记录可用输出上限。`;
+  return `按 ${range || "常见档位"} 递进探测，记录可用 最大Max Output。`;
 }
 
 function caseIntentText(testCase, context = {}, capacityDisplay = null, title = "") {
@@ -1953,8 +2223,8 @@ function renderParameterCatalog(channel, data = null) {
   const capacityHtml = capacityCases.length ? `
     <div class="parameter-group parameter-group--capacity">
       <div class="parameter-group__name">
-        <span>容量边界</span>
-        ${renderBulkSelect(capacityIds, "容量测试", "suite-bulk-select")}
+        <span>最大Max Output / 最大Total Context</span>
+        ${renderBulkSelect(capacityIds, "本组", "suite-bulk-select")}
       </div>
       <div class="coverage-grid">
         ${capacityCases.map((testCase) => `
@@ -1994,7 +2264,7 @@ async function loadCaseSelectorForChannel() {
   state.isCaseLoading = true;
   els.caseGroups.innerHTML = '<div class="case-loading">正在从后端加载 cases...</div>';
   els.selectedCaseCount.textContent = "已选 0 个";
-  els.caseSelectorHint.textContent = `后端用例接口：${API_BASE}/api/providers/${providerId}/cases?${endpointQuery()}`;
+  els.caseSelectorHint.textContent = "正在加载测试用例...";
   updateRunAvailability();
 
   try {
@@ -2003,17 +2273,24 @@ async function loadCaseSelectorForChannel() {
     const data = await response.json();
     if (state.selectedChannelId !== channelId) return;
     state.providerCases[cacheKey] = data;
-    state.selectedCaseIds = new Set(data.cases.map((testCase) => testCase.case_id));
+    state.selectedCaseIds = new Set(data.cases.filter(isDefaultSelectedCase).map((testCase) => testCase.case_id));
     const endpoint = getChannelEndpoint(channel);
     setBaseUrlValue(endpoint?.default_base_url || data.base_url || channel.default_base_url);
     els.modelName.value = endpoint?.default_model || data.default_model || channel.default_model;
+    const vlmCount = (data.cases || []).filter(isVlmCase).length;
+    const vlmText = vlmCount ? ` · VLM ${vlmCount} 个可选 case` : "";
+    const optionalCount = (data.cases || []).filter(isOptionalExtensionCase).length;
+    const optionalText = optionalCount ? ` · 扩展 ${optionalCount} 个可选 case` : "";
     const capacityCount = capacityCasesForProvider(providerId).length;
-    const capacityText = capacityCount ? ` · 容量测试 ${capacityCount} 个可选 case` : "";
-    els.suiteTitle.textContent = `测试套件：${channel.name} / ${getSelectedEndpointTemplate().label}（${flattenParameters(channel).length} 个重点参数 · ${data.cases.length} 个 case${capacityText}）`;
+    const capacityText = capacityCount ? ` · 最大Max Output / 最大Total Context 测试 ${capacityCount} 个可选 case` : "";
+    els.suiteTitle.textContent = `测试套件：${channel.name} / ${getSelectedEndpointTemplate().label}（${flattenParameters(channel).length} 个重点参数 · ${data.cases.length} 个 case${optionalText}${vlmText}${capacityText}）`;
+    els.caseSelectorHint.textContent = "默认勾选常规 case，扩展、VLM 和 最大Max Output / 最大Total Context 测试按需开启。";
+    state.isCaseLoading = false;
     renderParameterCatalog(channel, data);
     renderCaseSelector(data);
   } catch (error) {
     if (state.selectedChannelId !== channelId) return;
+    state.isCaseLoading = false;
     state.providerCases[cacheKey] = null;
     els.caseGroups.innerHTML = `
       <div class="case-error">
@@ -2021,7 +2298,7 @@ async function loadCaseSelectorForChannel() {
         <span>请先启动 8080 端口上的 Go 后端，再运行 ${escapeHtml(channel.name)} 用例。</span>
       </div>
     `;
-    els.caseSelectorHint.textContent = `加载后端用例失败：${error.message}`;
+    els.caseSelectorHint.textContent = `测试用例加载失败：${error.message}`;
     renderSelectedCaseCount();
   } finally {
     if (state.selectedChannelId === channelId) {
@@ -2042,6 +2319,8 @@ function renderCaseSelector(data) {
   const capacityCases = capacityCasesForProvider();
   els.caseGroups.innerHTML = [
     renderCaseOverview(data, partition),
+    renderOptionalCaseSection(partition.optional),
+    renderVlmCaseSection(partition.vlm),
     renderCapacityCaseSection(capacityCases),
     renderCustomCaseSection(),
     renderSingleParameterSection(partition.singles),
@@ -2052,11 +2331,29 @@ function renderCaseSelector(data) {
   renderSelectedCaseCount();
 }
 
+function renderOptionalCaseSection(cases) {
+  if (!cases.length) return "";
+  return renderCaseSection(
+    "可选扩展用例",
+    "这些 case 会验证 provider 或模型扩展能力，例如前缀续写、stream 与 tools 组合；默认不选。",
+    cases
+  );
+}
+
+function renderVlmCaseSection(cases) {
+  if (!cases.length) return "";
+  return renderCaseSection(
+    "VLM 图像用例（可选）",
+    "这部分会使用图像输入，需要视觉模型。默认不选；切到 VLM 模型后再开启。",
+    cases
+  );
+}
+
 function renderCapacityCaseSection(cases) {
   if (!cases.length) return "";
   return renderCaseSection(
-    "容量边界测试（可选）",
-    "探测可用的最大 Max Output 和 Total Context；同一模型内逐档串行，不同 target 可并发。默认不选，避免额外消耗额度。",
+    "最大Max Output / 最大Total Context 测试（可选）",
+    "分别探测 最大Max Output 和 最大Total Context；同一模型内逐档串行，不同 target 可并发。默认不选，避免额外消耗额度。",
     cases
   );
 }
@@ -2086,11 +2383,12 @@ function renderContextualCaseTable(cases, context = {}) {
 function renderCaseOverview(data, partition) {
   const singleCount = Array.from(partition.singles.values()).reduce((sum, cases) => sum + cases.length, 0);
   const focusParamCount = new Set((data.cases || []).flatMap(focusParametersForCase)).size;
+  const vlmText = partition.vlm.length ? `，VLM ${partition.vlm.length} 个可选` : "";
   return `
     <div class="case-overview">
       <div>
         <strong>先选参数，再微调用例</strong>
-        <p>单参数 ${singleCount} 个，组合 ${partition.combos.length} 个，基础场景 ${partition.scenarios.length} 个；默认勾选常规 case，容量测试按需开启。</p>
+        <p>单参数 ${singleCount} 个，组合 ${partition.combos.length} 个，基础场景 ${partition.scenarios.length} 个${vlmText}；默认勾选常规 case，VLM 和 最大Max Output / 最大Total Context 测试按需开启。</p>
       </div>
       <span class="mono">${focusParamCount} 个重点参数有对应 case</span>
     </div>
@@ -2107,7 +2405,7 @@ function renderSingleParameterSection(singleMap) {
   const total = orderedEntries.reduce((sum, [, cases]) => sum + cases.length, 0);
   const allSingleCaseIds = orderedEntries.flatMap(([, cases]) => caseIdsForCases(cases));
   return `
-    <details class="case-group parameter-case-group" open>
+    <details class="case-group parameter-case-group">
       <summary>
         <span class="case-group__summary-main">
           <span class="case-group__summary-title">单参数用例</span>
@@ -2135,7 +2433,7 @@ function renderSingleParameterSection(singleMap) {
 
 function renderCaseSection(title, description, cases) {
   return `
-    <details class="case-group" open>
+    <details class="case-group">
       <summary>
         <span class="case-group__summary-main">
           <span class="case-group__summary-title">${escapeHtml(title)}</span>
@@ -2154,14 +2452,13 @@ function renderCaseItem(testCase, context = {}) {
   const capacityDisplay = isCapacityCase(testCase) ? capacityCaseDisplay(testCase) : null;
   const focusParams = focusParametersForCase(testCase);
   const foundationalParams = foundationalParametersForCase(testCase);
-  const hiddenParams = new Set([context.groupParameter].filter(Boolean));
-  const visibleFocusParams = focusParams.filter((param) => !hiddenParams.has(param));
-  const params = capacityDisplay
-    ? ""
-    : [
-        ...visibleFocusParams.map((param) => `<span class="is-focus">${escapeHtml(param)}</span>`),
-        ...foundationalParams.map((param) => `<span class="is-foundational">${escapeHtml(param)}</span>`)
-      ].join("");
+  const displayParams = capacityDisplay
+    ? testCase.parameters || []
+    : [...focusParams, ...foundationalParams];
+  const params = displayParams.map((param) => {
+    const chipClass = foundationalParams.includes(param) ? "is-foundational" : "is-focus";
+    return `<span class="${chipClass}">${escapeHtml(param)}</span>`;
+  }).join("");
   const parameterChips = params;
   const title = contextualCaseTitle(capacityDisplay?.title || caseTitle(testCase), context);
   const intent = caseIntentText(testCase, context, capacityDisplay, title);
@@ -2197,10 +2494,11 @@ function renderCaseItem(testCase, context = {}) {
 
 function renderSelectedCaseCount() {
   const data = state.providerCases[currentCaseCacheKey()];
-  const total = (data?.cases?.length || 0) + state.customCases.length;
-  const selected = state.selectedCaseIds.size;
+  const cases = allProviderCases();
+  const total = cases.length;
+  const selected = cases.filter((testCase) => state.selectedCaseIds.has(testCase.case_id)).length;
   const focusCount = selectedFocusParameterCount(data);
-  const focusTotal = new Set(allProviderCases().flatMap(focusParametersForCase)).size;
+  const focusTotal = new Set(cases.flatMap(focusParametersForCase)).size;
   const customText = state.customCases.length ? ` · 自定义 ${state.customCases.length} 个` : "";
   els.selectedCaseCount.textContent = `已选 ${selected} / ${total} 个 case · 覆盖 ${focusCount} / ${focusTotal} 个重点参数${customText}`;
   updateRunAvailability();
@@ -3428,6 +3726,10 @@ async function runProviderTests() {
   els.progressCase.textContent = "— 正在请求后端执行真实测试 ...";
 
   try {
+    appendRunText(`→ 检查后端连接：${API_BASE}`);
+    await ensureBackendReady(state.currentRunAbortController?.signal);
+    appendRunText("→ 后端已连接，开始真实测试");
+
     state.visibleResults = targets.flatMap((target, targetIndex) => {
       const context = runContextForTarget(target);
       return selectedCases.map((testCase, caseIndex) => ({
@@ -3458,14 +3760,21 @@ async function runProviderTests() {
     const runConcurrency = batchConcurrency();
     const capacitySelected = selectedCases.filter(isCapacityCase);
     if (capacitySelected.length) {
-      appendRunText(`→ 含容量探测 ${capacitySelected.length} 个：会逐档发真实请求，可能需要数分钟；${batchTextPresent ? "批量 target 当前会在整批完成后显示。" : "已完成 case 会实时显示。"}`);
+      appendRunText(`→ 含 最大Max Output / 最大Total Context 测试 ${capacitySelected.length} 个：会逐档发真实请求，可能需要数分钟；已完成 case 会实时显示。`);
     }
     if (batchTextPresent) {
       const selectedBuiltInCaseIds = selectedCases.filter((testCase) => !testCase.custom).map((testCase) => testCase.case_id);
       const selectedCustomCases = selectedCases.filter((testCase) => testCase.custom);
-      appendRunText(`→ 批量启动 ${targets.length} 个 target，并发 ${runConcurrency}，每个 target ${selectedCases.length} 个 case`);
+      const targetContexts = targets.map((target) => runContextForTarget(target));
+      state.batchRunRecords = targetContexts.map((context) => ({ context, results: [] }));
+      const targetProgress = targets.map((target, index) => ({
+        completed: 0,
+        total: selectedCases.length,
+        label: `${target.provider} / ${target.model || `target ${index + 1}`}`
+      }));
+      appendRunText(`→ 批量启动 ${targets.length} 个 target，并发 ${runConcurrency}，每个 target ${selectedCases.length} 个 case，实时返回结果`);
       targets.forEach((target, index) => appendRunText(`→ target ${index + 1}: ${target.provider} / ${target.model}`));
-      const response = await fetch(`${API_BASE}/api/run-batch`, {
+      const response = await fetch(`${API_BASE}/api/run-batch-stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: state.currentRunAbortController?.signal,
@@ -3478,29 +3787,70 @@ async function runProviderTests() {
           max_concurrency: runConcurrency
         })
       });
-      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
         throw new Error(data.error || `HTTP ${response.status}`);
       }
       if (!state.isRunning) return;
       let count = 0;
-      for (const targetResponse of data.targets || []) {
-        const target = targets[targetResponse.index] || targets[0] || {};
-        const context = runContextForTarget(target);
-        const mappedResults = (targetResponse.results || []).map((result, index) => mapRunResult(result, context, index));
-        if (targetResponse.error) {
-          appendRunText(`✗ ${targetResponse.label || context.model} 失败：${targetResponse.error}`);
+      let streamTotal = totalRuns;
+      let sawEnd = false;
+      await readRunStream(response, (event) => {
+        if (!state.isRunning) return;
+        if (event.type === "start") {
+          streamTotal = event.total || totalRuns;
+          els.progressCount.textContent = `0 / ${streamTotal}`;
+          els.progressCase.textContent = `— 后端已开始执行 ${targets.length} 个 target，等待首个 case 完成 ...`;
+          return;
         }
-        for (const result of mappedResults) {
-          state.completedResults.push(result);
-          appendLog(result);
-          count += 1;
-          els.progressCount.textContent = `${count} / ${totalRuns}`;
-          els.progressBar.style.width = `${Math.round((count / totalRuns) * 100)}%`;
+        if (event.type === "target_start") {
+          const targetNumber = Number.isInteger(event.target_index) ? event.target_index + 1 : "?";
+          appendRunText(`→ target ${targetNumber} 开始：${event.target_label || "target"}，${event.target_total || selectedCases.length} 个 case`);
+          return;
         }
-        if (mappedResults.length) {
-          state.batchRunRecords.push({ context, results: mappedResults });
+        if (event.type === "target_error") {
+          const targetNumber = Number.isInteger(event.target_index) ? event.target_index + 1 : "?";
+          appendRunText(`✗ target ${targetNumber} 失败：${event.error || "unknown error"}`);
+          return;
         }
+        if (event.type === "target_end") {
+          const targetNumber = Number.isInteger(event.target_index) ? event.target_index + 1 : "?";
+          const progress = targetProgress[event.target_index];
+          appendRunText(`✓ target ${targetNumber} 完成：${event.target_label || progress?.label || "target"}`);
+          return;
+        }
+        if (event.type === "error") {
+          throw new Error(event.error || "batch stream run failed");
+        }
+        if (event.type === "end") {
+          sawEnd = true;
+          return;
+        }
+        if (event.type !== "result" || !event.result) return;
+        const targetIndex = Number.isInteger(event.target_index) ? event.target_index : 0;
+        const context = targetContexts[targetIndex] || targetContexts[0] || runContextForTarget(targets[0]);
+        const mapped = mapRunResult(event.result, context, Number.isInteger(event.index) ? event.index : count);
+        state.completedResults.push(mapped);
+        if (!state.batchRunRecords[targetIndex]) {
+          state.batchRunRecords[targetIndex] = { context, results: [] };
+        }
+        state.batchRunRecords[targetIndex].results.push(mapped);
+        appendLog(mapped);
+        count += 1;
+        if (targetProgress[targetIndex]) targetProgress[targetIndex].completed += 1;
+        const targetStatus = targetProgress
+          .map((item, index) => `T${index + 1} ${item.completed}/${item.total}`)
+          .join(" · ");
+        els.progressCount.textContent = `${count} / ${streamTotal}`;
+        els.progressCase.textContent = `— 已完成 ${count}/${streamTotal}: T${targetIndex + 1} ${resultTitle(mapped)} · ${targetStatus}`;
+        els.progressBar.style.width = `${Math.round((count / streamTotal) * 100)}%`;
+        renderStats();
+        renderTabs();
+        renderResults();
+        els.resultsPanel.classList.remove("is-hidden");
+      });
+      if (!sawEnd && count < streamTotal && state.isRunning) {
+        throw new Error(`batch stream ended early: ${count}/${streamTotal}`);
       }
     } else {
       const target = targets[0];
@@ -3573,6 +3923,13 @@ async function runProviderTests() {
     if (error.name === "AbortError") {
       els.progressCase.textContent = "— 真实测试已取消";
       showToast("真实测试已取消，后端会停止未完成请求。");
+      return;
+    }
+    const backendUnavailable = error.isBackendUnavailable || isFetchNetworkError(error);
+    if (backendUnavailable) {
+      els.progressCase.textContent = "— 后端连接失败";
+      appendRunText(`✗ ${BACKEND_UNAVAILABLE_MESSAGE}`);
+      showToast(BACKEND_UNAVAILABLE_MESSAGE);
       return;
     }
     els.progressCase.textContent = "— 真实测试失败";
@@ -3852,7 +4209,7 @@ function capacityTargetLabel(result = {}) {
 }
 
 function capacityDisplayName(kind) {
-  return kind === "total_context" ? "Total Context" : "Max Output";
+  return kind === "total_context" ? "最大Total Context" : "最大Max Output";
 }
 
 function capacityResultValue(result = {}, kind = capacityKindFromResult(result)) {
@@ -4623,10 +4980,34 @@ function bindEvents() {
   els.baseUrlPreset?.addEventListener("change", () => {
     if (!els.baseUrlPreset.value) return;
     els.baseUrl.value = els.baseUrlPreset.value;
+    updateBatchTargetPlaceholders();
   });
 
   els.baseUrl?.addEventListener("input", () => {
     renderBaseUrlPreset(els.baseUrl.value);
+    updateBatchTargetPlaceholders();
+  });
+
+  els.apiKey?.addEventListener("input", updateBatchTargetPlaceholders);
+  els.modelName?.addEventListener("input", updateBatchTargetPlaceholders);
+
+  els.batchTargetRows?.addEventListener("click", (event) => {
+    const removeButton = event.target.closest("[data-remove-batch-target]");
+    if (!removeButton || state.isRunning) return;
+    removeBatchTargetRow(removeButton.closest("[data-batch-target-row]"));
+  });
+
+  els.batchTargetRows?.addEventListener("input", renderBatchTargetControlState);
+
+  els.batchAddTarget?.addEventListener("click", () => {
+    addBatchTargetRow();
+  });
+
+  els.batchImportTargets?.addEventListener("click", importBatchTargetsFromText);
+
+  els.batchTargets?.addEventListener("input", () => {
+    if (!state.batchModeEnabled) return;
+    renderBatchTargetControlState();
   });
 
   els.runTests.addEventListener("click", runTests);

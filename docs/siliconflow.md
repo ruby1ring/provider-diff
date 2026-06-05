@@ -217,12 +217,14 @@ Suggested SiliconFlow test groups:
 | Output | `response_format` |
 | Tools | `tools`, `tool_choice` |
 | Protocol | `stream` |
+| Prefix continuation | `messages[].prefix` |
 | Metadata / Observability | response header `x-siliconcloud-trace-id`, usage cache fields |
 | Vision / Multimodal | `messages[].content[]`, `messages[].content[].image_url`, `image_url.detail`, `video_url`, `audio_url` |
 
 Compatibility points to test against OpenAI:
 
 - `top_k`, `min_p`, `enable_thinking`, and `thinking_budget` are provider/model-specific extensions.
+- `messages[].prefix` is a model/provider-extension probe for assistant prefix continuation. Keep it optional and verify that the returned assistant content starts with the requested prefix.
 - VLM inputs use OpenAI-style content arrays, but support is model-gated. Keep image/video/audio cases optional or marked with `requires_model_capability`.
 - `reasoning_content` can appear inside `choices[].message` for supported reasoning models.
 - `usage` can include provider-specific cache and reasoning-token breakdown fields.

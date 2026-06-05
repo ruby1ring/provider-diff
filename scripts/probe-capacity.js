@@ -8,6 +8,7 @@ const MESSAGE_PROVIDERS = ["claude", "deepseek", "minimax", "siliconflow", "open
 const COMMON_CAPACITY_CANDIDATES = [4194304, 2097152, 1048576, 524288, 262144, 131072, 65536, 32768, 16384, 8192, 4096, 2048, 1024];
 const DEFAULT_OUTPUT_CANDIDATES = COMMON_CAPACITY_CANDIDATES;
 const DEFAULT_CONTEXT_CANDIDATES = COMMON_CAPACITY_CANDIDATES;
+const DEFAULT_CONTEXT_SAFETY_MARGIN_RATIO = 0.05;
 
 const OUTPUT_PARAM_BY_PROVIDER = {
   openai: "max_completion_tokens",
@@ -34,6 +35,7 @@ Options:
   --max-output-candidates list    Descending integer or k/m list. Default: ${formatCandidateList(DEFAULT_OUTPUT_CANDIDATES)}.
   --context-candidates list       Descending integer or k/m list. Default: ${formatCandidateList(DEFAULT_CONTEXT_CANDIDATES)}.
   --context-output-tokens n       Output budget used during context probes. Default: 8.
+  --context-safety-margin-ratio n Ratio subtracted from each context tier. Default: ${DEFAULT_CONTEXT_SAFETY_MARGIN_RATIO}.
   --timeout-ms n                  Per-request timeout. Default: 180000.
   --retries n                     Retries for transient 429/5xx/network failures. Default: 2.
   --max-concurrency n             Concurrent provider/model targets. Default: 2.
@@ -60,6 +62,7 @@ function parseArgs(argv) {
     outputCandidates: DEFAULT_OUTPUT_CANDIDATES,
     contextCandidates: DEFAULT_CONTEXT_CANDIDATES,
     contextOutputTokens: 8,
+    contextSafetyMarginRatio: DEFAULT_CONTEXT_SAFETY_MARGIN_RATIO,
     timeoutMs: 180000,
     retries: 2,
     maxConcurrency: 2,
@@ -99,6 +102,8 @@ function parseArgs(argv) {
       args.contextCandidates = parseCandidateList(next(), "--context-candidates");
     } else if (item === "--context-output-tokens") {
       args.contextOutputTokens = positiveInt(next(), "--context-output-tokens");
+    } else if (item === "--context-safety-margin-ratio") {
+      args.contextSafetyMarginRatio = ratioValue(next(), "--context-safety-margin-ratio");
     } else if (item === "--timeout-ms") {
       args.timeoutMs = positiveInt(next(), "--timeout-ms");
     } else if (item === "--retries") {
@@ -141,6 +146,12 @@ function splitCSV(value) {
 function positiveInt(value, name) {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) throw new Error(`${name} must be a positive integer`);
+  return parsed;
+}
+
+function ratioValue(value, name) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed >= 1) throw new Error(`${name} must be a number greater than 0 and less than 1`);
   return parsed;
 }
 
@@ -281,10 +292,36 @@ function outputProbePayload(target, candidate) {
   return basePayload(target, "Reply exactly: OK", candidate);
 }
 
-function contextProbePayload(target, totalContextTokens, outputTokens) {
-  const estimatedInputTokens = Math.max(1, totalContextTokens - outputTokens);
+function contextProbePayload(target, totalContextTokens, outputTokens, safetyMarginRatio) {
+  const tested = contextProbeSizing(totalContextTokens, outputTokens, safetyMarginRatio);
+  const estimatedInputTokens = tested.estimated_input_tokens;
   const content = longPrompt(estimatedInputTokens);
   return basePayload(target, content, outputTokens);
+}
+
+function contextProbeSizing(totalContextTokens, outputTokens, safetyMarginRatio) {
+  const candidate = Math.max(1, Number(totalContextTokens) || 1);
+  const output = Math.max(1, Number(outputTokens) || 1);
+  const ratio = Math.min(Math.max(0, Number(safetyMarginRatio) || 0), 0.99);
+  const appliedMargin = Math.round(candidate * ratio);
+  let testedTotal = candidate - appliedMargin;
+  const minTotal = output + 1;
+  let finalMargin = appliedMargin;
+  if (testedTotal < minTotal) {
+    testedTotal = minTotal;
+    finalMargin = Math.max(0, candidate - testedTotal);
+  }
+  return {
+    tested_total_context_tokens: testedTotal,
+    tested_total_context_display: formatTokenUnit(testedTotal),
+    applied_context_safety_margin_tokens: finalMargin,
+    applied_context_safety_margin_display: formatTokenUnit(finalMargin),
+    context_safety_margin_ratio: ratio,
+    context_safety_margin_percent: ratio * 100,
+    estimated_input_tokens: Math.max(1, testedTotal - output),
+    requested_max_output_tokens: output,
+    estimated_total_context_tokens: testedTotal
+  };
 }
 
 function longPrompt(estimatedInputTokens) {
@@ -449,7 +486,13 @@ function formatTokenUnit(value) {
   const oneM = 1024 * 1024;
   if (abs >= oneM && abs % oneM === 0) return `${sign}${abs / oneM}m`;
   if (abs >= 1024 && abs % 1024 === 0) return `${sign}${abs / 1024}k`;
+  if (abs >= oneM) return `${sign}${trimNumber(abs / oneM, 1)}m`;
+  if (abs >= 1024) return `${sign}${trimNumber(abs / 1024, 1)}k`;
   return `${value}`;
+}
+
+function trimNumber(value, digits = 1) {
+  return Number(value.toFixed(digits)).toString();
 }
 
 function formatCandidateList(candidates) {
@@ -461,6 +504,8 @@ function displayAttempt(attempt) {
   return {
     candidate: attempt.candidate,
     candidate_display: formatTokenUnit(attempt.candidate),
+    tested_total_context_tokens: attempt.tested_total_context_tokens,
+    tested_total_context_display: attempt.tested_total_context_display,
     conclusion: attempt.conclusion,
     http_status: attempt.http_status,
     error: attempt.error
@@ -471,14 +516,17 @@ function summarizeAttempts(candidates, attempts, stoppedByBoundary) {
   const sortedAttempts = [...attempts].sort((a, b) => b.candidate - a.candidate);
   const supported = attempts.filter((attempt) => attempt.conclusion === "supported");
   const supportedMax = supported.length ? Math.max(...supported.map((attempt) => attempt.candidate)) : null;
+  const supportedAttempt = supportedMax === null ? null : attempts.find((attempt) => attempt.candidate === supportedMax && attempt.conclusion === "supported");
   const firstSupportedIndex = supported.length ? sortedAttempts.findIndex((attempt) => attempt.candidate === supportedMax && attempt.conclusion === "supported") : -1;
   const nearestHigherNonSupported = firstSupportedIndex > 0 ? sortedAttempts[firstSupportedIndex - 1] : null;
   const topAttempt = sortedAttempts[0] || null;
   const lowestCandidateAttempted = attempts.length ? attempts[attempts.length - 1].candidate : null;
   const nonMonotonicResults = supportedMax !== null && attempts.some((attempt) => attempt.candidate < supportedMax && attempt.conclusion !== "supported");
-  return {
+  const summary = {
     supported_max: supportedMax,
     supported_max_display: formatTokenUnit(supportedMax),
+    supported_tested_total_context_tokens: supportedAttempt?.tested_total_context_tokens,
+    supported_tested_total_context_display: supportedAttempt?.tested_total_context_display,
     tested_all_candidates: attempts.length === candidates.length,
     top_candidate: candidates[0] || null,
     top_candidate_display: formatTokenUnit(candidates[0] || null),
@@ -500,6 +548,7 @@ function summarizeAttempts(candidates, attempts, stoppedByBoundary) {
             ? "tested_all_candidates_without_supported_candidate"
             : "tested_all_candidates_with_upper_bound"
   };
+  return summary;
 }
 
 function hostOnly(urlValue) {
@@ -555,14 +604,12 @@ async function probeTarget(target, args) {
       target,
       "total_context",
       args.contextCandidates,
-      (candidate) => contextProbePayload(target, candidate, args.contextOutputTokens),
+      (candidate) => contextProbePayload(target, candidate, args.contextOutputTokens, args.contextSafetyMarginRatio),
       args,
-      (candidate) => ({
-        estimated_input_tokens: Math.max(1, candidate - args.contextOutputTokens),
-        requested_max_output_tokens: args.contextOutputTokens,
-        estimated_total_context_tokens: candidate
-      })
+      (candidate) => contextProbeSizing(candidate, args.contextOutputTokens, args.contextSafetyMarginRatio)
     );
+    result.probes.total_context.context_safety_margin_ratio = args.contextSafetyMarginRatio;
+    result.probes.total_context.context_safety_margin_percent = args.contextSafetyMarginRatio * 100;
   }
 
   return result;
@@ -581,7 +628,7 @@ function printPlan(targets, args) {
   console.log(`Probes: ${args.probes.join(", ")}`);
   console.log(`Max concurrency: ${args.maxConcurrency}`);
   if (args.probes.includes("output")) console.log(`Max output candidates: ${formatCandidateList(args.outputCandidates)}`);
-  if (args.probes.includes("context")) console.log(`Context candidates: ${formatCandidateList(args.contextCandidates)}; context output budget: ${args.contextOutputTokens}`);
+  if (args.probes.includes("context")) console.log(`Context candidates: ${formatCandidateList(args.contextCandidates)}; context safety margin: ${trimNumber(args.contextSafetyMarginRatio * 100, 1)}%; context output budget: ${args.contextOutputTokens}`);
 }
 
 function conclusionLine(target, probeKey, label) {
@@ -592,13 +639,16 @@ function conclusionLine(target, probeKey, label) {
 function displayConclusion(probe) {
   if (!probe) return null;
   if (probe.upper_bound_found && probe.supported_max_display) {
-    return `${probe.supported_max_display}（${probe.nearest_higher_non_supported?.candidate_display || "更高档位"}不支持）`;
+    const tested = probe.supported_tested_total_context_display ? `按${probe.supported_tested_total_context_display}探测，` : "";
+    return `${probe.supported_max_display}（${tested}${probe.nearest_higher_non_supported?.candidate_display || "更高档位"}不支持）`;
   }
   if (probe.top_candidate_supported && probe.supported_max_display) {
-    return `>= ${probe.supported_max_display}（最高候选档位已支持）`;
+    const tested = probe.supported_tested_total_context_display ? `按${probe.supported_tested_total_context_display}探测，` : "";
+    return `>= ${probe.supported_max_display}（${tested}最高候选档位已支持）`;
   }
   if (probe.supported_max_display) {
-    return `${probe.supported_max_display}（边界未完全括定）`;
+    const tested = probe.supported_tested_total_context_display ? `按${probe.supported_tested_total_context_display}探测，` : "";
+    return `${probe.supported_max_display}（${tested}边界未完全括定）`;
   }
   return "当前候选档位内未测到支持项";
 }
@@ -649,12 +699,14 @@ async function main() {
     context_candidates: args.contextCandidates,
     context_candidates_display: args.contextCandidates.map(formatTokenUnit),
     context_output_tokens: args.contextOutputTokens,
+    context_safety_margin_ratio: args.contextSafetyMarginRatio,
+    context_safety_margin_percent: args.contextSafetyMarginRatio * 100,
     retries: args.retries,
     max_concurrency: args.maxConcurrency,
     stop_on_first_pass: args.stopOnFirstPass,
     exhaustive: args.exhaustive,
     stop_after_boundary: !args.exhaustive,
-    note: "max_output is an acceptance probe for common output budget tiers, not proof that the provider generated that many output tokens. total_context candidates represent common estimated total context tiers; the generated input is candidate minus the small output budget, and provider usage is recorded when available.",
+    note: "max_output is an acceptance probe for common output budget tiers, not proof that the provider generated that many output tokens. total_context results are displayed on common candidate tiers, but each request subtracts a safety margin before generating filler text to avoid tokenizer and message-wrapper edge effects; provider usage is recorded when available.",
     targets: []
   };
 
