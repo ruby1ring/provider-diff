@@ -14,8 +14,8 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "cn.siliconflow.providerx",
-    "productName": "ProviderX",
+    "appId": "cn.siliconflow.noctua",
+    "productName": "Noctua",
     "asar": false,
     "files": [
       "index.html",
@@ -53,7 +53,7 @@
     },
     "dmg": {
       "icon": "build/icon.icns",
-      "artifactName": "ProviderX-${version}-${arch}.${ext}"
+      "artifactName": "Noctua-${version}-${arch}.${ext}"
     }
   },
   "dependencies": {

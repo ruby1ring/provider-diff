@@ -1,26 +1,39 @@
-# ProviderX
+# Noctua
 
-ProviderX is a provider protocol compatibility and gateway policy testing tool for OpenAI-compatible and provider-specific chat APIs.
+**Noctua** is an LLM provider protocol compatibility and gateway policy testing tool. It runs structured cases against OpenAI-compatible (and provider-specific) Chat Completions APIs to show which parameters are supported, rejected, or silently ignored, and how response shapes differ from the baseline.
+
+This repository’s internal name remains **provider-diff** for Docker images, Compose services, CI, and the embedded backend binary. The product-facing name (Web UI, macOS app, reports) is **Noctua**.
+
+## Naming
+
+| Context | Name |
+| --- | --- |
+| Product, Web UI, macOS `.app`, exported reports | **Noctua** |
+| Git repository, npm package, Docker image / Compose service | `provider-diff` |
+| Embedded backend process binary | `provider-diff-backend` |
+| macOS Bundle ID (desktop app) | `cn.siliconflow.noctua` |
 
 ## Quick start
 
-Start the frontend and Go backend locally:
+Start the static frontend and Go backend locally:
 
 ```sh
 npm run dev
 ```
 
-Open the local URL printed by the dev script, choose a provider, enter an API key locally, and run the compatibility cases.
+Open http://127.0.0.1:4173 (or the URL printed by the dev script). Choose a provider, enter an API key in the browser, and run compatibility cases.
+
+Requirements: Node.js (for `npm`), Python 3 (`http.server`), and Go (for `go run` in `backend/`).
 
 ## Local configuration
 
-Runtime API keys should stay local and are intentionally ignored by Git. To create a local config file:
+API keys stay on your machine and are not committed. To use a local config file for non-UI tooling:
 
 ```sh
 cp config.example.yaml config.yaml
 ```
 
-Then replace the placeholder API keys in `config.yaml`.
+Replace the placeholder API keys in `config.yaml`.
 
 ## Capacity probes
 
@@ -49,45 +62,55 @@ Capacity probes support target-level concurrency with `--max-concurrency`. Each 
 
 See `docs/capacity-probe-methodology.md` for the testing methodology and result interpretation rules.
 
-## Docker Compose
+## macOS desktop (Noctua)
 
-Start the frontend, Go backend, EvalScope dashboard, and OpenCompass Web together:
+Build a self-contained macOS app with the UI and embedded Go backend. **These commands run only on macOS**.
 
-```sh
-docker compose up --build
-```
+**Requirements:** macOS, Node.js, Go, Xcode Command Line Tools (`iconutil`).
 
-Then open http://localhost:4173.
-
-## macOS DMG
-
-Build a self-contained macOS desktop app with the static UI and embedded Go backend:
+### Production DMG
 
 ```sh
 npm install
 npm run dist:dmg
 ```
 
-The DMG is written to `dist/`. The desktop app starts its own local backend on a free `127.0.0.1` port and passes that backend URL into the UI, so it does not require Docker Compose or a deployed frontend.
+Output: `dist/Noctua-<version>-<arch>.dmg`.
 
-The local build is unsigned unless you configure a macOS Developer ID certificate, so macOS may require right-clicking the app and choosing Open the first time.
+The app starts its own backend on a free `127.0.0.1` port and passes that URL into the UI. Docker Compose is not required.
 
-GitHub Actions also builds the DMG from the `Release DMG` workflow on every push to `main` or manual run. Each successful run replaces the fixed `latest` GitHub Release with one asset named `ProviderX-latest-macOS.dmg`, so the public download URL stays stable: `https://github.com/siliconflow/provider-diff/releases/download/latest/ProviderX-latest-macOS.dmg`.
+Unsigned local builds may be blocked on first launch; use **right-click → Open** if Gatekeeper warns.
 
-EvalScope and OpenCompass Docker services are not bundled by default. The desktop shell is ready to start bundled service executables when they exist:
+GitHub Actions also builds the DMG from the `Release DMG` workflow on every push to `main` or manual run. Each successful run replaces the fixed `latest` GitHub Release with one asset named `Noctua-latest-macOS.dmg`, so the public download URL stays stable: `https://github.com/siliconflow/provider-diff/releases/download/latest/Noctua-latest-macOS.dmg`.
 
-- `desktop/services/evalscope-service`
-- `desktop/services/opencompass-service`
+**Bundle ID:** `cn.siliconflow.noctua`.
 
-When those executables are present at packaging time, the app starts them on free local ports and injects their URLs into the EvalScope/OpenCompass tabs. Without those executables, the tabs keep using their external local-service URLs.
-
-For local desktop smoke testing without producing a DMG:
+### Local smoke test (no DMG)
 
 ```sh
 npm run desktop:dev
 ```
 
-If Docker Hub is slow or blocked in the target environment, use local cached base images or a reachable registry:
+### Optional bundled services
+
+EvalScope and OpenCompass are not in the DMG by default. The shell can start bundled executables when present at package time:
+
+- `desktop/services/evalscope-service`
+- `desktop/services/opencompass-service`
+
+If they are missing, the EvalScope / OpenCompass tabs use external URLs (same as the web dev flow).
+
+## Docker Compose
+
+Start the **provider-diff** stack (Noctua UI + Go API + EvalScope + OpenCompass):
+
+```sh
+docker compose up --build
+```
+
+Open http://localhost:4173.
+
+If Docker Hub is slow or blocked, pin local base images:
 
 ```sh
 GO_BASE_IMAGE=golang:1.24.8-alpine \
@@ -97,18 +120,29 @@ OPENCOMPASS_BASE_IMAGE=python:3.12-slim \
 docker compose up --build
 ```
 
-Published ports:
+### Published ports
 
-- `4173`: ProviderX frontend
-- `8080`: ProviderX Go backend API
-- `9000`: EvalScope dashboard at http://localhost:9000/dashboard
-- `9100`: OpenCompass Web wrapper at http://localhost:9100/
+| Port | Service |
+| --- | --- |
+| `4173` | Web UI (Noctua branding) |
+| `8080` | Go backend API (`provider-diff-backend` in container) |
+| `9000` | EvalScope dashboard — http://localhost:9000/dashboard |
+| `9100` | OpenCompass Web — http://localhost:9100/ |
 
-OpenCompass is also available from the main UI's OpenCompass tab. The wrapper runs OpenCompass CLI jobs, shows recent outputs, and keeps links to the official CompassRank and CompassHub pages.
+OpenCompass is also available from the OpenCompass tab in the UI.
+
+## Docker image (API + UI only)
+
+```sh
+docker build -t provider-diff .
+docker run --rm -p 4173:4173 -p 8080:8080 provider-diff
+```
+
+Open http://localhost:4173. The UI expects the backend at http://localhost:8080 — publish both ports.
 
 ## CI/CD
 
-The GitHub Actions workflow in `.github/workflows/deploy.yml` validates the project and deploys `main` with Docker Compose on the self-hosted runner labeled `provider-diff`.
+The workflow in `.github/workflows/deploy.yml` validates and deploys `main` with Docker Compose on the self-hosted runner labeled `provider-diff`.
 
 Register the runner on `dev-02`:
 
@@ -119,22 +153,46 @@ RUNNER_TOKEN=<github-registration-token> ./setup-github-runner.sh
 nohup ./run.sh > runner.log 2>&1 &
 ```
 
-Create the registration token from GitHub repository settings: Settings -> Actions -> Runners -> New self-hosted runner.
+Create the registration token from GitHub: **Settings → Actions → Runners → New self-hosted runner**.
 
-## Docker Image
+## Troubleshooting
 
-Build only the ProviderX frontend/backend image:
+### `build/icon.icns` missing or DMG build fails on icon
 
-```sh
-docker build -t provider-diff .
-```
-
-Run only ProviderX without EvalScope:
+On macOS, regenerate the icon set (also run automatically by `npm run dist:dmg`):
 
 ```sh
-docker run --rm -p 4173:4173 -p 8080:8080 provider-diff
+bash scripts/build-mac-icon.sh
 ```
 
-Then open http://localhost:4173.
+Ensure `assets/noctua/icon.png` exists in the repo (1024×1024 source for the app icon).
 
-The frontend calls the backend at `http://localhost:8080`, so publish both ports when running locally.
+### Header logo does not appear
+
+Confirm `assets/noctua/icon.png` is present and that you open the UI via `http://127.0.0.1:4173/` (not a `file://` path without assets).
+
+### Browser history or Feishu settings seem empty after upgrade
+
+The UI migrates data from legacy `llm-rosetta-*` and `providerx-*` localStorage keys to `noctua-*` on first read. Reload once; no manual export is required.
+
+### `npm run desktop:dev` or `dist:dmg` fails on Linux / Windows
+
+Desktop packaging is **macOS-only** by design (`scripts/build-dmg.js`). Use `npm run dev` or Docker on other platforms.
+
+## Runtime check (maintainers)
+
+After branding or packaging changes, on macOS:
+
+```sh
+cd backend && go test ./...
+bash scripts/build-mac-icon.sh
+npm run dev
+# optional: npm run desktop:dev
+# optional: npm run dist:dmg
+```
+
+Web/Docker flows do not depend on `build/icon.icns` or Electron.
+
+## 协作开发
+
+请勿在本地长期直接修改并 push `main`。请使用功能分支 + Pull Request，流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。仓库管理员可为 `main` 配置分支保护，见 [docs/branch-protection.md](docs/branch-protection.md)。

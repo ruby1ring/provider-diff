@@ -62,7 +62,7 @@ jobs:
             echo "No DMG found under dist/" >&2
             exit 1
           fi
-          cp "${dmg}" dist/ProviderX-latest-macOS.dmg
+          cp "${dmg}" dist/Noctua-latest-macOS.dmg
 
       - name: Replace latest GitHub Release
         env:
@@ -73,7 +73,7 @@ jobs:
           gh release delete latest --yes --cleanup-tag || true
           git tag -f latest "${GITHUB_SHA}"
           git push origin "refs/tags/latest" --force
-          gh release create latest dist/ProviderX-latest-macOS.dmg \
+          gh release create latest dist/Noctua-latest-macOS.dmg \
             --title "Latest macOS DMG" \
             --notes "Automated macOS DMG build for ${GITHUB_SHA}." \
             --latest

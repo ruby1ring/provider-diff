@@ -3,18 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ProviderX</title>
+    <title>Noctua</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <div class="app-shell">
       <header class="global-header">
-        <a class="brand" href="#" aria-label="ProviderX home">
-          <span class="brand-mark"></span>
-          <span>ProviderX</span>
+        <a class="brand" href="#" aria-label="Noctua home">
+          <span class="brand-mark-wrap">
+            <img class="brand-mark" src="assets/noctua/icon.png" alt="" width="32" height="32" />
+          </span>
+          <span class="brand-name">Noctua</span>
         </a>
         <nav class="top-nav" aria-label="Primary">
-          <a class="is-active" href="#run" data-view-link="run">运行</a>
+          <a class="is-active" href="#run" data-view-link="run">接口参数评测</a>
           <a href="#reports" data-view-link="reports">报告</a>
           <a href="#performance" data-view-link="performance">性能</a>
           <details class="top-nav-menu">
@@ -27,7 +35,7 @@
           </details>
         </nav>
         <button class="account-button" type="button">
-          <span class="avatar">PX</span>
+          <span class="avatar">Nc</span>
           <span>预览模式</span>
           <span>⌄</span>
         </button>
@@ -37,7 +45,7 @@
           <section id="runView" class="app-view" data-view="run">
           <div class="page-title-row">
             <div>
-              <h1>ProviderX 真实请求测试</h1>
+              <h1>Noctua 真实请求测试</h1>
               <p>配置同一 provider 的 API Key、Base URL 和 Model，选择用例后开始跑；结果会直接标出支持情况、预期外结果和响应差异。</p>
             </div>
             <div class="view-actions">
@@ -472,7 +480,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
               </label>
               <label class="field">
                 <span>文档标题</span>
-                <input id="feishuTitlePrefix" type="text" placeholder="ProviderX 评测完成" />
+                <input id="feishuTitlePrefix" type="text" placeholder="Noctua 评测完成" />
               </label>
               <label class="field">
                 <span>写入模式</span>

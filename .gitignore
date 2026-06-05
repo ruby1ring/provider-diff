@@ -2,6 +2,8 @@
 .idea/
 node_modules/
 dist/
+build/icon.icns
+build/icon.iconset/
 desktop/bin/
 desktop/services/*/
 build/pyinstaller/

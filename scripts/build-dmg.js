@@ -54,6 +54,8 @@ run("go", ["build", "-o", benchBinaryPath, "."], {
 });
 run("node", ["scripts/build-evalscope-service.js"]);
 
+run("bash", [path.join(__dirname, "build-mac-icon.sh")]);
+
 if (process.argv.includes("--skip-package")) {
   process.exit(0);
 }
