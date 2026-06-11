@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -45,6 +47,60 @@ func TestBuildEndpointURLAppendsEndpointToBaseURL(t *testing.T) {
 	want := "https://dashscope-us.aliyuncs.com/compatible-mode/v1/chat/completions"
 	if got != want {
 		t.Fatalf("expected %q, got %q", want, got)
+	}
+}
+
+func TestDoProviderRequestRetries429UntilSuccessWithBackoff(t *testing.T) {
+	var calls int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		call := atomic.AddInt32(&calls, 1)
+		if call <= 4 {
+			http.Error(w, "rate limited", http.StatusTooManyRequests)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"ok"}`))
+	}))
+	defer upstream.Close()
+
+	var delays []time.Duration
+	oldSleep := providerRetrySleep
+	providerRetrySleep = func(ctx context.Context, delay time.Duration) bool {
+		delays = append(delays, delay)
+		return true
+	}
+	defer func() { providerRetrySleep = oldSleep }()
+
+	resp, err := doProviderRequest(
+		context.Background(),
+		upstream.Client(),
+		upstream.URL,
+		"test-key",
+		Manifest{Provider: "openai"},
+		nil,
+		[]byte(`{"model":"test","messages":[]}`),
+		http.StatusOK,
+	)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected final status 200, got %d", resp.StatusCode)
+	}
+	if got := atomic.LoadInt32(&calls); got != 5 {
+		t.Fatalf("expected 5 upstream calls, got %d", got)
+	}
+	wantDelays := []time.Duration{30 * time.Second, time.Minute, 2 * time.Minute, 4 * time.Minute}
+	if len(delays) != len(wantDelays) {
+		t.Fatalf("expected %d retry delays, got %d: %v", len(wantDelays), len(delays), delays)
+	}
+	for i, want := range wantDelays {
+		if delays[i] != want {
+			t.Fatalf("delay %d: expected %s, got %s", i, want, delays[i])
+		}
 	}
 }
 

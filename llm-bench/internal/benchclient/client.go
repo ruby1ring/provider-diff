@@ -34,6 +34,10 @@ type Result struct {
 	TokenTimes   []time.Time
 }
 
+const maxRequestAttempts = 3
+
+var retrySleep = sleepBeforeRetry
+
 func (r Result) TTFT() time.Duration {
 	if r.FirstToken.IsZero() || r.Start.IsZero() {
 		return 0
@@ -58,16 +62,7 @@ func Send(ctx context.Context, httpClient *http.Client, cfg Config, sample datas
 	if err != nil {
 		return Result{Success: false, Error: err.Error(), InputTokens: sample.InputTokens, Start: start, End: time.Now()}
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpointURL(cfg), bytes.NewReader(payload))
-	if err != nil {
-		return Result{Success: false, Error: err.Error(), InputTokens: sample.InputTokens, Start: start, End: time.Now()}
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "text/event-stream")
-	if strings.TrimSpace(cfg.APIKey) != "" {
-		req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(cfg.APIKey))
-	}
-	resp, err := httpClient.Do(req)
+	resp, err := doRequestWithRetry(ctx, httpClient, cfg, payload)
 	if err != nil {
 		return Result{Success: false, Error: err.Error(), InputTokens: sample.InputTokens, Start: start, End: time.Now()}
 	}
@@ -98,6 +93,124 @@ func Send(ctx context.Context, httpClient *http.Client, cfg Config, sample datas
 		FirstToken:   firstToken,
 		End:          end,
 		TokenTimes:   tokenTimes,
+	}
+}
+
+func doRequestWithRetry(ctx context.Context, httpClient *http.Client, cfg Config, payload []byte) (*http.Response, error) {
+	for attempt := 1; ; attempt++ {
+		req, err := newRequest(ctx, cfg, payload)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		if shouldRetryStatus(resp.StatusCode) && canRetryStatus(resp.StatusCode, attempt) {
+			_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
+			resp.Body.Close()
+			if !retrySleep(ctx, retryDelayForStatus(resp.StatusCode, attempt, resp.Header.Get("Retry-After"))) {
+				return nil, ctx.Err()
+			}
+			continue
+		}
+		return resp, nil
+	}
+}
+
+func newRequest(ctx context.Context, cfg Config, payload []byte) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpointURL(cfg), bytes.NewReader(payload))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "text/event-stream")
+	if strings.TrimSpace(cfg.APIKey) != "" {
+		req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(cfg.APIKey))
+	}
+	return req, nil
+}
+
+func shouldRetryStatus(statusCode int) bool {
+	switch statusCode {
+	case http.StatusTooManyRequests, http.StatusRequestTimeout, http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+		return true
+	default:
+		return false
+	}
+}
+
+func canRetryStatus(statusCode, attempt int) bool {
+	if statusCode == http.StatusTooManyRequests {
+		return true
+	}
+	return attempt < maxRequestAttempts
+}
+
+func retryDelayForStatus(statusCode, attempt int, retryAfter string) time.Duration {
+	headerDelay := retryAfterDelay(retryAfter)
+	if statusCode == http.StatusTooManyRequests {
+		backoff := cappedExponentialDelay(attempt, 30*time.Second, 15*time.Minute)
+		if headerDelay > backoff {
+			return headerDelay
+		}
+		return backoff
+	}
+	if headerDelay > 0 {
+		return headerDelay
+	}
+	switch attempt {
+	case 1:
+		return 2 * time.Second
+	case 2:
+		return 6 * time.Second
+	default:
+		return time.Duration(attempt) * 2 * time.Second
+	}
+}
+
+func retryAfterDelay(retryAfter string) time.Duration {
+	retryAfter = strings.TrimSpace(retryAfter)
+	if retryAfter == "" {
+		return 0
+	}
+	if seconds, err := time.ParseDuration(retryAfter + "s"); err == nil && seconds > 0 {
+		return seconds
+	}
+	if retryAt, err := http.ParseTime(retryAfter); err == nil {
+		delay := time.Until(retryAt)
+		if delay > 0 {
+			return delay
+		}
+	}
+	return 0
+}
+
+func cappedExponentialDelay(attempt int, base, maxDelay time.Duration) time.Duration {
+	if attempt < 1 {
+		attempt = 1
+	}
+	delay := base
+	for i := 1; i < attempt; i++ {
+		if delay >= maxDelay/2 {
+			return maxDelay
+		}
+		delay *= 2
+	}
+	if delay > maxDelay {
+		return maxDelay
+	}
+	return delay
+}
+
+func sleepBeforeRetry(ctx context.Context, delay time.Duration) bool {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
 	}
 }
 

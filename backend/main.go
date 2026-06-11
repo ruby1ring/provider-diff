@@ -2105,20 +2105,23 @@ func capacityFinishReason(value any, messagesEndpoint bool) string {
 	return reason
 }
 
+const maxProviderRequestAttempts = 3
+
+var providerRetrySleep = sleepBeforeRetry
+
 func doProviderRequest(ctx context.Context, client *http.Client, endpointURL, apiKey string, manifest Manifest, headers map[string]string, bodyBytes []byte, expectedStatus int) (*http.Response, error) {
-	const maxAttempts = 3
 	var lastErr error
-	for attempt := 1; attempt <= maxAttempts; attempt++ {
+	for attempt := 1; ; attempt++ {
 		req, err := newProviderRequest(ctx, endpointURL, apiKey, manifest, headers, bodyBytes)
 		if err != nil {
 			return nil, err
 		}
 		resp, err := client.Do(req)
 		if err == nil {
-			if shouldRetryStatus(resp.StatusCode, expectedStatus) && attempt < maxAttempts {
+			if shouldRetryStatus(resp.StatusCode, expectedStatus) && canRetryStatus(resp.StatusCode, attempt) {
 				io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
 				resp.Body.Close()
-				if !sleepBeforeRetry(ctx, retryDelay(attempt, resp.Header.Get("Retry-After"))) {
+				if !providerRetrySleep(ctx, retryDelayForStatus(resp.StatusCode, attempt, resp.Header.Get("Retry-After"))) {
 					return nil, ctx.Err()
 				}
 				continue
@@ -2126,10 +2129,10 @@ func doProviderRequest(ctx context.Context, client *http.Client, endpointURL, ap
 			return resp, nil
 		}
 		lastErr = err
-		if !isTransientProviderError(err) || attempt == maxAttempts {
+		if !isTransientProviderError(err) || attempt == maxProviderRequestAttempts {
 			break
 		}
-		if !sleepBeforeRetry(ctx, retryDelay(attempt, "")) {
+		if !providerRetrySleep(ctx, retryDelayForStatus(0, attempt, "")) {
 			return nil, ctx.Err()
 		}
 	}
@@ -2141,11 +2144,18 @@ func shouldRetryStatus(statusCode, expectedStatus int) bool {
 		return false
 	}
 	switch statusCode {
-	case http.StatusTooManyRequests, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+	case http.StatusTooManyRequests, http.StatusRequestTimeout, http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
 		return true
 	default:
 		return false
 	}
+}
+
+func canRetryStatus(statusCode, attempt int) bool {
+	if statusCode == http.StatusTooManyRequests {
+		return true
+	}
+	return attempt < maxProviderRequestAttempts
 }
 
 func newProviderRequest(ctx context.Context, endpointURL, apiKey string, manifest Manifest, headers map[string]string, bodyBytes []byte) (*http.Request, error) {
@@ -2194,14 +2204,17 @@ func isTransientProviderError(err error) bool {
 	return false
 }
 
-func retryDelay(attempt int, retryAfter string) time.Duration {
-	if retryAfter != "" {
-		if seconds, err := time.ParseDuration(strings.TrimSpace(retryAfter) + "s"); err == nil && seconds > 0 {
-			if seconds > 20*time.Second {
-				return 20 * time.Second
-			}
-			return seconds
+func retryDelayForStatus(statusCode, attempt int, retryAfter string) time.Duration {
+	headerDelay := retryAfterDelay(retryAfter)
+	if statusCode == http.StatusTooManyRequests {
+		backoff := cappedExponentialDelay(attempt, 30*time.Second, 15*time.Minute)
+		if headerDelay > backoff {
+			return headerDelay
 		}
+		return backoff
+	}
+	if headerDelay > 0 {
+		return headerDelay
 	}
 	switch attempt {
 	case 1:
@@ -2211,6 +2224,40 @@ func retryDelay(attempt int, retryAfter string) time.Duration {
 	default:
 		return time.Duration(attempt) * 2 * time.Second
 	}
+}
+
+func retryAfterDelay(retryAfter string) time.Duration {
+	retryAfter = strings.TrimSpace(retryAfter)
+	if retryAfter == "" {
+		return 0
+	}
+	if seconds, err := time.ParseDuration(retryAfter + "s"); err == nil && seconds > 0 {
+		return seconds
+	}
+	if retryAt, err := http.ParseTime(retryAfter); err == nil {
+		delay := time.Until(retryAt)
+		if delay > 0 {
+			return delay
+		}
+	}
+	return 0
+}
+
+func cappedExponentialDelay(attempt int, base, maxDelay time.Duration) time.Duration {
+	if attempt < 1 {
+		attempt = 1
+	}
+	delay := base
+	for i := 1; i < attempt; i++ {
+		if delay >= maxDelay/2 {
+			return maxDelay
+		}
+		delay *= 2
+	}
+	if delay > maxDelay {
+		return maxDelay
+	}
+	return delay
 }
 
 func sleepBeforeRetry(ctx context.Context, delay time.Duration) bool {
