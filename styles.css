@@ -2773,27 +2773,30 @@ h2 {
   max-height: 340px;
 }
 
-.history-icon-button {
+.history-action-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  min-width: 42px;
+  height: 28px;
+  padding: 0 9px;
   border: 1px solid #e5e5ea;
   border-radius: 6px;
   color: #5f636d;
   background: #fff;
   box-shadow: 0 1px 3px rgba(16, 24, 40, 0.12);
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 600;
   line-height: 1;
+  white-space: nowrap;
 }
 
-.history-icon-button:hover {
+.history-action-button:hover {
   border-color: #c9c7ff;
   color: var(--purple);
 }
 
-.history-icon-button.danger:hover {
+.history-action-button.danger:hover {
   border-color: #ffd3d3;
   color: var(--red);
 }

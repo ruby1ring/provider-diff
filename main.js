@@ -3613,7 +3613,7 @@ function renderHistory() {
             <th>Behavior</th>
             <th>Diffs</th>
             <th>Created At</th>
-            <th>Actions</th>
+            <th>操作</th>
           </tr>
         </thead>
         <tbody>
@@ -3645,10 +3645,10 @@ function renderHistory() {
                 <td class="mono">${escapeHtml(formatDateTime(record.generated_at))}</td>
                 <td>
                   <div class="history-actions">
-                    <button class="history-icon-button" type="button" data-history-action="toggle" data-history-id="${escapeHtml(record.id)}" title="查看明细" aria-label="查看明细">⊙</button>
-                    <button class="history-icon-button" type="button" data-history-action="copy" data-history-id="${escapeHtml(record.id)}" title="复制 Markdown" aria-label="复制 Markdown">♧</button>
-                    <button class="history-icon-button" type="button" data-history-action="feishu" data-history-id="${escapeHtml(record.id)}" title="写入飞书文档" aria-label="写入飞书文档">↗</button>
-                    <button class="history-icon-button danger" type="button" data-history-action="delete" data-history-id="${escapeHtml(record.id)}" title="删除报告" aria-label="删除报告">⌫</button>
+                    <button class="history-action-button" type="button" data-history-action="toggle" data-history-id="${escapeHtml(record.id)}" title="查看明细" aria-label="查看明细">明细</button>
+                    <button class="history-action-button" type="button" data-history-action="copy" data-history-id="${escapeHtml(record.id)}" title="复制 Markdown" aria-label="复制 Markdown">复制</button>
+                    <button class="history-action-button" type="button" data-history-action="feishu" data-history-id="${escapeHtml(record.id)}" title="写入飞书文档" aria-label="写入飞书文档">飞书</button>
+                    <button class="history-action-button danger" type="button" data-history-action="delete" data-history-id="${escapeHtml(record.id)}" title="删除报告" aria-label="删除报告">删除</button>
                   </div>
                 </td>
               </tr>
