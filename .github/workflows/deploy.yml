@@ -5,6 +5,15 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Deploy to the self-hosted dev-02 runner"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
 
 permissions:
   contents: read
@@ -50,7 +59,7 @@ jobs:
   deploy:
     name: Deploy to dev-02
     needs: validate
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == 'true' && github.ref == 'refs/heads/main'
     runs-on:
       - self-hosted
       - provider-diff

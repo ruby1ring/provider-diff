@@ -2,9 +2,21 @@ name: Release DMG
 
 on:
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Replace the latest GitHub Release with this build"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
   push:
     branches:
       - main
+      - "codex/**"
+    tags:
+      - "v*"
 
 permissions:
   contents: write
@@ -64,7 +76,16 @@ jobs:
           fi
           cp "${dmg}" dist/Noctua-latest-macOS.dmg
 
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Noctua-macOS-DMG
+          path: dist/Noctua-latest-macOS.dmg
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Replace latest GitHub Release
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_release == 'true')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash

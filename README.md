@@ -81,7 +81,7 @@ The app starts its own backend on a free `127.0.0.1` port and passes that URL in
 
 Unsigned local builds may be blocked on first launch; use **right-click → Open** if Gatekeeper warns.
 
-GitHub Actions also builds the DMG from the `Release DMG` workflow on every push to `main` or manual run. Each successful run replaces the fixed `latest` GitHub Release with one asset named `Noctua-latest-macOS.dmg`, so the public download URL stays stable: `https://github.com/siliconflow/provider-diff/releases/download/latest/Noctua-latest-macOS.dmg`.
+GitHub Actions also builds the DMG from the `Release DMG` workflow on pushes to `main`, `codex/**` branches, `v*` tags, or manual runs. Branch builds upload a temporary workflow artifact named `Noctua-macOS-DMG`. Builds from `main`, `v*` tags, or manual runs with `publish_release=true` replace the fixed `latest` GitHub Release with one asset named `Noctua-latest-macOS.dmg`, so the public download URL stays stable: `https://github.com/ruby1ring/provider-diff/releases/download/latest/Noctua-latest-macOS.dmg`.
 
 **Bundle ID:** `cn.siliconflow.noctua`.
 
