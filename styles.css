@@ -1819,6 +1819,7 @@ h2 {
 .toolbar-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-end;
   gap: 8px;
 }
@@ -2474,33 +2475,44 @@ h2 {
   background: #fbfbfc;
 }
 
-.history-filter-head,
-.history-filter-group,
-.history-filter-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
 .history-filter-head {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 10px;
 }
 
-.history-filter-head > span:first-child {
+.history-filter-total {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.history-filter-total > span:first-child {
   color: #30323a;
   font-weight: 750;
 }
 
+.history-filter-group {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: start;
+  gap: 6px;
+}
+
 .history-filter-group > span {
-  width: 72px;
+  padding-top: 7px;
   color: #696c76;
   font-size: 11px;
   font-weight: 750;
 }
 
 .history-filter-buttons {
-  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -2622,7 +2634,38 @@ h2 {
   width: 100%;
   min-width: 1080px;
   border-collapse: collapse;
+  table-layout: fixed;
   font-size: 12px;
+}
+
+.history-col-id {
+  width: 28%;
+}
+
+.history-col-provider {
+  width: 16%;
+}
+
+.history-col-endpoint {
+  width: 10%;
+}
+
+.history-col-cases,
+.history-col-diffs {
+  width: 4%;
+}
+
+.history-col-expected,
+.history-col-behavior {
+  width: 9%;
+}
+
+.history-col-created {
+  width: 10%;
+}
+
+.history-col-actions {
+  width: 10%;
 }
 
 .history-table th,
@@ -2644,12 +2687,19 @@ h2 {
   border-bottom: 0;
 }
 
+.history-table td {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .history-row:hover td {
   background: #fbfbfc;
 }
 
 .history-report-id {
   color: #30323a;
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .history-provider-cell {
@@ -2711,6 +2761,16 @@ h2 {
 
 .history-actions {
   justify-content: flex-start;
+}
+
+#historyCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  border: 1px solid transparent;
+  padding: 0 4px;
+  line-height: 1;
 }
 
 .performance-panel {
@@ -2870,10 +2930,10 @@ h2 {
 
 .history-raw-case summary {
   display: grid;
-  grid-template-columns: minmax(220px, 1.35fr) minmax(180px, 1fr) auto auto auto;
-  gap: 8px;
+  grid-template-columns: 18px minmax(280px, 1.15fr) minmax(220px, 0.9fr) minmax(58px, auto) minmax(82px, auto) minmax(112px, auto);
+  gap: 10px;
   align-items: center;
-  padding: 6px 8px;
+  padding: 8px;
   cursor: pointer;
   list-style: none;
   font-size: 11px;
@@ -2885,6 +2945,9 @@ h2 {
 
 .history-raw-case summary::before {
   content: "+";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--purple);
   font-family: var(--font-mono);
   font-weight: 900;
@@ -2913,10 +2976,10 @@ h2 {
 
 .history-result-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.35fr) minmax(180px, 1fr) auto auto auto;
-  gap: 8px;
+  grid-template-columns: 18px minmax(280px, 1.15fr) minmax(220px, 0.9fr) minmax(58px, auto) minmax(82px, auto) minmax(112px, auto);
+  gap: 10px;
   align-items: center;
-  padding: 6px 8px;
+  padding: 8px;
   background: #fff;
   font-size: 11px;
 }
@@ -2940,6 +3003,17 @@ h2 {
   min-width: 0;
   overflow-wrap: anywhere;
   white-space: normal;
+}
+
+.history-result-support,
+.history-result-expectation,
+.history-result-http {
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.history-result-http {
+  text-align: right;
 }
 
 .embed-panel,
@@ -3213,8 +3287,34 @@ h2 {
     justify-content: flex-start;
   }
 
+  .history-filter-head,
+  .history-filter-total {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .history-filter-group {
+    grid-template-columns: 1fr;
+  }
+
+  .history-filter-group > span {
+    padding-top: 0;
+  }
+
+  .history-raw-case summary,
   .history-result-row {
     grid-template-columns: 1fr;
+  }
+
+  .history-raw-case summary::before {
+    justify-content: flex-start;
+  }
+
+  .history-result-support,
+  .history-result-expectation,
+  .history-result-http {
+    justify-self: start;
+    text-align: left;
   }
 
   .embed-address {

@@ -2852,8 +2852,10 @@ function renderHistoryFilters(items = [], filteredItems = items) {
   ];
   els.historyFilters.innerHTML = `
     <div class="history-filter-head">
-      <span class="mono">${filteredItems.length} / ${items.length}</span>
-      <span class="muted">筛选后报告</span>
+      <div class="history-filter-total">
+        <span class="mono">${filteredItems.length} / ${items.length}</span>
+        <span class="muted">筛选后报告</span>
+      </div>
       <button class="history-filter-reset" type="button" data-history-filter-reset ${Object.values(state.historyFilters).every((value) => value === "all") ? "disabled" : ""}>重置</button>
     </div>
     ${groups.map(([type, label]) => {
@@ -3516,9 +3518,9 @@ function renderHistoryRawCase(result, record) {
           ${caseCode ? `<code>${escapeHtml(caseCode)}</code>` : ""}
         </span>
         <span class="mono history-result-params">${escapeHtml(result.parameter || "payload")}</span>
-        <span class="support-badge ${meta.badgeClass}">${escapeHtml(meta.label)}</span>
-        <span class="expectation-badge ${expectationClass(result)}">${escapeHtml(expectationLabel(result))}</span>
-        <span class="mono muted">HTTP ${escapeHtml(result.http_status || meta.httpStatus || "—")} · ${escapeHtml(result.latency_ms ? `${result.latency_ms}ms` : "—")}</span>
+        <span class="support-badge history-result-support ${meta.badgeClass}">${escapeHtml(meta.label)}</span>
+        <span class="expectation-badge history-result-expectation ${expectationClass(result)}">${escapeHtml(expectationLabel(result))}</span>
+        <span class="mono muted history-result-http">HTTP ${escapeHtml(result.http_status || meta.httpStatus || "—")} · ${escapeHtml(result.latency_ms ? `${result.latency_ms}ms` : "—")}</span>
       </summary>
       <div class="history-raw-grid">
         <section class="history-raw-pane">
@@ -3603,6 +3605,17 @@ function renderHistory() {
   els.historyList.innerHTML = `
     <div class="history-table-wrap">
       <table class="history-table">
+        <colgroup>
+          <col class="history-col-id" />
+          <col class="history-col-provider" />
+          <col class="history-col-endpoint" />
+          <col class="history-col-cases" />
+          <col class="history-col-expected" />
+          <col class="history-col-behavior" />
+          <col class="history-col-diffs" />
+          <col class="history-col-created" />
+          <col class="history-col-actions" />
+        </colgroup>
         <thead>
           <tr>
             <th>Report ID</th>
