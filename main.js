@@ -1893,6 +1893,29 @@ function reportGroupSummaryText(stats = {}) {
   return `达标 ${expectedPass}/${total}；预期外 ${unexpected}；${issueText}`;
 }
 
+function historyPassSummaryText(stats = {}) {
+  const total = stats.total || 0;
+  const expectedPass = stats.expectedPass || 0;
+  return `${expectedPass} 个达标，占 ${percentText(expectedPass, total)}`;
+}
+
+function historyIssueSummaryText(stats = {}) {
+  const pending = (stats.ignored || 0) + (stats.permissionLimited || 0);
+  const rejected = stats.rejected || 0;
+  const failed = (stats.requestFailed || 0) + (stats.schemaMismatch || 0);
+  if (!pending && !rejected && !failed) return "无明显异常";
+  return [
+    pending ? `未证明/权限 ${pending}` : "",
+    rejected ? `被拒绝 ${rejected}` : "",
+    failed ? `失败或断言 ${failed}` : ""
+  ].filter(Boolean).join(" · ");
+}
+
+function historyDiffSummaryText(stats = {}) {
+  const diffs = stats.diffs || 0;
+  return diffs ? `${diffs} 处差异` : "无结构差异";
+}
+
 function groupReportResults(results = []) {
   const groups = new Map();
   results.forEach((rawResult, index) => {
@@ -3785,21 +3808,21 @@ function renderHistory() {
                   <div class="history-provider-cell">
                     <strong>${escapeHtml(record.channel_name)}</strong>
                     <span class="mono muted">${escapeHtml(record.model || "—")}</span>
-                    <span class="muted">baseline 响应：${stats.baselineReady || 0} / ${stats.total || 0}</span>
+                    <span class="muted">可对比响应：${stats.baselineReady || 0} 个 / 共 ${stats.total || 0} 个</span>
                     ${record.baseline_label ? `<span class="muted">baseline：${escapeHtml(record.baseline_label)}</span>` : ""}
                   </div>
                 </td>
                 <td class="mono">${escapeHtml(record.endpoint_label || record.endpoint_id || "Chat Completions")}</td>
-                <td class="mono">${stats.total || 0}</td>
+                <td>${stats.total || 0} 个</td>
                 <td>
-                  <span class="history-stat-pill visible">${stats.expectedPass || 0} / ${percentText(stats.expectedPass || 0, stats.total || 0)}</span>
+                  <span class="history-stat-pill visible">${escapeHtml(historyPassSummaryText(stats))}</span>
                 </td>
                 <td>
                   <span class="history-stat-pill ${stats.unexpected ? "warning" : ""}">
-                    ${(stats.ignored || 0) + (stats.permissionLimited || 0)} / ${stats.rejected || 0} / ${(stats.requestFailed || 0) + (stats.schemaMismatch || 0)}
+                    ${escapeHtml(historyIssueSummaryText(stats))}
                   </span>
                 </td>
-                <td class="mono">${stats.diffs || 0}</td>
+                <td>${escapeHtml(historyDiffSummaryText(stats))}</td>
                 <td class="mono">${escapeHtml(formatDateTime(record.generated_at))}</td>
                 <td>
                   <div class="history-actions">

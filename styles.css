@@ -2701,15 +2701,15 @@ h2 {
 }
 
 .history-col-id {
-  width: 28%;
+  width: 24%;
 }
 
 .history-col-provider {
-  width: 16%;
+  width: 15%;
 }
 
 .history-col-endpoint {
-  width: 10%;
+  width: 9%;
 }
 
 .history-col-cases,
@@ -2719,7 +2719,7 @@ h2 {
 
 .history-col-expected,
 .history-col-behavior {
-  width: 9%;
+  width: 12%;
 }
 
 .history-col-created {
@@ -2789,9 +2789,18 @@ h2 {
 }
 
 .history-stat-pill {
+  max-width: 170px;
+  min-height: 28px;
   border: 1px solid #e5e5ea;
+  border-radius: 6px;
+  padding: 4px 7px;
   color: #646873;
-  background: #f3f4f6;
+  background: #f7f7f9;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: normal;
 }
 
 .history-status.visible {
