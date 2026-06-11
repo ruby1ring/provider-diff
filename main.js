@@ -2848,7 +2848,7 @@ function renderHistoryFilters(items = [], filteredItems = items) {
   const groups = [
     ["channel", "渠道"],
     ["model", "模型"],
-    ["endpoint", "Endpoint"]
+    ["endpoint", "接口类型"]
   ];
   els.historyFilters.innerHTML = `
     <div class="history-filter-head">
@@ -3596,7 +3596,7 @@ function renderHistory() {
     els.historyList.innerHTML = `
       <div class="history-empty">
         <strong>当前筛选没有报告</strong>
-        <span>切换渠道、模型或 Endpoint 筛选后再查看。</span>
+        <span>切换渠道、模型或接口类型筛选后再查看。</span>
       </div>
     `;
     return;
@@ -3618,14 +3618,14 @@ function renderHistory() {
         </colgroup>
         <thead>
           <tr>
-            <th>Report ID</th>
-            <th>Provider / Model</th>
-            <th>Endpoint</th>
-            <th>Cases</th>
-            <th>Expected</th>
-            <th>Behavior</th>
-            <th>Diffs</th>
-            <th>Created At</th>
+            <th>报告编号</th>
+            <th>渠道与模型</th>
+            <th>接口类型</th>
+            <th>用例数</th>
+            <th>达标情况</th>
+            <th>异常概览</th>
+            <th>结构差异</th>
+            <th>生成时间</th>
             <th>操作</th>
           </tr>
         </thead>
