@@ -1791,6 +1791,129 @@ function partitionCases(cases = []) {
   return { singles, combos, scenarios, vlm, optional };
 }
 
+function reportGroupForResult(result = {}) {
+  const sourceCase = result.source_case || null;
+  const category = result.category || sourceCase?.category || "case";
+  if ((sourceCase && isCapacityCase(sourceCase)) || category === "capacity" || isCapacityResult(result)) {
+    return {
+      key: "capacity",
+      order: 60,
+      title: "容量上限测试",
+      description: "看这个模型在最大输出长度和上下文长度上能撑到哪里，方便判断是否适合长文本或批量任务。"
+    };
+  }
+  if (sourceCase?.custom || category === "custom") {
+    return {
+      key: "custom",
+      order: 70,
+      title: "自定义检查项",
+      description: "临时补充的 payload，用来验证这次评测里的特殊问题或业务场景。"
+    };
+  }
+  if ((sourceCase && isVlmCase(sourceCase)) || category === "multimodal") {
+    return {
+      key: "vlm",
+      order: 50,
+      title: "图像输入能力",
+      description: "验证模型是否能理解图片、多图对比等视觉输入，非视觉模型通常不需要看这一组。"
+    };
+  }
+  if (sourceCase && isOptionalExtensionCase(sourceCase)) {
+    return {
+      key: "optional",
+      order: 40,
+      title: "可选扩展能力",
+      description: "验证 provider 或模型的增强能力，例如流式 usage、前缀续写、搜索或厂商扩展参数。"
+    };
+  }
+  const focusParams = sourceCase ? focusParametersForCase(sourceCase) : [];
+  if (focusParams.length === 1) {
+    const parameter = focusParams[0];
+    return {
+      key: `single:${parameter}`,
+      order: 20,
+      title: `${parameter} 单参数能力`,
+      description: `集中查看 ${parameter} 相关请求是否被正确接受，响应是否符合预期。`
+    };
+  }
+  if (focusParams.length > 1) {
+    return {
+      key: "combo",
+      order: 30,
+      title: "参数组合能力",
+      description: "验证多个参数同时出现时是否还能稳定工作，适合发现单参数测试看不出的兼容问题。"
+    };
+  }
+  if (["basic", "protocol", "multiturn", "tools", "headers"].includes(category)) {
+    return {
+      key: "scenario",
+      order: 10,
+      title: "基础协议与场景",
+      description: "确认最基础的请求结构、消息上下文、工具调用和响应格式是否能正常跑通。"
+    };
+  }
+  return {
+    key: `category:${category}`,
+    order: 35,
+    title: `${categoryLabel(category)}能力`,
+    description: "同一类检查项放在一起看，方便判断问题集中在哪个能力面。"
+  };
+}
+
+function reportGroupStats(results = []) {
+  const stats = historyStats(results);
+  const unexpected = results.filter((result) => !matchesExpectedResult(result)).length;
+  const diffs = results.reduce((sum, result) => sum + Number(result.diff_count || 0), 0);
+  return {
+    ...stats,
+    unexpected,
+    diffs
+  };
+}
+
+function reportGroupTone(stats = {}) {
+  if (stats.unexpected || stats.requestFailed || stats.schemaMismatch) return "fail";
+  if (stats.ignored || stats.permissionLimited || stats.rejected || stats.diffs) return "warn";
+  return "pass";
+}
+
+function reportGroupSummaryText(stats = {}) {
+  const total = stats.total || 0;
+  const expectedPass = stats.expectedPass || 0;
+  const unexpected = stats.unexpected || 0;
+  const issueParts = [
+    stats.ignored ? `接受未证明 ${stats.ignored}` : "",
+    stats.permissionLimited ? `权限受限 ${stats.permissionLimited}` : "",
+    stats.rejected ? `400 ${stats.rejected}` : "",
+    stats.requestFailed ? `请求失败 ${stats.requestFailed}` : "",
+    stats.schemaMismatch ? `断言失败 ${stats.schemaMismatch}` : "",
+    stats.diffs ? `结构差异 ${stats.diffs}` : ""
+  ].filter(Boolean);
+  const issueText = issueParts.length ? issueParts.join(" · ") : "无明显异常";
+  return `达标 ${expectedPass}/${total}；预期外 ${unexpected}；${issueText}`;
+}
+
+function groupReportResults(results = []) {
+  const groups = new Map();
+  results.forEach((rawResult, index) => {
+    const result = enrichResultAxes(rawResult);
+    const meta = reportGroupForResult(result);
+    const existing = groups.get(meta.key);
+    if (existing) {
+      existing.results.push(result);
+      return;
+    }
+    groups.set(meta.key, {
+      ...meta,
+      firstIndex: index,
+      results: [result]
+    });
+  });
+  return Array.from(groups.values()).sort((left, right) =>
+    left.order - right.order || left.firstIndex - right.firstIndex || left.title.localeCompare(right.title)
+  );
+}
+
 function capacityCasesForProvider(providerId = currentProviderId()) {
   if (!providerId || state.selectedEndpointId !== "chat_completions") return [];
   if (providerId === "thinking") return [];
@@ -3486,13 +3609,35 @@ function renderHistoryDetailRow(record, stats) {
               <button class="secondary-button compact-button" type="button" data-history-action="copy" data-history-id="${escapeHtml(record.id)}">复制完整报告</button>
             </div>
             <div class="history-result-list">
-              ${(record.results || []).map((result) => renderHistoryRawCase(result, record)).join("")}
+              ${renderHistoryResultGroups(record)}
             </div>
           </div>
         </div>
       </td>
     </tr>
   `;
+}
+
+function renderHistoryResultGroups(record) {
+  const groups = groupReportResults(record.results || []);
+  return groups.map((group) => {
+    const stats = reportGroupStats(group.results);
+    const tone = reportGroupTone(stats);
+    return `
+      <section class="history-result-group ${tone}">
+        <div class="history-result-group-head">
+          <div>
+            <strong>${escapeHtml(group.title)}</strong>
+            <p>${escapeHtml(group.description)}</p>
+          </div>
+          <span>${escapeHtml(reportGroupSummaryText(stats))}</span>
+        </div>
+        <div class="history-result-group-body">
+          ${group.results.map((result) => renderHistoryRawCase(result, record)).join("")}
+        </div>
+      </section>
+    `;
+  }).join("");
 }
 
 function renderHistoryRawCase(result, record) {
@@ -4397,37 +4542,56 @@ function renderCapacitySummary() {
 function renderResults() {
   renderCapacitySummary();
   const rows = filteredResults();
-  els.resultRows.innerHTML = rows.map((rawResult) => {
-    const result = enrichResultAxes(rawResult);
-    const meta = conclusionMeta(result);
-    const evidence = evidenceMeta(result);
-    const diffText = diffSummaryForResult(result);
-    const diffState = baselineStateForResult(result).status;
-    const rowId = result.result_uid || result.case_id;
-    const caseCode = isCapacityResult(result) ? "" : result.case_id;
-    const detail = state.expandedCaseId === rowId ? renderDetailRow(result) : "";
+  els.resultRows.innerHTML = groupReportResults(rows).map((group) => {
+    const stats = reportGroupStats(group.results);
+    const tone = reportGroupTone(stats);
     return `
-      <tr class="result-row" data-result-id="${escapeHtml(rowId)}">
-        <td>
-          <div class="result-case-cell">
-            <strong title="${escapeHtml(resultTitle(result))}">${escapeHtml(resultTitle(result))}</strong>
-            ${caseCode ? `<span class="mono muted">${escapeHtml(caseCode)}</span>` : ""}
-            ${result.target_label ? `<span class="mono muted">${escapeHtml(result.target_label)}</span>` : ""}
-            <span class="mono">${escapeHtml(result.parameter)}</span>
+      <tr class="result-group-row ${tone}">
+        <td colspan="7">
+          <div class="result-group-head">
+            <div>
+              <strong>${escapeHtml(group.title)}</strong>
+              <p>${escapeHtml(group.description)}</p>
+            </div>
+            <span class="result-group-summary">${escapeHtml(reportGroupSummaryText(stats))}</span>
           </div>
         </td>
-        <td class="muted">${escapeHtml(categoryLabel(result.category))}</td>
-        <td>
-          <span class="support-badge ${meta.badgeClass}">${escapeHtml(meta.label)}</span>
-        </td>
-        <td><span class="expectation-badge ${expectationClass(result)}">${escapeHtml(expectationLabel(result))}</span></td>
-        <td><span class="evidence-badge ${evidence.badgeClass}">${escapeHtml(evidence.label)}</span></td>
-        <td class="mono muted">${result.http_status || meta.httpStatus || "—"}</td>
-        <td><span class="diff-text ${result.diff_count ? "" : "clean"} ${diffState}">${escapeHtml(diffText)}</span></td>
       </tr>
-      ${detail}
+      ${group.results.map(renderResultRow).join("")}
     `;
   }).join("");
+}
+
+function renderResultRow(result) {
+  result = enrichResultAxes(result);
+  const meta = conclusionMeta(result);
+  const evidence = evidenceMeta(result);
+  const diffText = diffSummaryForResult(result);
+  const diffState = baselineStateForResult(result).status;
+  const rowId = result.result_uid || result.case_id;
+  const caseCode = isCapacityResult(result) ? "" : result.case_id;
+  const detail = state.expandedCaseId === rowId ? renderDetailRow(result) : "";
+  return `
+    <tr class="result-row" data-result-id="${escapeHtml(rowId)}">
+      <td>
+        <div class="result-case-cell">
+          <strong title="${escapeHtml(resultTitle(result))}">${escapeHtml(resultTitle(result))}</strong>
+          ${caseCode ? `<span class="mono muted">${escapeHtml(caseCode)}</span>` : ""}
+          ${result.target_label ? `<span class="mono muted">${escapeHtml(result.target_label)}</span>` : ""}
+          <span class="mono">${escapeHtml(result.parameter)}</span>
+        </div>
+      </td>
+      <td class="muted">${escapeHtml(categoryLabel(result.category))}</td>
+      <td>
+        <span class="support-badge ${meta.badgeClass}">${escapeHtml(meta.label)}</span>
+      </td>
+      <td><span class="expectation-badge ${expectationClass(result)}">${escapeHtml(expectationLabel(result))}</span></td>
+      <td><span class="evidence-badge ${evidence.badgeClass}">${escapeHtml(evidence.label)}</span></td>
+      <td class="mono muted">${result.http_status || meta.httpStatus || "—"}</td>
+      <td><span class="diff-text ${result.diff_count ? "" : "clean"} ${diffState}">${escapeHtml(diffText)}</span></td>
+    </tr>
+    ${detail}
+  `;
 }
 
 function syntaxJson(value, highlightedKey) {
