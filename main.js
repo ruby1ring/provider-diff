@@ -1905,9 +1905,9 @@ function historyIssueSummaryText(stats = {}) {
   const failed = (stats.requestFailed || 0) + (stats.schemaMismatch || 0);
   if (!pending && !rejected && !failed) return "无明显异常";
   return [
-    pending ? `未证明/权限 ${pending}` : "",
-    rejected ? `被拒绝 ${rejected}` : "",
-    failed ? `失败或断言 ${failed}` : ""
+    pending ? `${pending} 个结果需要人工确认` : "",
+    rejected ? `${rejected} 个请求被接口拒绝` : "",
+    failed ? `${failed} 个请求失败或断言未通过` : ""
   ].filter(Boolean).join(" · ");
 }
 
