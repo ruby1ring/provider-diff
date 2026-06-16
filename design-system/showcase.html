@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Noctua Design System · v2</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- ===================== TOP BAR ===================== -->
+    <header class="ds-topbar">
+      <a class="ds-brand" href="#top">
+        <span class="ds-brand-mark"><img src="assets/noctua/icon-web.png" alt="Noctua owl" /></span>
+        <span class="col">
+          <span class="ds-brand-name">Noctua</span>
+          <span class="ds-brand-sub">design system · v2</span>
+        </span>
+      </a>
+      <span class="ds-topbar-spacer"></span>
+      <nav class="ds-topnav">
+        <a href="#foundations">Foundations</a>
+        <a href="#components">Components</a>
+        <a href="#modules">Modules</a>
+      </nav>
+      <button id="themeToggle" class="btn btn-secondary btn-sm" type="button">
+        <span id="themeLabel">Dark</span>
+      </button>
+    </header>
+
+    <main class="ds-doc" id="top">
+
+      <!-- ===================== HERO ===================== -->
+      <section class="ds-hero">
+        <div class="ds-hero-lock">
+          <span class="ds-hero-mark"><img src="assets/noctua/icon-web.png" alt="Noctua owl mark" /></span>
+          <div>
+            <h1>Noctua Design System</h1>
+            <span class="ds-version">v2.0 · Ollama-inspired refresh</span>
+          </div>
+        </div>
+        <p class="ds-hero-lead">
+          A re-optimized system for Noctua — the LLM provider compatibility tester. We moved from a dark,
+          high-saturation "tech utility" look to a clean, light-first, near-monochrome aesthetic: calm ink
+          on warm white, the owl's blue reserved as a single accent, and color spent only where the data
+          earns it.
+        </p>
+
+        <div class="ds-principles">
+          <div class="ds-principle">
+            <h4>Light-first, ink on warm white</h4>
+            <p>White surfaces, hairline borders, generous air around chrome. Dark theme stays as a refined secondary.</p>
+          </div>
+          <div class="ds-principle">
+            <h4>One accent: <span class="k">owl blue</span></h4>
+            <p>Primary actions are <em>ink black</em>. Blue is for links, focus, and selection — nothing decorative.</p>
+          </div>
+          <div class="ds-principle">
+            <h4>Airy chrome, dense data</h4>
+            <p>Nav, cards and headers breathe; tables and JSON stay compact and tabular for real comparison work.</p>
+          </div>
+          <div class="ds-principle">
+            <h4>Status earns its color</h4>
+            <p>Green / amber / red / gray appear only on results — accepted, warning, rejected, n/a. Never as decoration.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== FOUNDATIONS ===================== -->
+      <section class="ds-section" id="foundations">
+        <p class="ds-eyebrow">01 — Foundations</p>
+        <h2 class="ds-h2">Foundations</h2>
+        <p class="ds-lead">The atoms every screen is built from: color, type, spacing, radius and elevation. All values live in <code class="mono">tokens.css</code> as semantic custom properties and flip cleanly between light and dark.</p>
+
+        <!-- Base palette -->
+        <div class="ds-block">
+          <div class="ds-block-head"><h3 class="ds-h3">Base palette</h3><p class="ds-note">Three background layers + three ink levels. Borders stay quiet so content leads.</p></div>
+          <div class="ds-swatches">
+            <div class="ds-swatch"><div class="chip" style="background:var(--bg)"></div><div class="meta"><div class="name">Canvas</div><div class="var">--bg</div></div></div>
+            <div class="ds-swatch"><div class="chip" style="background:var(--surface)"></div><div class="meta"><div class="name">Surface</div><div class="var">--surface</div></div></div>
+            <div class="ds-swatch"><div class="chip" style="background:var(--surface-2)"></div><div class="meta"><div class="name">Surface 2</div><div class="var">--surface-2</div></div></div>
+            <div class="ds-swatch"><div class="chip" style="background:var(--border-strong)"></div><div class="meta"><div class="name">Border</div><div class="var">--border-strong</div></div></div>
+            <div class="ds-swatch"><div class="chip" style="background:var(--fg)"></div><div class="meta"><div class="name">Ink</div><div class="var">--fg</div></div></div>
+            <div class="ds-swatch"><div class="chip" style="background:var(--fg-muted)"></div><div class="meta"><div class="name">Muted</div><div class="var">--fg-muted</div></div></div>
+            <div class="ds-swatch"><div class="chip" style="background:var(--fg-subtle)"></div><div class="meta"><div class="name">Subtle</div><div class="var">--fg-subtle</div></div></div>
+            <div class="ds-swatch"><div class="chip" style="background:var(--accent)"></div><div class="meta"><div class="name">Accent · owl blue</div><div class="var">--accent</div></div></div>
+          </div>
+        </div>
+
+        <!-- Status -->
+        <div class="ds-block">
+          <div class="ds-block-head"><h3 class="ds-h3">Status colors</h3><p class="ds-note">The product's vocabulary of result states. Tinted backgrounds for pills; solid for dots and bars.</p></div>
+          <div class="ds-statusrow">
+            <div class="ds-status-card"><div class="dot" style="background:var(--status-success)"></div><div class="lbl">Accepted</div><div class="vv">success</div></div>
+            <div class="ds-status-card"><div class="dot" style="background:var(--status-warning)"></div><div class="lbl">Warning</div><div class="vv">warning</div></div>
+            <div class="ds-status-card"><div class="dot" style="background:var(--status-danger)"></div><div class="lbl">Rejected</div><div class="vv">danger</div></div>
+            <div class="ds-status-card"><div class="dot" style="background:var(--status-info)"></div><div class="lbl">Running</div><div class="vv">info</div></div>
+            <div class="ds-status-card"><div class="dot" style="background:var(--status-neutral)"></div><div class="lbl">N/A</div><div class="vv">neutral</div></div>
+          </div>
+        </div>
+
+        <!-- Typography -->
+        <div class="ds-block">
+          <div class="ds-block-head"><h3 class="ds-h3">Typography</h3><p class="ds-note"><strong>Hanken Grotesk</strong> carries the interface — warm, modern, legible. <strong>JetBrains Mono</strong> owns every byte of data: params, JSON, latencies.</p></div>
+          <div class="ds-demo col">
+            <div class="ds-typerow"><span class="tk">3xl / 800</span><span class="sp" style="font-size:var(--text-3xl);font-weight:800;letter-spacing:-0.03em">Provider compatibility</span></div>
+            <div class="ds-typerow"><span class="tk">2xl / 700</span><span class="sp" style="font-size:var(--text-2xl);font-weight:700;letter-spacing:var(--tracking-tight)">参数支持结论矩阵</span></div>
+            <div class="ds-typerow"><span class="tk">xl / 650</span><span class="sp" style="font-size:var(--text-xl);font-weight:650;letter-spacing:var(--tracking-snug)">Test Suite · DeepSeek</span></div>
+            <div class="ds-typerow"><span class="tk">md / 500</span><span class="sp" style="font-size:var(--text-md);font-weight:500">Section heading and card titles</span></div>
+            <div class="ds-typerow"><span class="tk">base / 400</span><span class="sp" style="font-size:var(--text-base)">Body copy and form labels for the interface.</span></div>
+            <div class="ds-typerow"><span class="tk">mono xs</span><span class="sp mono" style="font-size:var(--text-xs)">frequency_penalty · accepted · 412ms</span></div>
+          </div>
+        </div>
+
+        <!-- Spacing + radius + shadow -->
+        <div class="ds-block">
+          <div class="ds-block-head"><h3 class="ds-h3">Spacing · radius · elevation</h3><p class="ds-note">A 4px spacing grid, gentle consistent rounding, and soft low shadows used only for true elevation.</p></div>
+          <div class="ds-demo col" style="gap:var(--space-6)">
+            <div class="ds-spaces">
+              <div class="ds-spacerow"><span class="tk">--space-2 · 8</span><span class="bar" style="width:8px"></span></div>
+              <div class="ds-spacerow"><span class="tk">--space-4 · 16</span><span class="bar" style="width:16px"></span></div>
+              <div class="ds-spacerow"><span class="tk">--space-6 · 24</span><span class="bar" style="width:24px"></span></div>
+              <div class="ds-spacerow"><span class="tk">--space-8 · 32</span><span class="bar" style="width:32px"></span></div>
+              <div class="ds-spacerow"><span class="tk">--space-12 · 48</span><span class="bar" style="width:48px"></span></div>
+            </div>
+            <hr class="hr" />
+            <div class="ds-tiles">
+              <div class="ds-tile"><div class="box" style="border-radius:var(--radius-sm)"></div><div class="tk">sm · 6</div></div>
+              <div class="ds-tile"><div class="box" style="border-radius:var(--radius-md)"></div><div class="tk">md · 8</div></div>
+              <div class="ds-tile"><div class="box" style="border-radius:var(--radius-lg)"></div><div class="tk">lg · 12</div></div>
+              <div class="ds-tile"><div class="box" style="border-radius:var(--radius-xl)"></div><div class="tk">xl · 16</div></div>
+              <div class="ds-tile shadow"><div class="box" style="border-radius:var(--radius-lg);box-shadow:var(--shadow-md)"></div><div class="tk">shadow-md</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== COMPONENTS ===================== -->
+      <section class="ds-section" id="components">
+        <p class="ds-eyebrow">02 — Components</p>
+        <h2 class="ds-h2">Components</h2>
+        <p class="ds-lead">The reusable parts, restyled. Primary actions are ink; blue stays for accents, focus and selection.</p>
+
+        <!-- Buttons -->
+        <div class="ds-block">
+          <div class="ds-block-head"><h3 class="ds-h3">Buttons</h3></div>
+          <div class="ds-demo">
+            <button class="btn btn-primary">Run tests</button>
+            <button class="btn btn-accent">View report</button>
+            <button class="btn btn-secondary">Cancel</button>
+            <button class="btn btn-ghost">Re-run</button>
+            <button class="btn btn-danger">Disconnect</button>
+            <button class="btn btn-primary"><span class="spinner"></span>Running…</button>
+            <button class="btn btn-secondary" disabled>Disabled</button>
+          </div>
+          <div class="ds-demo" style="margin-top:var(--space-3)">
+            <button class="btn btn-primary btn-xs">xs</button>
+            <button class="btn btn-primary btn-sm">sm</button>
+            <button class="btn btn-primary">md</button>
+            <button class="btn btn-primary btn-lg">lg</button>
+            <button class="btn btn-secondary btn-icon" aria-label="settings">⚙</button>
+          </div>
+        </div>
+
+        <!-- Forms -->
+        <div class="ds-block">
+          <div class="ds-block-head"><h3 class="ds-h3">Form controls</h3></div>
+          <div class="ds-demo col" style="gap:var(--space-5)">
+            <div class="config-row">
+              <label class="fld"><span>API Key</span>
+                <span class="input-affix"><input class="inp mono" type="password" value="sk-noctua-demo-key" /><button class="btn btn-ghost btn-xs affix-btn" type="button">Show</button></span>
+              </label>
+              <label class="fld"><span>Base URL</span><input class="inp mono" type="text" value="https://api.deepseek.com/v1" /></label>
+              <label class="fld"><span>Model</span><input class="inp mono" type="text" value="deepseek-chat" /></label>
+            </div>
+            <div class="row wrap gap-4">
+              <label class="fld" style="width:200px"><span>Concurrency</span><select class="sel"><option>3 requests</option><option>1 request</option><option>8 requests</option></select></label>
+              <div class="opt-line"><span class="sw on"></span> Enable proxy</div>
+              <div class="opt-line"><span class="cbx on"></span> VLM cases</div>
+              <div class="opt-line"><span class="cbx"></span> Max-token probe</div>
+              <div class="opt-line"><span class="cbx rdo on"></span> Single target</div>
+              <div class="opt-line"><span class="cbx rdo"></span> Batch</div>
+              <div class="seg"><button class="on">All</button><button>Failures</button><button>Diffs</button></div>
+            </div>
+            <label class="fld" style="max-width:420px"><span>Base URL (error state)</span><input class="inp mono is-error" type="text" value="https://api..invalid" /><span class="err">Enter a valid endpoint, e.g. https://api.deepseek.com/v1</span></label>
+          </div>
+        </div>
+
+        <!-- Tags + tabs + indicators -->
+        <div class="ds-block">
+          <div class="ds-block-head"><h3 class="ds-h3">Tags, tabs &amp; indicators</h3></div>
+          <div class="ds-demo col" style="gap:var(--space-5)">
+            <div class="row wrap gap-2">
+              <span class="tag tag-success"><span class="ic"></span>accepted</span>
+              <span class="tag tag-warning"><span class="ic"></span>warning</span>
+              <span class="tag tag-danger"><span class="ic"></span>rejected</span>
+              <span class="tag tag-info"><span class="ic"></span>running</span>
+              <span class="tag tag-neutral"><span class="ic"></span>n/a</span>
+              <span class="tag tag-accent">qwen-extension</span>
+              <span class="tag tag-outline tag-origin">openai-standard</span>
+            </div>
+            <div class="tabs">
+              <button class="on">All <span class="count">18</span></button>
+              <button>Failures <span class="count">3</span></button>
+              <button>Warnings <span class="count">1</span></button>
+              <button>Structure diffs <span class="count">7</span></button>
+            </div>
+            <div class="row gap-4">
+              <div class="row gap-2"><span class="live-dot run"></span><span class="fs-sm muted">Running · 14 / 18</span></div>
+              <div class="row gap-2"><span class="live-dot success"></span><span class="fs-sm muted">Healthy</span></div>
+              <div class="row gap-2"><span class="live-dot danger"></span><span class="fs-sm muted">Unreachable</span></div>
+              <div class="grow" style="max-width:240px"><div class="prog"><i style="width:78%"></i></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Code + diff -->
+        <div class="ds-block">
+          <div class="ds-block-head"><h3 class="ds-h3">JSON viewer &amp; structural diff</h3><p class="ds-note">The core of Noctua: compare response shape, not values. Missing/extra fields go red; type mismatches amber.</p></div>
+          <div class="ds-demo col" style="gap:var(--space-5)">
+            <div class="code">
+              <div class="code-bar"><span class="code-lang">json</span><span class="muted fs-xs">request body</span><span class="sp"></span><button class="btn btn-ghost btn-xs">Copy</button></div>
+              <div class="code-body">
+<div class="ln"><span class="tok-punct">{</span></div>
+<div class="ln">  <span class="tok-key">"model"</span><span class="tok-punct">:</span> <span class="tok-str">"deepseek-chat"</span><span class="tok-punct">,</span></div>
+<div class="ln">  <span class="tok-key">"messages"</span><span class="tok-punct">:</span> <span class="tok-punct">[{</span> <span class="tok-key">"role"</span><span class="tok-punct">:</span> <span class="tok-str">"user"</span><span class="tok-punct">,</span> <span class="tok-key">"content"</span><span class="tok-punct">:</span> <span class="tok-str">"Say hi"</span> <span class="tok-punct">}],</span></div>
+<div class="ln">  <span class="tok-key">"n"</span><span class="tok-punct">:</span> <span class="hl tok-num">2</span><span class="tok-punct">,</span>  <span class="tok-com">// tested parameter</span></div>
+<div class="ln">  <span class="tok-key">"stream"</span><span class="tok-punct">:</span> <span class="tok-bool">false</span></div>
+<div class="ln"><span class="tok-punct">}</span></div>
+              </div>
+            </div>
+
+            <div class="code">
+              <div class="code-bar"><span class="code-lang">diff</span><span class="muted fs-xs">structural · response shape</span></div>
+              <div class="diff-cols">
+                <div>
+                  <div class="diff-colhead"><span class="live-dot success"></span> OpenAI baseline · 200 · 580ms</div>
+                  <div class="code-body" style="padding-top:8px">
+<div class="ln"><span class="tok-punct">{</span> <span class="tok-key">"id"</span><span class="tok-punct">,</span> <span class="tok-key">"object"</span><span class="tok-punct">,</span></div>
+<div class="ln">  <span class="tok-key">"choices"</span><span class="tok-punct">:</span> <span class="tok-punct">[ {…}, {…} ],</span></div>
+<div class="ln">  <span class="tok-key">"usage"</span><span class="tok-punct">:</span> <span class="tok-punct">{…} }</span></div>
+                  </div>
+                </div>
+                <div>
+                  <div class="diff-colhead"><span class="live-dot danger"></span> DeepSeek · 400 · 213ms</div>
+                  <div class="code-body" style="padding-top:8px">
+<div class="ln"><span class="tok-punct">{</span> <span class="tok-key">"error"</span><span class="tok-punct">:</span> <span class="tok-punct">{</span></div>
+<div class="ln">  <span class="tok-key">"message"</span><span class="tok-punct">:</span> <span class="tok-str">"only n=1…"</span><span class="tok-punct">,</span></div>
+<div class="ln">  <span class="tok-key">"code"</span><span class="tok-punct">:</span> <span class="tok-str">"n_not_supported"</span> <span class="tok-punct">} }</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cards + overlays -->
+        <div class="ds-block">
+          <div class="ds-block-head"><h3 class="ds-h3">Cards &amp; overlays</h3></div>
+          <div class="ds-demo">
+            <div class="card hoverable" style="width:220px"><div class="card-head"><span class="card-title">Latency</span><span class="tag tag-success"><span class="ic"></span>good</span></div><div class="mono" style="font-size:var(--text-2xl);font-weight:750">213<span class="subtle" style="font-size:var(--text-sm)">ms</span></div></div>
+            <div class="card selected" style="width:220px"><div class="card-head"><span class="card-title">Selected card</span></div><p class="fs-sm muted">Border becomes owl blue on selection.</p></div>
+            <span class="tip">Hover delay 200ms</span>
+            <div class="popover"><div class="row spread" style="margin-bottom:8px"><strong class="fs-sm">Export</strong></div><div class="col gap-2"><button class="btn btn-secondary btn-sm">JSON</button><button class="btn btn-secondary btn-sm">Markdown</button></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== APPLIED MODULES ===================== -->
+      <section class="ds-section" id="modules">
+        <p class="ds-eyebrow">03 — Applied to product modules</p>
+        <h2 class="ds-h2">The system in context</h2>
+        <p class="ds-lead">The same tokens and components assembled into Noctua's real functional modules — channel selection, configuration, run progress, and the result matrix with its structural-diff detail.</p>
+
+        <!-- Channel selector -->
+        <div class="ds-block">
+          <div class="ds-block-head"><h3 class="ds-h3">Channel selection &amp; configuration</h3></div>
+          <div class="appframe">
+            <div class="appframe-bar"><span class="dotrow"><i></i><i></i><i></i></span><span class="url">noctua · 接口参数评测</span></div>
+            <div class="appframe-body col" style="gap:var(--space-6)">
+              <div class="chan-grid">
+                <button class="chan-card sel" type="button"><span class="pick"></span>
+                  <span class="logo"><svg viewBox="0 0 323.6 320" fill="currentColor"><path d="M123.2,118.3V85c0-2.2,0.6-3.8,2.9-5.1L187.9,44c8.3-4.8,18.9-7,29.2-7c39.1,0,63.8,30.1,63.8,62.5c0,2.6,0,6.1-0.6,9l-64.7-37.8c-3.2-1.9-6.7-2.2-10.6,0L123.2,118.3z M266.1,236.6v-74c0-4.2-1.6-7-5.4-9.3l-82-47.7l28.8-16.7c1.6-1,4.2-1,5.8,0l62.2,35.9c17.6,10.3,29.8,32.7,29.8,54.1C305.2,204.2,289.8,227.6,266.1,236.6z M106.2,172.8l-28.5-17c-2.2-1.3-2.9-2.9-2.9-5.1V79.3c0-34.9,26.6-61.2,62.8-61.2c14.1,0,27.6,4.8,38.4,13.5L111.7,69c-3.8,2.2-5.4,5.1-5.4,9.3V172.8z M162,204.9l-38.8-21.8v-46.1l38.8-21.8l38.4,21.8v46.1L162,204.9z M186,301.9c-14.1,0-27.6-4.8-38.4-13.5L212,251c3.8-2.2,5.4-5.1,5.4-9.3v-94.5l28.8,17c2.2,1.3,2.9,2.9,2.9,5.1v71.5C249.1,275.7,222.2,301.9,186,301.9z M110.4,231.1l-62.2-35.9c-17.6-10.3-29.8-32.7-29.8-54.1c0-25.6,15.7-48.7,39.4-57.7v74.3c0,4.2,1.6,7,5.4,9.3l81.7,47.4l-28.8,16.7C114.6,232.1,112,232.1,110.4,231.1z M106.5,283c-36.8,0-63.8-27.6-63.8-61.8c0-3.2,0.3-6.4,0.6-9.3l64.4,37.2c3.8,2.2,7,2.2,10.9,0l81.7-47.4V235c0,2.2-0.6,3.8-2.9,5.1L135.7,276C127.4,280.8,116.8,283,106.5,283z M186,319.2c38.4,0,70.5-27.6,77.5-64.1c35.9-9,59-42.3,59-76.3c0-22.4-9.6-43.9-27.2-59.6c1.6-6.7,2.9-13.8,2.9-20.5c0-45.2-36.8-79.1-79.1-79.1c-8.7,0-17.3,1.6-25.6,4.5C179,9.7,159.4,0.8,137.6,0.8c-38.4,0-70.5,27.6-77.5,64.1c-35.9,9-59,42.3-59,76.3c0,22.4,9.6,43.9,27.2,59.6c-1.6,6.7-2.9,13.8-2.9,20.5c0,45.2,36.8,79.1,79.1,79.1c8.7,0,17.3-1.6,25.6-4.5C144.7,310.3,164.2,319.2,186,319.2z"></path></svg></span>
+                  <span class="cname">OpenAI</span><span class="cdesc">参考基线 · the standard</span><span class="cparams">25 params</span>
+                </button>
+                <button class="chan-card" type="button"><span class="pick"></span>
+                  <span class="logo"><span class="mono-mark">DS</span></span>
+                  <span class="cname">DeepSeek</span><span class="cdesc">DeepSeek 官方</span><span class="cparams">18 params</span>
+                </button>
+                <button class="chan-card" type="button"><span class="pick"></span>
+                  <span class="logo"><svg viewBox="0 0 120.3 75" fill="currentColor"><rect x="40.1" y="32.8" width="40.1" height="9"></rect><path d="M100.2,0H73.7l6.4,9.1L99.5,15c3.6,1.1,5.9,4.5,5.8,8V52c0,3.6-2.3,6.9-5.8,8l-19.3,5.9L73.7,75h26.5c11.1,0,20-9,20-20V20C120.3,9,111.3,0,100.2,0"></path><path d="M20,0h26.5l-6.4,9.1L20.8,15c-3.6,1.1-5.9,4.5-5.8,8V52c0,3.6,2.3,6.9,5.8,8l19.3,5.9l6.4,9.1H20C9,75,0,66,0,55V20C0,9,9,0,20,0"></path></svg></span>
+                  <span class="cname">Aliyun Bailian</span><span class="cdesc">阿里百炼 DashScope</span><span class="cparams">21 params</span>
+                </button>
+                <button class="chan-card" type="button"><span class="pick"></span>
+                  <span class="logo"><span class="mono-mark">M</span></span>
+                  <span class="cname">MiniMax</span><span class="cdesc">MiniMax 官方</span><span class="cparams">15 params</span>
+                </button>
+                <button class="chan-card" type="button"><span class="pick"></span>
+                  <span class="logo"><svg viewBox="0 0 53.0207 25.3538" fill="currentColor"><path d="M50.7172 0H27.6622C26.3877 0 25.3586 1.03397 25.3586 2.30358V9.21911C25.3586 10.4935 24.3294 11.5227 23.055 11.5227H2.30357C1.02914 11.5227 0 12.5567 0 13.8263V23.0502C0 24.3246 1.03395 25.3538 2.30357 25.3538H25.3586C26.633 25.3538 27.6622 24.3198 27.6622 23.0502V16.1347C27.6622 14.8602 28.6913 13.8311 29.9657 13.8311H50.7172C51.9916 13.8311 53.0207 12.7971 53.0207 11.5275V2.30358C53.0207 1.02916 51.9868 0 50.7172 0Z"></path></svg></span>
+                  <span class="cname">SiliconFlow</span><span class="cdesc">硅基流动</span><span class="cparams">20 params</span>
+                </button>
+              </div>
+
+              <div class="config-row">
+                <label class="fld"><span>API Key</span><span class="input-affix"><input class="inp mono" type="password" value="sk-deepseek-demo" /><button class="btn btn-ghost btn-xs affix-btn" type="button">Show</button></span></label>
+                <label class="fld"><span>Base URL</span><input class="inp mono" type="text" value="https://api.deepseek.com/v1" /></label>
+                <label class="fld"><span>Model</span><input class="inp mono" type="text" value="deepseek-chat" /></label>
+              </div>
+
+              <div class="col gap-3">
+                <div class="row spread"><span class="ds-label" style="margin:0">Test suite · DeepSeek (18 parameters)</span><span class="fs-xs subtle mono">8 expected rejected</span></div>
+                <div class="param-grid">
+                  <span class="param-chip"><span class="pname">temperature</span><span class="porigin">std</span></span>
+                  <span class="param-chip"><span class="pname">top_p</span><span class="porigin">std</span></span>
+                  <span class="param-chip"><span class="pname">seed</span><span class="porigin">std</span></span>
+                  <span class="param-chip"><span class="pname">stop</span><span class="porigin">std</span></span>
+                  <span class="param-chip"><span class="pname">frequency_penalty</span><span class="porigin">std</span></span>
+                  <span class="param-chip"><span class="pname">max_tokens</span><span class="porigin">std</span></span>
+                  <span class="param-chip"><span class="pname">response_format</span><span class="porigin">std</span></span>
+                  <span class="param-chip"><span class="pname">logprobs</span><span class="porigin">std</span></span>
+                  <span class="param-chip muted"><span class="pname">n</span><span class="porigin">✗ rej</span></span>
+                  <span class="param-chip muted"><span class="pname">reasoning_effort</span><span class="porigin">✗ rej</span></span>
+                </div>
+              </div>
+
+              <div class="row spread">
+                <span class="fs-sm subtle mono">≈ 30 seconds estimated</span>
+                <button class="btn btn-primary btn-lg">Run tests</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Run progress -->
+        <div class="ds-block">
+          <div class="ds-block-head"><h3 class="ds-h3">Run progress &amp; live log</h3></div>
+          <div class="ds-demo col" style="gap:var(--space-4)">
+            <div class="row spread">
+              <div class="row gap-3"><span class="live-dot run"></span><span class="mono fs-sm">14 / 18</span><span class="muted fs-sm">testing <span class="mono">response_format</span> …</span></div>
+              <button class="btn btn-secondary btn-sm">Stop</button>
+            </div>
+            <div class="prog"><i style="width:78%"></i></div>
+            <div class="runlog">
+              <div class="lg"><span class="s-ok">✓</span><span class="nm">temperature</span><span class="s-ok">accepted</span><span class="lat">412ms</span><span class="ms"></span></div>
+              <div class="lg"><span class="s-ok">✓</span><span class="nm">top_p</span><span class="s-ok">accepted</span><span class="lat">389ms</span><span class="ms"></span></div>
+              <div class="lg"><span class="s-no">✗</span><span class="nm">n</span><span class="s-no">rejected</span><span class="lat">213ms</span><span class="ms">only n=1 is supported</span></div>
+              <div class="lg"><span class="s-ok">✓</span><span class="nm">seed</span><span class="s-ok">accepted</span><span class="lat">401ms</span><span class="ms"></span></div>
+              <div class="lg"><span class="s-wa">⚠</span><span class="nm">frequency_penalty</span><span class="s-wa">warning</span><span class="lat">430ms</span><span class="ms">hint: ignored</span></div>
+              <div class="lg"><span class="s-na">?</span><span class="nm">parallel_tool_calls</span><span class="s-na">n/a</span><span class="lat">—</span><span class="ms">not in template</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Result matrix -->
+        <div class="ds-block">
+          <div class="ds-block-head"><h3 class="ds-h3">Result matrix &amp; case detail</h3><p class="ds-note">Click a row to expand the structural diff. (The first row is shown expanded.)</p></div>
+          <div class="col gap-4">
+            <div class="stat-grid">
+              <div class="stat-card"><div class="st-top"><span class="marker" style="background:var(--status-success)"></span>Passed</div><div class="st-val">14</div></div>
+              <div class="stat-card"><div class="st-top"><span class="marker" style="background:var(--status-warning)"></span>Warnings</div><div class="st-val">1</div></div>
+              <div class="stat-card"><div class="st-top"><span class="marker" style="background:var(--status-danger)"></span>Failed</div><div class="st-val">3</div></div>
+              <div class="stat-card"><div class="st-top"><span class="marker" style="background:var(--status-info)"></span>Structure diffs</div><div class="st-val">7</div></div>
+            </div>
+
+            <div class="row spread">
+              <div class="tabs" style="border:0">
+                <button class="on">All <span class="count">18</span></button>
+                <button>Failures <span class="count">3</span></button>
+                <button>Warnings <span class="count">1</span></button>
+                <button>Diffs <span class="count">7</span></button>
+              </div>
+              <div class="row gap-2">
+                <button class="btn btn-secondary btn-sm">Export JSON</button>
+                <button class="btn btn-secondary btn-sm">Export MD</button>
+                <button class="btn btn-ghost btn-sm">Re-run</button>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table class="rtable">
+                <thead>
+                  <tr><th>Parameter</th><th>Category</th><th>Status</th><th>Latency</th><th>Diff vs OpenAI</th></tr>
+                </thead>
+                <tbody>
+                  <tr class="clickable expanded s-no" data-row><td class="pcell"><span class="rowstate" style="display:inline-block;padding-left:6px">n</span></td><td class="cat">sampling</td><td><span class="tag tag-danger"><span class="ic"></span>rejected</span></td><td class="lat">213ms</td><td class="diffcell has">6 fields differ</td></tr>
+                  <tr class="detail-row"><td class="detail-cell" colspan="5">
+                    <div class="detail-pane">
+                      <div class="col gap-2"><span class="detail-h">Structural diff — compares shape, not values</span>
+                        <div class="card" style="padding:8px 0">
+                          <div class="sdiff">
+                            <div class="row" style="display:grid;grid-template-columns:16px 1fr 88px 1fr;gap:var(--space-3);padding:4px 12px;color:var(--diff-del)"><span class="sign">−</span><span>choices</span><span class="ty">array</span><span class="note">missing in this channel</span></div>
+                            <div class="row" style="display:grid;grid-template-columns:16px 1fr 88px 1fr;gap:var(--space-3);padding:4px 12px;color:var(--diff-del)"><span class="sign">−</span><span>usage</span><span class="ty">object</span><span class="note">missing</span></div>
+                            <div class="row" style="display:grid;grid-template-columns:16px 1fr 88px 1fr;gap:var(--space-3);padding:4px 12px;color:var(--diff-del)"><span class="sign">−</span><span>id</span><span class="ty">string</span><span class="note">missing</span></div>
+                            <div class="row" style="display:grid;grid-template-columns:16px 1fr 88px 1fr;gap:var(--space-3);padding:4px 12px;color:var(--diff-del)"><span class="sign">−</span><span>object</span><span class="ty">string</span><span class="note">missing</span></div>
+                            <div class="row" style="display:grid;grid-template-columns:16px 1fr 88px 1fr;gap:var(--space-3);padding:4px 12px;color:var(--diff-del)"><span class="sign">+</span><span>error</span><span class="ty">object</span><span class="note">extra, not in OpenAI standard</span></div>
+                            <div class="row" style="display:grid;grid-template-columns:16px 1fr 88px 1fr;gap:var(--space-3);padding:4px 12px;color:var(--diff-del)"><span class="sign">+</span><span>error.code</span><span class="ty">string</span><span class="note">extra</span></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="severity critical"><span class="badge">Critical</span><span>4 required OpenAI fields missing — this response cannot be processed by standard OpenAI SDKs.</span></div>
+                      <div class="detail-actions"><button class="btn btn-secondary btn-sm">Copy diff</button><button class="btn btn-secondary btn-sm">Copy as customer reply</button><button class="btn btn-ghost btn-sm">Save as case</button></div>
+                    </div>
+                  </td></tr>
+
+                  <tr class="clickable s-ok" data-row><td class="pcell"><span class="rowstate" style="display:inline-block;padding-left:6px">temperature</span></td><td class="cat">sampling</td><td><span class="tag tag-success"><span class="ic"></span>accepted</span></td><td class="lat">412ms</td><td class="diffcell none">—</td></tr>
+                  <tr class="clickable s-wa" data-row><td class="pcell"><span class="rowstate" style="display:inline-block;padding-left:6px">frequency_penalty</span></td><td class="cat">sampling</td><td><span class="tag tag-warning"><span class="ic"></span>warning</span></td><td class="lat">430ms</td><td class="diffcell none">—</td></tr>
+                  <tr class="clickable s-ok" data-row><td class="pcell"><span class="rowstate" style="display:inline-block;padding-left:6px">response_format</span></td><td class="cat">output</td><td><span class="tag tag-success"><span class="ic"></span>accepted</span></td><td class="lat">498ms</td><td class="diffcell has">1 field differs</td></tr>
+                  <tr class="clickable s-ok" data-row><td class="pcell"><span class="rowstate" style="display:inline-block;padding-left:6px">logprobs</span></td><td class="cat">debug</td><td><span class="tag tag-success"><span class="ic"></span>accepted</span></td><td class="lat">521ms</td><td class="diffcell has">2 fields differ</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <p class="ds-note" style="margin-top:var(--space-8)">
+          <strong>What changed &amp; next steps —</strong> this v2 re-skins the existing token set (same semantic names, so it drops into the current build) toward the Ollama aesthetic: light default, ink primaries, owl-blue accent, gentler radii, softer shadows, Hanken Grotesk + JetBrains Mono. Open items I'd confirm with you: (1) keep both dark + light or ship light-only; (2) whether provider marks stay monochrome ink or carry brand color; (3) whether to apply this across the full app shell (sidebar/topbar) next.
+        </p>
+      </section>
+    </main>
+
+    <script>
+      // Theme toggle
+      (function () {
+        var root = document.documentElement;
+        var btn = document.getElementById('themeToggle');
+        var lbl = document.getElementById('themeLabel');
+        var saved = localStorage.getItem('noctua-ds-theme');
+        if (saved) root.setAttribute('data-theme', saved);
+        function sync() { lbl.textContent = root.getAttribute('data-theme') === 'dark' ? 'Light' : 'Dark'; }
+        sync();
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('noctua-ds-theme', next);
+          sync();
+        });
+      })();
+
+      // Channel card selection
+      document.querySelectorAll('.chan-card').forEach(function (c) {
+        c.addEventListener('click', function () {
+          document.querySelectorAll('.chan-card').forEach(function (x) { x.classList.remove('sel'); });
+          c.classList.add('sel');
+        });
+      });
+
+      // Expandable result rows
+      document.querySelectorAll('.rtable tr[data-row]').forEach(function (row) {
+        row.addEventListener('click', function () {
+          var detail = row.nextElementSibling;
+          var isOpen = row.classList.contains('expanded');
+          document.querySelectorAll('.rtable tr[data-row]').forEach(function (r) {
+            r.classList.remove('expanded');
+            var d = r.nextElementSibling;
+            if (d && d.classList.contains('detail-row')) d.style.display = 'none';
+          });
+          if (!isOpen && detail && detail.classList.contains('detail-row')) {
+            row.classList.add('expanded');
+            detail.style.display = '';
+          }
+        });
+      });
+
+      // Affix show/hide for password fields
+      document.querySelectorAll('.affix-btn').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var inp = b.parentElement.querySelector('input');
+          if (!inp) return;
+          var show = inp.type === 'password';
+          inp.type = show ? 'text' : 'password';
+          b.textContent = show ? 'Hide' : 'Show';
+        });
+      });
+    </script>
+  </body>
+</html>

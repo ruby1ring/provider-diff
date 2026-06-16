@@ -113,11 +113,59 @@ const els = {
   saveOpencompassUrl: document.querySelector("#saveOpencompassUrl"),
   reloadOpencompass: document.querySelector("#reloadOpencompass"),
   openOpencompass: document.querySelector("#openOpencompass"),
-  toast: document.querySelector("#toast")
+  themeToggle: document.querySelector("#themeToggle"),
+  themeLabel: document.querySelector("#themeLabel"),
+  accountMode: document.querySelector("#accountMode"),
+  runV02ModelSelect: document.querySelector("#runV02ModelSelect"),
+  runV02ModelControl: document.querySelector("#runV02ModelControl"),
+  runV02ModelInput: document.querySelector("#runV02ModelInput"),
+  runV02ModelMenu: document.querySelector("#runV02ModelMenu"),
+  runV02ModelOptions: document.querySelector("#runV02ModelOptions"),
+  runV02RouteSelect: document.querySelector("#runV02RouteSelect"),
+  runV02RouteControl: document.querySelector("#runV02RouteControl"),
+  runV02RouteInput: document.querySelector("#runV02RouteInput"),
+  runV02RouteMenu: document.querySelector("#runV02RouteMenu"),
+  runV02RouteOptions: document.querySelector("#runV02RouteOptions"),
+  runV02RouteHint: document.querySelector("#runV02RouteHint"),
+  runV02ConfigPanel: document.querySelector("#runV02ConfigPanel"),
+  runV02CasePanel: document.querySelector("#runV02CasePanel"),
+  runV02SelectedRoute: document.querySelector("#runV02SelectedRoute"),
+  runV02ModelId: document.querySelector("#runV02ModelId"),
+  runV02BaseUrl: document.querySelector("#runV02BaseUrl"),
+  runV02ApiKey: document.querySelector("#runV02ApiKey"),
+  runV02ToggleSecret: document.querySelector("#runV02ToggleSecret"),
+  runV02CaseGroups: document.querySelector("#runV02CaseGroups"),
+  runV02SelectedCaseCount: document.querySelector("#runV02SelectedCaseCount"),
+  runV02CaseHint: document.querySelector("#runV02CaseHint"),
+  runV02SelectAllCases: document.querySelector("#runV02SelectAllCases"),
+  runV02ClearAllCases: document.querySelector("#runV02ClearAllCases"),
+  runV02Tests: document.querySelector("#runV02Tests"),
+  runV02StopTests: document.querySelector("#runV02StopTests"),
+  runV02ProgressPanel: document.querySelector("#runV02ProgressPanel"),
+  runV02ProgressCount: document.querySelector("#runV02ProgressCount"),
+  runV02ProgressCase: document.querySelector("#runV02ProgressCase"),
+  runV02ProgressBar: document.querySelector("#runV02ProgressBar"),
+  runV02RunLog: document.querySelector("#runV02RunLog"),
+  runV02ResultsPanel: document.querySelector("#runV02ResultsPanel"),
+  runV02StatPassed: document.querySelector("#runV02StatPassed"),
+  runV02StatWarnings: document.querySelector("#runV02StatWarnings"),
+  runV02StatFailed: document.querySelector("#runV02StatFailed"),
+  runV02StatDiffs: document.querySelector("#runV02StatDiffs"),
+  runV02ResultRows: document.querySelector("#runV02ResultRows"),
+  proxySwitch: document.querySelector("#proxySwitch"),
+  toast: document.querySelector("#toast"),
+  channelCatalog: document.querySelector("#channelCatalog"),
+  channelScopeNote: document.querySelector("#channelScopeNote"),
+  modelLookup: document.querySelector("#modelLookup")
 };
 
 const state = {
   activeView: "run",
+  activeViewKey: "run-v01",
+  runToolVersion: "v0.1",
+  channelCatalogTab: "oem",
+  channelCatalogExpanded: false,
+  modelLookupQuery: "",
   selectedChannelId: "siliconflow",
   selectedEndpointId: "chat_completions",
   selectedFilter: "all",
@@ -142,7 +190,25 @@ const state = {
   isCaseLoading: false,
   timer: null,
   currentRunAbortController: null,
-  isRunning: false
+  isRunning: false,
+  runV02: {
+    modelId: "",
+    routeKey: "",
+    routeOptions: [],
+    selectedRoute: null,
+    baseUrl: "",
+    apiKey: "",
+    cases: [],
+    selectedCaseIds: new Set(),
+    modelSearch: "",
+    routeSearch: "",
+    modelMenuOpen: false,
+    routeMenuOpen: false,
+    isCaseLoading: false,
+    isRunning: false,
+    completedResults: [],
+    currentRunAbortController: null
+  }
 };
 
 const appProtocol = window.location.protocol === "file:" ? "http:" : window.location.protocol;
@@ -504,15 +570,35 @@ function renderBaselineSelector() {
 
 function renderProxyState() {
   const proxy = getProxyConfig();
+  if (els.proxyEnabled) els.proxyEnabled.checked = proxy.enabled;
+  if (els.proxySwitch) els.proxySwitch.classList.toggle("on", proxy.enabled);
   els.proxyUrl.disabled = !proxy.enabled;
   els.proxyHint.textContent = proxySummary(proxy);
 }
 
+function initTheme() {
+  if (!els.themeToggle) return;
+  const root = document.documentElement;
+  const saved = localStorage.getItem("noctua-ds-theme");
+  if (saved) root.setAttribute("data-theme", saved);
+  const sync = () => {
+    if (els.themeLabel) {
+      els.themeLabel.textContent = root.getAttribute("data-theme") === "dark" ? "Light" : "Dark";
+    }
+  };
+  sync();
+  els.themeToggle.addEventListener("click", () => {
+    const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    localStorage.setItem("noctua-ds-theme", next);
+    sync();
+  });
+}
+
 function renderEndpointTabs() {
   els.endpointTabs.innerHTML = ENDPOINT_TEMPLATES.map((endpoint) => `
-    <button class="endpoint-tab ${endpoint.endpoint_id === state.selectedEndpointId ? "is-active" : ""}" type="button" data-endpoint-id="${escapeHtml(endpoint.endpoint_id)}">
-      <span>${escapeHtml(endpoint.label)}</span>
-      <small>${escapeHtml(endpoint.description)}</small>
+    <button class="${endpoint.endpoint_id === state.selectedEndpointId ? "on" : ""}" type="button" data-endpoint-id="${escapeHtml(endpoint.endpoint_id)}">
+      ${escapeHtml(endpoint.label)}
     </button>
   `).join("");
 }
@@ -576,7 +662,7 @@ function renderBatchMode() {
   if (!els.batchModeToggle || !els.batchTargetsPanel) return;
   els.batchModeToggle.textContent = state.batchModeEnabled ? "关闭" : "开启";
   els.batchModeToggle.setAttribute("aria-pressed", state.batchModeEnabled ? "true" : "false");
-  els.batchModeToggle.classList.toggle("is-active", state.batchModeEnabled);
+  els.batchModeToggle.classList.toggle("on", state.batchModeEnabled);
   els.batchTargetsPanel.classList.toggle("is-hidden", !state.batchModeEnabled);
   if (state.batchModeEnabled) ensureBatchTargetRows();
   updateBatchTargetPlaceholders();
@@ -622,19 +708,19 @@ function renderBatchTargetRow(target = {}, index = 0) {
   return `
     <div class="batch-target-row" data-batch-target-row>
       <span class="batch-target-row__index">T${index + 1}</span>
-      <label class="field batch-target-field batch-target-field--url">
+      <label class="fld batch-target-field batch-target-field--url">
         <span>Base URL <em>可留空</em></span>
-        <input class="mono" data-batch-field="base_url" value="${escapeHtml(target.base_url || "")}" placeholder="${escapeHtml(placeholders.base_url)}" />
+        <input class="inp mono" data-batch-field="base_url" value="${escapeHtml(target.base_url || "")}" placeholder="${escapeHtml(placeholders.base_url)}" />
       </label>
-      <label class="field batch-target-field batch-target-field--key">
+      <label class="fld batch-target-field batch-target-field--key">
         <span>API Key <em>可留空</em></span>
-        <input class="mono" type="password" data-batch-field="api_key" value="${escapeHtml(target.api_key || "")}" placeholder="${escapeHtml(placeholders.api_key)}" autocomplete="off" />
+        <input class="inp mono" type="password" data-batch-field="api_key" value="${escapeHtml(target.api_key || "")}" placeholder="${escapeHtml(placeholders.api_key)}" autocomplete="off" />
       </label>
-      <label class="field batch-target-field batch-target-field--model">
+      <label class="fld batch-target-field batch-target-field--model">
         <span>Model</span>
-        <input class="mono" data-batch-field="model" value="${escapeHtml(target.model || "")}" placeholder="${escapeHtml(placeholders.model)}" />
+        <input class="inp mono" data-batch-field="model" value="${escapeHtml(target.model || "")}" placeholder="${escapeHtml(placeholders.model)}" />
       </label>
-      <button class="icon-button batch-target-remove" type="button" data-remove-batch-target title="移除 target" aria-label="移除 target">×</button>
+      <button class="btn btn-ghost btn-xs batch-target-remove" type="button" data-remove-batch-target title="移除 target" aria-label="移除 target">×</button>
     </div>
   `;
 }
@@ -2285,17 +2371,15 @@ function renderChannels() {
       ? (providerIdForChannel(channel.channel_id) ? "真实测试" : "预览")
       : "不支持该端点";
     return `
-      <div class="channel-card ${channel.channel_id === state.selectedChannelId ? "is-active" : ""} ${isSupported ? "" : "is-disabled"}" data-channel-id="${channel.channel_id}">
-        <button class="channel-card__select" type="button" data-channel-id="${channel.channel_id}" aria-label="选择 ${escapeHtml(channel.name)}" ${isSupported ? "" : "disabled"}></button>
-        <span class="channel-card__top">
-          <span class="channel-card__logo-wrap">
-            <img class="channel-card__logo" src="${escapeHtml(channel.logo)}" alt="${escapeHtml(channel.name)} logo" />
-          </span>
-          <span class="channel-card__count">${escapeHtml(modeText)}${isSupported ? ` · ${count} 个参数` : ""}</span>
-        </span>
-        <strong>${escapeHtml(channel.name)}</strong>
-        <a class="channel-card__docs" href="${escapeHtml(endpoint?.api_docs_url || channel.api_docs_url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(channel.name)} 官方 API 文档">API 文档</a>
-        <p>${escapeHtml(channel.summary)}</p>
+      <div class="chan-wrap">
+        <button type="button" class="chan-card ${channel.channel_id === state.selectedChannelId ? "sel" : ""} ${isSupported ? "" : "is-disabled"}" data-channel-id="${channel.channel_id}" aria-label="选择 ${escapeHtml(channel.name)}" ${isSupported ? "" : "disabled"}>
+          <span class="pick"></span>
+          <span class="logo"><img src="${escapeHtml(channel.logo)}" alt="${escapeHtml(channel.name)} logo" /></span>
+          <span class="cname">${escapeHtml(channel.name)}</span>
+          <span class="cdesc">${escapeHtml(channel.summary)}</span>
+          <span class="cparams">${escapeHtml(modeText)}${isSupported ? ` · ${count} 个参数` : ""}</span>
+        </button>
+        <a class="chan-card__docs" href="${escapeHtml(endpoint?.api_docs_url || channel.api_docs_url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(channel.name)} 官方 API 文档">API 文档</a>
       </div>
     `;
   }).join("");
@@ -2310,7 +2394,7 @@ function renderSelectedChannel() {
     renderBaseUrlPreset("");
     els.modelName.value = "";
     els.suiteTitle.textContent = `测试套件：${channel.name}（${getSelectedEndpointTemplate().label} 不支持）`;
-    document.querySelector(".account-button span:nth-child(2)").textContent = "不支持";
+    if (els.accountMode) els.accountMode.textContent = "不支持";
     renderParameterCatalog(channel);
     loadCaseSelectorForChannel();
     return;
@@ -2318,7 +2402,7 @@ function renderSelectedChannel() {
   setBaseUrlValue(endpoint.default_base_url || channel.default_base_url);
   els.modelName.value = endpoint.default_model || channel.default_model;
   els.suiteTitle.textContent = `测试套件：${channel.name} / ${getSelectedEndpointTemplate().label}（${flattenParameters(channel).length} 个重点参数）`;
-  document.querySelector(".account-button span:nth-child(2)").textContent = providerIdForChannel(channel.channel_id) ? "真实测试" : "预览模式";
+  if (els.accountMode) els.accountMode.textContent = providerIdForChannel(channel.channel_id) ? "真实测试" : "预览模式";
   renderParameterCatalog(channel);
 
   loadCaseSelectorForChannel();
@@ -3002,22 +3086,20 @@ function renderHistoryFilters(items = [], filteredItems = items) {
         <span class="mono">${filteredItems.length} / ${items.length}</span>
         <span class="muted">筛选后报告</span>
       </div>
-      <button class="history-filter-reset" type="button" data-history-filter-reset ${Object.values(state.historyFilters).every((value) => value === "all") ? "disabled" : ""}>重置</button>
+      <button class="btn btn-ghost btn-xs" type="button" data-history-filter-reset ${Object.values(state.historyFilters).every((value) => value === "all") ? "disabled" : ""}>重置</button>
     </div>
     ${groups.map(([type, label]) => {
       const options = historyFilterOptions(items, type);
       const selected = state.historyFilters[type] || "all";
       return `
-        <div class="history-filter-group">
-          <span>${escapeHtml(label)}</span>
-          <div class="history-filter-buttons">
-            <button class="history-filter-button ${selected === "all" ? "is-active" : ""}" type="button" data-history-filter="${type}" data-history-filter-value="all">全部 <em>${items.length}</em></button>
-            ${options.map((option) => `
-              <button class="history-filter-button ${selected === option.key ? "is-active" : ""}" type="button" data-history-filter="${type}" data-history-filter-value="${escapeHtml(option.key)}">
-                ${escapeHtml(option.label)} <em>${option.count}</em>
-              </button>
-            `).join("")}
-          </div>
+        <div class="filter-row">
+          <span class="flabel">${escapeHtml(label)}</span>
+          <button class="fchip ${selected === "all" ? "on" : ""}" type="button" data-history-filter="${type}" data-history-filter-value="all">全部 <em>${items.length}</em></button>
+          ${options.map((option) => `
+            <button class="fchip ${selected === option.key ? "on" : ""}" type="button" data-history-filter="${type}" data-history-filter-value="${escapeHtml(option.key)}">
+              ${escapeHtml(option.label)} <em>${option.count}</em>
+            </button>
+          `).join("")}
         </div>
       `;
     }).join("")}
@@ -3037,38 +3119,36 @@ function renderHistorySummary(items) {
     .join(" · ") || "—";
   const latestText = aggregate.latestAt ? formatDateTime(aggregate.latestAt) : "—";
   els.historySummary.innerHTML = `
-    <div class="report-summary-grid">
-      <article class="report-summary-card">
-        <span>运行次数</span>
-        <strong>${aggregate.reports}</strong>
-        <small>${escapeHtml(providerText)}</small>
+      <article class="rep-card">
+        <span class="lbl">运行次数</span>
+        <span class="num">${aggregate.reports}</span>
+        <span class="sub">${escapeHtml(providerText)}</span>
       </article>
-      <article class="report-summary-card">
-        <span>总 case</span>
-        <strong>${aggregate.total}</strong>
-        <small>模型 ${aggregate.models.size} 个 · 最近 ${escapeHtml(latestText)}</small>
+      <article class="rep-card">
+        <span class="lbl">总 case</span>
+        <span class="num">${aggregate.total}</span>
+        <span class="sub">模型 ${aggregate.models.size} 个 · 最近 ${escapeHtml(latestText)}</span>
       </article>
-      <article class="report-summary-card report-summary-card--pass">
-        <span>符合预期</span>
-        <strong>${aggregate.expectedPass}</strong>
-        <small>${percentText(aggregate.expectedPass, aggregate.total)}</small>
+      <article class="rep-card pass">
+        <span class="lbl"><span class="mk" style="background:var(--status-success)"></span>符合预期</span>
+        <span class="num">${aggregate.expectedPass}</span>
+        <span class="sub">${percentText(aggregate.expectedPass, aggregate.total)}</span>
       </article>
-      <article class="report-summary-card report-summary-card--warn">
-        <span>接受未证明/权限</span>
-        <strong>${aggregate.ignored}</strong>
-        <small>${percentText(aggregate.ignored, aggregate.total)}</small>
+      <article class="rep-card warn">
+        <span class="lbl"><span class="mk" style="background:var(--status-warning)"></span>接受未证明 / 权限</span>
+        <span class="num">${aggregate.ignored}</span>
+        <span class="sub">${percentText(aggregate.ignored, aggregate.total)}</span>
       </article>
-      <article class="report-summary-card report-summary-card--fail">
-        <span>预期外</span>
-        <strong>${aggregate.unexpected}</strong>
-        <small>400 ${aggregate.unexpectedRejected} · 失败 ${aggregate.unexpectedRequestFailed} · 断言 ${aggregate.unexpectedSchemaMismatch}</small>
+      <article class="rep-card fail">
+        <span class="lbl"><span class="mk" style="background:var(--status-danger)"></span>预期外</span>
+        <span class="num">${aggregate.unexpected}</span>
+        <span class="sub">400 ${aggregate.unexpectedRejected} · 失败 ${aggregate.unexpectedRequestFailed} · 断言 ${aggregate.unexpectedSchemaMismatch}</span>
       </article>
-      <article class="report-summary-card report-summary-card--diff">
-        <span>可作 baseline</span>
-        <strong>${aggregate.baselineReady}</strong>
-        <small>差异 ${aggregate.diffs} · ${percentText(aggregate.baselineReady, aggregate.total)}</small>
+      <article class="rep-card">
+        <span class="lbl"><span class="mk" style="background:var(--status-info)"></span>结构差异 / baseline</span>
+        <span class="num">${aggregate.diffs}</span>
+        <span class="sub">可作 baseline ${aggregate.baselineReady} · ${percentText(aggregate.baselineReady, aggregate.total)}</span>
       </article>
-    </div>
   `;
 }
 
@@ -3604,10 +3684,10 @@ function formatDateTime(value) {
 function renderHistoryDetailRow(record, stats) {
   const capacityHtml = capacitySummaryHtml(record.results || [], "历史报告");
   return `
-    <tr class="history-detail-row" data-history-detail="${escapeHtml(record.id)}">
-      <td colspan="9">
-        <div class="history-detail-panel">
-          <div class="history-meta">
+    <tr class="hdetail-row" data-history-detail="${escapeHtml(record.id)}">
+      <td class="hdetail-cell" colspan="9">
+        <div class="hdetail">
+          <div class="hmeta">
             <span>${escapeHtml(historyEndpointLabel(record))}</span>
             <span class="mono">${escapeHtml(record.base_url || "—")}</span>
             <span>${escapeHtml(proxySummary(record.proxy))}</span>
@@ -3629,7 +3709,7 @@ function renderHistoryDetailRow(record, stats) {
                 <strong>原始渠道测试报告</strong>
                 <span>${escapeHtml(historyChannelLabel(record))} / ${escapeHtml(historyModelLabel(record))} / ${escapeHtml(historyEndpointLabel(record))}</span>
               </div>
-              <button class="secondary-button compact-button" type="button" data-history-action="copy" data-history-id="${escapeHtml(record.id)}">复制完整报告</button>
+              <button class="btn btn-secondary btn-sm" type="button" data-history-action="copy" data-history-id="${escapeHtml(record.id)}">复制完整报告</button>
             </div>
             <div class="history-result-list">
               ${renderHistoryResultGroups(record)}
@@ -3679,55 +3759,49 @@ function renderHistoryRawCase(result, record) {
       ? `<pre class="code-block">${escapeHtml(rawResponse)}</pre>`
       : `<pre class="code-block">null</pre>`;
   return `
-    <details class="history-raw-case">
+    <details class="hcase">
       <summary>
-        <span class="history-result-case">
-          <strong title="${escapeHtml(resultTitle(result))}">${escapeHtml(resultTitle(result))}</strong>
-          ${caseCode ? `<code>${escapeHtml(caseCode)}</code>` : ""}
-        </span>
-        <span class="mono history-result-params">${escapeHtml(result.parameter || "payload")}</span>
-        <span class="support-badge history-result-support ${meta.badgeClass}">${escapeHtml(meta.label)}</span>
-        <span class="expectation-badge history-result-expectation ${expectationClass(result)}">${escapeHtml(expectationLabel(result))}</span>
-        <span class="mono muted history-result-http">HTTP ${escapeHtml(result.http_status || meta.httpStatus || "—")} · ${escapeHtml(result.latency_ms ? `${result.latency_ms}ms` : "—")}</span>
+        <span class="cid">${escapeHtml(resultTitle(result))}</span>
+        <span class="badge-sm ${matchesExpectedResult(result) ? "ok" : "no"}">${escapeHtml(expectationLabel(result))}</span>
+        <span class="muted fs-xs">${escapeHtml(meta.label)} · ${escapeHtml(result.parameter || "payload")}</span>
+        <span class="grow"></span>
+        <span class="mono fs-xs subtle">HTTP ${escapeHtml(result.http_status || meta.httpStatus || "—")} · ${escapeHtml(result.latency_ms ? `${result.latency_ms}ms` : "—")}</span>
       </summary>
-      <div class="history-raw-grid">
-        <section class="history-raw-pane">
-          <p class="detail-title">请求 Body</p>
+      <div class="panes">
+        <section class="pane">
+          <div class="pt">请求 Body</div>
           <pre class="code-block">${syntaxJson(requestBody)}</pre>
           ${requestHeaders ? `
-            <p class="detail-title">请求 Headers</p>
+            <div class="pt">请求 Headers</div>
             <pre class="code-block">${syntaxJson(requestHeaders)}</pre>
           ` : ""}
           ${sourceCase?.expect ? `
-            <p class="detail-title">预期断言</p>
+            <div class="pt">预期断言</div>
             <pre class="code-block">${syntaxJson(sourceCase.expect)}</pre>
           ` : ""}
         </section>
-        <section class="history-raw-pane">
-          <p class="detail-title">${escapeHtml(historyChannelLabel(record))} 原始响应</p>
+        <section class="pane">
+          <div class="pt">${escapeHtml(historyChannelLabel(record))} 原始响应</div>
           ${responseBlock}
           ${rawResponse && responseBody !== null ? `
-            <p class="detail-title">Raw Response</p>
+            <div class="pt">Raw Response</div>
             <pre class="code-block">${escapeHtml(rawResponse)}</pre>
           ` : ""}
           ${responseHeaders ? `
-            <p class="detail-title">响应 Headers</p>
+            <div class="pt">响应 Headers</div>
             <pre class="code-block">${syntaxJson(responseHeaders)}</pre>
           ` : ""}
         </section>
-        <section class="history-raw-pane">
-          <p class="detail-title">真实断言结果</p>
+        <section class="pane">
+          <div class="pt">真实断言结果</div>
           ${assertions.length ? `
-            <div class="assertion-list">
+            <div class="assert-list">
               ${assertions.map((assertion) => `
-                <span class="assertion-item ${assertion.pass ? "pass" : "fail"}">
-                  <strong>${assertion.pass ? "✓" : "✗"} ${escapeHtml(assertion.name)}</strong>
-                  <span>${escapeHtml(assertion.message || (assertion.pass ? "通过" : "未通过"))}</span>
-                </span>
+                <span class="assert-item ${assertion.pass ? "pass" : "fail"}">${assertion.pass ? "✓" : "✗"} ${escapeHtml(assertion.name)} — ${escapeHtml(assertion.message || (assertion.pass ? "通过" : "未通过"))}</span>
               `).join("")}
             </div>
           ` : `<pre class="code-block">[]</pre>`}
-          <p class="detail-title">运行消息</p>
+          <div class="pt">运行消息</div>
           <pre class="code-block">${escapeHtml(result.message || result.error || "—")}</pre>
         </section>
       </div>
@@ -3753,7 +3827,7 @@ function renderHistory() {
   renderHistoryFilters(items, visibleItems);
   if (!items.length) {
     els.historyList.innerHTML = `
-      <div class="history-empty">
+      <div class="empty-state">
         <strong>暂无历史报告</strong>
         <span>测试完成后会自动保存在这里。</span>
       </div>
@@ -3762,7 +3836,7 @@ function renderHistory() {
   }
   if (!visibleItems.length) {
     els.historyList.innerHTML = `
-      <div class="history-empty">
+      <div class="empty-state">
         <strong>当前筛选没有报告</strong>
         <span>切换渠道、模型或接口类型筛选后再查看。</span>
       </div>
@@ -3771,8 +3845,8 @@ function renderHistory() {
   }
 
   els.historyList.innerHTML = `
-    <div class="history-table-wrap">
-      <table class="history-table">
+    <div class="htable-wrap">
+      <table class="htable">
         <colgroup>
           <col class="history-col-id" />
           <col class="history-col-provider" />
@@ -3791,45 +3865,46 @@ function renderHistory() {
             <th>接口类型</th>
             <th>用例数</th>
             <th>达标情况</th>
-            <th>异常概览</th>
+            <th>行为 <span style="text-transform:none;font-weight:400">未证明/拒绝/失败</span></th>
             <th>结构差异</th>
             <th>生成时间</th>
-            <th>操作</th>
+            <th style="text-align:right">操作</th>
           </tr>
         </thead>
         <tbody>
           ${visibleItems.map((record) => {
             const derivedStats = historyStats(record.results || []);
             const stats = { ...derivedStats, ...(record.stats || {}) };
+            const isOpen = state.expandedHistoryId === record.id;
             return `
-              <tr class="history-row" data-history-id="${escapeHtml(record.id)}">
-                <td class="mono history-report-id">${escapeHtml(record.id.replace(/^report_/, "run/"))}</td>
+              <tr class="hrow ${isOpen ? "open" : ""}" data-history-id="${escapeHtml(record.id)}">
+                <td class="rep-id">${escapeHtml(record.id.replace(/^report_/, "run/"))}</td>
                 <td>
-                  <div class="history-provider-cell">
+                  <div class="hprovider">
                     <strong>${escapeHtml(record.channel_name)}</strong>
-                    <span class="mono muted">${escapeHtml(record.model || "—")}</span>
-                    <span class="muted">可对比响应：${stats.baselineReady || 0} 个 / 共 ${stats.total || 0} 个</span>
-                    ${record.baseline_label ? `<span class="muted">baseline：${escapeHtml(record.baseline_label)}</span>` : ""}
+                    <span class="meta">${escapeHtml(record.model || "—")}</span>
+                    <span class="meta">可对比响应：${stats.baselineReady || 0} 个 / 共 ${stats.total || 0} 个</span>
+                    ${record.baseline_label ? `<span class="meta">baseline：${escapeHtml(record.baseline_label)}</span>` : ""}
                   </div>
                 </td>
                 <td class="mono">${escapeHtml(record.endpoint_label || record.endpoint_id || "Chat Completions")}</td>
                 <td>${stats.total || 0} 个</td>
                 <td>
-                  <span class="history-stat-pill visible">${escapeHtml(historyPassSummaryText(stats))}</span>
+                  <span class="hpill">${escapeHtml(historyPassSummaryText(stats))}</span>
                 </td>
                 <td>
-                  <span class="history-stat-pill ${stats.unexpected ? "warning" : ""}">
+                  <span class="hpill ${stats.unexpected ? "warn" : "neutral"}">
                     ${escapeHtml(historyIssueSummaryText(stats))}
                   </span>
                 </td>
                 <td>${escapeHtml(historyDiffSummaryText(stats))}</td>
                 <td class="mono">${escapeHtml(formatDateTime(record.generated_at))}</td>
                 <td>
-                  <div class="history-actions">
-                    <button class="history-action-button" type="button" data-history-action="toggle" data-history-id="${escapeHtml(record.id)}" title="查看明细" aria-label="查看明细">明细</button>
-                    <button class="history-action-button" type="button" data-history-action="copy" data-history-id="${escapeHtml(record.id)}" title="复制 Markdown" aria-label="复制 Markdown">复制</button>
-                    <button class="history-action-button" type="button" data-history-action="feishu" data-history-id="${escapeHtml(record.id)}" title="写入飞书文档" aria-label="写入飞书文档">飞书</button>
-                    <button class="history-action-button danger" type="button" data-history-action="delete" data-history-id="${escapeHtml(record.id)}" title="删除报告" aria-label="删除报告">删除</button>
+                  <div class="hactions">
+                    <button class="hicon" type="button" data-history-action="toggle" data-history-id="${escapeHtml(record.id)}" title="查看明细" aria-label="查看明细">⌄</button>
+                    <button class="hicon" type="button" data-history-action="copy" data-history-id="${escapeHtml(record.id)}" title="复制 Markdown" aria-label="复制 Markdown">⧉</button>
+                    <button class="hicon" type="button" data-history-action="feishu" data-history-id="${escapeHtml(record.id)}" title="写入飞书文档" aria-label="写入飞书文档">↗</button>
+                    <button class="hicon danger" type="button" data-history-action="delete" data-history-id="${escapeHtml(record.id)}" title="删除报告" aria-label="删除报告">⌫</button>
                   </div>
                 </td>
               </tr>
@@ -4352,11 +4427,16 @@ function renderTabs() {
     ["diffs", `结构差异 (${results.filter((result) => result.diff_count > 0).length})`]
   ];
 
-  els.filterTabs.innerHTML = tabs.map(([id, label]) => `
-    <button class="tab-button ${state.selectedFilter === id ? "is-active" : ""}" type="button" data-filter="${id}">
-      ${escapeHtml(label)}
+  els.filterTabs.innerHTML = tabs.map(([id, label]) => {
+    const match = label.match(/^(.+?)\s*\((\d+)\)$/);
+    const text = match ? match[1] : label;
+    const count = match ? match[2] : "";
+    return `
+    <button class="${state.selectedFilter === id ? "on" : ""}" type="button" data-filter="${id}">
+      ${escapeHtml(text)}${count ? ` <span class="count">${count}</span>` : ""}
     </button>
-  `).join("");
+  `;
+  }).join("");
 }
 
 function capacityKindFromResult(result = {}) {
@@ -4621,7 +4701,7 @@ function syntaxJson(value, highlightedKey) {
   const escaped = escapeHtml(JSON.stringify(value, null, 2));
   if (!highlightedKey) return escaped;
   const keyPattern = new RegExp(`(&quot;${highlightedKey}&quot;:\\s[^\\n]+)`);
-  return escaped.replace(keyPattern, '<span class="highlight-param">$1</span>');
+  return escaped.replace(keyPattern, '<span class="hl">$1</span>');
 }
 
 function renderDetailRow(result) {
@@ -4646,8 +4726,8 @@ function renderDetailRow(result) {
 
   return `
     <tr class="detail-row">
-      <td colspan="7">
-        <div class="case-detail">
+      <td class="detail-cell" colspan="7">
+        <div class="detail-pane case-detail">
           <div class="support-summary ${meta.badgeClass}">
             <span class="support-badge ${meta.badgeClass}">${escapeHtml(meta.label)}</span>
             <div>
@@ -4737,9 +4817,9 @@ function renderDetailRow(result) {
           </div>
 
           <div class="detail-actions">
-            <button class="secondary-button" type="button" data-action="copy-diff" data-result-id="${escapeHtml(result.result_uid || result.case_id)}">复制 diff</button>
-            <button class="secondary-button" type="button" data-action="copy-reply" data-result-id="${escapeHtml(result.result_uid || result.case_id)}">复制结论</button>
-            <button class="secondary-button" type="button" data-action="save-case" data-result-id="${escapeHtml(result.result_uid || result.case_id)}">保存 case</button>
+            <button class="btn btn-secondary btn-sm" type="button" data-action="copy-diff" data-result-id="${escapeHtml(result.result_uid || result.case_id)}">复制 diff</button>
+            <button class="btn btn-secondary btn-sm" type="button" data-action="copy-reply" data-result-id="${escapeHtml(result.result_uid || result.case_id)}">复制结论</button>
+            <button class="btn btn-ghost btn-sm" type="button" data-action="save-case" data-result-id="${escapeHtml(result.result_uid || result.case_id)}">保存 case</button>
           </div>
         </div>
       </td>
@@ -5014,9 +5094,9 @@ function renderPerformanceResult(data = {}) {
     cards.push(["Goodput", formatMetricValue(result.goodput)]);
   }
   els.performanceStats.innerHTML = cards.map(([label, value]) => `
-    <article class="performance-stat-card">
-      <span>${escapeHtml(label)}</span>
-      <strong>${escapeHtml(String(value))}</strong>
+    <article class="stat-card">
+      <div class="st-top">${escapeHtml(label)}</div>
+      <div class="st-val">${escapeHtml(String(value))}</div>
     </article>
   `).join("");
   els.performanceStdout.textContent = data.stdout || "";
@@ -5033,9 +5113,9 @@ function formatMetricValue(value) {
 
 function showToast(message) {
   els.toast.textContent = message;
-  els.toast.classList.add("is-visible");
+  els.toast.classList.add("show");
   clearTimeout(showToast.timer);
-  showToast.timer = setTimeout(() => els.toast.classList.remove("is-visible"), 2400);
+  showToast.timer = setTimeout(() => els.toast.classList.remove("show"), 2400);
 }
 
 function storageLegacyKeys(storageKey) {
@@ -5119,24 +5199,1141 @@ const embedConfigs = {
   }
 };
 
+function renderProtocolCell(supported) {
+  return supported
+    ? `<span class="protocol-tick" aria-label="支持" title="支持">✓</span>`
+    : `<span class="protocol-dash" aria-label="不支持" title="不支持">—</span>`;
+}
+
+function renderChannelCatalogRows(items, protocolColumns) {
+  return items.map((item) => {
+    const subtitle = item.models || item.modelId || "";
+    return `
+    <tr>
+      <td>
+        <strong class="${subtitle ? "" : "mono"}">${escapeHtml(item.name)}</strong>
+        ${subtitle ? `<div class="channel-series-models mono">${escapeHtml(subtitle)}</div>` : ""}
+      </td>
+      ${protocolColumns.map((column) => `
+        <td class="channel-protocol-cell">${renderProtocolCell(Boolean(item.protocols?.[column.id]))}</td>
+      `).join("")}
+    </tr>
+  `;
+  }).join("");
+}
+
+function renderChannelVendorBlocks(platforms, protocolColumns, { showFocus = false, rowLabel = "模型系列", itemsKey = "series" } = {}) {
+  const expanded = Boolean(state.channelCatalogExpanded);
+  return (platforms || []).map((platform) => {
+    const items = platform[itemsKey] || platform.series || platform.models || [];
+    const rows = renderChannelCatalogRows(items, protocolColumns);
+    const focusBadge = showFocus && platform.focus
+      ? `<span class="channel-focus-badge">测评重点</span>`
+      : "";
+    const toolLink = platform.channel_id
+      ? `<button type="button" class="btn btn-ghost btn-xs channel-open-tool" data-channel-id="${escapeHtml(platform.channel_id)}">在测评工具中打开</button>`
+      : "";
+    const body = expanded
+      ? `
+        <div class="channel-catalog-wrap">
+          <table class="channel-catalog">
+            <thead>
+              <tr>
+                <th scope="col">${escapeHtml(rowLabel)}</th>
+                ${protocolColumns.map((column) => `
+                  <th scope="col" class="channel-protocol-head">${escapeHtml(column.label)}</th>
+                `).join("")}
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `
+      : "";
+    return `
+      <div class="channel-vendor-block ${showFocus && platform.focus ? "is-focus" : ""}">
+        <div class="channel-vendor-head">
+          <span class="channel-vendor-logo"><img src="${escapeHtml(platform.logo)}" alt="" width="24" height="24" /></span>
+          <strong>${escapeHtml(platform.name)}</strong>
+          ${focusBadge}
+          ${toolLink}
+        </div>
+        ${body}
+      </div>
+    `;
+  }).join("");
+}
+
+function bindChannelCatalogExpandToggle() {
+  const button = els.channelCatalog?.querySelector("[data-channel-expand-toggle]");
+  if (!button) return;
+  button.addEventListener("click", () => {
+    state.channelCatalogExpanded = !state.channelCatalogExpanded;
+    renderChannelCatalog();
+  });
+}
+
+function bindChannelCatalogTabs() {
+  if (!els.channelCatalog) return;
+  els.channelCatalog.querySelectorAll("[data-channel-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const tab = button.dataset.channelTab;
+      if (!tab || tab === state.channelCatalogTab) return;
+      state.channelCatalogTab = tab;
+      renderChannelCatalog();
+    });
+  });
+}
+
+function bindChannelOpenToolButtons() {
+  if (!els.channelCatalog) return;
+  els.channelCatalog.querySelectorAll(".channel-open-tool").forEach((button) => {
+    button.addEventListener("click", () => {
+      const channelId = button.dataset.channelId;
+      if (!channelId) return;
+      state.selectedChannelId = channelId;
+      setActiveView("run-v01");
+      history.replaceState(null, "", "#run-v01");
+      renderChannels();
+      renderSelectedChannel();
+      showToast(`已切换到 ${channelId} 渠道模板。`);
+    });
+  });
+}
+
+function renderChannelCatalog() {
+  const catalog = window.NOCTUA_CHANNEL_CATALOG;
+  if (!catalog || !els.channelCatalog) return;
+
+  const tabIds = ["oem", "deploy", "route"];
+  const activeTab = tabIds.includes(state.channelCatalogTab) ? state.channelCatalogTab : "oem";
+  state.channelCatalogTab = activeTab;
+
+  if (els.channelScopeNote && catalog.scopeNote) {
+    els.channelScopeNote.textContent = `${catalog.scopeNote} 测评模型统一为 deepseek-v4-flash、deepseek-v4-pro、kimi-k2.7-coder、kimi-k2.6、glm-5.1、glm-5、MiniMax-M3。`;
+  }
+
+  const protocolColumns = catalog.protocolColumns || [];
+  const tabCopy = catalog.tabCopy || {};
+  const expanded = Boolean(state.channelCatalogExpanded);
+  const legend = `
+    <p class="channel-catalog-legend">
+      <span><span class="protocol-tick">✓</span> 已接入 / 支持</span>
+      <span><span class="protocol-dash">—</span> 未接入 / 不支持</span>
+    </p>
+  `;
+
+  const oemBlocks = renderChannelVendorBlocks(catalog.oemPlatforms, protocolColumns, {
+    showFocus: false,
+    rowLabel: "模型",
+    itemsKey: "models"
+  });
+  const deployBlocks = renderChannelVendorBlocks(catalog.deployPlatforms, protocolColumns, {
+    showFocus: true,
+    rowLabel: "模型",
+    itemsKey: "models"
+  });
+  const routeBlocks = renderChannelVendorBlocks(catalog.routePlatforms, protocolColumns, {
+    showFocus: true,
+    rowLabel: "模型",
+    itemsKey: "models"
+  });
+
+  els.channelCatalog.innerHTML = `
+    <section class="panel channel-catalog-panel">
+      <div class="channel-catalog-head">
+        <div class="channel-catalog-tabs endpoint-tabs" role="tablist" aria-label="渠道清单类型">
+          <button type="button" class="${activeTab === "oem" ? "on" : ""}" data-channel-tab="oem" aria-selected="${activeTab === "oem"}">模型原厂调用（部署）</button>
+          <button type="button" class="${activeTab === "deploy" ? "on" : ""}" data-channel-tab="deploy" aria-selected="${activeTab === "deploy"}">其他平台调用（部署）</button>
+          <button type="button" class="${activeTab === "route" ? "on" : ""}" data-channel-tab="route" aria-selected="${activeTab === "route"}">其他平台调用（仅路由）</button>
+        </div>
+        <button type="button" class="btn btn-secondary btn-xs channel-expand-toggle" data-channel-expand-toggle="1">${expanded ? "收起" : "展开"}</button>
+      </div>
+
+      <div class="channel-tab-panel ${activeTab === "oem" ? "" : "is-hidden"}" data-channel-panel="oem">
+        <p class="guide-copy">${escapeHtml(tabCopy.oem || "模型原厂开放平台部署模型清单。")}</p>
+        <div class="channel-vendor-list">${oemBlocks}</div>
+        ${legend}
+      </div>
+
+      <div class="channel-tab-panel ${activeTab === "deploy" ? "" : "is-hidden"}" data-channel-panel="deploy">
+        <p class="guide-copy">${escapeHtml(tabCopy.deploy || "其他平台部署托管模型清单。")}</p>
+        <div class="channel-vendor-list">${deployBlocks}</div>
+        ${legend}
+      </div>
+
+      <div class="channel-tab-panel ${activeTab === "route" ? "" : "is-hidden"}" data-channel-panel="route">
+        <p class="guide-copy">${escapeHtml(tabCopy.route || "其他平台仅路由模型清单。")}</p>
+        <div class="channel-vendor-list">${routeBlocks}</div>
+        ${legend}
+      </div>
+    </section>
+  `;
+
+  bindChannelCatalogExpandToggle();
+  bindChannelCatalogTabs();
+  bindChannelOpenToolButtons();
+}
+
+function renderModelLookupProtocolCells(protocols, protocolColumns) {
+  return protocolColumns.map((column) => `
+    <td class="channel-protocol-cell">${renderProtocolCell(Boolean(protocols?.[column.id]))}</td>
+  `).join("");
+}
+
+function renderModelLookup() {
+  const lookupApi = window.NOCTUA_MODEL_LOOKUP;
+  const catalog = window.NOCTUA_CHANNEL_CATALOG;
+  if (!lookupApi || !catalog || !els.modelLookup) return;
+
+  const protocolColumns = catalog.protocolColumns || [];
+  const evalModelIds = lookupApi.getEvalModelIds();
+  let query = state.modelLookupQuery || "";
+  const hash = window.location.hash || "";
+  if (!query && hash.startsWith("#models") && hash.includes("?")) {
+    const params = new URLSearchParams(hash.slice(hash.indexOf("?") + 1));
+    query = params.get("q") || "";
+    state.modelLookupQuery = query;
+  }
+  const activeTabModelId = evalModelIds.includes(query) ? query : "";
+  const activeTabId = activeTabModelId || "__custom__";
+  const isCustomTab = activeTabId === "__custom__";
+  const result = query ? lookupApi.lookup(query) : null;
+  const tabs = [
+    `
+    <button
+      type="button"
+      class="${activeTabId === "__custom__" ? "on" : ""}"
+      data-model-tab="__custom__"
+      role="tab"
+      aria-selected="${activeTabId === "__custom__"}"
+    >新模型查询</button>
+    `,
+    ...evalModelIds.map((modelId) => `
+    <button
+      type="button"
+      class="${activeTabId === modelId ? "on" : ""}"
+      data-model-tab="${escapeHtml(modelId)}"
+      role="tab"
+      aria-selected="${activeTabId === modelId}"
+    >${escapeHtml(modelId)}</button>
+  `)
+  ].join("");
+
+  let resultHtml = "";
+  if (result && query) {
+    const summary = isCustomTab
+      ? (result.canonical
+          ? `<p class="model-lookup-summary">识别为测评模型 <strong class="mono">${escapeHtml(result.canonical)}</strong>，在 <strong>${result.matches.length}</strong> 个渠道中找到匹配（已忽略大小写、连字符与空格差异）。</p>`
+          : `<p class="model-lookup-summary">未命中标准测评模型 ID，但找到 <strong>${result.matches.length}</strong> 个可能的渠道匹配。</p>`)
+      : "";
+
+    if (result.matches.length) {
+      const rows = result.matches.map((match) => {
+        const docs = [
+          match.models_docs_url ? `<a href="${escapeHtml(match.models_docs_url)}" target="_blank" rel="noopener noreferrer">模型清单</a>` : "",
+          match.api_docs_url ? `<a href="${escapeHtml(match.api_docs_url)}" target="_blank" rel="noopener noreferrer">API 文档</a>` : ""
+        ].filter(Boolean).join(" · ");
+        const toolBtn = match.channelId
+          ? `<button type="button" class="btn btn-ghost btn-xs model-lookup-open-tool" data-channel-id="${escapeHtml(match.channelId)}" data-model-name="${escapeHtml(match.apiModelId)}">在测评工具中打开</button>`
+          : "";
+        return `
+          <tr>
+            <td>
+              <div class="model-lookup-platform">
+                <span class="channel-vendor-logo"><img src="${escapeHtml(match.platformLogo)}" alt="" width="20" height="20" /></span>
+                <strong>${escapeHtml(match.platformName)}</strong>
+              </div>
+            </td>
+            <td class="model-lookup-type">${escapeHtml(match.categoryLabel)}</td>
+            <td class="mono">${escapeHtml(match.apiModelId)}</td>
+            ${renderModelLookupProtocolCells(match.protocols, protocolColumns)}
+            <td class="model-lookup-actions">
+              ${docs}
+              ${toolBtn}
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      resultHtml = `
+        ${summary}
+        <div class="channel-catalog-wrap">
+          <table class="channel-catalog model-lookup-table">
+            <thead>
+              <tr>
+                <th scope="col">渠道</th>
+                <th scope="col">渠道类型</th>
+                <th scope="col">API 模型 ID</th>
+                ${protocolColumns.map((column) => `
+                  <th scope="col" class="channel-protocol-head">${escapeHtml(column.label)}</th>
+                `).join("")}
+                <th scope="col">文档 / 操作</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <p class="channel-catalog-legend">
+          <span><span class="protocol-tick">✓</span> 已接入 / 支持</span>
+          <span><span class="protocol-dash">—</span> 未接入 / 不支持</span>
+        </p>
+      `;
+    } else {
+      resultHtml = `
+        <div class="model-lookup-empty panel">
+          <p>未在任何测评渠道中找到「<strong class="mono">${escapeHtml(query)}</strong>」。</p>
+          <p class="guide-copy">可尝试标准测评模型名称，或该平台文档中的 API 模型 ID（如 SiliconFlow 的 <span class="mono">deepseek-ai/DeepSeek-V4-Flash</span>、OpenRouter 的 <span class="mono">deepseek/deepseek-v4-flash</span>）。</p>
+        </div>
+      `;
+    }
+  } else {
+    resultHtml = `
+      <div class="model-lookup-empty panel">
+        <p>输入模型名称后，将对照测评渠道清单与各平台 API 文档的模型命名体系进行检索。</p>
+        <p class="guide-copy">支持模糊匹配：大小写不敏感，<span class="mono">-</span>、空格、<span class="mono">_</span> 视为等价（例如 <span class="mono">DeepSeek V4 Flash</span> 可匹配 <span class="mono">deepseek-v4-flash</span>）。</p>
+      </div>
+    `;
+  }
+
+  const formHtml = isCustomTab ? `
+      <form id="modelLookupForm" class="model-lookup-form">
+        <label class="fld model-lookup-field">
+          <span class="lbl">模型名称</span>
+          <div class="model-lookup-input-row">
+            <input id="modelLookupInput" class="inp" type="search" name="model" value="${escapeHtml(query)}" placeholder="例如 GLM5.2、DeepSeek V4 Flash、deepseek-ai/DeepSeek-V4-Flash" autocomplete="off" />
+            <button type="submit" class="btn btn-primary">查询渠道</button>
+          </div>
+        </label>
+      </form>
+  ` : ``;
+
+  els.modelLookup.innerHTML = `
+    <section class="panel model-lookup-panel">
+      <div class="endpoint-tabs model-lookup-tabs" role="tablist" aria-label="快捷模型切换">
+        ${tabs}
+      </div>
+      ${formHtml}
+      <div class="model-lookup-results">${resultHtml}</div>
+    </section>
+  `;
+
+  bindModelLookupEvents();
+}
+
+function bindModelLookupEvents() {
+  if (!els.modelLookup) return;
+
+  const form = els.modelLookup.querySelector("#modelLookupForm");
+  const input = els.modelLookup.querySelector("#modelLookupInput");
+  if (form) {
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.modelLookupQuery = input?.value?.trim() || "";
+      renderModelLookup();
+      if (state.modelLookupQuery) {
+        history.replaceState(null, "", `#models?q=${encodeURIComponent(state.modelLookupQuery)}`);
+      } else {
+        history.replaceState(null, "", "#models");
+      }
+    });
+  }
+
+  els.modelLookup.querySelectorAll("[data-model-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const tab = button.dataset.modelTab || "";
+      if (tab === "__custom__") {
+        state.modelLookupQuery = "";
+        renderModelLookup();
+        history.replaceState(null, "", "#models");
+        const newInput = els.modelLookup.querySelector("#modelLookupInput");
+        if (newInput) newInput.focus();
+        return;
+      }
+      state.modelLookupQuery = tab;
+      renderModelLookup();
+      history.replaceState(null, "", `#models?q=${encodeURIComponent(tab)}`);
+    });
+  });
+
+  els.modelLookup.querySelectorAll(".model-lookup-open-tool").forEach((button) => {
+    button.addEventListener("click", () => {
+      const channelId = button.dataset.channelId;
+      const modelName = button.dataset.modelName;
+      if (!channelId) return;
+      state.selectedChannelId = channelId;
+      setActiveView("run-v01");
+      history.replaceState(null, "", "#run-v01");
+      renderChannels();
+      renderSelectedChannel();
+      if (modelName && els.modelName) {
+        els.modelName.value = modelName;
+      }
+      showToast(`已切换到 ${channelId}，Model 已填入 ${modelName || "默认模型"}。`);
+    });
+  });
+}
+
+function compactSearchText(value) {
+  const norm = window.NOCTUA_MODEL_LOOKUP?.normalizeModelName?.(value)
+    || String(value || "").trim().toLowerCase();
+  return norm.replace(/[.\-_/]/g, "");
+}
+
+function matchSearchQuery(query, ...candidates) {
+  const trimmed = String(query || "").trim();
+  if (!trimmed) return true;
+  const qNorm = window.NOCTUA_MODEL_LOOKUP?.normalizeModelName?.(trimmed) || trimmed.toLowerCase();
+  const qCompact = compactSearchText(trimmed);
+  return candidates.some((candidate) => {
+    const text = String(candidate || "");
+    const norm = window.NOCTUA_MODEL_LOOKUP?.normalizeModelName?.(text) || text.toLowerCase();
+    const compact = compactSearchText(text);
+    if (norm.includes(qNorm) || compact.includes(qCompact)) return true;
+    let index = 0;
+    for (let i = 0; i < compact.length && index < qCompact.length; i += 1) {
+      if (compact[i] === qCompact[index]) index += 1;
+    }
+    return index === qCompact.length;
+  });
+}
+
+function syncRunV02ModelMenu() {
+  if (!els.runV02ModelMenu || !els.runV02ModelInput) return;
+  const open = state.runV02.modelMenuOpen;
+  els.runV02ModelMenu.classList.toggle("is-hidden", !open);
+  els.runV02ModelSelect?.classList.toggle("is-open", open);
+  els.runV02ModelInput.setAttribute("aria-expanded", open ? "true" : "false");
+  if (!open) updateRunV02ModelInputDisplay();
+}
+
+function syncRunV02RouteMenu() {
+  if (!els.runV02RouteMenu || !els.runV02RouteInput) return;
+  const open = state.runV02.routeMenuOpen;
+  els.runV02RouteMenu.classList.toggle("is-hidden", !open);
+  els.runV02RouteSelect?.classList.toggle("is-open", open);
+  els.runV02RouteInput.setAttribute("aria-expanded", open ? "true" : "false");
+  if (!open) updateRunV02RouteInputDisplay();
+}
+
+function updateRunV02ModelInputDisplay() {
+  if (!els.runV02ModelInput || state.runV02.modelMenuOpen) return;
+  els.runV02ModelInput.readOnly = true;
+  els.runV02ModelInput.placeholder = "选择模型";
+  els.runV02ModelInput.value = state.runV02.modelId || "";
+}
+
+function updateRunV02RouteInputDisplay() {
+  if (!els.runV02RouteInput || state.runV02.routeMenuOpen) return;
+  const route = state.runV02.selectedRoute;
+  els.runV02RouteInput.readOnly = true;
+  els.runV02RouteInput.placeholder = "选择渠道与协议";
+  els.runV02RouteInput.value = route ? runV02RouteOptionLabel(route) : "";
+}
+
+function closeRunV02ModelMenu() {
+  state.runV02.modelMenuOpen = false;
+  state.runV02.modelSearch = "";
+  syncRunV02ModelMenu();
+}
+
+function closeRunV02RouteMenu() {
+  state.runV02.routeMenuOpen = false;
+  state.runV02.routeSearch = "";
+  syncRunV02RouteMenu();
+}
+
+function openRunV02ModelMenu() {
+  if (state.runV02.isRunning) return;
+  closeRunV02RouteMenu();
+  state.runV02.modelMenuOpen = true;
+  state.runV02.modelSearch = "";
+  if (els.runV02ModelInput) {
+    els.runV02ModelInput.readOnly = false;
+    els.runV02ModelInput.placeholder = "搜索模型，支持模糊匹配";
+    els.runV02ModelInput.value = "";
+  }
+  renderRunV02ModelSelect();
+  syncRunV02ModelMenu();
+  requestAnimationFrame(() => els.runV02ModelInput?.focus());
+}
+
+function openRunV02RouteMenu() {
+  if (state.runV02.isRunning || els.runV02RouteInput?.disabled) return;
+  closeRunV02ModelMenu();
+  state.runV02.routeMenuOpen = true;
+  state.runV02.routeSearch = "";
+  if (els.runV02RouteInput) {
+    els.runV02RouteInput.readOnly = false;
+    els.runV02RouteInput.placeholder = "搜索渠道、协议或模型 ID";
+    els.runV02RouteInput.value = "";
+  }
+  renderRunV02RouteSelect();
+  syncRunV02RouteMenu();
+  requestAnimationFrame(() => els.runV02RouteInput?.focus());
+}
+
+function runV02RouteOptionLabel(option) {
+  return `${option.platformName} · ${option.categoryLabel} · ${option.protocolLabel}`;
+}
+
+function applyRunV02Model(modelId) {
+  if (!modelId) return;
+  if (modelId === state.runV02.modelId) {
+    closeRunV02ModelMenu();
+    return;
+  }
+  state.runV02.modelId = modelId;
+  state.runV02.routeKey = "";
+  state.runV02.selectedRoute = null;
+  state.runV02.cases = [];
+  state.runV02.selectedCaseIds = new Set();
+  if (els.runV02ConfigPanel) els.runV02ConfigPanel.classList.add("is-hidden");
+  if (els.runV02CasePanel) els.runV02CasePanel.classList.add("is-hidden");
+  closeRunV02ModelMenu();
+  closeRunV02RouteMenu();
+  renderRunV02ModelSelect();
+  renderRunV02RouteSelect({ autoSelect: true });
+}
+
+function renderRunV02ModelSelect() {
+  if (!els.runV02ModelOptions) return;
+  const lookupApi = window.NOCTUA_MODEL_LOOKUP;
+  const evalIds = lookupApi?.getEvalModelIds?.() || [];
+  ensureRunV02ModelId();
+  const selectedId = state.runV02.modelId;
+  const filtered = evalIds.filter((modelId) => matchSearchQuery(state.runV02.modelSearch, modelId));
+  if (!filtered.length) {
+    els.runV02ModelOptions.innerHTML = `<li class="search-select__empty">没有匹配的模型</li>`;
+  } else {
+    els.runV02ModelOptions.innerHTML = filtered.map((modelId) => `
+      <li
+        class="search-select__option ${modelId === selectedId ? "is-selected" : ""}"
+        role="option"
+        data-run-v02-model="${escapeHtml(modelId)}"
+        aria-selected="${modelId === selectedId}"
+      >${escapeHtml(modelId)}</li>
+    `).join("");
+  }
+  syncRunV02ModelMenu();
+}
+
+function renderRunV02RouteSelect({ autoSelect = false } = {}) {
+  if (!els.runV02RouteOptions) return;
+  const lookupApi = window.NOCTUA_MODEL_LOOKUP;
+  const modelId = ensureRunV02ModelId();
+  const options = lookupApi?.listModelRouteOptions?.(modelId) || [];
+  state.runV02.routeOptions = options;
+
+  if (els.runV02RouteHint) {
+    els.runV02RouteHint.textContent = options.length
+      ? `${options.length} 个渠道协议组合`
+      : "未找到支持该模型的渠道";
+  }
+  const routeDisabled = !options.length || state.runV02.isRunning;
+  if (els.runV02RouteInput) els.runV02RouteInput.disabled = routeDisabled;
+  if (els.runV02RouteControl) els.runV02RouteControl.classList.toggle("is-disabled", routeDisabled);
+
+  if (!options.length) {
+    state.runV02.routeKey = "";
+    state.runV02.selectedRoute = null;
+    if (els.runV02RouteInput) {
+      els.runV02RouteInput.value = "";
+      els.runV02RouteInput.placeholder = "暂无可用渠道";
+    }
+    els.runV02RouteOptions.innerHTML = `<li class="search-select__empty">模型 ${escapeHtml(modelId)} 暂无可用渠道</li>`;
+    if (els.runV02ConfigPanel) els.runV02ConfigPanel.classList.add("is-hidden");
+    if (els.runV02CasePanel) els.runV02CasePanel.classList.add("is-hidden");
+    syncRunV02RouteMenu();
+    updateRunV02Availability();
+    return;
+  }
+
+  if (!options.some((item) => item.key === state.runV02.routeKey)) {
+    if (autoSelect) {
+      const firstRunnable = options.find((item) => item.runnable) || options[0];
+      applyRunV02Route(firstRunnable.key);
+      return;
+    }
+    state.runV02.routeKey = "";
+    state.runV02.selectedRoute = null;
+  }
+
+  const selectedRoute = state.runV02.selectedRoute;
+  updateRunV02RouteInputDisplay();
+
+  const filtered = options.filter((option) => matchSearchQuery(
+    state.runV02.routeSearch,
+    option.platformName,
+    option.categoryLabel,
+    option.protocolLabel,
+    option.apiModelId,
+    option.platformId,
+    runV02RouteOptionLabel(option)
+  ));
+
+  if (!filtered.length) {
+    els.runV02RouteOptions.innerHTML = `<li class="search-select__empty">没有匹配的渠道或协议</li>`;
+  } else {
+    els.runV02RouteOptions.innerHTML = filtered.map((option) => `
+      <li
+        class="search-select__option ${option.key === state.runV02.routeKey ? "is-selected" : ""} ${option.runnable ? "" : "is-disabled"}"
+        role="option"
+        data-run-v02-route="${escapeHtml(option.key)}"
+        aria-selected="${option.key === state.runV02.routeKey}"
+        ${option.runnable ? "" : 'aria-disabled="true"'}
+      >${escapeHtml(runV02RouteOptionLabel(option))}${option.runnable ? "" : " · 暂未支持跑批"}</li>
+    `).join("");
+  }
+  syncRunV02RouteMenu();
+  updateRunV02Availability();
+}
+
+function ensureRunV02ModelId() {
+  const lookupApi = window.NOCTUA_MODEL_LOOKUP;
+  const evalIds = lookupApi?.getEvalModelIds?.() || [];
+  if (!state.runV02.modelId || !evalIds.includes(state.runV02.modelId)) {
+    state.runV02.modelId = evalIds[0] || "";
+  }
+  return state.runV02.modelId;
+}
+
+function runV02RouteByKey(routeKey = state.runV02.routeKey) {
+  return (state.runV02.routeOptions || []).find((item) => item.key === routeKey) || null;
+}
+
+function runContextForV02() {
+  const route = state.runV02.selectedRoute;
+  if (!route) return {};
+  return {
+    provider: route.providerId,
+    endpoint_id: route.protocolId,
+    endpoint_label: route.protocolLabel,
+    channel_id: route.runtimeChannelId,
+    channel_name: route.platformName,
+    base_url: state.runV02.baseUrl.trim(),
+    model: route.apiModelId
+  };
+}
+
+function mapRunV02Result(result, index = 0) {
+  const context = runContextForV02();
+  const testCase = (state.runV02.cases || []).find((item) => item.case_id === result.case_id);
+  const parameters = result.parameters?.length ? result.parameters : testCase?.parameters || ["payload"];
+  const supportConclusion = result.support_conclusion || inferSiliconFlowConclusion(testCase || {});
+  const meta = supportConclusionMeta[supportConclusion] || supportConclusionMeta.unknown;
+  return enrichResultAxes({
+    result_uid: resultUid(context, result, index),
+    case_id: result.case_id,
+    title: testCase ? caseTitle(testCase) : result.title || "",
+    channel_id: context.channel_id,
+    channel_name: context.channel_name,
+    provider: context.provider,
+    endpoint_id: context.endpoint_id,
+    endpoint_label: context.endpoint_label,
+    base_url: context.base_url,
+    model: context.model,
+    target_label: `${context.channel_name || context.provider || "target"} / ${context.model || "model"}`,
+    parameter: parameters.join(" + "),
+    category: result.category || testCase?.category || "case",
+    support_conclusion: supportConclusion,
+    status: meta.status,
+    http_status: result.http_status || meta.httpStatus,
+    latency_ms: result.latency_ms || 0,
+    diff_count: result.error ? 1 : 0,
+    message: result.error || meta.note,
+    proxy: getProxyConfig(),
+    source_case: testCase,
+    request_headers: result.request_headers,
+    request_body: result.request_body,
+    response_body: result.response_body || null,
+    raw_response: result.raw_response || "",
+    response_headers: result.response_headers,
+    assertions: result.assertions || [],
+    expected_http_status: result.expected_http_status,
+    expected_support_conclusion: result.expected_support_conclusion,
+    error: result.error || ""
+  });
+}
+
+function updateRunV02Availability() {
+  if (!els.runV02Tests) return;
+  const route = state.runV02.selectedRoute;
+  const cases = state.runV02.cases || [];
+  const hasApiKey = Boolean(state.runV02.apiKey.trim());
+  const hasBaseUrl = Boolean(state.runV02.baseUrl.trim());
+  const canRun = Boolean(
+    route?.runnable
+    && route.providerId
+    && cases.length
+    && state.runV02.selectedCaseIds.size
+    && hasApiKey
+    && hasBaseUrl
+    && !state.runV02.isCaseLoading
+    && !state.runV02.isRunning
+  );
+  els.runV02Tests.disabled = !canRun;
+  if (els.runV02StopTests) els.runV02StopTests.disabled = !state.runV02.isRunning;
+  if (els.runV02SelectAllCases) {
+    els.runV02SelectAllCases.disabled = state.runV02.isRunning || state.runV02.isCaseLoading || !cases.length;
+  }
+  if (els.runV02ClearAllCases) {
+    els.runV02ClearAllCases.disabled = state.runV02.isRunning || state.runV02.isCaseLoading || !cases.length;
+  }
+}
+
+function renderRunV02SelectedCaseCount() {
+  const total = (state.runV02.cases || []).length;
+  const selected = (state.runV02.cases || []).filter((testCase) => state.runV02.selectedCaseIds.has(testCase.case_id)).length;
+  if (els.runV02SelectedCaseCount) {
+    els.runV02SelectedCaseCount.textContent = `已选 ${selected} / ${total} 个 case`;
+  }
+  updateRunV02Availability();
+}
+
+function renderRunV02CaseRow(testCase) {
+  const checked = state.runV02.selectedCaseIds.has(testCase.case_id);
+  const disabled = state.runV02.isRunning || state.runV02.isCaseLoading;
+  return `
+    <label class="case-row ${disabled ? "is-disabled" : ""}">
+      <input type="checkbox" data-v02-case-id="${escapeHtml(testCase.case_id)}" ${checked ? "checked" : ""} ${disabled ? "disabled" : ""} />
+      <span class="case-row__main">
+        <strong>${escapeHtml(caseTitle(testCase))}</strong>
+        <span class="muted mono fs-xs">${escapeHtml(testCase.case_id)}</span>
+      </span>
+    </label>
+  `;
+}
+
+function renderRunV02CaseGroups() {
+  if (!els.runV02CaseGroups) return;
+  const cases = state.runV02.cases || [];
+  if (state.runV02.isCaseLoading) {
+    els.runV02CaseGroups.innerHTML = '<div class="case-loading">正在从后端加载 cases...</div>';
+    renderRunV02SelectedCaseCount();
+    return;
+  }
+  if (!cases.length) {
+    const route = state.runV02.selectedRoute;
+    const hint = route && !route.runnable
+      ? "该协议暂未纳入跑批，或当前渠道尚无可用 case 模板。"
+      : "请选择可跑批的渠道与协议。";
+    els.runV02CaseGroups.innerHTML = `<div class="case-error"><span>${escapeHtml(hint)}</span></div>`;
+    renderRunV02SelectedCaseCount();
+    return;
+  }
+
+  const partition = partitionCases(cases);
+  const singles = Array.from(partition.singles.values()).flat();
+  const sections = [];
+  const pushSection = (title, groupCases) => {
+    if (!groupCases.length) return;
+    sections.push(`
+      <details class="case-group" open>
+        <summary><strong>${escapeHtml(title)}</strong><span class="muted">${groupCases.length} 个 case</span></summary>
+        <div class="case-rows">${groupCases.map(renderRunV02CaseRow).join("")}</div>
+      </details>
+    `);
+  };
+
+  pushSection("可选扩展用例", partition.optional);
+  pushSection("VLM 图像用例（可选）", partition.vlm);
+  pushSection("单参数用例", singles);
+  pushSection("参数组合用例", partition.combos);
+  pushSection("基础协议与场景用例", partition.scenarios);
+  els.runV02CaseGroups.innerHTML = sections.join("");
+  renderRunV02SelectedCaseCount();
+}
+
+function applyRunV02Route(routeKey) {
+  const route = runV02RouteByKey(routeKey);
+  state.runV02.routeKey = routeKey;
+  state.runV02.selectedRoute = route;
+  state.runV02.baseUrl = route?.endpointUrl || "";
+  state.runV02.cases = [];
+  state.runV02.selectedCaseIds = new Set();
+
+  if (els.runV02ConfigPanel) els.runV02ConfigPanel.classList.toggle("is-hidden", !route);
+  if (els.runV02CasePanel) els.runV02CasePanel.classList.toggle("is-hidden", !route?.runnable);
+  if (els.runV02ModelId) els.runV02ModelId.value = route?.apiModelId || "";
+  if (els.runV02BaseUrl) els.runV02BaseUrl.value = state.runV02.baseUrl;
+  if (els.runV02SelectedRoute && route) {
+    els.runV02SelectedRoute.textContent = `${route.platformName} · ${route.protocolLabel}`;
+  }
+  if (route?.runnable) {
+    loadRunV02Cases();
+  } else {
+    state.runV02.isCaseLoading = false;
+    renderRunV02CaseGroups();
+    updateRunV02Availability();
+  }
+  renderRunV02RouteSelect();
+}
+
+async function loadRunV02Cases() {
+  const route = state.runV02.selectedRoute;
+  if (!route?.providerId || !route.runnable) return;
+
+  state.runV02.isCaseLoading = true;
+  renderRunV02CaseGroups();
+  updateRunV02Availability();
+
+  try {
+    const response = await fetch(`${API_BASE}/api/providers/${route.providerId}/cases?endpoint_id=${encodeURIComponent(route.protocolId)}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (state.runV02.selectedRoute?.key !== route.key) return;
+    state.runV02.cases = data.cases || [];
+    state.runV02.selectedCaseIds = new Set(state.runV02.cases.filter(isDefaultSelectedCase).map((testCase) => testCase.case_id));
+    if (els.runV02CaseHint) {
+      els.runV02CaseHint.textContent = `已加载 ${state.runV02.cases.length} 个 case；默认勾选常规 case。`;
+    }
+  } catch (error) {
+    if (state.runV02.selectedRoute?.key !== route.key) return;
+    state.runV02.cases = [];
+    state.runV02.selectedCaseIds = new Set();
+    if (els.runV02CaseHint) {
+      els.runV02CaseHint.textContent = `测试用例加载失败：${error.message}`;
+    }
+  } finally {
+    if (state.runV02.selectedRoute?.key === route.key) {
+      state.runV02.isCaseLoading = false;
+      renderRunV02CaseGroups();
+      updateRunV02Availability();
+    }
+  }
+}
+
+function renderRunV02Stats() {
+  const results = state.runV02.completedResults || [];
+  if (els.runV02StatPassed) els.runV02StatPassed.textContent = results.filter(matchesExpectedResult).length;
+  if (els.runV02StatWarnings) {
+    els.runV02StatWarnings.textContent = results.filter((result) => result.support_conclusion === "ignored" || result.support_conclusion === "permission_limited").length;
+  }
+  if (els.runV02StatFailed) els.runV02StatFailed.textContent = results.filter((result) => !matchesExpectedResult(result)).length;
+  if (els.runV02StatDiffs) els.runV02StatDiffs.textContent = results.filter((result) => result.diff_count > 0).length;
+}
+
+function renderRunV02Results() {
+  if (!els.runV02ResultRows) return;
+  els.runV02ResultRows.innerHTML = (state.runV02.completedResults || []).map((rawResult) => {
+    const result = enrichResultAxes(rawResult);
+    const meta = conclusionMeta(result);
+    const rowTone = matchesExpectedResult(result)
+      ? "s-ok"
+      : (result.support_conclusion === "ignored" || result.support_conclusion === "permission_limited" ? "s-wa" : "s-no");
+    return `
+      <tr class="${rowTone}">
+        <td class="pcell">${escapeHtml(resultTitle(result))}</td>
+        <td class="cat">${escapeHtml(categoryLabel(result.category))}</td>
+        <td><span class="tag tag-${rowTone === "s-ok" ? "success" : rowTone === "s-wa" ? "warning" : "danger"}">${escapeHtml(meta.label)}</span></td>
+        <td><span class="tag tag-${matchesExpectedResult(result) ? "success" : "danger"}">${escapeHtml(expectationLabel(result))}</span></td>
+        <td class="lat">${result.http_status || meta.httpStatus || "—"}</td>
+        <td class="diffcell ${result.diff_count ? "has" : "none"}">${result.diff_count ? `${result.diff_count} 个字段差异` : "—"}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function appendRunV02Text(line) {
+  if (!els.runV02RunLog) return;
+  const row = document.createElement("div");
+  row.textContent = line;
+  els.runV02RunLog.appendChild(row);
+  els.runV02RunLog.scrollTop = els.runV02RunLog.scrollHeight;
+}
+
+function resetRunV02Ui() {
+  state.runV02.completedResults = [];
+  if (els.runV02RunLog) els.runV02RunLog.innerHTML = "";
+  if (els.runV02ProgressBar) els.runV02ProgressBar.style.width = "0%";
+  if (els.runV02ProgressCount) els.runV02ProgressCount.textContent = "0 / 0";
+  if (els.runV02ProgressCase) els.runV02ProgressCase.textContent = "等待中";
+  if (els.runV02ResultsPanel) els.runV02ResultsPanel.classList.add("is-hidden");
+}
+
+async function runV02Tests() {
+  const route = state.runV02.selectedRoute;
+  const apiKey = state.runV02.apiKey.trim();
+  const baseUrl = state.runV02.baseUrl.trim();
+  const selectedCases = (state.runV02.cases || []).filter((testCase) => state.runV02.selectedCaseIds.has(testCase.case_id));
+
+  if (!route?.runnable || !route.providerId) {
+    showToast("请选择可跑批的渠道与协议。");
+    return;
+  }
+  if (!apiKey) {
+    showToast("请填写 API Key。");
+    return;
+  }
+  if (!baseUrl) {
+    showToast("请填写 Endpoint 地址。");
+    return;
+  }
+  if (!selectedCases.length) {
+    showToast("请至少选择一个测评 case。");
+    return;
+  }
+
+  resetRunV02Ui();
+  state.runV02.currentRunAbortController = new AbortController();
+  state.runV02.isRunning = true;
+  updateRunV02Availability();
+  if (els.runV02ProgressPanel) els.runV02ProgressPanel.classList.remove("is-hidden");
+
+  const target = {
+    provider: route.providerId,
+    endpoint_id: route.protocolId,
+    base_url: baseUrl,
+    model: route.apiModelId,
+    api_key: apiKey
+  };
+  const context = runContextForV02();
+  const totalRuns = selectedCases.length;
+
+  try {
+    appendRunV02Text(`→ 检查后端连接：${API_BASE}`);
+    await ensureBackendReady(state.runV02.currentRunAbortController?.signal);
+    appendRunV02Text(`→ ${route.platformName} / ${route.protocolLabel} 开始请求 ${totalRuns} 个 case`);
+
+    const response = await fetch(`${API_BASE}/api/run-stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: state.runV02.currentRunAbortController?.signal,
+      body: JSON.stringify({
+        provider: target.provider,
+        endpoint_id: target.endpoint_id,
+        base_url: target.base_url,
+        model: target.model,
+        api_key: target.api_key,
+        case_ids: selectedCases.map((testCase) => testCase.case_id),
+        custom_cases: [],
+        proxy: getProxyConfig(),
+        max_concurrency: 3
+      })
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `HTTP ${response.status}`);
+    }
+
+    let count = 0;
+    await readRunStream(response, (event) => {
+      if (!state.runV02.isRunning) return;
+      if (event.type === "error") throw new Error(event.error || "run stream failed");
+      if (event.type === "end") return;
+      if (event.type !== "result" || !event.result) return;
+      const mapped = mapRunV02Result(event.result, count);
+      state.runV02.completedResults.push(mapped);
+      count += 1;
+      if (els.runV02ProgressCount) els.runV02ProgressCount.textContent = `${count} / ${totalRuns}`;
+      if (els.runV02ProgressCase) {
+        els.runV02ProgressCase.textContent = `— 已完成 ${count}/${totalRuns}: ${resultTitle(mapped)}`;
+      }
+      if (els.runV02ProgressBar) {
+        els.runV02ProgressBar.style.width = `${Math.round((count / totalRuns) * 100)}%`;
+      }
+      appendRunV02Text(`✓ ${mapped.case_id} · HTTP ${mapped.http_status || "—"} · ${conclusionMeta(mapped).label}`);
+      renderRunV02Stats();
+      renderRunV02Results();
+      if (els.runV02ResultsPanel) els.runV02ResultsPanel.classList.remove("is-hidden");
+    });
+
+    if (els.runV02ProgressCase) els.runV02ProgressCase.textContent = "— 完成";
+    if (els.runV02ProgressBar) els.runV02ProgressBar.style.width = "100%";
+    showToast(`V0.2 跑批完成：${state.runV02.completedResults.length} 个 case。`);
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      if (els.runV02ProgressCase) els.runV02ProgressCase.textContent = "— 用户已停止";
+      showToast("测试已停止。");
+    } else {
+      appendRunV02Text(`✗ ${error.message}`);
+      showToast(error.message);
+    }
+  } finally {
+    state.runV02.isRunning = false;
+    state.runV02.currentRunAbortController = null;
+    updateRunV02Availability();
+  }
+}
+
+function stopRunV02Tests() {
+  if (!state.runV02.isRunning) return;
+  state.runV02.currentRunAbortController?.abort();
+  state.runV02.isRunning = false;
+  updateRunV02Availability();
+  if (els.runV02ProgressCase) els.runV02ProgressCase.textContent = "— 用户已停止";
+  showToast("测试已停止。");
+}
+
+function renderRunToolV02() {
+  if (!els.runV02ModelSelect) return;
+  renderRunV02ModelSelect();
+  renderRunV02RouteSelect({ autoSelect: !state.runV02.routeKey });
+  if (els.runV02BaseUrl && state.runV02.baseUrl) els.runV02BaseUrl.value = state.runV02.baseUrl;
+  if (els.runV02ApiKey) els.runV02ApiKey.value = state.runV02.apiKey;
+  renderRunV02CaseGroups();
+  renderRunV02Stats();
+  renderRunV02Results();
+  updateRunV02Availability();
+}
+
+function bindRunV02Events() {
+  document.addEventListener("click", (event) => {
+    if (state.activeViewKey !== "run-v02") return;
+    if (els.runV02ModelSelect && !els.runV02ModelSelect.contains(event.target)) {
+      closeRunV02ModelMenu();
+    }
+    if (els.runV02RouteSelect && !els.runV02RouteSelect.contains(event.target)) {
+      closeRunV02RouteMenu();
+    }
+  });
+
+  els.runV02ModelControl?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (state.runV02.isRunning) return;
+    if (!state.runV02.modelMenuOpen) openRunV02ModelMenu();
+    else els.runV02ModelInput?.focus();
+  });
+
+  els.runV02ModelInput?.addEventListener("input", () => {
+    if (!state.runV02.modelMenuOpen) return;
+    state.runV02.modelSearch = els.runV02ModelInput.value;
+    renderRunV02ModelSelect();
+  });
+
+  els.runV02ModelInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeRunV02ModelMenu();
+      els.runV02ModelInput?.blur();
+    }
+  });
+
+  els.runV02ModelOptions?.addEventListener("click", (event) => {
+    const option = event.target.closest("[data-run-v02-model]");
+    if (!option || state.runV02.isRunning) return;
+    applyRunV02Model(option.dataset.runV02Model);
+  });
+
+  els.runV02RouteControl?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (state.runV02.isRunning || els.runV02RouteInput?.disabled) return;
+    if (!state.runV02.routeMenuOpen) openRunV02RouteMenu();
+    else els.runV02RouteInput?.focus();
+  });
+
+  els.runV02RouteInput?.addEventListener("input", () => {
+    if (!state.runV02.routeMenuOpen) return;
+    state.runV02.routeSearch = els.runV02RouteInput.value;
+    renderRunV02RouteSelect();
+  });
+
+  els.runV02RouteInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeRunV02RouteMenu();
+      els.runV02RouteInput?.blur();
+    }
+  });
+
+  els.runV02RouteOptions?.addEventListener("click", (event) => {
+    const option = event.target.closest("[data-run-v02-route]");
+    if (!option || state.runV02.isRunning) return;
+    const route = runV02RouteByKey(option.dataset.runV02Route);
+    if (!route?.runnable) return;
+    closeRunV02RouteMenu();
+    if (route.key === state.runV02.routeKey) return;
+    applyRunV02Route(option.dataset.runV02Route);
+  });
+
+  els.runV02BaseUrl?.addEventListener("input", () => {
+    state.runV02.baseUrl = els.runV02BaseUrl.value;
+    updateRunV02Availability();
+  });
+
+  els.runV02ApiKey?.addEventListener("input", () => {
+    state.runV02.apiKey = els.runV02ApiKey.value;
+    updateRunV02Availability();
+  });
+
+  els.runV02ToggleSecret?.addEventListener("click", () => {
+    const isPassword = els.runV02ApiKey.type === "password";
+    els.runV02ApiKey.type = isPassword ? "text" : "password";
+    els.runV02ToggleSecret.textContent = isPassword ? "隐藏" : "显示";
+  });
+
+  els.runV02CaseGroups?.addEventListener("change", (event) => {
+    const input = event.target.closest("[data-v02-case-id]");
+    if (!input || state.runV02.isRunning) return;
+    if (input.checked) state.runV02.selectedCaseIds.add(input.dataset.v02CaseId);
+    else state.runV02.selectedCaseIds.delete(input.dataset.v02CaseId);
+    renderRunV02SelectedCaseCount();
+  });
+
+  els.runV02SelectAllCases?.addEventListener("click", () => {
+    for (const testCase of state.runV02.cases || []) state.runV02.selectedCaseIds.add(testCase.case_id);
+    renderRunV02CaseGroups();
+  });
+
+  els.runV02ClearAllCases?.addEventListener("click", () => {
+    state.runV02.selectedCaseIds = new Set();
+    renderRunV02CaseGroups();
+  });
+
+  els.runV02Tests?.addEventListener("click", runV02Tests);
+  els.runV02StopTests?.addEventListener("click", stopRunV02Tests);
+}
+
+function syncModelLookupFromHash() {
+  const hash = window.location.hash || "";
+  if (!hash.startsWith("#models")) return;
+  const queryIndex = hash.indexOf("?");
+  if (queryIndex === -1) return;
+  const params = new URLSearchParams(hash.slice(queryIndex + 1));
+  const q = params.get("q");
+  if (q) state.modelLookupQuery = q;
+}
+
 function setActiveView(view) {
-  state.activeView = ["run", "reports", "performance", "feishu", "evalscope", "opencompass"].includes(view) ? view : "run";
+  let viewKey = view;
+  if (viewKey === "run") viewKey = "run-v01";
+  const isRunKey = viewKey === "run-v01" || viewKey === "run-v02";
+  if (isRunKey) {
+    state.activeView = "run";
+    state.activeViewKey = viewKey;
+    state.runToolVersion = viewKey === "run-v02" ? "v0.2" : "v0.1";
+  } else {
+    state.activeView = ["guide", "channels", "models", "run", "reports", "performance", "feishu", "evalscope", "opencompass"].includes(viewKey) ? viewKey : "run";
+    state.activeViewKey = state.activeView === "run" ? "run-v01" : state.activeView;
+    if (state.activeView === "run") state.runToolVersion = "v0.1";
+  }
+
   els.views.forEach((viewNode) => {
-    viewNode.classList.toggle("is-hidden", viewNode.dataset.view !== state.activeView);
+    viewNode.classList.toggle("is-hidden", viewNode.dataset.view !== state.activeViewKey);
   });
   els.viewLinks.forEach((link) => {
-    link.classList.toggle("is-active", link.dataset.viewLink === state.activeView);
+    const active = link.dataset.viewLink === state.activeViewKey;
+    link.classList.toggle("is-active", active);
+    link.classList.toggle("on", active);
   });
   if (state.activeView === "reports") renderHistory();
   if (state.activeView === "feishu") renderFeishuReport();
+  if (state.activeView === "channels") renderChannelCatalog();
+  if (state.activeView === "models") renderModelLookup();
+  if (state.activeViewKey === "run-v02") renderRunToolV02();
 }
 
 function initialViewFromHash() {
+  syncModelLookupFromHash();
+  if (window.location.hash === "#guide" || window.location.hash === "#guideView") return "guide";
+  if (window.location.hash === "#channels" || window.location.hash === "#channelsView") return "channels";
+  if (window.location.hash.startsWith("#models")) return "models";
   if (window.location.hash === "#reports" || window.location.hash === "#historyPanel") return "reports";
   if (window.location.hash === "#performance" || window.location.hash === "#performanceView") return "performance";
   if (window.location.hash === "#feishu" || window.location.hash === "#feishuView") return "feishu";
   if (window.location.hash === "#evalscope" || window.location.hash === "#evalscopeView") return "evalscope";
   if (window.location.hash === "#opencompass" || window.location.hash === "#opencompassView") return "opencompass";
+  if (window.location.hash === "#run-v02") return "run-v02";
+  if (window.location.hash === "#run-v01" || window.location.hash === "#run" || window.location.hash === "#runView") return "run-v01";
   return "run";
 }
 
@@ -5150,11 +6347,13 @@ function bindEvents() {
   });
 
   window.addEventListener("hashchange", () => {
+    syncModelLookupFromHash();
     setActiveView(initialViewFromHash());
   });
 
   els.channelCards.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-channel-id]");
+    if (event.target.closest(".chan-card__docs")) return;
+    const button = event.target.closest(".chan-card[data-channel-id]");
     if (!button || state.isRunning || button.disabled) return;
     state.selectedChannelId = button.dataset.channelId;
     state.selectedBaselineReportId = "";
@@ -5222,6 +6421,7 @@ function bindEvents() {
   els.runTests.addEventListener("click", runTests);
   els.stopTests.addEventListener("click", stopTests);
   els.rerunTests.addEventListener("click", runTests);
+  bindRunV02Events();
   els.exportJson.addEventListener("click", exportJson);
   els.exportMarkdown.addEventListener("click", exportMarkdown);
   els.saveFeishuSettings.addEventListener("click", () => {
@@ -5309,8 +6509,8 @@ function bindEvents() {
     renderHistory();
   });
 
-  els.proxyEnabled.addEventListener("change", renderProxyState);
-  els.proxyUrl.addEventListener("input", renderProxyState);
+  els.proxyEnabled?.addEventListener("change", renderProxyState);
+  els.proxyUrl?.addEventListener("input", renderProxyState);
   els.batchModeToggle?.addEventListener("click", () => {
     state.batchModeEnabled = !state.batchModeEnabled;
     renderBatchMode();
@@ -5435,6 +6635,12 @@ function bindEvents() {
   });
 
   els.historyList.addEventListener("click", (event) => {
+    const row = event.target.closest("tr[data-history-id]");
+    if (row && !event.target.closest("[data-history-action]")) {
+      state.expandedHistoryId = state.expandedHistoryId === row.dataset.historyId ? null : row.dataset.historyId;
+      renderHistory();
+      return;
+    }
     const button = event.target.closest("[data-history-action]");
     if (!button) return;
     const items = readHistory();
@@ -5464,6 +6670,7 @@ function bindEvents() {
   });
 }
 
+initTheme();
 renderChannels();
 renderEndpointTabs();
 renderSelectedChannel();
@@ -5474,4 +6681,6 @@ loadEmbedUrl(embedConfigs.evalscope);
 loadEmbedUrl(embedConfigs.opencompass);
 renderHistory();
 autoImportOriginalBaselines();
+renderChannelCatalog();
+syncModelLookupFromHash();
 setActiveView(initialViewFromHash());

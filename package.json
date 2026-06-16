@@ -20,11 +20,11 @@
     "files": [
       "index.html",
       "main.js",
-      "styles.css",
       "package.json",
       "lib/providerx-rules.js",
       "lib/mock-data.js",
       "assets/**",
+      "design-system/**",
       "docs/**",
       "outputs/**",
       "payloads/**",

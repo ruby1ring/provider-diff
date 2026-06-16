@@ -4,6 +4,8 @@
 
 This repository’s internal name remains **provider-diff** for Docker images, Compose services, CI, and the embedded backend binary. The product-facing name (Web UI, macOS app, reports) is **Noctua**.
 
+Product requirements for the compatibility testing flow: [prd.md](prd.md).
+
 ## Naming
 
 | Context | Name |

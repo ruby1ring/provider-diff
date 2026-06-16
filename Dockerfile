@@ -20,7 +20,8 @@ ENV PORT=8080
 COPY --from=backend-builder /out/provider-diff-backend /usr/local/bin/provider-diff-backend
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-COPY index.html styles.css main.js package.json ./
+COPY index.html main.js package.json ./
+COPY design-system ./design-system
 COPY assets ./assets
 COPY docs ./docs
 COPY lib ./lib
