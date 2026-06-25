@@ -616,7 +616,7 @@ Channel 卡片通过 `provider_id` 映射到上表；Messages endpoint 使用 `*
 
 | 模块 | 说明 | 参考 |
 |------|------|------|
-| 报告中心 | 历史聚合、筛选、导入 JSON、推送飞书 | `main.js` reports view |
+| 报告中心 | 历史聚合、筛选、导入 JSON、推送飞书 | `web/main.js` reports view |
 | 性能测试 | vLLM `benchmark_serving`、TTFT/吞吐 | [docs/project/performance-benchmark-design.md](docs/project/performance-benchmark-design.md) |
 | 飞书文档写入 | `POST /api/feishu/document` | backend + Feishu 集成页 |
 | EvalScope / OpenCompass | iframe 嵌入外部评测面板 | [README.md](README.md) Docker Compose |
@@ -666,7 +666,7 @@ npm run dev
 
 | 内容 | 维护位置 |
 |------|----------|
-| 渠道 UI 模板 | `lib/mock-data.js` |
+| 渠道 UI 模板 | `web/lib/mock-data.js` |
 | 结论/网关枚举 | `lib/providerx-rules.js` |
 | 用例数量与索引 | `payloads/*/manifest.json` |
 | API 契约与断言 | `backend/main.go` |

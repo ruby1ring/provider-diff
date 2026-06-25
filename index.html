@@ -2,9 +2,13 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="refresh" content="0; url=/web/" />
     <title>Noctua</title>
-    <script>location.replace("/web/");</script>
+    <script>
+      (function () {
+        const target = "/web/" + location.search + location.hash;
+        location.replace(target);
+      })();
+    </script>
   </head>
   <body>
     <p><a href="/web/">Open Noctua</a></p>

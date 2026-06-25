@@ -28,11 +28,21 @@ function isPortOpen(host, port) {
   });
 }
 
-function startProcess(label, command, args) {
+function startProcess(label, command, args, options = {}) {
+  const { optional = false } = options;
   const child = spawn(command, args, {
     cwd: root,
     stdio: "inherit",
     env: process.env
+  });
+  child.on("error", (error) => {
+    children.delete(child);
+    if (optional && error.code === "ENOENT") {
+      console.warn(`[${label}] skipped: ${command} not found (optional)`);
+      return;
+    }
+    console.error(`[${label}] failed to start: ${error.message}`);
+    if (!optional) process.exit(1);
   });
   children.add(child);
   child.once("exit", (code, signal) => {
@@ -105,11 +115,12 @@ async function main() {
       String(evalscopePort),
       "--outputs",
       evalscopeOutputs
-    ]);
+    ], { optional: true });
     console.log(`[evalscope] starting http://${evalscopeHost}:${evalscopePort}/dashboard`);
   }
 
-  console.log(`[open] http://127.0.0.1:${appPort}/web/#evalscope`);
+  console.log(`[open] http://127.0.0.1:${appPort}/web/`);
+  console.log(`[canvas] http://127.0.0.1:${appPort}/web/?canvas-annotate=1#run-v02`);
 }
 
 process.once("SIGINT", () => {
@@ -126,3 +137,6 @@ main().catch((error) => {
   stopAll();
   process.exit(1);
 });
+
+// Keep the dev supervisor alive so SIGINT/SIGTERM can stop child processes.
+setInterval(() => {}, 60_000);
