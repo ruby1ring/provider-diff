@@ -2,6 +2,7 @@ const {
   CHANNEL_TEMPLATES,
   ENDPOINT_TEMPLATES,
   MOCK_PARAMETER_ORIGINS,
+  MOCK_PARAMETER_DESCRIPTIONS,
   MOCK_RESULTS,
   MOCK_RESPONSES
 } = window.LLM_ROSETTA_DATA;
@@ -142,6 +143,7 @@ const els = {
   runV02ChannelConfigs: document.querySelector("#runV02ChannelConfigs"),
   runV02CasePanel: document.querySelector("#runV02CasePanel"),
   runV02SelectedRoute: document.querySelector("#runV02SelectedRoute"),
+  runV02CaseGroupPicker: document.querySelector("#runV02CaseGroupPicker"),
   runV02CaseGroups: document.querySelector("#runV02CaseGroups"),
   runV02SelectedCaseCount: document.querySelector("#runV02SelectedCaseCount"),
   runV02CaseHint: document.querySelector("#runV02CaseHint"),
@@ -171,7 +173,11 @@ const els = {
   modelLookupAddTabSummary: document.querySelector("#modelLookupAddTabSummary"),
   modelLookupAddTabBody: document.querySelector("#modelLookupAddTabBody"),
   modelLookupAddTabConfirm: document.querySelector("#modelLookupAddTabConfirm"),
-  modelLookupAddTabDismiss: document.querySelector("#modelLookupAddTabDismiss")
+  modelLookupAddTabDismiss: document.querySelector("#modelLookupAddTabDismiss"),
+  protocolParamDrawer: document.querySelector("#protocolParamDrawer"),
+  protocolParamDrawerTitle: document.querySelector("#protocolParamDrawerTitle"),
+  protocolParamDrawerSummary: document.querySelector("#protocolParamDrawerSummary"),
+  protocolParamDrawerBody: document.querySelector("#protocolParamDrawerBody")
 };
 
 const state = {
@@ -181,6 +187,10 @@ const state = {
   channelCatalogTab: "oem",
   channelCatalogExpanded: false,
   protocolCatalogTab: "chat_completions",
+  protocolCompareChannels: {},
+  protocolCompareChannelOrder: {},
+  protocolMatrices: {},
+  protocolParamDrawerOpen: false,
   modelLookupQuery: "",
   modelLookupVendorId: "",
   modelLookupAddMode: false,
@@ -223,7 +233,8 @@ const state = {
     channelConfigs: {},
     baselineResults: {},
     cases: [],
-    selectedCaseIds: new Set(),
+    activeCaseGroupKey: "",
+    selectedCaseIdsByGroup: {},
     modelSearch: "",
     baselineSearch: "",
     baselineMenuOpen: false,
@@ -248,8 +259,10 @@ const RUN_V02_CONFIG_PLATFORM_ALIASES = {
   "siliconflow-com": ["siliconflow-com", "sf-router-com", "siliconflow"],
   openrouter: ["openrouter"],
   "sf-router-cn": ["sf-router-cn", "siliconflow-cn", "siliconflow"],
-  "sf-router-com": ["sf-router-com", "siliconflow-com", "siliconflow"]
+  "sf-router-com": ["sf-router-com", "siliconflow-com", "siliconflow"],
+  "streamlake-cn": ["streamlake-cn", "streamlake"]
 };
+const appProtocol = window.location.protocol === "file:" ? "http:" : window.location.protocol;
 const appHost = window.location.hostname || "localhost";
 const appQuery = new URLSearchParams(window.location.search);
 const API_BASE = appQuery.get("apiBase") || window.PROVIDER_DIFF_API_BASE || `${appProtocol}//${appHost}:8080`;
@@ -404,8 +417,26 @@ function trimNumber(value, digits = 1) {
   return Number(value.toFixed(digits)).toString();
 }
 
+const RUN_V02_CONNECTIVITY_CASE_TITLE = '连通性检查：发"Hello"，确认该渠道能否调通。';
+const RUN_V02_CONNECTIVITY_CASE_TOOLTIP =
+  "该 Case 目的是用这个协议、这个 endpoint、这个模型，发一个最小合法请求，看能不能调通（HTTP 200 + 基本响应结构）。";
+
+const RUN_V02_PROTOCOL_STREAM_BASIC_TITLE = "流式检查：开启流式（Stream），确认能正常收到流式数据。";
+const RUN_V02_PROTOCOL_STREAM_FALSE_TITLE = "非流式检查：显式关闭流式（stream=false），确认返回普通 JSON。";
+const RUN_V02_PROTOCOL_STREAM_USAGE_TITLE = "流式用量：最后一包应返回 token 用量（usage）。";
+const RUN_V02_PROTOCOL_STREAM_BASIC_TOOLTIP =
+  "该 Case 在 stream=true 时验证是否返回 SSE 流式数据，chunk 结构是否符合预期（如 choices[].delta）。";
+const RUN_V02_PROTOCOL_STREAM_FALSE_TOOLTIP =
+  "该 Case 在 stream=false 时验证响应为普通 JSON（非 SSE），结构含 choices / usage 等字段。";
+const RUN_V02_PROTOCOL_STREAM_USAGE_TOOLTIP =
+  "该 Case 在 stream_options.include_usage=true 时验证流式最后一包是否包含 usage 字段，便于计费与监控。";
+
 const caseTitleZh = {
-  sf_basic_minimal: "最小 chat completion 请求",
+  ali_basic_minimal: RUN_V02_CONNECTIVITY_CASE_TITLE,
+  ali_protocol_stream_basic: RUN_V02_PROTOCOL_STREAM_BASIC_TITLE,
+  ali_protocol_stream_false: RUN_V02_PROTOCOL_STREAM_FALSE_TITLE,
+  ali_protocol_stream_include_usage: RUN_V02_PROTOCOL_STREAM_USAGE_TITLE,
+  sf_basic_minimal: RUN_V02_CONNECTIVITY_CASE_TITLE,
   sf_basic_system_user: "system 和 user 消息",
   sf_basic_multimessage_context: "多条历史消息作为上下文",
   sf_sampling_temperature_low: "temperature 低值采样",
@@ -433,10 +464,11 @@ const caseTitleZh = {
   sf_tools_auto: "tools 与 tool_choice=auto",
   sf_tools_named_function_hint: "通过提示引导 function call",
   sf_tools_multiturn_tool_result: "带 tool 结果的多轮对话",
-  sf_stream_basic: "stream 基础流式返回",
+  sf_stream_basic: RUN_V02_PROTOCOL_STREAM_BASIC_TITLE,
+  sf_protocol_stream_false: RUN_V02_PROTOCOL_STREAM_FALSE_TITLE,
   sf_stream_with_max_tokens: "stream 与 max_tokens 组合",
   sf_stream_with_tools_auto: "stream 与 tools 组合",
-  sf_stream_include_usage: "流式返回 usage chunk",
+  sf_stream_include_usage: RUN_V02_PROTOCOL_STREAM_USAGE_TITLE,
   sf_multiturn_basic: "基础多轮对话",
   sf_multiturn_with_system_policy: "带 system 约束的多轮对话",
   sf_multiturn_json_object: "多轮对话与 json_object",
@@ -447,15 +479,16 @@ const caseTitleZh = {
   sf_observability_usage_fields: "非流式 usage 字段完整性",
   sf_multimodal_image_url: "VLM image_url 图像输入",
   sf_multimodal_multi_image_compare: "VLM 多图对比输入",
-  am_basic_minimal: "Messages 最小用户请求",
-  am_basic_system: "Messages 顶层 system 提示词",
+  am_basic_minimal: RUN_V02_CONNECTIVITY_CASE_TITLE,
+  am_protocol_stream: RUN_V02_PROTOCOL_STREAM_BASIC_TITLE,
+  am_protocol_stream_false: RUN_V02_PROTOCOL_STREAM_FALSE_TITLE,
   am_sampling_temperature: "Messages 接口接受 temperature",
   am_sampling_top_p: "Messages 接口接受 top_p",
   am_sampling_top_k: "Messages 接口接受 top_k 扩展参数",
   am_length_max_tokens: "max_tokens 应限制 Messages 输出长度",
   am_sampling_stop_sequences: "stop_sequences 停止词",
   am_tools_auto: "Messages 接口接受 tools",
-  am_protocol_stream: "stream=true 应返回 Messages SSE 流",
+  am_basic_system: "Messages 顶层 system 提示词",
   am_reasoning_thinking_budget: "推理模型 Messages 接口接受 thinking budget",
   am_reasoning_thinking_disabled: "Messages 接口关闭 thinking"
 };
@@ -1844,6 +1877,76 @@ function isDefaultSelectedCase(testCase) {
   return !testCase.optional && !isVlmCase(testCase);
 }
 
+function isConnectivityCase(testCase) {
+  const caseId = String(testCase?.case_id || "");
+  // 连通性：每个协议只保留一条最小冒烟请求，验证 endpoint + 模型能否 200 返回。
+  return /_(basic_minimal|messages_minimal)$/.test(caseId) || caseId === "am_basic_minimal";
+}
+
+function isProtocolStreamCaseP0(testCase) {
+  if (testCase?.category !== "protocol") return false;
+  const caseId = String(testCase?.case_id || "");
+  return /_(protocol_stream_basic|stream_basic)$/.test(caseId) || caseId === "am_protocol_stream";
+}
+
+function isProtocolStreamCaseP0NonStream(testCase) {
+  if (testCase?.category !== "protocol") return false;
+  const caseId = String(testCase?.case_id || "");
+  return /_protocol_stream_false$/.test(caseId) || caseId === "am_protocol_stream_false";
+}
+
+function isProtocolStreamCaseP1(testCase) {
+  if (testCase?.category !== "protocol") return false;
+  if (isProtocolStreamCaseP0(testCase) || isProtocolStreamCaseP0NonStream(testCase)) return false;
+  const caseId = String(testCase?.case_id || "");
+  return /_(protocol_stream_include_usage|stream_include_usage)$/.test(caseId)
+    || caseId === "oa_stream_with_usage"
+    || caseId === "or_stream_with_usage_deprecated_option";
+}
+
+function isProtocolStreamCase(testCase) {
+  return isProtocolStreamCaseP0(testCase)
+    || isProtocolStreamCaseP0NonStream(testCase)
+    || isProtocolStreamCaseP1(testCase);
+}
+
+function runV02ProtocolEvalChannelId(route) {
+  if (!route) return null;
+  const sources = window.NOCTUA_PROTOCOL_PARAMETER_SOURCES;
+  const candidates = [route.runtimeChannelId, route.platformId, route.channelId].filter(Boolean);
+  for (const id of candidates) {
+    if (sources?.isProtocolEvalChannel?.(id)) return id;
+    if (id === "aliyun-cn" || id === "aliyun-us") return "aliyun";
+  }
+  return null;
+}
+
+function baselineSupportsStreamIncludeUsage() {
+  const route = state.runV02.baselineRoute;
+  if (!route) return false;
+  const channelId = runV02ProtocolEvalChannelId(route);
+  if (!channelId) return false;
+  const params = window.NOCTUA_PROTOCOL_PARAMETER_SOURCES?.getParameters?.(channelId, route.protocolId);
+  if (!params) return false;
+  return Object.values(params).flat().includes("stream_options.include_usage");
+}
+
+function runV02CaseGroupHint(group) {
+  if (!group) return "先选择测评分组，再勾选该分组内的 case。";
+  if (group.key === "connectivity") {
+    return `当前分组：${group.title}。发一句 Hello，验证该协议能否成功请求当前模型。`;
+  }
+  if (group.key === "protocol") {
+    return `当前分组：${group.title}。验证流式与非流式传输：stream=true 应返回 SSE；stream=false 应返回普通 JSON；可选验证流式末包 usage。`;
+  }
+  return `当前分组：${group.title}。仅运行本分组内已勾选的 case。`;
+}
+
+function updateRunV02CaseGroupHint() {
+  if (!els.runV02CaseHint) return;
+  els.runV02CaseHint.textContent = runV02CaseGroupHint(runV02ActiveCaseGroup());
+}
+
 function focusParametersForCase(testCase) {
   if (isCapacityCase(testCase)) return [];
   return (testCase.parameters || []).filter((param) => !foundationalCaseParameters.has(param));
@@ -2230,6 +2333,10 @@ function selectedFocusParameterCount(data) {
 }
 
 function caseTitle(testCase) {
+  if (isConnectivityCase(testCase)) return RUN_V02_CONNECTIVITY_CASE_TITLE;
+  if (isProtocolStreamCaseP0(testCase)) return RUN_V02_PROTOCOL_STREAM_BASIC_TITLE;
+  if (isProtocolStreamCaseP0NonStream(testCase)) return RUN_V02_PROTOCOL_STREAM_FALSE_TITLE;
+  if (isProtocolStreamCaseP1(testCase)) return RUN_V02_PROTOCOL_STREAM_USAGE_TITLE;
   return caseTitleZh[testCase.case_id] || testCase.title || testCase.case_id;
 }
 
@@ -2298,9 +2405,9 @@ function groupHint(group) {
   return groupHintZh[group] || "";
 }
 
-function renderProtocolParamGroupHeading(category) {
+function renderProtocolParamGroupHeading(category, { showHint = true } = {}) {
   const label = groupLabel(category);
-  const hint = groupHint(category);
+  const hint = showHint ? groupHint(category) : "";
   if (!hint) {
     return `<span class="protocol-param-group-label">${escapeHtml(label)}</span>`;
   }
@@ -2313,6 +2420,12 @@ function renderProtocolParamGroupHeading(category) {
 
 function originLabel(origin) {
   return originLabelZh[origin] || origin;
+}
+
+function parameterDescription(parameter) {
+  return MOCK_PARAMETER_DESCRIPTIONS?.[parameter]
+    || PROVIDERX_RULES.PARAMETER_DESCRIPTIONS?.[parameter]
+    || "";
 }
 
 function clonePayload(payload) {
@@ -5300,7 +5413,7 @@ const PROTOCOL_CATALOG_DEFS = [
     label: "OpenAI Chat Completions API",
     endpoint: "POST /v1/chat/completions",
     evalStatus: "supported",
-    copy: "在同一 Chat Completions 协议下，对比各渠道官方 API 文档中的参数覆盖与扩展差异（基于 docs/*.md，2026-06-16 核对）。"
+    copy: "在同一 Chat Completions 协议下，对比各渠道官方 API 文档中的参数覆盖与扩展差异（基于 docs/*.md，2026-06-25 核对）。"
   },
   {
     id: "anthropic_messages",
@@ -5322,9 +5435,12 @@ const PROTOCOL_CATALOG_DEFS = [
 
 const PROTOCOL_CHANNEL_ORDER = [
   "deepseek",
-  "aliyun",
-  "openrouter",
+  "moonshot",
+  "zhipu",
   "minimax",
+  "streamlake",
+  "openrouter",
+  "aliyun",
   "siliconflow"
 ];
 
@@ -5358,7 +5474,7 @@ function protocolParamCategoryRank(category) {
   return index === -1 ? 400 : index;
 }
 
-const RESPONSES_PROTOCOL_CHANNEL_IDS = ["aliyun", "openrouter"];
+const RESPONSES_PROTOCOL_CHANNEL_IDS = ["aliyun", "openrouter", "streamlake"];
 
 function sortProtocolChannels(channels) {
   const order = new Map(PROTOCOL_CHANNEL_ORDER.map((id, index) => [id, index]));
@@ -5391,26 +5507,31 @@ function buildProtocolParameterMatrix(channels, protocolId) {
   const sources = window.NOCTUA_PROTOCOL_PARAMETER_SOURCES;
   const channelRows = channels.map((channel) => {
     const docMeta = sources?.getDocMeta?.(channel.channel_id, protocolId) || null;
-    const flat = sources?.flattenParameters?.(sources?.getParameters?.(channel.channel_id, protocolId)) || [];
+    const flat = sources?.flattenEntryParameters?.(channel.channel_id, protocolId) || [];
     return {
       channel,
       docMeta,
       flat,
-      params: new Set(flat.map((item) => item.parameter))
+      params: new Set(flat.map((item) => item.parameter)),
+      paramRequired: new Map(flat.map((item) => [item.parameter, item.required]))
     };
   });
 
   const paramMeta = new Map();
   for (const row of channelRows) {
     for (const item of row.flat) {
-      if (!paramMeta.has(item.parameter)) {
-        paramMeta.set(item.parameter, {
+      const paramKey = `${item.category}::${item.parameter}`;
+      if (!paramMeta.has(paramKey)) {
+        paramMeta.set(paramKey, {
           category: item.category,
           parameter: item.parameter,
-          channels: new Set()
+          channels: new Set(),
+          requiredByChannel: new Map()
         });
       }
-      paramMeta.get(item.parameter).channels.add(row.channel.channel_id);
+      const meta = paramMeta.get(paramKey);
+      meta.channels.add(row.channel.channel_id);
+      meta.requiredByChannel.set(row.channel.channel_id, item.required);
     }
   }
 
@@ -5491,12 +5612,183 @@ function renderProtocolDocAlerts(matrix, protocolDef) {
   return blocks.join("");
 }
 
-function renderProtocolParameterCoverageCell(supported, { unique = false, partial = false } = {}) {
+function renderProtocolParamRequiredLabel(listed, required) {
+  if (!listed) return "—";
+  return required ? "必填" : "选填";
+}
+
+function renderProtocolParamDrawerCell(value, isDiff) {
+  const diffClass = isDiff ? " protocol-spec-diff" : "";
+  return `<td class="protocol-spec-drawer-cell${diffClass}">${value}</td>`;
+}
+
+function renderProtocolParamDrawerTable(protocolId, parameter, matrix, paramItem) {
+  const specsApi = window.NOCTUA_PROTOCOL_PARAMETER_SPECS;
+  if (!specsApi) {
+    return `<p class="guide-copy">约束数据模块未加载。</p>`;
+  }
+
+  const entries = matrix.channels.map((channel) => {
+    const listed = paramItem.channels.has(channel.channel_id);
+    const required = paramItem.requiredByChannel.get(channel.channel_id);
+    const spec = listed ? specsApi.getSpec(channel.channel_id, protocolId, parameter) : null;
+    return {
+      channel,
+      listed,
+      required,
+      spec
+    };
+  });
+
+  const consensus = specsApi.buildSpecConsensus(
+    entries.filter((item) => item.listed).map((item) => ({
+      channelId: item.channel.channel_id,
+      spec: item.spec
+    }))
+  );
+
+  const baseline = specsApi.getOpenAiBaseline(protocolId, parameter);
+  const meaning = parameterDescription(parameter);
+  const consensusLine = consensus.consensus
+    ? `${consensus.consensusCount}/${consensus.documentedCount} 渠道约束一致 · ${consensus.consensus}`
+    : consensus.documentedCount
+      ? `${consensus.documentedCount} 个渠道已整理，约束尚未形成多数共识`
+      : "约束详情待补充";
+
+  const baselineLine = baseline
+    ? specsApi.formatSpecShort(baseline)
+    : null;
+
+  const outlierByChannel = new Map(
+    (consensus.outliers || []).map((item) => [item.channelId, item.diffFields])
+  );
+
+  const rows = entries.map(({ channel, listed, required, spec }) => {
+    const diffFields = outlierByChannel.get(channel.channel_id) || [];
+    const typeText = !listed
+      ? "—"
+      : spec
+        ? escapeHtml(specsApi.formatType(spec))
+        : '<span class="protocol-spec-pending">文档未整理</span>';
+    const defaultText = !listed || !spec
+      ? "—"
+      : escapeHtml(specsApi.formatDefault(spec));
+    const rangeText = !listed || !spec
+      ? "—"
+      : escapeHtml(specsApi.formatRange(spec));
+    const statusText = escapeHtml(renderProtocolParamRequiredLabel(listed, required));
+    const effectiveText = spec ? escapeHtml(specsApi.formatEffective(spec)) : "—";
+    const notesText = spec?.notes ? escapeHtml(spec.notes) : "—";
+
+    return `
+      <tr>
+        <th scope="row" class="protocol-spec-drawer-channel">
+          <img src="${escapeHtml(channel.logo)}" alt="" width="16" height="16" />
+          <span>${escapeHtml(channel.name)}</span>
+        </th>
+        ${renderProtocolParamDrawerCell(typeText, diffFields.includes("type"))}
+        ${renderProtocolParamDrawerCell(defaultText, diffFields.includes("default"))}
+        ${renderProtocolParamDrawerCell(rangeText, diffFields.includes("range"))}
+        ${renderProtocolParamDrawerCell(statusText, false)}
+        ${renderProtocolParamDrawerCell(effectiveText, diffFields.includes("effective"))}
+        <td class="protocol-spec-drawer-cell protocol-spec-drawer-notes">${notesText}</td>
+      </tr>
+    `;
+  }).join("");
+
+  return `
+    <div class="protocol-spec-drawer-meta">
+      ${meaning ? `<p class="protocol-spec-drawer-meaning">${escapeHtml(meaning)}</p>` : ""}
+      <p class="protocol-spec-drawer-consensus">
+        <span class="protocol-spec-consensus-badge">共识</span>
+        ${escapeHtml(consensusLine)}
+      </p>
+      ${baselineLine ? `<p class="protocol-spec-drawer-baseline"><span class="muted">OpenAI 参考</span> · ${escapeHtml(baselineLine)}</p>` : ""}
+    </div>
+    <div class="protocol-spec-drawer-table-wrap">
+      <table class="protocol-spec-drawer-table">
+        <thead>
+          <tr>
+            <th scope="col">渠道</th>
+            <th scope="col">类型</th>
+            <th scope="col">默认</th>
+            <th scope="col">边界</th>
+            <th scope="col">状态</th>
+            <th scope="col">生效</th>
+            <th scope="col">备注</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function openProtocolParamDrawer(protocolId, parameter) {
+  if (!els.protocolParamDrawer) return;
+  const matrix = state.protocolMatrices?.[protocolId];
+  if (!matrix) return;
+  const paramItem = matrix.parameters.find((item) => item.parameter === parameter);
+  if (!paramItem) return;
+
+  state.protocolParamDrawerOpen = true;
+  if (els.protocolParamDrawerTitle) {
+    els.protocolParamDrawerTitle.textContent = parameter;
+  }
+  if (els.protocolParamDrawerBody) {
+    els.protocolParamDrawerBody.innerHTML = renderProtocolParamDrawerTable(protocolId, parameter, matrix, paramItem);
+  }
+  els.protocolParamDrawer.classList.remove("is-hidden");
+  els.protocolParamDrawer.setAttribute("aria-hidden", "false");
+  document.body.classList.add("protocol-drawer-open");
+}
+
+function closeProtocolParamDrawer() {
+  if (!els.protocolParamDrawer) return;
+  state.protocolParamDrawerOpen = false;
+  els.protocolParamDrawer.classList.add("is-hidden");
+  els.protocolParamDrawer.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("protocol-drawer-open");
+}
+
+function bindProtocolParamDrawer() {
+  if (!els.protocolParamDrawer) return;
+  els.protocolParamDrawer.querySelectorAll("[data-protocol-param-drawer-dismiss]").forEach((node) => {
+    node.addEventListener("click", closeProtocolParamDrawer);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && state.protocolParamDrawerOpen) {
+      closeProtocolParamDrawer();
+    }
+  });
+}
+
+function bindProtocolParamDrawerRows() {
+  if (!els.protocolCatalog) return;
+  els.protocolCatalog.querySelectorAll("[data-protocol-param-row]").forEach((row) => {
+    row.addEventListener("click", () => {
+      const protocolId = row.dataset.protocolId;
+      const parameter = row.dataset.parameter;
+      if (protocolId && parameter) openProtocolParamDrawer(protocolId, parameter);
+    });
+    row.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      const protocolId = row.dataset.protocolId;
+      const parameter = row.dataset.parameter;
+      if (protocolId && parameter) openProtocolParamDrawer(protocolId, parameter);
+    });
+  });
+}
+
+function renderProtocolParameterCoverageCell(supported, required, { unique = false, partial = false } = {}) {
   if (!supported) {
     return `<td class="channel-protocol-cell protocol-param-cell protocol-param-cell--missing"><span class="protocol-dash" aria-hidden="true">—</span></td>`;
   }
   const modifier = unique ? " protocol-param-cell--unique" : partial ? " protocol-param-cell--partial" : "";
-  return `<td class="channel-protocol-cell protocol-param-cell protocol-param-cell--present${modifier}">${renderProtocolCell(true)}</td>`;
+  const reqLabel = required ? "必填" : "选填";
+  const reqClass = required ? "protocol-param-req--required" : "protocol-param-req--optional";
+  return `<td class="channel-protocol-cell protocol-param-cell protocol-param-cell--present${modifier}"><span class="protocol-param-req ${reqClass}" title="官方文档：${reqLabel}">${reqLabel}</span></td>`;
 }
 
 function renderProtocolParameterMatrix(matrix, protocolDef) {
@@ -5538,19 +5830,35 @@ function renderProtocolParameterMatrix(matrix, protocolDef) {
           currentCategory = item.category;
           return `
             <tr class="protocol-param-group-row">
-              <th scope="rowgroup" colspan="${matrix.channels.length + 2}">${renderProtocolParamGroupHeading(item.category)}</th>
+              <th scope="rowgroup" colspan="${matrix.channels.length + 3}">${renderProtocolParamGroupHeading(item.category, { showHint: false })}</th>
             </tr>
           `;
         })()
       : "";
 
+    const meaning = parameterDescription(item.parameter);
     return `
       ${categoryRow}
-      <tr class="${rowClass}">
-        <th scope="row" class="protocol-param-name mono">${escapeHtml(item.parameter)}</th>
+      <tr
+        class="${rowClass} protocol-param-row--clickable"
+        data-protocol-param-row
+        data-protocol-id="${escapeHtml(protocolDef.id)}"
+        data-parameter="${escapeHtml(item.parameter)}"
+        tabindex="0"
+        role="button"
+        aria-label="查看 ${escapeHtml(item.parameter)} 约束对比"
+      >
+        <th scope="row" class="protocol-param-name mono">
+          <span class="protocol-param-row-label">
+            <span class="protocol-param-row-chevron" aria-hidden="true">›</span>
+            ${escapeHtml(item.parameter)}
+          </span>
+        </th>
+        <td class="protocol-param-meaning">${meaning ? escapeHtml(meaning) : '<span class="protocol-dash" aria-hidden="true">—</span>'}</td>
         <td class="protocol-param-origin">${escapeHtml(originLabel(origin))}</td>
         ${matrix.channels.map((channel) => renderProtocolParameterCoverageCell(
           item.channels.has(channel.channel_id),
+          item.requiredByChannel.get(channel.channel_id),
           { unique: isUnique && item.channels.has(channel.channel_id), partial: isPartial && item.channels.has(channel.channel_id) }
         )).join("")}
       </tr>
@@ -5570,6 +5878,7 @@ function renderProtocolParameterMatrix(matrix, protocolDef) {
         <thead>
           <tr>
             <th scope="col">参数</th>
+            <th scope="col">含义</th>
             <th scope="col">来源</th>
             ${headerCells}
           </tr>
@@ -5578,9 +5887,11 @@ function renderProtocolParameterMatrix(matrix, protocolDef) {
       </table>
     </div>
     <p class="channel-catalog-legend protocol-param-legend">
-      <span><span class="protocol-tick">✓</span> 官方文档已列入</span>
+      <span><span class="protocol-param-req protocol-param-req--required">必填</span> 官方文档标注为必填</span>
+      <span><span class="protocol-param-req protocol-param-req--optional">选填</span> 官方文档已列入、非必填</span>
       <span><span class="protocol-dash">—</span> 该渠道文档未列入</span>
       <span class="protocol-param-legend-diff">高亮行 = 仅部分渠道文档化；深色格 = 单渠道独有</span>
+      <span class="protocol-param-legend-diff">点击参数行查看类型 / 默认 / 边界约束对比</span>
     </p>
   `;
 }
@@ -5800,6 +6111,189 @@ function renderProtocolEvalStatus(status) {
   return `<span class="protocol-status protocol-status--planned">暂未支持评测</span>`;
 }
 
+function ensureProtocolCompareChannelOrder(protocolId, channels) {
+  const channelIds = channels.map((channel) => channel.channel_id);
+  let order = state.protocolCompareChannelOrder[protocolId];
+  if (!Array.isArray(order)) {
+    order = PROTOCOL_CHANNEL_ORDER.filter((channelId) => channelIds.includes(channelId));
+    channelIds.forEach((channelId) => {
+      if (!order.includes(channelId)) order.push(channelId);
+    });
+    state.protocolCompareChannelOrder[protocolId] = order;
+    return order;
+  }
+  order = order.filter((channelId) => channelIds.includes(channelId));
+  channelIds.forEach((channelId) => {
+    if (!order.includes(channelId)) order.push(channelId);
+  });
+  state.protocolCompareChannelOrder[protocolId] = order;
+  return order;
+}
+
+function orderProtocolCatalogChannels(protocolId, channels) {
+  const order = ensureProtocolCompareChannelOrder(protocolId, channels);
+  const channelById = new Map(channels.map((channel) => [channel.channel_id, channel]));
+  return order.map((channelId) => channelById.get(channelId)).filter(Boolean);
+}
+
+function moveProtocolCompareChannelOrder(protocolId, fromChannelId, toChannelId) {
+  if (!fromChannelId || !toChannelId || fromChannelId === toChannelId) return;
+  const channels = getProtocolCatalogChannels(protocolId);
+  const order = ensureProtocolCompareChannelOrder(protocolId, channels);
+  const fromIndex = order.indexOf(fromChannelId);
+  const toIndex = order.indexOf(toChannelId);
+  if (fromIndex < 0 || toIndex < 0) return;
+  order.splice(fromIndex, 1);
+  order.splice(toIndex, 0, fromChannelId);
+}
+
+function ensureProtocolCompareChannels(protocolId, channels) {
+  const channelIds = channels.map((channel) => channel.channel_id);
+  let selected = state.protocolCompareChannels[protocolId];
+  if (!(selected instanceof Set)) {
+    selected = new Set(channelIds);
+    state.protocolCompareChannels[protocolId] = selected;
+    return selected;
+  }
+  for (const channelId of [...selected]) {
+    if (!channelIds.includes(channelId)) selected.delete(channelId);
+  }
+  if (!selected.size && channelIds.length) {
+    channelIds.forEach((channelId) => selected.add(channelId));
+  }
+  return selected;
+}
+
+function getProtocolCompareChannels(protocolId, channels) {
+  const selected = ensureProtocolCompareChannels(protocolId, channels);
+  const filtered = channels.filter((channel) => selected.has(channel.channel_id));
+  if (filtered.length) return filtered;
+  channels.forEach((channel) => selected.add(channel.channel_id));
+  return channels;
+}
+
+function renderProtocolChannelPicker(protocolId, channels, selectedChannels) {
+  const selectedIds = ensureProtocolCompareChannels(protocolId, channels);
+  const selectedCount = selectedChannels.length;
+  return `
+    <div class="protocol-compare-picker" role="group" aria-label="选择对比渠道">
+      <div class="protocol-compare-picker__head">
+        <span class="protocol-compare-picker__label">对比渠道</span>
+        <span class="protocol-compare-picker__count muted">已选 ${selectedCount} / ${channels.length}</span>
+        <span class="protocol-compare-picker__hint muted">拖拽调整列顺序</span>
+        <button type="button" class="btn btn-ghost btn-xs" data-protocol-compare-action="all" data-protocol-id="${escapeHtml(protocolId)}">全选</button>
+      </div>
+      <div class="protocol-compare-picker__list" data-protocol-compare-order-list data-protocol-id="${escapeHtml(protocolId)}">
+        ${channels.map((channel) => {
+          const checked = selectedIds.has(channel.channel_id);
+          return `
+            <div
+              class="protocol-compare-picker__item ${checked ? "is-checked" : ""}"
+              data-protocol-compare-item
+              data-protocol-id="${escapeHtml(protocolId)}"
+              data-channel-id="${escapeHtml(channel.channel_id)}"
+              draggable="true"
+            >
+              <span class="protocol-compare-picker__drag" title="拖拽调整顺序" aria-hidden="true">⋮⋮</span>
+              <label class="protocol-compare-picker__check">
+                <input
+                  type="checkbox"
+                  data-protocol-compare-channel
+                  data-protocol-id="${escapeHtml(protocolId)}"
+                  data-channel-id="${escapeHtml(channel.channel_id)}"
+                  ${checked ? "checked" : ""}
+                />
+                <img src="${escapeHtml(channel.logo)}" alt="" width="16" height="16" />
+                <span>${escapeHtml(channel.name)}</span>
+              </label>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function bindProtocolCompareChannelPicker() {
+  if (!els.protocolCatalog) return;
+  els.protocolCatalog.querySelectorAll("[data-protocol-compare-channel]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const protocolId = input.dataset.protocolId;
+      const channelId = input.dataset.channelId;
+      const channels = orderProtocolCatalogChannels(protocolId, getProtocolCatalogChannels(protocolId));
+      const selected = ensureProtocolCompareChannels(protocolId, channels);
+      if (input.checked) {
+        selected.add(channelId);
+      } else if (selected.size <= 1) {
+        input.checked = true;
+        showToast("至少保留一个对比渠道");
+        return;
+      } else {
+        selected.delete(channelId);
+      }
+      renderProtocolCatalog();
+    });
+  });
+  els.protocolCatalog.querySelectorAll("[data-protocol-compare-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const protocolId = button.dataset.protocolId;
+      const action = button.dataset.protocolCompareAction;
+      const channels = orderProtocolCatalogChannels(protocolId, getProtocolCatalogChannels(protocolId));
+      const selected = ensureProtocolCompareChannels(protocolId, channels);
+      if (action === "all") {
+        channels.forEach((channel) => selected.add(channel.channel_id));
+        renderProtocolCatalog();
+      }
+    });
+  });
+  els.protocolCatalog.querySelectorAll("[data-protocol-compare-order-list]").forEach((list) => {
+    const protocolId = list.dataset.protocolId;
+    let draggingChannelId = "";
+
+    const clearDropTargets = () => {
+      list.querySelectorAll("[data-protocol-compare-item].is-drop-target").forEach((item) => {
+        item.classList.remove("is-drop-target");
+      });
+    };
+
+    list.querySelectorAll("[data-protocol-compare-item]").forEach((item) => {
+      item.addEventListener("dragstart", (event) => {
+        if (event.target.closest("input")) {
+          event.preventDefault();
+          return;
+        }
+        draggingChannelId = item.dataset.channelId || "";
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", draggingChannelId);
+        item.classList.add("is-dragging");
+      });
+      item.addEventListener("dragend", () => {
+        draggingChannelId = "";
+        item.classList.remove("is-dragging");
+        clearDropTargets();
+      });
+      item.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        if (item.dataset.channelId !== draggingChannelId) {
+          item.classList.add("is-drop-target");
+        }
+      });
+      item.addEventListener("dragleave", () => {
+        item.classList.remove("is-drop-target");
+      });
+      item.addEventListener("drop", (event) => {
+        event.preventDefault();
+        const fromChannelId = event.dataTransfer.getData("text/plain") || draggingChannelId;
+        const toChannelId = item.dataset.channelId;
+        item.classList.remove("is-drop-target");
+        moveProtocolCompareChannelOrder(protocolId, fromChannelId, toChannelId);
+        renderProtocolCatalog();
+      });
+    });
+  });
+}
+
 function bindProtocolCatalogTabs() {
   if (!els.protocolCatalog) return;
   els.protocolCatalog.querySelectorAll("[data-protocol-tab]").forEach((button) => {
@@ -5834,6 +6328,7 @@ function bindProtocolOpenToolButtons() {
 
 function renderProtocolCatalog() {
   if (!els.protocolCatalog) return;
+  if (state.protocolParamDrawerOpen) closeProtocolParamDrawer();
 
   const tabIds = PROTOCOL_CATALOG_DEFS.map((def) => def.id);
   const activeTab = tabIds.includes(state.protocolCatalogTab) ? state.protocolCatalogTab : tabIds[0];
@@ -5841,7 +6336,7 @@ function renderProtocolCatalog() {
 
   if (els.protocolScopeNote) {
     els.protocolScopeNote.textContent =
-      "在同一协议下横向对比各渠道官方 API 文档中的参数覆盖与扩展差异；矩阵数据来自 docs/*.md（2026-06-16 对照官方文档更新）。仅展示 DeepSeek、百炼、OpenRouter、MiniMax、SiliconFlow 五个可测评渠道。";
+      "在同一协议下横向对比各渠道官方 API 文档中的参数覆盖与扩展差异；矩阵数据来自 docs/*.md（2026-06-25 对照官方文档更新）。可勾选对比渠道，默认全选。";
   }
 
   const tabButtons = PROTOCOL_CATALOG_DEFS.map((def) => `
@@ -5855,8 +6350,10 @@ function renderProtocolCatalog() {
   `).join("");
 
   const panels = PROTOCOL_CATALOG_DEFS.map((def) => {
-    const channels = getProtocolCatalogChannels(def.id);
+    const allChannels = orderProtocolCatalogChannels(def.id, getProtocolCatalogChannels(def.id));
+    const channels = getProtocolCompareChannels(def.id, allChannels);
     const matrix = buildProtocolParameterMatrix(channels, def.id);
+    state.protocolMatrices[def.id] = matrix;
     return `
       <div class="protocol-tab-panel ${activeTab === def.id ? "" : "is-hidden"}" data-protocol-panel="${escapeHtml(def.id)}" role="tabpanel">
         <div class="protocol-catalog-meta">
@@ -5867,6 +6364,7 @@ function renderProtocolCatalog() {
           <p class="protocol-catalog-endpoint mono">${escapeHtml(def.endpoint)}</p>
           <p class="guide-copy">${escapeHtml(def.copy)}</p>
         </div>
+        ${allChannels.length ? renderProtocolChannelPicker(def.id, allChannels, channels) : ""}
         ${renderProtocolParameterMatrix(matrix, def)}
       </div>
     `;
@@ -5874,7 +6372,7 @@ function renderProtocolCatalog() {
 
   els.protocolCatalog.innerHTML = `
     <section class="panel protocol-catalog-panel">
-      <div class="protocol-nav-tabs" role="tablist" aria-label="协议类型">
+      <div class="protocol-nav-tabs endpoint-tabs" role="tablist" aria-label="协议类型">
         ${tabButtons}
       </div>
       ${panels}
@@ -5882,7 +6380,9 @@ function renderProtocolCatalog() {
   `;
 
   bindProtocolCatalogTabs();
+  bindProtocolCompareChannelPicker();
   bindProtocolOpenToolButtons();
+  bindProtocolParamDrawerRows();
 }
 
 function renderModelLookupProtocolCells(protocols, protocolColumns) {
@@ -6651,7 +7151,8 @@ function applyRunV02Model(modelId) {
   state.runV02.channelConfigs = {};
   state.runV02.baselineResults = {};
   state.runV02.cases = [];
-  state.runV02.selectedCaseIds = new Set();
+  state.runV02.activeCaseGroupKey = "";
+  state.runV02.selectedCaseIdsByGroup = {};
   if (els.runV02ConfigPanel) els.runV02ConfigPanel.classList.add("is-hidden");
   if (els.runV02CasePanel) els.runV02CasePanel.classList.add("is-hidden");
   closeRunV02ModelMenu();
@@ -6684,14 +7185,28 @@ function renderRunV02ModelSelect() {
   syncRunV02ModelMenu();
 }
 
-function runV02RunnableOptions() {
-  return (state.runV02.routeOptions || []).filter((item) => item.runnable);
+function runV02SupportedProtocol(protocolId) {
+  return protocolId === "chat_completions" || protocolId === "anthropic_messages";
+}
+
+/** V0.2 渠道列表：按模型协议覆盖展示，不依赖 payloads 跑批 provider。 */
+function runV02ChannelOptions() {
+  return (state.runV02.routeOptions || []).filter((item) => runV02SupportedProtocol(item.protocolId));
+}
+
+/** case 模板与 /api/run-stream 的 provider：渠道无专用 payloads 时回退到通用 OpenAI-compatible 库。 */
+function runV02CaseProviderId(route) {
+  if (!route) return null;
+  if (route.providerId) return route.providerId;
+  if (route.protocolId === "anthropic_messages") return "ali_messages";
+  if (route.protocolId === "chat_completions") return "ali";
+  return null;
 }
 
 function runV02TargetCandidateOptions() {
   const baseline = state.runV02.baselineRoute;
   if (!baseline) return [];
-  return runV02RunnableOptions().filter((item) => (
+  return runV02ChannelOptions().filter((item) => (
     item.protocolId === baseline.protocolId
     && item.key !== baseline.key
   ));
@@ -6778,12 +7293,12 @@ function renderRunV02RouteOptions() {
   const options = lookupApi?.listModelRouteOptions?.(modelId) || [];
   state.runV02.routeOptions = options;
 
-  const runnableCount = runV02RunnableOptions().length;
+  const channelCount = runV02ChannelOptions().length;
   if (els.runV02RouteHint) {
     if (!options.length) {
       els.runV02RouteHint.textContent = "未找到支持该模型的渠道";
     } else if (!state.runV02.baselineRoute) {
-      els.runV02RouteHint.textContent = `${runnableCount} 个可跑批渠道协议`;
+      els.runV02RouteHint.textContent = `${channelCount} 个渠道协议组合`;
     } else {
       const targetCount = state.runV02.targetRouteKeys.size;
       els.runV02RouteHint.textContent = targetCount
@@ -6792,11 +7307,11 @@ function renderRunV02RouteOptions() {
     }
   }
 
-  const baselineDisabled = !runnableCount || state.runV02.isRunning;
+  const baselineDisabled = !channelCount || state.runV02.isRunning;
   if (els.runV02BaselineInput) els.runV02BaselineInput.disabled = baselineDisabled;
   if (els.runV02BaselineControl) els.runV02BaselineControl.classList.toggle("is-disabled", baselineDisabled);
 
-  const targetDisabled = !state.runV02.baselineRoute?.runnable || state.runV02.isRunning;
+  const targetDisabled = !state.runV02.baselineRoute || state.runV02.isRunning;
   if (els.runV02TargetInput) els.runV02TargetInput.disabled = targetDisabled;
   if (els.runV02TargetControl) els.runV02TargetControl.classList.toggle("is-disabled", targetDisabled);
 
@@ -6813,7 +7328,7 @@ function renderRunV02BaselineSelect({ autoSelect = false } = {}) {
   renderRunV02RouteOptions();
   if (!els.runV02BaselineOptions) return;
 
-  const options = runV02RunnableOptions();
+  const options = runV02ChannelOptions();
   const modelId = ensureRunV02ModelId();
 
   if (!options.length) {
@@ -7088,12 +7603,12 @@ function updateRunV02Availability() {
   const targets = runV02TargetRoutes();
   const cases = state.runV02.cases || [];
   const canRun = Boolean(
-    baseline?.runnable
-    && baseline.providerId
+    baseline
+    && runV02CaseProviderId(baseline)
     && targets.length
     && allRunV02ConfigsReady()
     && cases.length
-    && state.runV02.selectedCaseIds.size
+    && runV02SelectedCasesForRun().length
     && !state.runV02.isCaseLoading
     && !state.runV02.isRunning
   );
@@ -7108,23 +7623,145 @@ function updateRunV02Availability() {
 }
 
 function renderRunV02SelectedCaseCount() {
-  const total = (state.runV02.cases || []).length;
-  const selected = (state.runV02.cases || []).filter((testCase) => state.runV02.selectedCaseIds.has(testCase.case_id)).length;
+  const group = runV02ActiveCaseGroup();
+  const total = group?.cases.length || 0;
+  const selectedIds = group ? runV02CaseGroupSelection(group.key) : new Set();
+  const selected = group ? group.cases.filter((testCase) => selectedIds.has(testCase.case_id)).length : 0;
   if (els.runV02SelectedCaseCount) {
-    els.runV02SelectedCaseCount.textContent = `已选 ${selected} / ${total} 个 case`;
+    els.runV02SelectedCaseCount.textContent = group
+      ? `已选 ${selected} / ${total} 个 case · ${group.title}`
+      : "已选 0 个";
   }
   updateRunV02Availability();
 }
 
+function listRunV02CaseGroups(cases = []) {
+  const connectivity = [];
+  const protocolStream = [];
+  const rest = [];
+  for (const testCase of cases) {
+    if (isConnectivityCase(testCase)) connectivity.push(testCase);
+    else if (isProtocolStreamCase(testCase)) protocolStream.push(testCase);
+    else rest.push(testCase);
+  }
+  const partition = partitionCases(rest);
+  const singles = Array.from(partition.singles.values()).flat();
+  return [
+    { key: "connectivity", title: "连通性", cases: connectivity },
+    { key: "protocol", title: "协议 / 流式", cases: protocolStream },
+    { key: "scenario", title: "基础协议与场景", cases: partition.scenarios },
+    { key: "single", title: "单参数", cases: singles },
+    { key: "combo", title: "参数组合", cases: partition.combos },
+    { key: "optional", title: "可选扩展", cases: partition.optional },
+    { key: "vlm", title: "VLM 图像", cases: partition.vlm }
+  ].filter((group) => group.cases.length);
+}
+
+function isDefaultSelectedRunV02Case(groupKey, testCase) {
+  if (groupKey === "connectivity") return true;
+  if (groupKey === "protocol") {
+    if (isProtocolStreamCaseP0(testCase)) return true;
+    if (isProtocolStreamCaseP0NonStream(testCase)) return true;
+    if (isProtocolStreamCaseP1(testCase)) return baselineSupportsStreamIncludeUsage();
+    return false;
+  }
+  return isDefaultSelectedCase(testCase);
+}
+
+function runV02CaseGroupSelection(groupKey) {
+  if (!groupKey) return new Set();
+  if (!state.runV02.selectedCaseIdsByGroup[groupKey]) {
+    state.runV02.selectedCaseIdsByGroup[groupKey] = new Set();
+  }
+  return state.runV02.selectedCaseIdsByGroup[groupKey];
+}
+
+function runV02ActiveCaseGroup() {
+  const groups = listRunV02CaseGroups(state.runV02.cases || []);
+  if (!groups.length) return null;
+  return groups.find((group) => group.key === state.runV02.activeCaseGroupKey) || groups[0];
+}
+
+function runV02SelectedCasesForRun() {
+  const group = runV02ActiveCaseGroup();
+  if (!group) return [];
+  const selectedIds = runV02CaseGroupSelection(group.key);
+  return group.cases.filter((testCase) => selectedIds.has(testCase.case_id));
+}
+
+function initRunV02CaseGroupState(cases = []) {
+  const groups = listRunV02CaseGroups(cases);
+  const selectedCaseIdsByGroup = {};
+  for (const group of groups) {
+    selectedCaseIdsByGroup[group.key] = new Set(
+      group.cases.filter((testCase) => isDefaultSelectedRunV02Case(group.key, testCase)).map((testCase) => testCase.case_id)
+    );
+  }
+  state.runV02.selectedCaseIdsByGroup = selectedCaseIdsByGroup;
+  const preferred = groups.find((group) => group.key === "connectivity") || groups[0];
+  state.runV02.activeCaseGroupKey = preferred?.key || "";
+}
+
+function renderRunV02CaseGroupPicker() {
+  if (!els.runV02CaseGroupPicker) return;
+  const groups = listRunV02CaseGroups(state.runV02.cases || []);
+  const activeKey = runV02ActiveCaseGroup()?.key || "";
+  if (!groups.length) {
+    els.runV02CaseGroupPicker.innerHTML = "";
+    return;
+  }
+  els.runV02CaseGroupPicker.innerHTML = groups.map((group) => {
+    const selectedCount = group.cases.filter((testCase) => runV02CaseGroupSelection(group.key).has(testCase.case_id)).length;
+    return `
+      <button
+        type="button"
+        class="run-v02-case-group-tab ${group.key === activeKey ? "is-active" : ""}"
+        data-run-v02-case-group="${escapeHtml(group.key)}"
+        role="tab"
+        aria-selected="${group.key === activeKey}"
+        ${state.runV02.isRunning || state.runV02.isCaseLoading ? "disabled" : ""}
+      >
+        <span>${escapeHtml(group.title)}</span>
+        <span class="run-v02-case-group-tab__count">${selectedCount}/${group.cases.length}</span>
+      </button>
+    `;
+  }).join("");
+}
+
+function renderRunV02CaseInfoTip(text) {
+  return `
+    <span class="case-info-tip" tabindex="0" aria-label="说明">
+      <span class="case-info-tip__icon" aria-hidden="true">?</span>
+      <span class="case-info-tip__bubble" role="tooltip">${escapeHtml(text)}</span>
+    </span>
+  `;
+}
+
 function renderRunV02CaseRow(testCase) {
-  const checked = state.runV02.selectedCaseIds.has(testCase.case_id);
+  const group = runV02ActiveCaseGroup();
+  const selectedIds = group ? runV02CaseGroupSelection(group.key) : new Set();
+  const checked = selectedIds.has(testCase.case_id);
   const disabled = state.runV02.isRunning || state.runV02.isCaseLoading;
+  const connectivity = isConnectivityCase(testCase);
+  const protocolP0 = isProtocolStreamCaseP0(testCase);
+  const protocolP0NonStream = isProtocolStreamCaseP0NonStream(testCase);
+  const protocolP1 = isProtocolStreamCaseP1(testCase);
+  const title = caseTitle(testCase);
+  let tipHtml = "";
+  if (connectivity) tipHtml = renderRunV02CaseInfoTip(RUN_V02_CONNECTIVITY_CASE_TOOLTIP);
+  else if (protocolP0) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_STREAM_BASIC_TOOLTIP);
+  else if (protocolP0NonStream) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_STREAM_FALSE_TOOLTIP);
+  else if (protocolP1) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_STREAM_USAGE_TOOLTIP);
+  const hideCaseId = connectivity || protocolP0 || protocolP0NonStream || protocolP1;
+  const caseIdHtml = hideCaseId
+    ? ""
+    : `<span class="muted mono fs-xs">${escapeHtml(testCase.case_id)}</span>`;
   return `
     <label class="case-row ${disabled ? "is-disabled" : ""}">
       <input type="checkbox" data-v02-case-id="${escapeHtml(testCase.case_id)}" ${checked ? "checked" : ""} ${disabled ? "disabled" : ""} />
       <span class="case-row__main">
-        <strong>${escapeHtml(caseTitle(testCase))}</strong>
-        <span class="muted mono fs-xs">${escapeHtml(testCase.case_id)}</span>
+        <strong class="case-row__title-line">${escapeHtml(title)}${tipHtml}</strong>
+        ${caseIdHtml}
       </span>
     </label>
   `;
@@ -7135,44 +7772,38 @@ function renderRunV02CaseGroups() {
   const cases = state.runV02.cases || [];
   if (state.runV02.isCaseLoading) {
     els.runV02CaseGroups.innerHTML = '<div class="case-loading">正在从后端加载 cases...</div>';
+    if (els.runV02CaseGroupPicker) els.runV02CaseGroupPicker.innerHTML = "";
     renderRunV02SelectedCaseCount();
     return;
   }
   if (!cases.length) {
     const baseline = state.runV02.baselineRoute;
-    const hint = baseline && !baseline.runnable
-      ? "该协议暂未纳入跑批，或当前渠道尚无可用 case 模板。"
+    const hint = baseline && !runV02CaseProviderId(baseline)
+      ? "当前协议暂无可用 case 模板。"
       : "请先选择 Baseline 渠道与协议。";
     els.runV02CaseGroups.innerHTML = `<div class="case-error"><span>${escapeHtml(hint)}</span></div>`;
+    if (els.runV02CaseGroupPicker) els.runV02CaseGroupPicker.innerHTML = "";
     renderRunV02SelectedCaseCount();
     return;
   }
 
-  const partition = partitionCases(cases);
-  const singles = Array.from(partition.singles.values()).flat();
-  const sections = [];
-  const pushSection = (title, groupCases) => {
-    if (!groupCases.length) return;
-    sections.push(`
-      <details class="case-group" open>
-        <summary><strong>${escapeHtml(title)}</strong><span class="muted">${groupCases.length} 个 case</span></summary>
-        <div class="case-rows">${groupCases.map(renderRunV02CaseRow).join("")}</div>
-      </details>
-    `);
-  };
+  const group = runV02ActiveCaseGroup();
+  renderRunV02CaseGroupPicker();
+  if (!group) {
+    els.runV02CaseGroups.innerHTML = "";
+    renderRunV02SelectedCaseCount();
+    return;
+  }
 
-  pushSection("可选扩展用例", partition.optional);
-  pushSection("VLM 图像用例（可选）", partition.vlm);
-  pushSection("单参数用例", singles);
-  pushSection("参数组合用例", partition.combos);
-  pushSection("基础协议与场景用例", partition.scenarios);
-  els.runV02CaseGroups.innerHTML = sections.join("");
+  els.runV02CaseGroups.innerHTML = `
+    <div class="case-rows">${group.cases.map(renderRunV02CaseRow).join("")}</div>
+  `;
   renderRunV02SelectedCaseCount();
 }
 
 function applyRunV02Baseline(routeKey) {
   const route = runV02RouteByKey(routeKey);
-  if (!route?.runnable) return;
+  if (!route || !runV02SupportedProtocol(route.protocolId)) return;
   state.runV02.baselineRouteKey = routeKey;
   state.runV02.baselineRoute = route;
   ensureRunV02ChannelConfig(routeKey, route);
@@ -7183,7 +7814,8 @@ function applyRunV02Baseline(routeKey) {
   );
   state.runV02.baselineResults = {};
   state.runV02.cases = [];
-  state.runV02.selectedCaseIds = new Set();
+  state.runV02.activeCaseGroupKey = "";
+  state.runV02.selectedCaseIdsByGroup = {};
   closeRunV02BaselineMenu();
 
   if (els.runV02ConfigPanel) els.runV02ConfigPanel.classList.remove("is-hidden");
@@ -7200,7 +7832,7 @@ function applyRunV02Baseline(routeKey) {
 
 function toggleRunV02Target(routeKey) {
   const route = runV02RouteByKey(routeKey);
-  if (!route?.runnable || routeKey === state.runV02.baselineRouteKey) return;
+  if (!route || routeKey === state.runV02.baselineRouteKey) return;
   if (!runV02TargetCandidateOptions().some((item) => item.key === routeKey)) return;
   if (state.runV02.targetRouteKeys.has(routeKey)) {
     state.runV02.targetRouteKeys.delete(routeKey);
@@ -7220,26 +7852,26 @@ function applyRunV02Route(routeKey) {
 
 async function loadRunV02Cases() {
   const route = state.runV02.baselineRoute;
-  if (!route?.providerId || !route.runnable) return;
+  const caseProviderId = runV02CaseProviderId(route);
+  if (!caseProviderId) return;
 
   state.runV02.isCaseLoading = true;
   renderRunV02CaseGroups();
   updateRunV02Availability();
 
   try {
-    const response = await fetch(`${API_BASE}/api/providers/${route.providerId}/cases?endpoint_id=${encodeURIComponent(route.protocolId)}`);
+    const response = await fetch(`${API_BASE}/api/providers/${caseProviderId}/cases?endpoint_id=${encodeURIComponent(route.protocolId)}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     if (state.runV02.baselineRoute?.key !== route.key) return;
     state.runV02.cases = data.cases || [];
-    state.runV02.selectedCaseIds = new Set(state.runV02.cases.filter(isDefaultSelectedCase).map((testCase) => testCase.case_id));
-    if (els.runV02CaseHint) {
-      els.runV02CaseHint.textContent = `已加载 ${state.runV02.cases.length} 个 case；默认勾选常规 case。`;
-    }
+    initRunV02CaseGroupState(state.runV02.cases);
+    updateRunV02CaseGroupHint();
   } catch (error) {
     if (state.runV02.baselineRoute?.key !== route.key) return;
     state.runV02.cases = [];
-    state.runV02.selectedCaseIds = new Set();
+    state.runV02.activeCaseGroupKey = "";
+    state.runV02.selectedCaseIdsByGroup = {};
     if (els.runV02CaseHint) {
       els.runV02CaseHint.textContent = `测试用例加载失败：${error.message}`;
     }
@@ -7307,7 +7939,7 @@ async function streamRunV02Route(route, config, caseIds, signal, onResult) {
     headers: { "Content-Type": "application/json" },
     signal,
     body: JSON.stringify({
-      provider: route.providerId,
+      provider: runV02CaseProviderId(route),
       endpoint_id: route.protocolId,
       base_url: config.baseUrl.trim(),
       model: route.apiModelId,
@@ -7352,10 +7984,15 @@ async function runV02Tests() {
   const baseline = state.runV02.baselineRoute;
   const targets = runV02TargetRoutes();
   const baselineConfig = baseline ? ensureRunV02ChannelConfig(baseline.key, baseline) : null;
-  const selectedCases = (state.runV02.cases || []).filter((testCase) => state.runV02.selectedCaseIds.has(testCase.case_id));
+  const selectedCases = runV02SelectedCasesForRun();
+  const activeGroup = runV02ActiveCaseGroup();
 
-  if (!baseline?.runnable || !baseline.providerId) {
+  if (!baseline || !runV02CaseProviderId(baseline)) {
     showToast("请选择 Baseline 渠道与协议。");
+    return;
+  }
+  if (!activeGroup) {
+    showToast("请选择测评分组。");
     return;
   }
   if (!targets.length) {
@@ -7386,7 +8023,7 @@ async function runV02Tests() {
   try {
     appendRunV02Text(`→ 检查后端连接：${API_BASE}`);
     await ensureBackendReady(signal);
-    appendRunV02Text(`→ Baseline ${baseline.platformName} / ${baseline.protocolLabel} · ${caseIds.length} 个 case`);
+    appendRunV02Text(`→ Baseline ${baseline.platformName} / ${baseline.protocolLabel} · ${activeGroup.title} · ${caseIds.length} 个 case`);
     await streamRunV02Route(baseline, baselineConfig, caseIds, signal, (result) => {
       state.runV02.baselineResults[result.case_id] = result;
       const mapped = mapRunV02Result(result, baseline, count, { isBaseline: true });
@@ -7517,7 +8154,7 @@ function bindRunV02Events() {
     event.preventDefault();
     event.stopPropagation();
     const route = runV02RouteByKey(option.dataset.runV02Baseline);
-    if (!route?.runnable) return;
+    if (!route || !runV02SupportedProtocol(route.protocolId)) return;
     if (route.key === state.runV02.baselineRouteKey) {
       closeRunV02BaselineMenu();
       return;
@@ -7587,21 +8224,38 @@ function bindRunV02Events() {
     updateRunV02Availability();
   });
 
+  els.runV02CaseGroupPicker?.addEventListener("click", (event) => {
+    const tab = event.target.closest("[data-run-v02-case-group]");
+    if (!tab || state.runV02.isRunning || state.runV02.isCaseLoading) return;
+    state.runV02.activeCaseGroupKey = tab.dataset.runV02CaseGroup;
+    updateRunV02CaseGroupHint();
+    renderRunV02CaseGroups();
+  });
+
   els.runV02CaseGroups?.addEventListener("change", (event) => {
     const input = event.target.closest("[data-v02-case-id]");
     if (!input || state.runV02.isRunning) return;
-    if (input.checked) state.runV02.selectedCaseIds.add(input.dataset.v02CaseId);
-    else state.runV02.selectedCaseIds.delete(input.dataset.v02CaseId);
+    const group = runV02ActiveCaseGroup();
+    if (!group) return;
+    const selectedIds = runV02CaseGroupSelection(group.key);
+    if (input.checked) selectedIds.add(input.dataset.v02CaseId);
+    else selectedIds.delete(input.dataset.v02CaseId);
     renderRunV02SelectedCaseCount();
+    renderRunV02CaseGroupPicker();
   });
 
   els.runV02SelectAllCases?.addEventListener("click", () => {
-    for (const testCase of state.runV02.cases || []) state.runV02.selectedCaseIds.add(testCase.case_id);
+    const group = runV02ActiveCaseGroup();
+    if (!group) return;
+    const selectedIds = runV02CaseGroupSelection(group.key);
+    for (const testCase of group.cases) selectedIds.add(testCase.case_id);
     renderRunV02CaseGroups();
   });
 
   els.runV02ClearAllCases?.addEventListener("click", () => {
-    state.runV02.selectedCaseIds = new Set();
+    const group = runV02ActiveCaseGroup();
+    if (!group) return;
+    state.runV02.selectedCaseIdsByGroup[group.key] = new Set();
     renderRunV02CaseGroups();
   });
 
@@ -8032,6 +8686,7 @@ renderEndpointTabs();
 renderSelectedChannel();
 bindEvents();
 bindModelLookupAddTabModalEvents();
+bindProtocolParamDrawer();
 renderProxyState();
 loadFeishuConfig();
 loadEmbedUrl(embedConfigs.evalscope);

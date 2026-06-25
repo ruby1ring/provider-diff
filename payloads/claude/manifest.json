@@ -3,7 +3,7 @@
   "base_url": "https://api.anthropic.com/v1",
   "endpoint": "/chat/completions",
   "method": "POST",
-  "source": "../../docs/claude.md",
+  "source": "../../docs/api/claude.md",
   "default_model": "claude-sonnet-4-6",
   "reasoning_model": "claude-sonnet-4-6",
   "vision_model": "claude-sonnet-4-6",

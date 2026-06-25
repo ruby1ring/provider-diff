@@ -41,6 +41,6 @@
       "model",
       "choices"
     ],
-    "notes": "Imported from docs/openrouter.case.md. Uses the official spelling 'origial' from the exported prompt."
+    "notes": "Imported from docs/api/openrouter.case.md. Uses the official spelling 'origial' from the exported prompt."
   }
 }

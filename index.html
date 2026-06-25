@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./design-system/tokens.css" />
-    <link rel="stylesheet" href="./design-system/styles.css?v=noctua-proto5" />
+    <link rel="stylesheet" href="./design-system/styles.css?v=noctua-param-specs" />
   </head>
   <body>
     <div class="app">
@@ -532,9 +532,10 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
             </div>
             <div class="case-summary">
               <span id="runV02SelectedCaseCount" class="mono">已选 0 个</span>
-              <span id="runV02CaseHint" class="muted">勾选要具体跑的测评 case。</span>
+              <span id="runV02CaseHint" class="muted">先选择测评分组：连通性 → 协议 / 流式 → 其他分组；再勾选该分组内的 case。</span>
             </div>
-            <div id="runV02CaseGroups" class="case-groups"></div>
+            <div id="runV02CaseGroupPicker" class="run-v02-case-group-picker" role="tablist" aria-label="测评 case 分组"></div>
+            <div id="runV02CaseGroups" class="case-groups run-v02-case-list"></div>
           </section>
 
           <section id="runV02ProgressPanel" class="panel is-hidden" aria-live="polite">
@@ -913,16 +914,32 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
         </div>
       </div>
 
+      <div id="protocolParamDrawer" class="protocol-param-drawer is-hidden" role="dialog" aria-modal="true" aria-labelledby="protocolParamDrawerTitle" aria-hidden="true">
+        <div class="protocol-param-drawer__backdrop" data-protocol-param-drawer-dismiss></div>
+        <aside class="protocol-param-drawer__panel panel">
+          <header class="protocol-param-drawer__head">
+            <div>
+              <p class="protocol-param-drawer__eyebrow">参数约束对比</p>
+              <h2 id="protocolParamDrawerTitle" class="protocol-param-drawer__title mono"></h2>
+            </div>
+            <button type="button" class="btn btn-ghost btn-xs protocol-param-drawer__close" data-protocol-param-drawer-dismiss aria-label="关闭">关闭</button>
+          </header>
+          <div id="protocolParamDrawerSummary" class="protocol-param-drawer__summary"></div>
+          <div id="protocolParamDrawerBody" class="protocol-param-drawer__body"></div>
+        </aside>
+      </div>
+
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </div>
 
-    <script src="./lib/providerx-rules.js?v=noctua-ds"></script>
-    <script src="./lib/channel-catalog.js?v=noctua-proto2"></script>
+    <script src="./lib/providerx-rules.js?v=noctua-param-meaning"></script>
+    <script src="./lib/channel-catalog.js?v=noctua-streamlake-logo"></script>
     <script src="./lib/custom-eval-models.js?v=noctua-nav42"></script>
-    <script src="./lib/protocol-parameter-sources.js?v=noctua-proto8"></script>
-    <script src="./lib/mock-data.js?v=noctua-proto8"></script>
-    <script src="./lib/model-lookup.js?v=noctua-nav46"></script>
-    <script src="./main.js?v=noctua-v02-config-hint"></script>
+    <script src="./lib/protocol-parameter-sources.js?v=noctua-deepseek-msg"></script>
+    <script src="./lib/protocol-parameter-specs.js?v=noctua-deepseek-msg"></script>
+    <script src="./lib/mock-data.js?v=noctua-oem-protocol"></script>
+    <script src="./lib/model-lookup.js?v=noctua-streamlake"></script>
+    <script src="./main.js?v=noctua-param-specs"></script>
     <script>
       if (new URLSearchParams(location.search).has("canvas-annotate")) {
         const s = document.createElement("script");

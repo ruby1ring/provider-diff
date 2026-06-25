@@ -42,6 +42,6 @@
       "model",
       "choices"
     ],
-    "notes": "Imported from docs/openrouter.case.md. The original export contains a very large QuickTime data URL; this compact data URL keeps the regression fixture small while preserving the parameter shape."
+    "notes": "Imported from docs/api/openrouter.case.md. The original export contains a very large QuickTime data URL; this compact data URL keeps the regression fixture small while preserving the parameter shape."
   }
 }

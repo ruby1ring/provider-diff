@@ -40,6 +40,6 @@
       "model",
       "choices"
     ],
-    "notes": "Imported from docs/openrouter.case.md. Capability-gated vision case."
+    "notes": "Imported from docs/api/openrouter.case.md. Capability-gated vision case."
   }
 }

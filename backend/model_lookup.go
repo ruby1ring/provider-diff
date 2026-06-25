@@ -228,7 +228,8 @@ func lookupModelsAcrossChannels(ctx context.Context, root, query string) (channe
 			"deepseek": 0, "moonshot": 1, "zhipu": 2, "minimax": 3,
 			"aliyun-cn": 4, "aliyun-us": 5,
 			"siliconflow-cn": 6, "siliconflow-com": 7,
-			"openrouter": 8, "sf-router-cn": 9, "sf-router-com": 10,
+			"streamlake-cn": 8,
+			"openrouter": 9, "sf-router-cn": 10, "sf-router-com": 11,
 		}
 		oi, oj := order[matches[i].PlatformID], order[matches[j].PlatformID]
 		if oi != oj {

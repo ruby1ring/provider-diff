@@ -41,6 +41,6 @@
       "model",
       "choices"
     ],
-    "notes": "Imported from docs/openrouter.case.md. The original export contains a truncated JPEG data URL; this case uses a compact valid PNG data URL to cover the same request shape."
+    "notes": "Imported from docs/api/openrouter.case.md. The original export contains a truncated JPEG data URL; this case uses a compact valid PNG data URL to cover the same request shape."
   }
 }

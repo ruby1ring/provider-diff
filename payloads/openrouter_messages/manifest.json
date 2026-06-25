@@ -3,7 +3,7 @@
   "base_url": "https://openrouter.ai/api/v1",
   "endpoint": "/messages",
   "method": "POST",
-  "source": "../../docs/openrouter.md",
+  "source": "../../docs/api/openrouter-message.md",
   "default_model": "anthropic/claude-sonnet-4.5",
   "reasoning_model": "anthropic/claude-sonnet-4.5",
   "vision_model": "anthropic/claude-sonnet-4.5",

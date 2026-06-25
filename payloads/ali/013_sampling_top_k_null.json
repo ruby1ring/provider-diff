@@ -29,6 +29,6 @@
       "usage"
     ],
     "provider_extension": true,
-    "notes": "docs/ali.md 明确写出 top_k 为 null 时禁用 top_k 策略。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+    "notes": "docs/api/ali-chat.md 明确写出 top_k 为 null 时禁用 top_k 策略。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
   }
 }

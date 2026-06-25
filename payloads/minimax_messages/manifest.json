@@ -3,7 +3,7 @@
   "base_url": "https://api.minimaxi.com/anthropic/v1",
   "endpoint": "/messages",
   "method": "POST",
-  "source": "../../docs/minimax.md",
+  "source": "../../docs/api/minimax-message.md",
   "default_model": "MiniMax-M2.7",
   "reasoning_model": "MiniMax-M2.7",
   "vision_model": "MiniMax-M2.7",

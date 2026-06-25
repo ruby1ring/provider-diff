@@ -67,6 +67,6 @@
       "system_fingerprint"
     ],
     "content_should_parse_as_json": true,
-    "notes": "Imported from docs/openrouter.case.md."
+    "notes": "Imported from docs/api/openrouter.case.md."
   }
 }

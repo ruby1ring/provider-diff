@@ -58,6 +58,6 @@
       "model",
       "choices"
     ],
-    "notes": "docs/openrouter.case.md shows this task as Running without a Raw Request block; payload inferred from the matching reasoning-disabled required case with reasoning.enabled=true."
+    "notes": "docs/api/openrouter.case.md shows this task as Running without a Raw Request block; payload inferred from the matching reasoning-disabled required case with reasoning.enabled=true."
   }
 }

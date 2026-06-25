@@ -1,0 +1,33 @@
+{
+  "case_id": "or_protocol_stream_false",
+  "title": "stream=false 应返回普通 JSON",
+  "category": "protocol",
+  "parameters": [
+    "stream"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句中文说明 stream=false 时返回普通 JSON。"
+      }
+    ],
+    "stream": false
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "显式 stream=false：应返回非流式 JSON，而非 SSE。"
+  }
+}

@@ -53,6 +53,11 @@ sf-router-com:
   https://sr-endpoint.horay.ai
   sk-your-sf-router-api-key
 
+streamlake-cn:
+  # Gateway 根地址（勿带 /chat/completions 等路径）；协议路径由测评工具按所选协议自动拼接
+  https://wanqing.streamlakeapi.com/api/gateway/v1/endpoints
+  sk-your-streamlake-api-key
+
 # --- 可选：容量探测 / 基线脚本（非测评渠道页）---
 
 openai:

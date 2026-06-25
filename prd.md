@@ -16,10 +16,10 @@
 |------|------|
 | 项目说明与快速开始 | [README.md](README.md) |
 | 视觉与设计系统 | [design-system/design-system.md](design-system/design-system.md) |
-| 各渠道参数与 case 来源 | [docs/openai.md](docs/openai.md)、[docs/deepseek.md](docs/deepseek.md)、[docs/ali.md](docs/ali.md)、[docs/minimax.md](docs/minimax.md)、[docs/siliconflow.md](docs/siliconflow.md)、[docs/claude.md](docs/claude.md)、[docs/openrouter.md](docs/openrouter.md)、[docs/vllm.md](docs/vllm.md) |
-| `usage` 字段断言矩阵 | [docs/usage.md](docs/usage.md) |
-| 容量探测方法论 | [docs/capacity-probe-methodology.md](docs/capacity-probe-methodology.md) |
-| 性能测试（范围外） | [docs/performance-benchmark-design.md](docs/performance-benchmark-design.md) |
+| 各渠道参数与 case 来源 | [docs/api/openai.md](docs/api/openai.md)、[docs/api/deepseek.md](docs/api/deepseek.md)、[docs/api/ali-chat.md](docs/api/ali-chat.md)、[docs/api/minimax-chat.md](docs/api/minimax-chat.md)、[docs/api/siliconflow-chat.md](docs/api/siliconflow-chat.md)、[docs/api/claude.md](docs/api/claude.md)、[docs/api/openrouter-chat.md](docs/api/openrouter-chat.md)、[docs/api/vllm.md](docs/api/vllm.md) |
+| `usage` 字段断言矩阵 | [docs/api/usage.md](docs/api/usage.md) |
+| 容量探测方法论 | [docs/project/capacity-probe-methodology.md](docs/project/capacity-probe-methodology.md) |
+| 性能测试（范围外） | [docs/project/performance-benchmark-design.md](docs/project/performance-benchmark-design.md) |
 
 ### 命名约定
 
@@ -366,20 +366,20 @@ payloads/
 
 | provider | Endpoint 类型 | case 数 | 参数文档 |
 |----------|---------------|---------|----------|
-| `openai` | Chat Completions | 53 | [docs/openai.md](docs/openai.md) |
-| `claude` | Chat Completions | 35 | [docs/claude.md](docs/claude.md) |
-| `claude_messages` | Anthropic Messages | 5 | [docs/claude.md](docs/claude.md) |
-| `deepseek` | Chat Completions | 60 | [docs/deepseek.md](docs/deepseek.md) |
-| `deepseek_messages` | Anthropic Messages | 10 | [docs/deepseek.md](docs/deepseek.md) |
-| `ali` | Chat Completions | 54 | [docs/ali.md](docs/ali.md) |
-| `ali_messages` | Anthropic Messages | 10 | [docs/ali.md](docs/ali.md) |
-| `minimax` | Chat Completions | 38 | [docs/minimax.md](docs/minimax.md) |
-| `minimax_messages` | Anthropic Messages | 10 | [docs/minimax.md](docs/minimax.md) |
-| `openrouter` | Chat Completions | 77 | [docs/openrouter.md](docs/openrouter.md) |
-| `openrouter_messages` | Anthropic Messages | 10 | [docs/openrouter.md](docs/openrouter.md) |
-| `siliconflow` | Chat Completions | 42 | [docs/siliconflow.md](docs/siliconflow.md) |
-| `siliconflow_messages` | Anthropic Messages | 10 | [docs/siliconflow.md](docs/siliconflow.md) |
-| `vllm` | 自托管 OpenAI-compat | 30 | [docs/vllm.md](docs/vllm.md) |
+| `openai` | Chat Completions | 53 | [docs/api/openai.md](docs/api/openai.md) |
+| `claude` | Chat Completions | 35 | [docs/api/claude.md](docs/api/claude.md) |
+| `claude_messages` | Anthropic Messages | 5 | [docs/api/claude.md](docs/api/claude.md) |
+| `deepseek` | Chat Completions | 60 | [docs/api/deepseek.md](docs/api/deepseek.md) |
+| `deepseek_messages` | Anthropic Messages | 10 | [docs/api/deepseek-message.md](docs/api/deepseek-message.md) |
+| `ali` | Chat Completions | 54 | [docs/api/ali-chat.md](docs/api/ali-chat.md) |
+| `ali_messages` | Anthropic Messages | 10 | [docs/api/ali-message.md](docs/api/ali-message.md) |
+| `minimax` | Chat Completions | 38 | [docs/api/minimax-chat.md](docs/api/minimax-chat.md) |
+| `minimax_messages` | Anthropic Messages | 10 | [docs/api/minimax-message.md](docs/api/minimax-message.md) |
+| `openrouter` | Chat Completions | 77 | [docs/api/openrouter-chat.md](docs/api/openrouter-chat.md) |
+| `openrouter_messages` | Anthropic Messages | 10 | [docs/api/openrouter-message.md](docs/api/openrouter-message.md) |
+| `siliconflow` | Chat Completions | 42 | [docs/api/siliconflow-chat.md](docs/api/siliconflow-chat.md) |
+| `siliconflow_messages` | Anthropic Messages | 10 | [docs/api/siliconflow-message.md](docs/api/siliconflow-message.md) |
+| `vllm` | 自托管 OpenAI-compat | 30 | [docs/api/vllm.md](docs/api/vllm.md) |
 | `thinking` | 跨渠道推理探针 | 19 | （专用 reasoning 参数集） |
 
 Channel 卡片通过 `provider_id` 映射到上表；Messages endpoint 使用 `*_messages` provider。
@@ -392,7 +392,7 @@ Channel 卡片通过 `provider_id` 映射到上表；Messages endpoint 使用 `*
   "base_url": "https://api.openai.com/v1",
   "endpoint": "/chat/completions",
   "method": "POST",
-  "source": "../../docs/openai.md",
+  "source": "../../docs/api/openai.md",
   "default_model": "gpt-4o-mini",
   "reasoning_model": "gpt-5.1",
   "vision_model": "gpt-4o-mini",
@@ -511,7 +511,7 @@ Channel 卡片通过 `provider_id` 映射到上表；Messages endpoint 使用 `*
 | `http_status` | HTTP 状态码 |
 | `required_response_fields` | 顶层响应必填字段 |
 | `choice_required_fields` | `choices[]` 内字段 |
-| `usage_required_fields` | `usage` 内字段（含嵌套，见 [docs/usage.md](docs/usage.md)） |
+| `usage_required_fields` | `usage` 内字段（含嵌套，见 [docs/api/usage.md](docs/api/usage.md)） |
 | `messages_required_response_fields` | Anthropic Messages 形态 |
 | `content_required_fields` | Messages content block |
 | `response_mode` / `required_chunk_fields` | SSE 流式帧 |
@@ -593,7 +593,7 @@ Channel 卡片通过 `provider_id` 映射到上表；Messages endpoint 使用 `*
 
 ### 9.2 实现方式
 
-1. **运行页**：勾选容量 case；payload 含 `__capacity_probe` 标记，后端按 K/M 档位展开（大→小），详见 [docs/capacity-probe-methodology.md](docs/capacity-probe-methodology.md)
+1. **运行页**：勾选容量 case；payload 含 `__capacity_probe` 标记，后端按 K/M 档位展开（大→小），详见 [docs/project/capacity-probe-methodology.md](docs/project/capacity-probe-methodology.md)
 2. **CLI**：`node scripts/probe-capacity.js` → `outputs/capacity-probes/*.json`（运维/批量探测，非 UI 必测）
 
 ### 9.3 规则摘要
@@ -617,7 +617,7 @@ Channel 卡片通过 `provider_id` 映射到上表；Messages endpoint 使用 `*
 | 模块 | 说明 | 参考 |
 |------|------|------|
 | 报告中心 | 历史聚合、筛选、导入 JSON、推送飞书 | `main.js` reports view |
-| 性能测试 | vLLM `benchmark_serving`、TTFT/吞吐 | [docs/performance-benchmark-design.md](docs/performance-benchmark-design.md) |
+| 性能测试 | vLLM `benchmark_serving`、TTFT/吞吐 | [docs/project/performance-benchmark-design.md](docs/project/performance-benchmark-design.md) |
 | 飞书文档写入 | `POST /api/feishu/document` | backend + Feishu 集成页 |
 | EvalScope / OpenCompass | iframe 嵌入外部评测面板 | [README.md](README.md) Docker Compose |
 | macOS DMG 桌面端 | Electron 打包 | [README.md](README.md) |
@@ -670,7 +670,7 @@ npm run dev
 | 结论/网关枚举 | `lib/providerx-rules.js` |
 | 用例数量与索引 | `payloads/*/manifest.json` |
 | API 契约与断言 | `backend/main.go` |
-| 容量方法论 | `docs/capacity-probe-methodology.md` |
+| 容量方法论 | `docs/project/capacity-probe-methodology.md` |
 | 视觉规范 | `design-system/design-system.md` |
 
 ---

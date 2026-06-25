@@ -3,7 +3,7 @@
   "base_url": "https://api.openai.com/v1",
   "endpoint": "/chat/completions",
   "method": "POST",
-  "source": "../../docs/openai.md",
+  "source": "../../docs/api/openai.md",
   "default_model": "gpt-4o-mini",
   "reasoning_model": "gpt-5.1",
   "vision_model": "gpt-4o-mini",

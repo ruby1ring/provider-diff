@@ -1,0 +1,36 @@
+{
+  "case_id": "am_protocol_stream_false",
+  "title": "stream=false 应返回 Messages JSON",
+  "category": "protocol",
+  "parameters": [
+    "stream"
+  ],
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "max_tokens": 64,
+    "stream": false,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Say hi in one sentence."
+      }
+    ],
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "type",
+      "role",
+      "content",
+      "model"
+    ],
+    "notes": "显式 stream=false：应返回非流式 Messages JSON，而非 SSE。"
+  }
+}

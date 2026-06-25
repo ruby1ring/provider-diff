@@ -41,6 +41,6 @@
       "model",
       "choices"
     ],
-    "notes": "Imported from docs/openrouter.case.md. Capability-gated video input case."
+    "notes": "Imported from docs/api/openrouter.case.md. Capability-gated video input case."
   }
 }

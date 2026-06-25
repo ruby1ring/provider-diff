@@ -3,7 +3,7 @@
   "base_url": "https://dashscope.aliyuncs.com/apps/anthropic/v1",
   "endpoint": "/messages",
   "method": "POST",
-  "source": "../../docs/ali.md",
+  "source": "../../docs/api/ali-message.md",
   "default_model": "deepseek-v4-pro",
   "reasoning_model": "deepseek-v4-pro",
   "vision_model": "qwen-vl-plus",
@@ -35,6 +35,7 @@
     "030_stop_sequences.json",
     "040_tools_auto.json",
     "050_stream_basic.json",
+    "051_stream_false.json",
     "060_thinking_budget.json"
   ]
 }

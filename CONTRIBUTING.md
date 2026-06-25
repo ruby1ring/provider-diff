@@ -56,7 +56,7 @@ git push -u origin feat/简短描述
 
 ## 管理员可选设置
 
-建议在 GitHub 为 `main` 配置分支保护，见 [docs/branch-protection.md](docs/branch-protection.md)。
+建议在 GitHub 为 `main` 配置分支保护，见 [docs/project/branch-protection.md](docs/project/branch-protection.md)。
 
 ## 本地 main 已与远程不一致时
 

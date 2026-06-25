@@ -52,6 +52,7 @@ Channel keys used by **测评模型 → 查询渠道** (live model list lookup).
 | `openrouter` | OpenRouter |
 | `sf-router-cn` | SF Silinex CN |
 | `sf-router-com` | SF Silinex COM |
+| `streamlake-cn` | 快手万擎（StreamLake） |
 
 Legacy section names (`ali`, `siliconflow`) are still accepted as fallbacks for scripts. Environment variables (e.g. `SILICONFLOW_API_KEY`) are used when no matching section is found.
 
@@ -80,7 +81,7 @@ node scripts/probe-capacity.js --dry-run
 
 Capacity probes support target-level concurrency with `--max-concurrency`. Each provider/model target runs independently, while candidate tiers inside one target remain sequential so boundary detection stays correct.
 
-See `docs/capacity-probe-methodology.md` for the testing methodology and result interpretation rules.
+See `docs/project/capacity-probe-methodology.md` for the testing methodology and result interpretation rules.
 
 ## macOS desktop (Noctua)
 
@@ -215,4 +216,4 @@ Web/Docker flows do not depend on `build/icon.icns` or Electron.
 
 ## 协作开发
 
-请勿在本地长期直接修改并 push `main`。请使用功能分支 + Pull Request，流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。仓库管理员可为 `main` 配置分支保护，见 [docs/branch-protection.md](docs/branch-protection.md)。
+请勿在本地长期直接修改并 push `main`。请使用功能分支 + Pull Request，流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。仓库管理员可为 `main` 配置分支保护，见 [docs/project/branch-protection.md](docs/project/branch-protection.md)。

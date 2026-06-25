@@ -3,7 +3,7 @@
   "base_url": "https://api.deepseek.com/anthropic/v1",
   "endpoint": "/messages",
   "method": "POST",
-  "source": "../../docs/deepseek.md",
+  "source": "../../docs/api/deepseek-message.md",
   "default_model": "deepseek-v4-flash",
   "reasoning_model": "deepseek-v4-pro",
   "vision_model": "deepseek-v4-flash",

@@ -28,6 +28,6 @@
       "model",
       "choices"
     ],
-    "notes": "Imported from docs/openrouter.case.md. Uses deprecated max_tokens because that is what the official raw request used."
+    "notes": "Imported from docs/api/openrouter.case.md. Uses deprecated max_tokens because that is what the official raw request used."
   }
 }

@@ -31,6 +31,6 @@
       "model",
       "choices"
     ],
-    "notes": "docs/openrouter.case.md has no Raw Request block for top-logprobs; this payload is reconstructed from the exported Error Details."
+    "notes": "docs/api/openrouter.case.md has no Raw Request block for top-logprobs; this payload is reconstructed from the exported Error Details."
   }
 }

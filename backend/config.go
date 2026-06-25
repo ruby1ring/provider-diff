@@ -116,6 +116,7 @@ var platformConfigKeyAliases = map[string][]string{
 	"openrouter":     {"openrouter"},
 	"sf-router-cn":   {"sf-router-cn", "siliconflow-cn", "siliconflow"},
 	"sf-router-com":  {"sf-router-com", "siliconflow-com", "siliconflow"},
+	"streamlake-cn":  {"streamlake-cn", "streamlake"},
 }
 
 func maskAPIKey(key string) string {

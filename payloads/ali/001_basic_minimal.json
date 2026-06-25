@@ -1,6 +1,6 @@
 {
   "case_id": "ali_basic_minimal",
-  "title": "最小 chat completion 请求",
+  "title": "连通性检查：发\"Hello\"，确认该渠道能否调通。",
   "category": "basic",
   "parameters": [
     "model",
@@ -28,6 +28,6 @@
       "choices",
       "usage"
     ],
-    "notes": "基础 accepted-path case，只验证结构和请求可接受。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+    "notes": "该 Case 目的是用这个协议、这个 endpoint、这个模型，发一个最小合法请求，看能不能调通（HTTP 200 + 基本响应结构）。"
   }
 }

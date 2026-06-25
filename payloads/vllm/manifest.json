@@ -3,7 +3,7 @@
   "base_url": "http://localhost:8000/v1",
   "endpoint": "/chat/completions",
   "method": "POST",
-  "source": "../../docs/vllm.md",
+  "source": "../../docs/api/vllm.md",
   "default_model": "Qwen/Qwen3-8B",
   "reasoning_model": "Qwen/Qwen3-8B",
   "vision_model": "",
