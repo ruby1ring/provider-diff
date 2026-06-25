@@ -35,7 +35,25 @@ API keys stay on your machine and are not committed. To use a local config file 
 cp config.example.yaml config.yaml
 ```
 
-Replace the placeholder API keys in `config.yaml`.
+Replace the placeholder API keys in `config.yaml`. The file is listed in `.gitignore` and is not pushed to GitHub.
+
+Channel keys used by **测评模型 → 查询渠道** (live model list lookup). Section names match **测评渠道** platform ids in `lib/channel-catalog.js`:
+
+| `config.yaml` section | 测评渠道 |
+| --- | --- |
+| `deepseek` | DeepSeek 开放平台 |
+| `moonshot` | Moonshot 开放平台 |
+| `zhipu` | 智谱开放平台 |
+| `minimax` | MiniMax 开放平台 |
+| `aliyun-cn` | 阿里云百炼（中国-华北 2） |
+| `aliyun-us` | 阿里云百炼（美国-弗吉尼亚） |
+| `siliconflow-cn` | SiliconFlow CN |
+| `siliconflow-com` | SiliconFlow COM |
+| `openrouter` | OpenRouter |
+| `sf-router-cn` | SF Silinex CN |
+| `sf-router-com` | SF Silinex COM |
+
+Legacy section names (`ali`, `siliconflow`) are still accepted as fallbacks for scripts. Environment variables (e.g. `SILICONFLOW_API_KEY`) are used when no matching section is found.
 
 ## Capacity probes
 

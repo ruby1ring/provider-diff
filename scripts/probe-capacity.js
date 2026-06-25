@@ -196,6 +196,27 @@ function readConfig(filePath) {
   return config;
 }
 
+/** Map probe provider id → config.yaml section ids (测评渠道 platform id first). */
+const PROVIDER_CONFIG_KEYS = {
+  ali: ["aliyun-cn", "aliyun-us", "aliyun", "ali"],
+  siliconflow: ["siliconflow-cn", "siliconflow-com", "siliconflow"],
+  openrouter: ["openrouter"],
+  deepseek: ["deepseek"],
+  minimax: ["minimax"],
+  openai: ["openai"],
+  claude: ["claude"],
+  vllm: ["vllm"]
+};
+
+function providerConfig(config, provider) {
+  const keys = PROVIDER_CONFIG_KEYS[provider] || [provider];
+  for (const key of keys) {
+    const entry = config[key];
+    if (entry?.api_key && !String(entry.api_key).includes("your-")) return entry;
+  }
+  return config[provider] || {};
+}
+
 function readJSON(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
@@ -216,7 +237,7 @@ function buildTargets(args, config) {
       if (endpointId === "anthropic_messages" && !MESSAGE_PROVIDERS.includes(provider)) continue;
       const manifest = manifestFor(provider, endpointId);
       if (!manifest) continue;
-      const auth = config[provider] || {};
+      const auth = providerConfig(config, provider);
       const endpointAuth = config[manifest.provider] || {};
       const baseUrl = endpointAuth.base_url || (endpointId === "chat_completions" ? auth.base_url : "") || manifest.base_url;
       const apiKey = endpointAuth.api_key || auth.api_key || "";

@@ -1,3 +1,60 @@
+# 本地 API Key（勿提交 Git）：cp config.example.yaml config.yaml
+#
+# 段名与「测评渠道 / 测评模型」页面的 platform id 一致（见 lib/channel-catalog.js）。
+# 每段：Base URL → API Key
+
+# --- 模型原厂（OEM）---
+
+deepseek:
+  https://api.deepseek.com
+  sk-your-deepseek-api-key
+
+moonshot:
+  https://api.moonshot.cn/v1
+  sk-your-moonshot-api-key
+
+zhipu:
+  https://open.bigmodel.cn/api/paas/v4/
+  sk-your-zhipu-api-key
+
+minimax:
+  https://api.minimaxi.com/v1
+  sk-your-minimax-api-key
+
+# --- 第三方托管（Deploy）---
+
+aliyun-cn:
+  https://dashscope.aliyuncs.com/compatible-mode/v1
+  sk-your-dashscope-api-key
+
+aliyun-us:
+  https://dashscope-us.aliyuncs.com/compatible-mode/v1
+  sk-your-dashscope-api-key
+
+siliconflow-cn:
+  https://api.siliconflow.cn/v1
+  sk-your-siliconflow-api-key
+
+siliconflow-com:
+  https://api.siliconflow.com/v1
+  sk-your-siliconflow-api-key
+
+# --- 路由（Route）---
+
+openrouter:
+  https://openrouter.ai/api/v1
+  sk-your-openrouter-api-key
+
+sf-router-cn:
+  https://api.sr.silinex.work
+  sk-your-sf-router-api-key
+
+sf-router-com:
+  https://sr-endpoint.horay.ai
+  sk-your-sf-router-api-key
+
+# --- 可选：容量探测 / 基线脚本（非测评渠道页）---
+
 openai:
   https://api.openai.com/v1
   sk-your-openai-api-key
@@ -5,26 +62,6 @@ openai:
 claude:
   https://api.anthropic.com/v1
   sk-your-anthropic-api-key
-
-deepseek:
-  https://api.deepseek.com
-  sk-your-deepseek-api-key
-
-minimax:
-  https://api.minimaxi.com/v1
-  sk-your-minimax-api-key
-
-siliconflow:
-  https://api.siliconflow.cn/v1
-  sk-your-siliconflow-api-key
-
-openrouter:
-  https://openrouter.ai/api/v1
-  sk-your-openrouter-api-key
-
-ali:
-  https://dashscope.aliyuncs.com/compatible-mode/v1
-  sk-your-dashscope-api-key
 
 vllm:
   http://localhost:8000/v1

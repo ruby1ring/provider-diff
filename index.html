@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./design-system/tokens.css" />
-    <link rel="stylesheet" href="./design-system/styles.css" />
+    <link rel="stylesheet" href="./design-system/styles.css?v=noctua-proto5" />
   </head>
   <body>
     <div class="app">
@@ -41,6 +41,7 @@
               <div class="sidebar-group-items">
                 <a href="#guide" data-view-link="guide">测评说明</a>
                 <a href="#channels" data-view-link="channels">测评渠道</a>
+                <a href="#protocols" data-view-link="protocols">测评协议</a>
                 <a href="#models" data-view-link="models">测评模型</a>
                 <a class="is-active" href="#run-v01" data-view-link="run-v01">测评工具 V0.1</a>
                 <a href="#run-v02" data-view-link="run-v02">测评工具 V0.2</a>
@@ -142,17 +143,27 @@
           <div class="page-head">
             <div>
               <h1>测评渠道</h1>
-              <p id="channelScopeNote">梳理模型原厂与 API 平台的模型系列覆盖，以及各系列对文本协议的接入情况。</p>
+              <p id="channelScopeNote">梳理各 API 平台已接入的文本协议（渠道名称旁标签），以及各测评模型在渠道上的协议覆盖（展开表格）。</p>
             </div>
           </div>
           <div id="channelCatalog"></div>
+        </section>
+
+        <section id="protocolsView" class="app-view is-hidden" data-view="protocols">
+          <div class="page-head">
+            <div>
+              <h1>测评协议</h1>
+              <p id="protocolScopeNote">在同一协议下横向对比各渠道官方 API 文档中的参数覆盖与扩展差异；矩阵数据来自 docs/*.md（2026-06-16 对照官方文档更新）。</p>
+            </div>
+          </div>
+          <div id="protocolCatalog"></div>
         </section>
 
         <section id="modelsView" class="app-view is-hidden" data-view="models">
           <div class="page-head">
             <div>
               <h1>测评模型</h1>
-              <p>主要用于查询<strong>新模型</strong>（不在测评列表中），例如 <span class="mono">GLM5.2</span>。输入模型名称后，会尝试在各测评渠道的模型命名体系中做模糊匹配（大小写、连字符与空格等差异），并列出匹配到的渠道、协议与对应的 API 模型 ID。</p>
+              <p>按测评模型查询其在各渠道的 API 模型 ID 与<strong>模型级</strong>协议支持（与「测评渠道」中的渠道级协议标签相互独立）。支持模糊匹配：大小写、连字符与空格等差异。</p>
             </div>
           </div>
           <div id="modelLookup"></div>
@@ -389,7 +400,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
           <div class="page-head">
             <div>
               <h1>测评工具 V0.2</h1>
-              <p>选择测评模型与渠道协议，配置 Endpoint 与 API Key，勾选要跑的 case 后执行。</p>
+              <p>选择测评模型、Baseline 渠道与待测评渠道，配置各渠道连接信息后执行 case 并对比响应结构差异。</p>
             </div>
             <button id="runV02Tests" class="btn btn-primary btn-lg" type="button" disabled>运行测试</button>
           </div>
@@ -401,7 +412,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
                 <h2>选择测评模型</h2>
               </div>
             </div>
-            <label class="fld run-v02-select-field">
+            <div class="fld run-v02-select-field">
               <span class="lbl">测评模型</span>
               <div id="runV02ModelSelect" class="search-select">
                 <div id="runV02ModelControl" class="search-select__control">
@@ -427,31 +438,31 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
                   <ul id="runV02ModelOptions" class="search-select__options" role="listbox" aria-label="测评模型"></ul>
                 </div>
               </div>
-            </label>
+            </div>
           </section>
 
           <section class="panel run-v02-step">
             <div class="sec-head">
               <div>
                 <p class="eyebrow">Step 2</p>
-                <h2>选择渠道与协议</h2>
+                <h2>选择 Baseline 与测评渠道</h2>
               </div>
               <span id="runV02RouteHint" class="muted mono fs-xs">先选择模型</span>
             </div>
-            <label class="fld run-v02-select-field">
-              <span class="lbl">渠道与协议</span>
-              <div id="runV02RouteSelect" class="search-select">
-                <div id="runV02RouteControl" class="search-select__control">
+            <div class="fld run-v02-select-field">
+              <span class="lbl">Baseline 渠道与协议</span>
+              <div id="runV02BaselineSelect" class="search-select">
+                <div id="runV02BaselineControl" class="search-select__control">
                   <input
-                    id="runV02RouteInput"
+                    id="runV02BaselineInput"
                     class="search-select__input"
                     type="text"
-                    placeholder="选择渠道与协议"
+                    placeholder="选择 Baseline 渠道"
                     readonly
                     autocomplete="off"
                     role="combobox"
                     aria-expanded="false"
-                    aria-controls="runV02RouteMenu"
+                    aria-controls="runV02BaselineMenu"
                     disabled
                   />
                   <span class="search-select__chevrons" aria-hidden="true">
@@ -461,46 +472,57 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
                     </svg>
                   </span>
                 </div>
-                <div id="runV02RouteMenu" class="search-select__menu is-hidden">
-                  <ul id="runV02RouteOptions" class="search-select__options" role="listbox" aria-label="渠道与协议"></ul>
+                <div id="runV02BaselineMenu" class="search-select__menu is-hidden">
+                  <ul id="runV02BaselineOptions" class="search-select__options" role="listbox" aria-label="Baseline 渠道与协议"></ul>
                 </div>
               </div>
-            </label>
+            </div>
+            <div class="fld run-v02-select-field run-v02-select-field--targets">
+              <span class="lbl">测评渠道（可多选）</span>
+              <div id="runV02TargetSelect" class="search-select search-select--multi">
+                <div id="runV02TargetControl" class="search-select__control">
+                  <div id="runV02TargetTags" class="search-select__tags" aria-live="polite"></div>
+                  <input
+                    id="runV02TargetInput"
+                    class="search-select__input"
+                    type="text"
+                    placeholder="选择要测评的渠道"
+                    readonly
+                    autocomplete="off"
+                    role="combobox"
+                    aria-expanded="false"
+                    aria-controls="runV02TargetMenu"
+                    disabled
+                  />
+                  <span class="search-select__chevrons" aria-hidden="true">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <path d="M3.5 5.25L7 2.75L10.5 5.25" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M3.5 8.75L7 11.25L10.5 8.75" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                </div>
+                <div id="runV02TargetMenu" class="search-select__menu is-hidden">
+                  <ul id="runV02TargetOptions" class="search-select__options" role="listbox" aria-label="测评渠道" aria-multiselectable="true"></ul>
+                </div>
+              </div>
+            </div>
           </section>
 
           <section id="runV02ConfigPanel" class="panel run-v02-step is-hidden">
             <div class="sec-head">
               <div>
-                <p class="eyebrow">Step 3–4</p>
-                <h2>Endpoint 与 API Key</h2>
+                <p class="eyebrow">Step 3</p>
+                <h2>渠道连接配置</h2>
               </div>
               <span id="runV02SelectedRoute" class="muted mono fs-xs"></span>
             </div>
-            <form class="config-form">
-              <div class="config-row">
-                <label class="fld">
-                  <span>API 模型 ID</span>
-                  <input id="runV02ModelId" class="inp mono" type="text" readonly />
-                </label>
-                <label class="fld">
-                  <span>Endpoint 地址</span>
-                  <input id="runV02BaseUrl" class="inp mono" type="text" placeholder="https://..." />
-                </label>
-                <label class="fld">
-                  <span>API Key</span>
-                  <span class="input-affix">
-                    <input id="runV02ApiKey" class="inp mono" type="password" placeholder="sk-..." autocomplete="off" />
-                    <button id="runV02ToggleSecret" class="btn btn-ghost btn-xs affix-btn" type="button" aria-label="显示 API Key" title="显示 API Key">显示</button>
-                  </span>
-                </label>
-              </div>
-            </form>
+            <div id="runV02ChannelConfigs" class="run-v02-channel-configs"></div>
           </section>
 
           <section id="runV02CasePanel" class="panel run-v02-step is-hidden">
             <div class="sec-head">
               <div>
-                <p class="eyebrow">Step 5</p>
+                <p class="eyebrow">Step 4</p>
                 <h2>选择测评 case</h2>
               </div>
               <div class="row gap-2">
@@ -559,6 +581,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
                   <thead>
                     <tr>
                       <th>Case / 参数</th>
+                      <th>渠道</th>
                       <th>分类</th>
                       <th>支持性</th>
                       <th>预期</th>
@@ -876,14 +899,30 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
         </main>
       </div>
 
+      <div id="modelLookupAddTabModal" class="model-lookup-modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="modelLookupAddTabTitle" aria-hidden="true">
+        <div class="model-lookup-modal__backdrop" data-model-lookup-modal-dismiss></div>
+        <div class="model-lookup-modal__panel panel">
+          <h2 id="modelLookupAddTabTitle" class="model-lookup-modal__title">找到渠道匹配</h2>
+          <p id="modelLookupAddTabSummary" class="model-lookup-modal__summary"></p>
+          <div id="modelLookupAddTabBody" class="model-lookup-modal__body"></div>
+          <p class="guide-copy model-lookup-modal__hint">是否将此模型加入「测评模型」快捷 Tab？加入后可像现有测评模型一样一键切换查看各渠道 API ID 与协议矩阵。</p>
+          <div class="model-lookup-modal__actions">
+            <button type="button" class="btn btn-primary" id="modelLookupAddTabConfirm">加入测评模型 Tab</button>
+            <button type="button" class="btn btn-ghost" id="modelLookupAddTabDismiss">暂不需要</button>
+          </div>
+        </div>
+      </div>
+
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </div>
 
     <script src="./lib/providerx-rules.js?v=noctua-ds"></script>
-    <script src="./lib/channel-catalog.js?v=noctua-nav24"></script>
-    <script src="./lib/mock-data.js?v=noctua-ds"></script>
-    <script src="./lib/model-lookup.js?v=noctua-nav25"></script>
-    <script src="./main.js?v=noctua-nav27"></script>
+    <script src="./lib/channel-catalog.js?v=noctua-proto2"></script>
+    <script src="./lib/custom-eval-models.js?v=noctua-nav42"></script>
+    <script src="./lib/protocol-parameter-sources.js?v=noctua-proto8"></script>
+    <script src="./lib/mock-data.js?v=noctua-proto8"></script>
+    <script src="./lib/model-lookup.js?v=noctua-nav46"></script>
+    <script src="./main.js?v=noctua-v02-config-hint"></script>
     <script>
       if (new URLSearchParams(location.search).has("canvas-annotate")) {
         const s = document.createElement("script");

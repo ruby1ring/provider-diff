@@ -85,15 +85,16 @@ type ProxyConfig struct {
 }
 
 type RunRequest struct {
-	Provider       string      `json:"provider"`
-	EndpointID     string      `json:"endpoint_id"`
-	CaseIDs        []string    `json:"case_ids"`
-	CustomCases    []TestCase  `json:"custom_cases"`
-	APIKey         string      `json:"api_key"`
-	BaseURL        string      `json:"base_url"`
-	Model          string      `json:"model"`
-	Proxy          ProxyConfig `json:"proxy"`
-	MaxConcurrency int         `json:"max_concurrency,omitempty"`
+	Provider         string      `json:"provider"`
+	EndpointID       string      `json:"endpoint_id"`
+	CaseIDs          []string    `json:"case_ids"`
+	CustomCases      []TestCase  `json:"custom_cases"`
+	APIKey           string      `json:"api_key"`
+	ConfigPlatformID string      `json:"config_platform_id,omitempty"`
+	BaseURL          string      `json:"base_url"`
+	Model            string      `json:"model"`
+	Proxy            ProxyConfig `json:"proxy"`
+	MaxConcurrency   int         `json:"max_concurrency,omitempty"`
 }
 
 type RunResponse struct {
@@ -284,6 +285,8 @@ func main() {
 	mux.HandleFunc("/api/run-batch-stream", s.handleRunBatchStream)
 	mux.HandleFunc("/api/feishu/document", s.handleFeishuDocument)
 	mux.HandleFunc("/api/performance/benchmark", s.handlePerformanceBenchmark)
+	mux.HandleFunc("/api/channel-model-lookup", s.handleChannelModelLookup)
+	mux.HandleFunc("/api/local-config", s.handleLocalConfig)
 
 	port := strings.TrimSpace(os.Getenv("PORT"))
 	if port == "" {
@@ -1183,6 +1186,15 @@ func (s *Server) prepareRunRequest(req RunRequest) (preparedRunRequest, *runRequ
 	}
 	req.EndpointID = strings.TrimSpace(req.EndpointID)
 	req.APIKey = strings.TrimSpace(req.APIKey)
+	req.ConfigPlatformID = strings.TrimSpace(req.ConfigPlatformID)
+	if req.APIKey == "" && req.ConfigPlatformID != "" {
+		if entry, ok := resolveLocalProviderConfig(s.root, req.ConfigPlatformID); ok {
+			req.APIKey = strings.TrimSpace(entry.APIKey)
+			if strings.TrimSpace(req.BaseURL) == "" {
+				req.BaseURL = strings.TrimSpace(entry.BaseURL)
+			}
+		}
+	}
 	if req.APIKey == "" {
 		return preparedRunRequest{}, &runRequestError{status: http.StatusBadRequest, message: "api_key is required for real provider requests"}
 	}
@@ -1327,6 +1339,36 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"ok":   true,
 		"time": time.Now().UTC().Format(time.RFC3339),
 	})
+}
+
+func (s *Server) handleLocalConfig(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/api/local-config" {
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	}
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	providers, err := loadLocalConfig(s.root)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	out := map[string]map[string]string{}
+	for id, entry := range providers {
+		key := strings.TrimSpace(entry.APIKey)
+		if key == "" || isPlaceholderAPIKey(key) {
+			continue
+		}
+		out[id] = map[string]string{
+			"base_url":     strings.TrimSpace(entry.BaseURL),
+			"api_key_hint": maskAPIKey(key),
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"providers": out})
 }
 
 func (s *Server) handleProviders(w http.ResponseWriter, r *http.Request) {

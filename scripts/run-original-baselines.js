@@ -88,6 +88,26 @@ function readConfig() {
   return config;
 }
 
+const PROVIDER_CONFIG_KEYS = {
+  ali: ["aliyun-cn", "aliyun-us", "aliyun", "ali"],
+  siliconflow: ["siliconflow-cn", "siliconflow-com", "siliconflow"],
+  openrouter: ["openrouter"],
+  deepseek: ["deepseek"],
+  minimax: ["minimax"],
+  openai: ["openai"],
+  claude: ["claude"],
+  vllm: ["vllm"]
+};
+
+function providerConfig(config, provider) {
+  const keys = PROVIDER_CONFIG_KEYS[provider] || [provider];
+  for (const key of keys) {
+    const entry = config[key];
+    if (entry?.api_key && !String(entry.api_key).includes("your-")) return entry;
+  }
+  return config[provider] || {};
+}
+
 function hasResponseBody(result) {
   return Object.prototype.hasOwnProperty.call(result || {}, "response_body") && result.response_body !== undefined && result.response_body !== null;
 }
@@ -183,30 +203,30 @@ async function runCase(provider, endpoint, apiKey, model, caseId) {
   return data.results?.[0] || null;
 }
 
-async function runSuite(config, providerConfig, endpoint) {
-  const auth = config[providerConfig.provider];
+async function runSuite(yamlConfig, providerConfigEntry, endpoint) {
+  const auth = providerConfig(yamlConfig, providerConfigEntry.provider);
   if (!auth?.api_key) {
-    console.log(`${providerConfig.provider}/${endpoint.endpoint_id}: skipped, missing key`);
+    console.log(`${providerConfigEntry.provider}/${endpoint.endpoint_id}: skipped, missing key`);
     return null;
   }
-  const cases = await loadCases(providerConfig.provider, endpoint.endpoint_id);
+  const cases = await loadCases(providerConfigEntry.provider, endpoint.endpoint_id);
   const results = [];
-  console.log(`${providerConfig.provider}/${endpoint.endpoint_id}: ${cases.length} cases`);
+  console.log(`${providerConfigEntry.provider}/${endpoint.endpoint_id}: ${cases.length} cases`);
   for (let index = 0; index < cases.length; index += 1) {
     const testCase = cases[index];
-    const result = await runCase(providerConfig.provider, endpoint, auth.api_key, "", testCase.case_id);
+    const result = await runCase(providerConfigEntry.provider, endpoint, auth.api_key, "", testCase.case_id);
     if (result) results.push(normalizeResult(result));
-    console.log(`${providerConfig.provider}/${endpoint.endpoint_id}: ${index + 1}/${cases.length} ${testCase.case_id} ${result?.support_conclusion || "missing"} HTTP ${result?.http_status || 0}`);
+    console.log(`${providerConfigEntry.provider}/${endpoint.endpoint_id}: ${index + 1}/${cases.length} ${testCase.case_id} ${result?.support_conclusion || "missing"} HTTP ${result?.http_status || 0}`);
   }
   const generatedAt = new Date().toISOString();
   return {
-    id: `report_original_${providerConfig.provider}_${endpoint.endpoint_id}_${Date.now()}`,
+    id: `report_original_${providerConfigEntry.provider}_${endpoint.endpoint_id}_${Date.now()}`,
     generated_at: generatedAt,
     endpoint_id: endpoint.endpoint_id,
     endpoint_label: endpointLabels[endpoint.endpoint_id] || endpoint.endpoint_id,
-    channel_id: providerConfig.channel_id,
-    channel_name: providerConfig.channel_name,
-    provider: providerConfig.provider,
+    channel_id: providerConfigEntry.channel_id,
+    channel_name: providerConfigEntry.channel_name,
+    provider: providerConfigEntry.provider,
     base_url: endpoint.base_url,
     model: results.find((item) => item.request_body?.model)?.request_body?.model || "",
     baseline_report_id: "",

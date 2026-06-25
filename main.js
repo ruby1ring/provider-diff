@@ -121,19 +121,27 @@ const els = {
   runV02ModelInput: document.querySelector("#runV02ModelInput"),
   runV02ModelMenu: document.querySelector("#runV02ModelMenu"),
   runV02ModelOptions: document.querySelector("#runV02ModelOptions"),
-  runV02RouteSelect: document.querySelector("#runV02RouteSelect"),
-  runV02RouteControl: document.querySelector("#runV02RouteControl"),
-  runV02RouteInput: document.querySelector("#runV02RouteInput"),
-  runV02RouteMenu: document.querySelector("#runV02RouteMenu"),
-  runV02RouteOptions: document.querySelector("#runV02RouteOptions"),
+  runV02RouteSelect: document.querySelector("#runV02BaselineSelect"),
+  runV02RouteControl: document.querySelector("#runV02BaselineControl"),
+  runV02RouteInput: document.querySelector("#runV02BaselineInput"),
+  runV02RouteMenu: document.querySelector("#runV02BaselineMenu"),
+  runV02RouteOptions: document.querySelector("#runV02BaselineOptions"),
+  runV02BaselineSelect: document.querySelector("#runV02BaselineSelect"),
+  runV02BaselineControl: document.querySelector("#runV02BaselineControl"),
+  runV02BaselineInput: document.querySelector("#runV02BaselineInput"),
+  runV02BaselineMenu: document.querySelector("#runV02BaselineMenu"),
+  runV02BaselineOptions: document.querySelector("#runV02BaselineOptions"),
+  runV02TargetSelect: document.querySelector("#runV02TargetSelect"),
+  runV02TargetControl: document.querySelector("#runV02TargetControl"),
+  runV02TargetTags: document.querySelector("#runV02TargetTags"),
+  runV02TargetInput: document.querySelector("#runV02TargetInput"),
+  runV02TargetMenu: document.querySelector("#runV02TargetMenu"),
+  runV02TargetOptions: document.querySelector("#runV02TargetOptions"),
   runV02RouteHint: document.querySelector("#runV02RouteHint"),
   runV02ConfigPanel: document.querySelector("#runV02ConfigPanel"),
+  runV02ChannelConfigs: document.querySelector("#runV02ChannelConfigs"),
   runV02CasePanel: document.querySelector("#runV02CasePanel"),
   runV02SelectedRoute: document.querySelector("#runV02SelectedRoute"),
-  runV02ModelId: document.querySelector("#runV02ModelId"),
-  runV02BaseUrl: document.querySelector("#runV02BaseUrl"),
-  runV02ApiKey: document.querySelector("#runV02ApiKey"),
-  runV02ToggleSecret: document.querySelector("#runV02ToggleSecret"),
   runV02CaseGroups: document.querySelector("#runV02CaseGroups"),
   runV02SelectedCaseCount: document.querySelector("#runV02SelectedCaseCount"),
   runV02CaseHint: document.querySelector("#runV02CaseHint"),
@@ -156,7 +164,14 @@ const els = {
   toast: document.querySelector("#toast"),
   channelCatalog: document.querySelector("#channelCatalog"),
   channelScopeNote: document.querySelector("#channelScopeNote"),
-  modelLookup: document.querySelector("#modelLookup")
+  protocolCatalog: document.querySelector("#protocolCatalog"),
+  protocolScopeNote: document.querySelector("#protocolScopeNote"),
+  modelLookup: document.querySelector("#modelLookup"),
+  modelLookupAddTabModal: document.querySelector("#modelLookupAddTabModal"),
+  modelLookupAddTabSummary: document.querySelector("#modelLookupAddTabSummary"),
+  modelLookupAddTabBody: document.querySelector("#modelLookupAddTabBody"),
+  modelLookupAddTabConfirm: document.querySelector("#modelLookupAddTabConfirm"),
+  modelLookupAddTabDismiss: document.querySelector("#modelLookupAddTabDismiss")
 };
 
 const state = {
@@ -165,7 +180,15 @@ const state = {
   runToolVersion: "v0.1",
   channelCatalogTab: "oem",
   channelCatalogExpanded: false,
+  protocolCatalogTab: "chat_completions",
   modelLookupQuery: "",
+  modelLookupVendorId: "",
+  modelLookupAddMode: false,
+  modelLookupResult: null,
+  modelLookupLoading: false,
+  modelLookupRequestId: 0,
+  modelLookupAddTabPrompt: null,
+  modelLookupAddTabDismissed: loadModelLookupAddTabDismissed(),
   selectedChannelId: "siliconflow",
   selectedEndpointId: "chat_completions",
   selectedFilter: "all",
@@ -193,25 +216,40 @@ const state = {
   isRunning: false,
   runV02: {
     modelId: "",
-    routeKey: "",
     routeOptions: [],
-    selectedRoute: null,
-    baseUrl: "",
-    apiKey: "",
+    baselineRouteKey: "",
+    baselineRoute: null,
+    targetRouteKeys: new Set(),
+    channelConfigs: {},
+    baselineResults: {},
     cases: [],
     selectedCaseIds: new Set(),
     modelSearch: "",
-    routeSearch: "",
-    modelMenuOpen: false,
-    routeMenuOpen: false,
+    baselineSearch: "",
+    baselineMenuOpen: false,
+    targetSearch: "",
+    targetMenuOpen: false,
     isCaseLoading: false,
     isRunning: false,
     completedResults: [],
-    currentRunAbortController: null
+    currentRunAbortController: null,
+    localConfigProviders: {}
   }
 };
 
-const appProtocol = window.location.protocol === "file:" ? "http:" : window.location.protocol;
+const RUN_V02_CONFIG_PLATFORM_ALIASES = {
+  deepseek: ["deepseek"],
+  moonshot: ["moonshot"],
+  zhipu: ["zhipu"],
+  minimax: ["minimax"],
+  "aliyun-cn": ["aliyun-cn", "aliyun", "ali"],
+  "aliyun-us": ["aliyun-us", "aliyun", "ali"],
+  "siliconflow-cn": ["siliconflow-cn", "sf-router-cn", "siliconflow"],
+  "siliconflow-com": ["siliconflow-com", "sf-router-com", "siliconflow"],
+  openrouter: ["openrouter"],
+  "sf-router-cn": ["sf-router-cn", "siliconflow-cn", "siliconflow"],
+  "sf-router-com": ["sf-router-com", "siliconflow-com", "siliconflow"]
+};
 const appHost = window.location.hostname || "localhost";
 const appQuery = new URLSearchParams(window.location.search);
 const API_BASE = appQuery.get("apiBase") || window.PROVIDER_DIFF_API_BASE || `${appProtocol}//${appHost}:8080`;
@@ -464,7 +502,34 @@ const groupLabelZh = {
   Plugins: "插件",
   Observability: "可观测性",
   "Compatibility Probe": "兼容性探针",
-  "Expected Rejected": "预期拒绝"
+  "Expected Rejected": "预期拒绝",
+  Ignored: "文档标注忽略",
+  Beta: "Beta",
+  Template: "模板"
+};
+
+const groupHintZh = {
+  Core: "指定用哪个模型、传入对话或输入内容",
+  Sampling: "控制回复随机性与措辞风格，如 temperature、top_p",
+  Length: "限制生成内容的长度上限",
+  Reasoning: "控制是否深度思考，以及思考预算或强度",
+  Output: "规定返回格式，如 JSON、结构化或多模态输出",
+  Tools: "声明模型可调用的外部函数，以及调用方式",
+  Protocol: "流式返回、流式选项等传输层行为",
+  Multimodal: "图片、音频等非纯文本输入相关字段",
+  Search: "是否联网搜索及检索相关选项",
+  Metadata: "用户标识、会话元数据、存储策略等旁路信息",
+  Debug: "调试用途，如返回 token 概率等诊断信息",
+  Extra: "平台特有或较少使用的扩展字段",
+  Beta: "实验性参数，文档或行为可能变更",
+  Template: "聊天模板与续写提示相关控制",
+  Routing: "指定请求路由到哪家底层模型供应商",
+  Plugins: "网页搜索、时间注入等增强插件能力",
+  Observability: "追踪 ID、指纹、推理 token 统计等可观测字段",
+  Ignored: "接口接受但文档标注为无实际效果",
+  "Compatibility Probe": "跨渠道推理方言与能力差异探测",
+  "Expected Rejected": "用于验证错误处理与拒绝逻辑的探针",
+  Content: "消息内容与结构相关字段"
 };
 
 const originLabelZh = PROVIDERX_RULES.ORIGIN_LABELS || {
@@ -2227,6 +2292,23 @@ function caseIntentText(testCase, context = {}, capacityDisplay = null, title = 
 
 function groupLabel(group) {
   return groupLabelZh[group] || categoryLabel(String(group).toLowerCase());
+}
+
+function groupHint(group) {
+  return groupHintZh[group] || "";
+}
+
+function renderProtocolParamGroupHeading(category) {
+  const label = groupLabel(category);
+  const hint = groupHint(category);
+  if (!hint) {
+    return `<span class="protocol-param-group-label">${escapeHtml(label)}</span>`;
+  }
+  return `
+    <span class="protocol-param-group-label">${escapeHtml(label)}</span>
+    <span class="protocol-param-group-sep" aria-hidden="true">—</span>
+    <span class="protocol-param-group-hint">${escapeHtml(hint)}</span>
+  `;
 }
 
 function originLabel(origin) {
@@ -5205,6 +5287,334 @@ function renderProtocolCell(supported) {
     : `<span class="protocol-dash" aria-label="不支持" title="不支持">—</span>`;
 }
 
+const CHANNEL_PROTOCOL_TAG_LABELS = {
+  chat_completions: "Chat",
+  anthropic_messages: "Anthropic",
+  responses_api: "Responses"
+};
+
+const PROTOCOL_CATALOG_DEFS = [
+  {
+    id: "chat_completions",
+    tabLabel: "Chat",
+    label: "OpenAI Chat Completions API",
+    endpoint: "POST /v1/chat/completions",
+    evalStatus: "supported",
+    copy: "在同一 Chat Completions 协议下，对比各渠道官方 API 文档中的参数覆盖与扩展差异（基于 docs/*.md，2026-06-16 核对）。"
+  },
+  {
+    id: "anthropic_messages",
+    tabLabel: "Anthropic",
+    label: "Anthropic Messages API",
+    endpoint: "POST /v1/messages",
+    evalStatus: "supported",
+    copy: "在同一 Anthropic Messages 协议下，对比各渠道参数覆盖；部分渠道通过独立路径或兼容层提供。"
+  },
+  {
+    id: "responses_api",
+    tabLabel: "Responses",
+    label: "OpenAI Responses API",
+    endpoint: "POST /v1/responses",
+    evalStatus: "planned",
+    copy: "Responses 协议参数对照（参考文档整理）；Noctua 暂未纳入跑批，下表供跨渠道参数差异预览。"
+  }
+];
+
+const PROTOCOL_CHANNEL_ORDER = [
+  "deepseek",
+  "aliyun",
+  "openrouter",
+  "minimax",
+  "siliconflow"
+];
+
+// 协议参数分组展示顺序：常用调参靠前，冷门/平台特有靠后
+const PROTOCOL_PARAM_CATEGORY_ORDER = [
+  "Core",
+  "Sampling",
+  "Length",
+  "Reasoning",
+  "Output",
+  "Tools",
+  "Protocol",
+  "Multimodal",
+  "Search",
+  "Metadata",
+  "Debug",
+  "Extra",
+  "Beta",
+  "Template",
+  "Routing",
+  "Plugins",
+  "Observability",
+  "Ignored",
+  "Compatibility Probe",
+  "Expected Rejected",
+  "Content"
+];
+
+function protocolParamCategoryRank(category) {
+  const index = PROTOCOL_PARAM_CATEGORY_ORDER.indexOf(category);
+  return index === -1 ? 400 : index;
+}
+
+const RESPONSES_PROTOCOL_CHANNEL_IDS = ["aliyun", "openrouter"];
+
+function sortProtocolChannels(channels) {
+  const order = new Map(PROTOCOL_CHANNEL_ORDER.map((id, index) => [id, index]));
+  return [...channels].sort((a, b) => {
+    const aRank = order.has(a.channel_id) ? order.get(a.channel_id) : 999;
+    const bRank = order.has(b.channel_id) ? order.get(b.channel_id) : 999;
+    if (aRank !== bRank) return aRank - bRank;
+    return String(a.name).localeCompare(String(b.name), "zh-CN");
+  });
+}
+
+function getProtocolCatalogChannels(protocolId) {
+  const sources = window.NOCTUA_PROTOCOL_PARAMETER_SOURCES;
+  const ids = sources?.getChannelIdsForProtocol?.(protocolId) || [];
+  if (!ids.length) {
+    return sortProtocolChannels(
+      CHANNEL_TEMPLATES.filter((channel) => {
+        const endpoint = channel.endpoints?.[protocolId];
+        const evalChannel = sources?.isProtocolEvalChannel?.(channel.channel_id);
+        return evalChannel && endpoint && endpoint.supported !== false;
+      })
+    );
+  }
+  return sortProtocolChannels(
+    ids.map((channelId) => CHANNEL_TEMPLATES.find((item) => item.channel_id === channelId)).filter(Boolean)
+  );
+}
+
+function buildProtocolParameterMatrix(channels, protocolId) {
+  const sources = window.NOCTUA_PROTOCOL_PARAMETER_SOURCES;
+  const channelRows = channels.map((channel) => {
+    const docMeta = sources?.getDocMeta?.(channel.channel_id, protocolId) || null;
+    const flat = sources?.flattenParameters?.(sources?.getParameters?.(channel.channel_id, protocolId)) || [];
+    return {
+      channel,
+      docMeta,
+      flat,
+      params: new Set(flat.map((item) => item.parameter))
+    };
+  });
+
+  const paramMeta = new Map();
+  for (const row of channelRows) {
+    for (const item of row.flat) {
+      if (!paramMeta.has(item.parameter)) {
+        paramMeta.set(item.parameter, {
+          category: item.category,
+          parameter: item.parameter,
+          channels: new Set()
+        });
+      }
+      paramMeta.get(item.parameter).channels.add(row.channel.channel_id);
+    }
+  }
+
+  const parameters = [...paramMeta.values()].sort((a, b) => {
+    const categoryOrder = protocolParamCategoryRank(a.category) - protocolParamCategoryRank(b.category);
+    if (categoryOrder !== 0) return categoryOrder;
+    return a.parameter.localeCompare(b.parameter);
+  });
+
+  const channelCount = channels.length;
+  const partialCount = parameters.filter((item) => item.channels.size > 0 && item.channels.size < channelCount).length;
+  const uniqueCount = parameters.filter((item) => item.channels.size === 1).length;
+  const missingDocChannels = channelRows.filter((row) => row.docMeta?.docStatus === "missing");
+  const partialDocChannels = channelRows.filter((row) => row.docMeta?.docStatus === "partial");
+
+  return {
+    channels,
+    channelRows,
+    parameters,
+    channelCount,
+    parameterCount: parameters.length,
+    partialCount,
+    uniqueCount,
+    missingDocChannels,
+    partialDocChannels
+  };
+}
+
+function renderProtocolDocBadge(docMeta) {
+  if (!docMeta) return "";
+  return `<span class="protocol-doc-badge ${escapeHtml(docMeta.docStatusClass)}" title="${escapeHtml(docMeta.notes || docMeta.docStatusLabel)}">${escapeHtml(docMeta.docStatusLabel)}</span>`;
+}
+
+function renderProtocolDocLinks(docMeta) {
+  if (!docMeta) return "";
+  const links = [];
+  if (docMeta.localDoc) {
+    links.push(`<a href="./${escapeHtml(docMeta.localDoc)}" target="_blank" rel="noopener noreferrer">本地整理</a>`);
+  }
+  if (docMeta.docUrl) {
+    links.push(`<a href="${escapeHtml(docMeta.docUrl)}" target="_blank" rel="noopener noreferrer">官方 API</a>`);
+  }
+  if (!links.length) return "";
+  return `<span class="protocol-doc-links">${links.join(" · ")}</span>`;
+}
+
+function renderProtocolOfficialApiLink(docMeta) {
+  if (!docMeta?.docUrl) return "";
+  return `<span class="protocol-doc-links"><a href="${escapeHtml(docMeta.docUrl)}" target="_blank" rel="noopener noreferrer">官方 API</a></span>`;
+}
+
+function renderProtocolDocAlerts(matrix, protocolDef) {
+  const blocks = [];
+  if (matrix.missingDocChannels?.length) {
+    blocks.push(`
+      <div class="protocol-doc-alert protocol-doc-alert--missing">
+        <strong>待补充 API 文档</strong>
+        <ul>
+          ${matrix.missingDocChannels.map((row) => `
+            <li><span class="mono">${escapeHtml(row.channel.name)}</span> — ${escapeHtml(row.docMeta?.notes || "暂无官方参数说明")}</li>
+          `).join("")}
+        </ul>
+      </div>
+    `);
+  }
+  if (matrix.partialDocChannels?.length && !matrix.parameters.length) {
+    blocks.push(`
+      <div class="protocol-doc-alert protocol-doc-alert--partial">
+        <strong>${escapeHtml(protocolDef.tabLabel)} 协议参数待完善</strong>
+        <ul>
+          ${matrix.partialDocChannels.map((row) => `
+            <li><span class="mono">${escapeHtml(row.channel.name)}</span> — ${escapeHtml(row.docMeta?.notes || "文档不完整")} ${renderProtocolDocLinks(row.docMeta)}</li>
+          `).join("")}
+        </ul>
+      </div>
+    `);
+  }
+  return blocks.join("");
+}
+
+function renderProtocolParameterCoverageCell(supported, { unique = false, partial = false } = {}) {
+  if (!supported) {
+    return `<td class="channel-protocol-cell protocol-param-cell protocol-param-cell--missing"><span class="protocol-dash" aria-hidden="true">—</span></td>`;
+  }
+  const modifier = unique ? " protocol-param-cell--unique" : partial ? " protocol-param-cell--partial" : "";
+  return `<td class="channel-protocol-cell protocol-param-cell protocol-param-cell--present${modifier}">${renderProtocolCell(true)}</td>`;
+}
+
+function renderProtocolParameterMatrix(matrix, protocolDef) {
+  if (!matrix.channels.length) {
+    return `<p class="guide-copy">当前暂无已接入 ${escapeHtml(protocolDef.tabLabel)} 协议的测评渠道。</p>`;
+  }
+
+  const docAlerts = renderProtocolDocAlerts(matrix, protocolDef);
+  if (!matrix.parameters.length) {
+    return `${docAlerts}<p class="guide-copy">该协议下尚无已对照文档的参数矩阵；请按上方提示补充 API 文档后继续整理。</p>`;
+  }
+
+  const channelMetaById = new Map((matrix.channelRows || []).map((row) => [row.channel.channel_id, row.docMeta]));
+  const headerCells = matrix.channels.map((channel) => {
+    const docMeta = channelMetaById.get(channel.channel_id);
+    return `
+    <th scope="col" class="protocol-param-channel-head">
+      <div class="protocol-param-channel-stack">
+        <span class="protocol-param-channel">
+          <img src="${escapeHtml(channel.logo)}" alt="" width="18" height="18" />
+          <span>${escapeHtml(channel.name)}</span>
+        </span>
+        ${renderProtocolOfficialApiLink(docMeta)}
+      </div>
+    </th>
+  `;
+  }).join("");
+
+  let currentCategory = "";
+  const bodyRows = matrix.parameters.map((item) => {
+    const origin = MOCK_PARAMETER_ORIGINS[item.parameter] || "provider-private";
+    const coverage = item.channels.size;
+    const isUniversal = coverage === matrix.channelCount;
+    const isUnique = coverage === 1;
+    const isPartial = !isUniversal && !isUnique;
+    const rowClass = isUnique ? "protocol-param-row protocol-param-row--unique" : isPartial ? "protocol-param-row protocol-param-row--partial" : "protocol-param-row";
+    const categoryRow = item.category !== currentCategory
+      ? (() => {
+          currentCategory = item.category;
+          return `
+            <tr class="protocol-param-group-row">
+              <th scope="rowgroup" colspan="${matrix.channels.length + 2}">${renderProtocolParamGroupHeading(item.category)}</th>
+            </tr>
+          `;
+        })()
+      : "";
+
+    return `
+      ${categoryRow}
+      <tr class="${rowClass}">
+        <th scope="row" class="protocol-param-name mono">${escapeHtml(item.parameter)}</th>
+        <td class="protocol-param-origin">${escapeHtml(originLabel(origin))}</td>
+        ${matrix.channels.map((channel) => renderProtocolParameterCoverageCell(
+          item.channels.has(channel.channel_id),
+          { unique: isUnique && item.channels.has(channel.channel_id), partial: isPartial && item.channels.has(channel.channel_id) }
+        )).join("")}
+      </tr>
+    `;
+  }).join("");
+
+  return `
+    ${docAlerts}
+    <div class="protocol-param-summary">
+      <span><strong>${matrix.parameterCount}</strong> 个参数</span>
+      <span><strong>${matrix.channelCount}</strong> 个渠道</span>
+      <span><strong>${matrix.partialCount}</strong> 个部分渠道支持</span>
+      <span><strong>${matrix.uniqueCount}</strong> 个渠道独有</span>
+    </div>
+    <div class="protocol-param-matrix-wrap">
+      <table class="protocol-param-matrix">
+        <thead>
+          <tr>
+            <th scope="col">参数</th>
+            <th scope="col">来源</th>
+            ${headerCells}
+          </tr>
+        </thead>
+        <tbody>${bodyRows}</tbody>
+      </table>
+    </div>
+    <p class="channel-catalog-legend protocol-param-legend">
+      <span><span class="protocol-tick">✓</span> 官方文档已列入</span>
+      <span><span class="protocol-dash">—</span> 该渠道文档未列入</span>
+      <span class="protocol-param-legend-diff">高亮行 = 仅部分渠道文档化；深色格 = 单渠道独有</span>
+    </p>
+  `;
+}
+
+function providerIdForChannelOnEndpoint(channel, endpointId) {
+  const endpoint = channel.endpoints?.[endpointId];
+  if (endpoint?.supported === false) return null;
+  if (endpoint?.provider_id) return endpoint.provider_id;
+  const baseProvider = channel.provider_id || runnableProviderByChannel[channel.channel_id];
+  if (endpointId === "anthropic_messages" && channel.endpoints?.anthropic_messages?.supported !== false) {
+    return channel.endpoints.anthropic_messages?.provider_id || (baseProvider ? `${baseProvider}_messages` : null);
+  }
+  if (endpointId === "responses_api" && window.NOCTUA_PROTOCOL_PARAMETER_SOURCES?.getParameters?.(channel.channel_id, "responses_api")) {
+    return baseProvider || null;
+  }
+  if (endpoint && endpoint.supported !== false) {
+    return baseProvider || null;
+  }
+  return null;
+}
+
+function renderChannelProtocolTags(platformProtocols, protocolColumns) {
+  if (!platformProtocols) return "";
+  const tags = (protocolColumns || [])
+    .filter((column) => platformProtocols[column.id])
+    .map((column) => {
+      const label = CHANNEL_PROTOCOL_TAG_LABELS[column.id] || column.label;
+      return `<span class="channel-protocol-tag" title="${escapeHtml(column.label)}">${escapeHtml(label)}</span>`;
+    })
+    .join("");
+  if (!tags) return "";
+  return `<span class="channel-protocol-tags" aria-label="渠道已接入协议">${tags}</span>`;
+}
+
 function renderChannelCatalogRows(items, protocolColumns) {
   return items.map((item) => {
     const subtitle = item.models || item.modelId || "";
@@ -5227,6 +5637,7 @@ function renderChannelVendorBlocks(platforms, protocolColumns, { showFocus = fal
   return (platforms || []).map((platform) => {
     const items = platform[itemsKey] || platform.series || platform.models || [];
     const rows = renderChannelCatalogRows(items, protocolColumns);
+    const protocolTags = renderChannelProtocolTags(platform.platformProtocols, protocolColumns);
     const focusBadge = showFocus && platform.focus
       ? `<span class="channel-focus-badge">测评重点</span>`
       : "";
@@ -5248,6 +5659,7 @@ function renderChannelVendorBlocks(platforms, protocolColumns, { showFocus = fal
             <tbody>${rows}</tbody>
           </table>
         </div>
+        ${platform.protocolScopeNote ? `<p class="guide-copy channel-protocol-scope-note">${escapeHtml(platform.protocolScopeNote)}</p>` : ""}
       `
       : "";
     return `
@@ -5255,6 +5667,7 @@ function renderChannelVendorBlocks(platforms, protocolColumns, { showFocus = fal
         <div class="channel-vendor-head">
           <span class="channel-vendor-logo"><img src="${escapeHtml(platform.logo)}" alt="" width="24" height="24" /></span>
           <strong>${escapeHtml(platform.name)}</strong>
+          ${protocolTags}
           ${focusBadge}
           ${toolLink}
         </div>
@@ -5309,8 +5722,12 @@ function renderChannelCatalog() {
   const activeTab = tabIds.includes(state.channelCatalogTab) ? state.channelCatalogTab : "oem";
   state.channelCatalogTab = activeTab;
 
-  if (els.channelScopeNote && catalog.scopeNote) {
-    els.channelScopeNote.textContent = `${catalog.scopeNote} 测评模型统一为 deepseek-v4-flash、deepseek-v4-pro、kimi-k2.7-coder、kimi-k2.6、glm-5.1、glm-5、MiniMax-M3。`;
+  if (els.channelScopeNote) {
+    const modelCount = window.NOCTUA_CHANNEL_CATALOG?.getEvalModelIds?.()?.length
+      || window.NOCTUA_CHANNEL_CATALOG?.evalModelIds?.length
+      || 7;
+    els.channelScopeNote.textContent =
+      `渠道名称旁标签表示平台已接入的协议；展开后为 ${modelCount} 个测评模型在该渠道的协议支持矩阵。`;
   }
 
   const protocolColumns = catalog.protocolColumns || [];
@@ -5318,8 +5735,9 @@ function renderChannelCatalog() {
   const expanded = Boolean(state.channelCatalogExpanded);
   const legend = `
     <p class="channel-catalog-legend">
-      <span><span class="protocol-tick">✓</span> 已接入 / 支持</span>
-      <span><span class="protocol-dash">—</span> 未接入 / 不支持</span>
+      <span><span class="protocol-tick">✓</span> 模型支持</span>
+      <span><span class="protocol-dash">—</span> 模型不支持</span>
+      <span class="muted">（展开表格为模型级，与标题旁渠道标签无关）</span>
     </p>
   `;
 
@@ -5375,10 +5793,439 @@ function renderChannelCatalog() {
   bindChannelOpenToolButtons();
 }
 
+function renderProtocolEvalStatus(status) {
+  if (status === "supported") {
+    return `<span class="protocol-status protocol-status--supported">已支持评测</span>`;
+  }
+  return `<span class="protocol-status protocol-status--planned">暂未支持评测</span>`;
+}
+
+function bindProtocolCatalogTabs() {
+  if (!els.protocolCatalog) return;
+  els.protocolCatalog.querySelectorAll("[data-protocol-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const tab = button.dataset.protocolTab;
+      if (!tab || tab === state.protocolCatalogTab) return;
+      state.protocolCatalogTab = tab;
+      renderProtocolCatalog();
+    });
+  });
+}
+
+function bindProtocolOpenToolButtons() {
+  if (!els.protocolCatalog) return;
+  els.protocolCatalog.querySelectorAll(".protocol-open-tool").forEach((button) => {
+    button.addEventListener("click", () => {
+      const channelId = button.dataset.channelId;
+      const endpointId = button.dataset.endpointId;
+      if (!channelId || !endpointId) return;
+      state.selectedChannelId = channelId;
+      state.selectedEndpointId = endpointId;
+      setActiveView("run-v01");
+      history.replaceState(null, "", "#run-v01");
+      renderChannels();
+      renderEndpointTabs();
+      renderSelectedChannel();
+      const endpointLabel = endpointTemplateById(endpointId).label;
+      showToast(`已切换到 ${channelId} · ${endpointLabel}。`);
+    });
+  });
+}
+
+function renderProtocolCatalog() {
+  if (!els.protocolCatalog) return;
+
+  const tabIds = PROTOCOL_CATALOG_DEFS.map((def) => def.id);
+  const activeTab = tabIds.includes(state.protocolCatalogTab) ? state.protocolCatalogTab : tabIds[0];
+  state.protocolCatalogTab = activeTab;
+
+  if (els.protocolScopeNote) {
+    els.protocolScopeNote.textContent =
+      "在同一协议下横向对比各渠道官方 API 文档中的参数覆盖与扩展差异；矩阵数据来自 docs/*.md（2026-06-16 对照官方文档更新）。仅展示 DeepSeek、百炼、OpenRouter、MiniMax、SiliconFlow 五个可测评渠道。";
+  }
+
+  const tabButtons = PROTOCOL_CATALOG_DEFS.map((def) => `
+    <button
+      type="button"
+      class="${activeTab === def.id ? "on" : ""}"
+      data-protocol-tab="${escapeHtml(def.id)}"
+      role="tab"
+      aria-selected="${activeTab === def.id}"
+    >${escapeHtml(def.tabLabel)}</button>
+  `).join("");
+
+  const panels = PROTOCOL_CATALOG_DEFS.map((def) => {
+    const channels = getProtocolCatalogChannels(def.id);
+    const matrix = buildProtocolParameterMatrix(channels, def.id);
+    return `
+      <div class="protocol-tab-panel ${activeTab === def.id ? "" : "is-hidden"}" data-protocol-panel="${escapeHtml(def.id)}" role="tabpanel">
+        <div class="protocol-catalog-meta">
+          <div class="protocol-catalog-meta-head">
+            <h2>${escapeHtml(def.label)}</h2>
+            ${renderProtocolEvalStatus(def.evalStatus)}
+          </div>
+          <p class="protocol-catalog-endpoint mono">${escapeHtml(def.endpoint)}</p>
+          <p class="guide-copy">${escapeHtml(def.copy)}</p>
+        </div>
+        ${renderProtocolParameterMatrix(matrix, def)}
+      </div>
+    `;
+  }).join("");
+
+  els.protocolCatalog.innerHTML = `
+    <section class="panel protocol-catalog-panel">
+      <div class="protocol-nav-tabs" role="tablist" aria-label="协议类型">
+        ${tabButtons}
+      </div>
+      ${panels}
+    </section>
+  `;
+
+  bindProtocolCatalogTabs();
+  bindProtocolOpenToolButtons();
+}
+
 function renderModelLookupProtocolCells(protocols, protocolColumns) {
   return protocolColumns.map((column) => `
     <td class="channel-protocol-cell">${renderProtocolCell(Boolean(protocols?.[column.id]))}</td>
   `).join("");
+}
+
+const MODEL_LOOKUP_CATEGORY_SHORT = {
+  oem: "原厂",
+  deploy: "托管",
+  route: "路由"
+};
+
+function getModelLookupChannelStats(result) {
+  const matchCount = result?.matches?.length || 0;
+  const unsupportedCount = result?.unsupported?.length || 0;
+  let totalChannels = matchCount + unsupportedCount;
+  if (!totalChannels) {
+    const platformIndex = window.NOCTUA_MODEL_LOOKUP?.getPlatformIndex?.() || [];
+    totalChannels = platformIndex.length || matchCount;
+  }
+  return { totalChannels, matchCount };
+}
+
+function renderModelLookupSummary({ query, result, isAddMode, isKnownModel }) {
+  if (!result) return "";
+
+  const { totalChannels, matchCount } = getModelLookupChannelStats(result);
+  if (!totalChannels) return "";
+
+  const modelId = result.canonical || query;
+  const categoryTotals = {};
+  for (const match of result.matches || []) {
+    categoryTotals[match.category] = (categoryTotals[match.category] || 0) + 1;
+  }
+  const categoryChips = ["oem", "deploy", "route"]
+    .filter((category) => categoryTotals[category] > 0)
+    .map((category) => `
+      <span class="model-lookup-summary-chip">
+        ${escapeHtml(MODEL_LOOKUP_CATEGORY_SHORT[category] || category)}
+        <strong>${categoryTotals[category]}</strong>
+      </span>
+    `).join("");
+
+  let eyebrow = "测评模型";
+  let note = "";
+  if (isAddMode) {
+    if (result.canonical) {
+      eyebrow = "识别结果";
+      note = "已忽略大小写、连字符与空格差异";
+    } else {
+      eyebrow = "查询结果";
+      note = result.searchedLive ? "已从各渠道实时模型清单检索" : "";
+    }
+  }
+
+  const liveBadge = result.searchedLive
+    ? `<span class="model-lookup-summary-live">实时检索</span>`
+    : "";
+
+  return `
+    <div class="model-lookup-result-head">
+      <div class="model-lookup-result-head__identity">
+        <div class="model-lookup-result-head__title-row">
+          <span class="model-lookup-result-head__eyebrow">${escapeHtml(eyebrow)}</span>
+          ${liveBadge}
+        </div>
+        <span class="model-lookup-result-head__model mono">${escapeHtml(isKnownModel || result.canonical ? modelId : query)}</span>
+        ${note ? `<span class="model-lookup-result-head__note">${escapeHtml(note)}</span>` : ""}
+      </div>
+      <div class="model-lookup-result-head__metrics">
+        <p class="model-lookup-result-head__summary">
+          在 <strong>${totalChannels}</strong> 个渠道中找到 <strong>${matchCount}</strong> 个匹配
+        </p>
+        ${categoryChips ? `<div class="model-lookup-summary-chips">${categoryChips}</div>` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function liveLookupSourceNote(result) {
+  const status = result?.liveSourceStatus;
+  if (!status || typeof status !== "object") return "";
+  const skipped = Object.entries(status)
+    .filter(([, value]) => String(value).startsWith("skipped:"))
+    .map(([key]) => key);
+  if (!skipped.length) return "";
+  return `<p class="guide-copy model-lookup-live-note">部分渠道（${escapeHtml(skipped.join("、"))}）未配置 API Key：请在 <span class="mono">config.yaml</span> 中填写与测评渠道同名的段（如 <span class="mono">siliconflow-cn</span>、<span class="mono">aliyun-cn</span>，见 <span class="mono">config.example.yaml</span>）。OpenRouter 公开模型清单无需 Key。</p>`;
+}
+
+function loadModelLookupAddTabDismissed() {
+  try {
+    const raw = sessionStorage.getItem("noctua.modelLookupAddTabDismissed");
+    const list = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(list) ? list : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function persistModelLookupAddTabDismissed() {
+  sessionStorage.setItem(
+    "noctua.modelLookupAddTabDismissed",
+    JSON.stringify([...state.modelLookupAddTabDismissed])
+  );
+}
+
+function isCustomEvalModelId(modelId) {
+  return window.NOCTUA_CUSTOM_EVAL_MODELS?.hasModel?.(modelId) || false;
+}
+
+function getEvalModelVendorGroups() {
+  return window.NOCTUA_CHANNEL_CATALOG?.getEvalModelVendorGroups?.() || [];
+}
+
+function inferEvalModelVendorId(modelId) {
+  const infer = window.NOCTUA_CHANNEL_CATALOG?.inferEvalModelVendorId;
+  return infer ? infer(modelId) : "other";
+}
+
+function findVendorGroupForModel(modelId, groups = getEvalModelVendorGroups()) {
+  const vendorId = inferEvalModelVendorId(modelId);
+  return groups.find((group) => group.id === vendorId)
+    || groups.find((group) => group.modelIds.includes(modelId))
+    || groups[0]
+    || null;
+}
+
+function syncModelLookupNavState() {
+  const lookupApi = window.NOCTUA_MODEL_LOOKUP;
+  if (!lookupApi || state.modelLookupAddMode) return;
+
+  const groups = getEvalModelVendorGroups();
+  if (!groups.length) return;
+
+  const evalModelIds = lookupApi.getEvalModelIds();
+  const query = String(state.modelLookupQuery || "").trim();
+
+  if (query && evalModelIds.includes(query)) {
+    const group = findVendorGroupForModel(query, groups);
+    if (group) {
+      state.modelLookupVendorId = group.id;
+      if (!group.modelIds.includes(query)) {
+        state.modelLookupQuery = group.modelIds[0] || query;
+      }
+    }
+    return;
+  }
+
+  if (!query) {
+    const group = groups.find((item) => item.id === state.modelLookupVendorId) || groups[0];
+    state.modelLookupVendorId = group.id;
+    state.modelLookupQuery = group.modelIds[0] || "";
+  }
+}
+
+function openModelLookupAddMode() {
+  state.modelLookupAddMode = true;
+  state.modelLookupQuery = "";
+  state.modelLookupResult = null;
+  state.modelLookupLoading = false;
+  history.replaceState(null, "", "#models?add=1");
+  renderModelLookup();
+  const input = els.modelLookup?.querySelector("#modelLookupInput");
+  if (input) input.focus();
+}
+
+function closeModelLookupAddMode() {
+  state.modelLookupAddMode = false;
+  state.modelLookupResult = null;
+  syncModelLookupNavState();
+  const query = String(state.modelLookupQuery || "").trim();
+  history.replaceState(null, "", query ? `#models?q=${encodeURIComponent(query)}` : "#models");
+  renderModelLookup();
+  if (query) runModelLookup({ live: "never" });
+}
+
+function hideModelLookupAddTabModal() {
+  if (!els.modelLookupAddTabModal) return;
+  els.modelLookupAddTabModal.classList.add("is-hidden");
+  els.modelLookupAddTabModal.setAttribute("aria-hidden", "true");
+  state.modelLookupAddTabPrompt = null;
+}
+
+function renderModelLookupAddTabModalBody(result, modelId) {
+  if (!els.modelLookupAddTabBody || !els.modelLookupAddTabSummary) return;
+  const { totalChannels, matchCount } = getModelLookupChannelStats(result);
+  els.modelLookupAddTabSummary.textContent = `查询「${result.query}」在 ${totalChannels} 个渠道中找到 ${matchCount} 个匹配，建议测评模型 ID：${modelId}。`;
+  const rows = result.matches.map((match) => `
+    <tr>
+      <td>${escapeHtml(match.platformName)}</td>
+      <td class="mono">${escapeHtml(match.apiModelId)}</td>
+    </tr>
+  `).join("");
+  els.modelLookupAddTabBody.innerHTML = `
+    <div class="model-lookup-modal__matches">
+      <table>
+        <thead>
+          <tr><th scope="col">渠道</th><th scope="col">API 模型 ID</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function showModelLookupAddTabModal(query, result) {
+  const lookupApi = window.NOCTUA_MODEL_LOOKUP;
+  const customStore = window.NOCTUA_CUSTOM_EVAL_MODELS;
+  if (!lookupApi || !customStore || !els.modelLookupAddTabModal || !result?.matches?.length) return;
+
+  const modelId = result.canonical || customStore.normalizeId(query);
+  if (!modelId) return;
+
+  const evalModelIds = lookupApi.getEvalModelIds();
+  if (evalModelIds.includes(modelId)) return;
+
+  const dismissKey = `${modelId}:${String(query || "").trim()}`;
+  if (state.modelLookupAddTabDismissed.has(dismissKey)) return;
+
+  state.modelLookupAddTabPrompt = { query, result, modelId, dismissKey };
+  renderModelLookupAddTabModalBody(result, modelId);
+  els.modelLookupAddTabModal.classList.remove("is-hidden");
+  els.modelLookupAddTabModal.setAttribute("aria-hidden", "false");
+}
+
+function dismissModelLookupAddTabModal() {
+  const prompt = state.modelLookupAddTabPrompt;
+  if (prompt?.dismissKey) {
+    state.modelLookupAddTabDismissed.add(prompt.dismissKey);
+    persistModelLookupAddTabDismissed();
+  }
+  hideModelLookupAddTabModal();
+}
+
+function confirmModelLookupAddTabModal() {
+  const prompt = state.modelLookupAddTabPrompt;
+  const customStore = window.NOCTUA_CUSTOM_EVAL_MODELS;
+  const lookupApi = window.NOCTUA_MODEL_LOOKUP;
+  if (!prompt || !customStore || !lookupApi) return;
+
+  const modelId = customStore.registerFromLookup(prompt.query, prompt.result);
+  if (!modelId) {
+    showToast("未能添加测评模型 Tab。");
+    hideModelLookupAddTabModal();
+    return;
+  }
+
+  lookupApi.refreshIndex();
+  hideModelLookupAddTabModal();
+  state.modelLookupAddMode = false;
+  state.modelLookupQuery = modelId;
+  state.modelLookupVendorId = inferEvalModelVendorId(modelId);
+  state.modelLookupResult = lookupApi.lookup(modelId);
+  history.replaceState(null, "", `#models?q=${encodeURIComponent(modelId)}`);
+  renderChannelCatalog();
+  renderProtocolCatalog();
+  renderModelLookup();
+  showToast(`已添加测评模型 Tab：${modelId}`);
+}
+
+function maybePromptAddEvalModelTab(query, result) {
+  const lookupApi = window.NOCTUA_MODEL_LOOKUP;
+  if (!lookupApi || !result?.matches?.length || state.modelLookupLoading) return;
+
+  const evalModelIds = lookupApi.getEvalModelIds();
+  const isKnownTabQuery = evalModelIds.includes(String(query || "").trim());
+  if (isKnownTabQuery) return;
+
+  showModelLookupAddTabModal(query, result);
+}
+
+function bindModelLookupAddTabModalEvents() {
+  els.modelLookupAddTabConfirm?.addEventListener("click", confirmModelLookupAddTabModal);
+  els.modelLookupAddTabDismiss?.addEventListener("click", dismissModelLookupAddTabModal);
+  els.modelLookupAddTabModal?.querySelectorAll("[data-model-lookup-modal-dismiss]").forEach((node) => {
+    node.addEventListener("click", dismissModelLookupAddTabModal);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && state.modelLookupAddTabPrompt) dismissModelLookupAddTabModal();
+  });
+}
+
+function modelLookupLiveMode(query) {
+  const lookupApi = window.NOCTUA_MODEL_LOOKUP;
+  const trimmed = String(query || "").trim();
+  const evalIds = lookupApi?.getEvalModelIds?.() || [];
+  return evalIds.includes(trimmed) ? "never" : "auto";
+}
+
+async function runModelLookup(options = {}) {
+  const lookupApi = window.NOCTUA_MODEL_LOOKUP;
+  if (!lookupApi) return;
+
+  const query = (state.modelLookupQuery || "").trim();
+  const requestId = ++state.modelLookupRequestId;
+  const liveMode = options.live || "auto";
+
+  if (!query) {
+    state.modelLookupResult = null;
+    state.modelLookupLoading = false;
+    renderModelLookup();
+    return;
+  }
+
+  const catalogResult = lookupApi.lookup(query);
+  const shouldLive = liveMode === "always"
+    || (liveMode === "auto" && lookupApi.needsLiveLookup(query, catalogResult));
+
+  if (!shouldLive) {
+    state.modelLookupResult = catalogResult;
+    state.modelLookupLoading = false;
+    renderModelLookup();
+    maybePromptAddEvalModelTab(query, catalogResult);
+    return;
+  }
+
+  state.modelLookupLoading = true;
+  state.modelLookupResult = catalogResult;
+  renderModelLookup();
+
+  try {
+    const liveResponse = await lookupApi.lookupLive(query, API_BASE);
+    if (requestId !== state.modelLookupRequestId) return;
+    state.modelLookupResult = lookupApi.mergeLiveResults(catalogResult, liveResponse);
+    const customStore = window.NOCTUA_CUSTOM_EVAL_MODELS;
+    const syncId = state.modelLookupResult?.canonical || query;
+    if (customStore?.mergeFromLookup?.(syncId, state.modelLookupResult)) {
+      lookupApi.refreshIndex();
+      renderChannelCatalog();
+      renderProtocolCatalog();
+    }
+  } catch {
+    if (requestId !== state.modelLookupRequestId) return;
+    state.modelLookupResult = catalogResult;
+  }
+
+  state.modelLookupLoading = false;
+  if (requestId === state.modelLookupRequestId) {
+    renderModelLookup();
+    maybePromptAddEvalModelTab(query, state.modelLookupResult);
+  }
 }
 
 function renderModelLookup() {
@@ -5388,47 +6235,71 @@ function renderModelLookup() {
 
   const protocolColumns = catalog.protocolColumns || [];
   const evalModelIds = lookupApi.getEvalModelIds();
+  const vendorGroups = getEvalModelVendorGroups();
   let query = state.modelLookupQuery || "";
   const hash = window.location.hash || "";
-  if (!query && hash.startsWith("#models") && hash.includes("?")) {
+  if (hash.startsWith("#models") && hash.includes("?")) {
     const params = new URLSearchParams(hash.slice(hash.indexOf("?") + 1));
-    query = params.get("q") || "";
-    state.modelLookupQuery = query;
+    state.modelLookupAddMode = params.has("add");
+    const hashQuery = params.get("q") || "";
+    if (hashQuery) {
+      query = hashQuery;
+      state.modelLookupQuery = hashQuery;
+    }
   }
-  const activeTabModelId = evalModelIds.includes(query) ? query : "";
-  const activeTabId = activeTabModelId || "__custom__";
-  const isCustomTab = activeTabId === "__custom__";
-  const result = query ? lookupApi.lookup(query) : null;
-  const tabs = [
-    `
+  if (!state.modelLookupAddMode) {
+    syncModelLookupNavState();
+    query = state.modelLookupQuery || "";
+  }
+
+  const activeVendorGroup = vendorGroups.find((group) => group.id === state.modelLookupVendorId)
+    || vendorGroups[0]
+    || null;
+  if (activeVendorGroup && !state.modelLookupAddMode) {
+    state.modelLookupVendorId = activeVendorGroup.id;
+  }
+
+  const isAddMode = state.modelLookupAddMode;
+  const isKnownModel = evalModelIds.includes(query);
+  const result = query
+    ? (state.modelLookupResult?.query === query ? state.modelLookupResult : lookupApi.lookup(query))
+    : null;
+
+  const vendorTabs = vendorGroups.map((group) => `
     <button
       type="button"
-      class="${activeTabId === "__custom__" ? "on" : ""}"
-      data-model-tab="__custom__"
+      class="model-lookup-vendor-tab${!isAddMode && activeVendorGroup?.id === group.id ? " is-active" : ""}"
+      data-model-vendor="${escapeHtml(group.id)}"
       role="tab"
-      aria-selected="${activeTabId === "__custom__"}"
-    >新模型查询</button>
-    `,
-    ...evalModelIds.map((modelId) => `
+      aria-selected="${!isAddMode && activeVendorGroup?.id === group.id}"
+    >
+      ${group.logo ? `<span class="model-vendor-tab-logo"><img src="${escapeHtml(group.logo)}" alt="" width="16" height="16" /></span>` : ""}
+      <span>${escapeHtml(group.label)}</span>
+    </button>
+  `).join("");
+
+  const modelTabs = !isAddMode && activeVendorGroup
+    ? activeVendorGroup.modelIds.map((modelId) => `
     <button
       type="button"
-      class="${activeTabId === modelId ? "on" : ""}"
+      class="model-lookup-model-tab${query === modelId ? " is-active" : ""}${isCustomEvalModelId(modelId) ? " is-custom" : ""}"
       data-model-tab="${escapeHtml(modelId)}"
       role="tab"
-      aria-selected="${activeTabId === modelId}"
+      aria-selected="${query === modelId}"
     >${escapeHtml(modelId)}</button>
-  `)
-  ].join("");
+  `).join("")
+    : "";
 
   let resultHtml = "";
   if (result && query) {
-    const summary = isCustomTab
-      ? (result.canonical
-          ? `<p class="model-lookup-summary">识别为测评模型 <strong class="mono">${escapeHtml(result.canonical)}</strong>，在 <strong>${result.matches.length}</strong> 个渠道中找到匹配（已忽略大小写、连字符与空格差异）。</p>`
-          : `<p class="model-lookup-summary">未命中标准测评模型 ID，但找到 <strong>${result.matches.length}</strong> 个可能的渠道匹配。</p>`)
-      : "";
+    const summary = renderModelLookupSummary({ query, result, isAddMode, isKnownModel });
 
     if (result.matches.length) {
+      const protocolFootnotes = [...new Set(
+        result.matches
+          .filter((match) => match.protocolScopeNote && match.platformProtocols?.responses_api && !match.protocols?.responses_api)
+          .map((match) => match.protocolScopeNote)
+      )];
       const rows = result.matches.map((match) => {
         const docs = [
           match.models_docs_url ? `<a href="${escapeHtml(match.models_docs_url)}" target="_blank" rel="noopener noreferrer">模型清单</a>` : "",
@@ -5437,12 +6308,18 @@ function renderModelLookup() {
         const toolBtn = match.channelId
           ? `<button type="button" class="btn btn-ghost btn-xs model-lookup-open-tool" data-channel-id="${escapeHtml(match.channelId)}" data-model-name="${escapeHtml(match.apiModelId)}">在测评工具中打开</button>`
           : "";
+        const liveMeta = match.liveOnly
+          ? `<div class="model-lookup-meta">实时清单匹配 · 协议矩阵未录入</div>`
+          : "";
         return `
           <tr>
             <td>
               <div class="model-lookup-platform">
                 <span class="channel-vendor-logo"><img src="${escapeHtml(match.platformLogo)}" alt="" width="20" height="20" /></span>
-                <strong>${escapeHtml(match.platformName)}</strong>
+                <div>
+                  <strong>${escapeHtml(match.platformName)}</strong>
+                  ${liveMeta}
+                </div>
               </div>
             </td>
             <td class="model-lookup-type">${escapeHtml(match.categoryLabel)}</td>
@@ -5475,9 +6352,19 @@ function renderModelLookup() {
           </table>
         </div>
         <p class="channel-catalog-legend">
-          <span><span class="protocol-tick">✓</span> 已接入 / 支持</span>
-          <span><span class="protocol-dash">—</span> 未接入 / 不支持</span>
+          <span><span class="protocol-tick">✓</span> 该模型在此渠道支持</span>
+          <span><span class="protocol-dash">—</span> 不支持</span>
+          <span class="muted">（模型级，非渠道级协议标签）</span>
         </p>
+        ${protocolFootnotes.map((note) => `<p class="guide-copy channel-protocol-scope-note">${escapeHtml(note)}</p>`).join("")}
+        ${liveLookupSourceNote(result)}
+      `;
+    } else if (state.modelLookupLoading) {
+      resultHtml = `
+        <div class="model-lookup-empty panel">
+          <p>正在查询各渠道模型清单…</p>
+          <p class="guide-copy">将对照本地测评目录，并尝试从 OpenRouter、SiliconFlow 等平台的在线模型列表检索「<span class="mono">${escapeHtml(query)}</span>」。</p>
+        </div>
       `;
     } else {
       resultHtml = `
@@ -5487,22 +6374,29 @@ function renderModelLookup() {
         </div>
       `;
     }
+  } else if (isAddMode) {
+    resultHtml = `
+      <div class="model-lookup-empty panel">
+        <p>输入模型名称并查询各渠道 API 模型 ID，确认后可加入测评模型列表。</p>
+        <p class="guide-copy">支持模糊匹配：大小写不敏感，<span class="mono">-</span>、空格、<span class="mono">_</span> 视为等价（例如 <span class="mono">GLM5.2</span> 可匹配 <span class="mono">glm-5.2</span>）。</p>
+      </div>
+    `;
   } else {
     resultHtml = `
       <div class="model-lookup-empty panel">
-        <p>输入模型名称后，将对照测评渠道清单与各平台 API 文档的模型命名体系进行检索。</p>
-        <p class="guide-copy">支持模糊匹配：大小写不敏感，<span class="mono">-</span>、空格、<span class="mono">_</span> 视为等价（例如 <span class="mono">DeepSeek V4 Flash</span> 可匹配 <span class="mono">deepseek-v4-flash</span>）。</p>
+        <p>选择上方厂商与测评模型，查看其在各渠道的 API 模型 ID 与协议支持矩阵。</p>
       </div>
     `;
   }
 
-  const formHtml = isCustomTab ? `
+  const formHtml = isAddMode ? `
       <form id="modelLookupForm" class="model-lookup-form">
         <label class="fld model-lookup-field">
           <span class="lbl">模型名称</span>
           <div class="model-lookup-input-row">
             <input id="modelLookupInput" class="inp" type="search" name="model" value="${escapeHtml(query)}" placeholder="例如 GLM5.2、DeepSeek V4 Flash、deepseek-ai/DeepSeek-V4-Flash" autocomplete="off" />
             <button type="submit" class="btn btn-primary">查询渠道</button>
+            <button type="button" class="btn btn-ghost" data-model-lookup-add-cancel>取消</button>
           </div>
         </label>
       </form>
@@ -5510,8 +6404,20 @@ function renderModelLookup() {
 
   els.modelLookup.innerHTML = `
     <section class="panel model-lookup-panel">
-      <div class="endpoint-tabs model-lookup-tabs" role="tablist" aria-label="快捷模型切换">
-        ${tabs}
+      <div class="model-lookup-toolbar">
+        <div class="model-lookup-nav-card${isAddMode ? " is-add-mode" : ""}">
+          <div class="model-lookup-vendor-row" role="tablist" aria-label="模型厂商">
+            ${vendorTabs}
+          </div>
+          ${modelTabs ? `
+          <div class="model-lookup-model-section">
+            <span class="model-lookup-model-label">测评模型</span>
+            <div class="model-lookup-model-row" role="tablist" aria-label="测评模型">
+              ${modelTabs}
+            </div>
+          </div>` : ""}
+        </div>
+        <button type="button" class="btn ${isAddMode ? "btn-ghost" : "btn-primary"} model-lookup-add-btn" data-model-lookup-add aria-pressed="${isAddMode}">${isAddMode ? "取消" : "新增模型"}</button>
       </div>
       ${formHtml}
       <div class="model-lookup-results">${resultHtml}</div>
@@ -5529,30 +6435,50 @@ function bindModelLookupEvents() {
   if (form) {
     form.addEventListener("submit", (event) => {
       event.preventDefault();
+      state.modelLookupAddMode = true;
       state.modelLookupQuery = input?.value?.trim() || "";
-      renderModelLookup();
+      state.modelLookupResult = null;
       if (state.modelLookupQuery) {
-        history.replaceState(null, "", `#models?q=${encodeURIComponent(state.modelLookupQuery)}`);
+        history.replaceState(null, "", `#models?add=1&q=${encodeURIComponent(state.modelLookupQuery)}`);
       } else {
-        history.replaceState(null, "", "#models");
+        history.replaceState(null, "", "#models?add=1");
       }
+      runModelLookup({ live: "always" });
     });
   }
+
+  els.modelLookup.querySelector("[data-model-lookup-add]")?.addEventListener("click", () => {
+    if (state.modelLookupAddMode) closeModelLookupAddMode();
+    else openModelLookupAddMode();
+  });
+  els.modelLookup.querySelector("[data-model-lookup-add-cancel]")?.addEventListener("click", closeModelLookupAddMode);
+
+  els.modelLookup.querySelectorAll("[data-model-vendor]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const vendorId = button.dataset.modelVendor || "";
+      const group = getEvalModelVendorGroups().find((item) => item.id === vendorId);
+      if (!group?.modelIds.length) return;
+      state.modelLookupAddMode = false;
+      state.modelLookupVendorId = vendorId;
+      state.modelLookupQuery = group.modelIds.includes(state.modelLookupQuery)
+        ? state.modelLookupQuery
+        : group.modelIds[0];
+      state.modelLookupResult = null;
+      history.replaceState(null, "", `#models?q=${encodeURIComponent(state.modelLookupQuery)}`);
+      runModelLookup({ live: "never" });
+    });
+  });
 
   els.modelLookup.querySelectorAll("[data-model-tab]").forEach((button) => {
     button.addEventListener("click", () => {
       const tab = button.dataset.modelTab || "";
-      if (tab === "__custom__") {
-        state.modelLookupQuery = "";
-        renderModelLookup();
-        history.replaceState(null, "", "#models");
-        const newInput = els.modelLookup.querySelector("#modelLookupInput");
-        if (newInput) newInput.focus();
-        return;
-      }
+      if (!tab) return;
+      state.modelLookupAddMode = false;
       state.modelLookupQuery = tab;
-      renderModelLookup();
+      state.modelLookupVendorId = inferEvalModelVendorId(tab);
+      state.modelLookupResult = null;
       history.replaceState(null, "", `#models?q=${encodeURIComponent(tab)}`);
+      runModelLookup({ live: "never" });
     });
   });
 
@@ -5607,13 +6533,75 @@ function syncRunV02ModelMenu() {
   if (!open) updateRunV02ModelInputDisplay();
 }
 
-function syncRunV02RouteMenu() {
-  if (!els.runV02RouteMenu || !els.runV02RouteInput) return;
-  const open = state.runV02.routeMenuOpen;
-  els.runV02RouteMenu.classList.toggle("is-hidden", !open);
-  els.runV02RouteSelect?.classList.toggle("is-open", open);
-  els.runV02RouteInput.setAttribute("aria-expanded", open ? "true" : "false");
-  if (!open) updateRunV02RouteInputDisplay();
+function syncRunV02BaselineMenu() {
+  if (!els.runV02BaselineMenu || !els.runV02BaselineInput) return;
+  const open = state.runV02.baselineMenuOpen;
+  els.runV02BaselineMenu.classList.toggle("is-hidden", !open);
+  els.runV02BaselineSelect?.classList.toggle("is-open", open);
+  els.runV02BaselineInput.setAttribute("aria-expanded", open ? "true" : "false");
+  if (!open) updateRunV02BaselineInputDisplay();
+}
+
+function syncRunV02TargetMenu() {
+  if (!els.runV02TargetMenu || !els.runV02TargetInput) return;
+  const open = state.runV02.targetMenuOpen;
+  els.runV02TargetMenu.classList.toggle("is-hidden", !open);
+  els.runV02TargetSelect?.classList.toggle("is-open", open);
+  els.runV02TargetInput.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+function updateRunV02BaselineInputDisplay() {
+  if (!els.runV02BaselineInput || state.runV02.baselineMenuOpen) return;
+  const route = state.runV02.baselineRoute;
+  els.runV02BaselineInput.readOnly = true;
+  els.runV02BaselineInput.placeholder = "选择 Baseline 渠道";
+  els.runV02BaselineInput.value = route ? runV02RouteOptionLabel(route) : "";
+}
+
+function closeRunV02BaselineMenu() {
+  state.runV02.baselineMenuOpen = false;
+  state.runV02.baselineSearch = "";
+  syncRunV02BaselineMenu();
+  els.runV02BaselineInput?.blur();
+}
+
+function closeRunV02TargetMenu() {
+  state.runV02.targetMenuOpen = false;
+  state.runV02.targetSearch = "";
+  syncRunV02TargetMenu();
+  els.runV02TargetInput?.blur();
+}
+
+function openRunV02BaselineMenu() {
+  if (state.runV02.isRunning || els.runV02BaselineInput?.disabled) return;
+  closeRunV02ModelMenu();
+  closeRunV02TargetMenu();
+  state.runV02.baselineMenuOpen = true;
+  state.runV02.baselineSearch = "";
+  if (els.runV02BaselineInput) {
+    els.runV02BaselineInput.readOnly = false;
+    els.runV02BaselineInput.placeholder = "搜索 Baseline 渠道或协议";
+    els.runV02BaselineInput.value = "";
+  }
+  renderRunV02BaselineSelect();
+  syncRunV02BaselineMenu();
+  requestAnimationFrame(() => els.runV02BaselineInput?.focus());
+}
+
+function openRunV02TargetMenu() {
+  if (state.runV02.isRunning || els.runV02TargetInput?.disabled) return;
+  closeRunV02ModelMenu();
+  closeRunV02BaselineMenu();
+  state.runV02.targetMenuOpen = true;
+  state.runV02.targetSearch = "";
+  if (els.runV02TargetInput) {
+    els.runV02TargetInput.readOnly = false;
+    els.runV02TargetInput.placeholder = "搜索测评渠道";
+    els.runV02TargetInput.value = "";
+  }
+  renderRunV02TargetSelect();
+  syncRunV02TargetMenu();
+  requestAnimationFrame(() => els.runV02TargetInput?.focus());
 }
 
 function updateRunV02ModelInputDisplay() {
@@ -5623,29 +6611,17 @@ function updateRunV02ModelInputDisplay() {
   els.runV02ModelInput.value = state.runV02.modelId || "";
 }
 
-function updateRunV02RouteInputDisplay() {
-  if (!els.runV02RouteInput || state.runV02.routeMenuOpen) return;
-  const route = state.runV02.selectedRoute;
-  els.runV02RouteInput.readOnly = true;
-  els.runV02RouteInput.placeholder = "选择渠道与协议";
-  els.runV02RouteInput.value = route ? runV02RouteOptionLabel(route) : "";
-}
-
 function closeRunV02ModelMenu() {
   state.runV02.modelMenuOpen = false;
   state.runV02.modelSearch = "";
   syncRunV02ModelMenu();
-}
-
-function closeRunV02RouteMenu() {
-  state.runV02.routeMenuOpen = false;
-  state.runV02.routeSearch = "";
-  syncRunV02RouteMenu();
+  els.runV02ModelInput?.blur();
 }
 
 function openRunV02ModelMenu() {
   if (state.runV02.isRunning) return;
-  closeRunV02RouteMenu();
+  closeRunV02BaselineMenu();
+  closeRunV02TargetMenu();
   state.runV02.modelMenuOpen = true;
   state.runV02.modelSearch = "";
   if (els.runV02ModelInput) {
@@ -5656,21 +6632,6 @@ function openRunV02ModelMenu() {
   renderRunV02ModelSelect();
   syncRunV02ModelMenu();
   requestAnimationFrame(() => els.runV02ModelInput?.focus());
-}
-
-function openRunV02RouteMenu() {
-  if (state.runV02.isRunning || els.runV02RouteInput?.disabled) return;
-  closeRunV02ModelMenu();
-  state.runV02.routeMenuOpen = true;
-  state.runV02.routeSearch = "";
-  if (els.runV02RouteInput) {
-    els.runV02RouteInput.readOnly = false;
-    els.runV02RouteInput.placeholder = "搜索渠道、协议或模型 ID";
-    els.runV02RouteInput.value = "";
-  }
-  renderRunV02RouteSelect();
-  syncRunV02RouteMenu();
-  requestAnimationFrame(() => els.runV02RouteInput?.focus());
 }
 
 function runV02RouteOptionLabel(option) {
@@ -5684,16 +6645,21 @@ function applyRunV02Model(modelId) {
     return;
   }
   state.runV02.modelId = modelId;
-  state.runV02.routeKey = "";
-  state.runV02.selectedRoute = null;
+  state.runV02.baselineRouteKey = "";
+  state.runV02.baselineRoute = null;
+  state.runV02.targetRouteKeys = new Set();
+  state.runV02.channelConfigs = {};
+  state.runV02.baselineResults = {};
   state.runV02.cases = [];
   state.runV02.selectedCaseIds = new Set();
   if (els.runV02ConfigPanel) els.runV02ConfigPanel.classList.add("is-hidden");
   if (els.runV02CasePanel) els.runV02CasePanel.classList.add("is-hidden");
   closeRunV02ModelMenu();
-  closeRunV02RouteMenu();
+  closeRunV02BaselineMenu();
+  closeRunV02TargetMenu();
   renderRunV02ModelSelect();
-  renderRunV02RouteSelect({ autoSelect: true });
+  renderRunV02BaselineSelect({ autoSelect: true });
+  renderRunV02TargetSelect();
 }
 
 function renderRunV02ModelSelect() {
@@ -5718,52 +6684,164 @@ function renderRunV02ModelSelect() {
   syncRunV02ModelMenu();
 }
 
-function renderRunV02RouteSelect({ autoSelect = false } = {}) {
-  if (!els.runV02RouteOptions) return;
+function runV02RunnableOptions() {
+  return (state.runV02.routeOptions || []).filter((item) => item.runnable);
+}
+
+function runV02TargetCandidateOptions() {
+  const baseline = state.runV02.baselineRoute;
+  if (!baseline) return [];
+  return runV02RunnableOptions().filter((item) => (
+    item.protocolId === baseline.protocolId
+    && item.key !== baseline.key
+  ));
+}
+
+function runV02TargetRoutes() {
+  return [...state.runV02.targetRouteKeys]
+    .map((key) => runV02RouteByKey(key))
+    .filter(Boolean);
+}
+
+function resolveRunV02LocalProvider(platformId) {
+  const providers = state.runV02.localConfigProviders || {};
+  const aliasKeys = RUN_V02_CONFIG_PLATFORM_ALIASES[platformId] || [platformId];
+  for (const key of aliasKeys) {
+    const entry = providers[key];
+    if (entry?.api_key_hint) return entry;
+  }
+  return null;
+}
+
+async function loadRunV02LocalConfig() {
+  try {
+    const response = await fetch(`${API_BASE}/api/local-config`);
+    if (!response.ok) return;
+    const data = await response.json();
+    state.runV02.localConfigProviders = data.providers || {};
+  } catch {
+    state.runV02.localConfigProviders = {};
+  }
+
+  const routeKeys = new Set();
+  if (state.runV02.baselineRouteKey) routeKeys.add(state.runV02.baselineRouteKey);
+  for (const key of state.runV02.targetRouteKeys) routeKeys.add(key);
+
+  for (const routeKey of routeKeys) {
+    const route = runV02RouteByKey(routeKey);
+    if (!route) continue;
+    const local = resolveRunV02LocalProvider(route.platformId);
+    let config = state.runV02.channelConfigs[routeKey];
+    if (!config) {
+      ensureRunV02ChannelConfig(routeKey, route);
+      continue;
+    }
+    if (config.apiKey?.trim() && !config.useLocalKey) continue;
+    if (!local?.api_key_hint) continue;
+    config.useLocalKey = true;
+    config.apiKeyHint = local.api_key_hint;
+    config.apiKey = "";
+    if (!config.baseUrl?.trim() && local.base_url) config.baseUrl = local.base_url;
+  }
+  renderRunV02ChannelConfigs();
+  updateRunV02Availability();
+}
+
+function runV02ChannelApiKeyValue(config) {
+  if (!config) return "";
+  return config.useLocalKey ? (config.apiKeyHint || "") : (config.apiKey || "");
+}
+
+function runV02ChannelHasApiKey(config) {
+  if (!config) return false;
+  return config.useLocalKey ? Boolean(config.apiKeyHint?.trim()) : Boolean(config.apiKey?.trim());
+}
+
+function ensureRunV02ChannelConfig(routeKey, route) {
+  if (!routeKey) return { baseUrl: "", apiKey: "", apiKeyHint: "", useLocalKey: false };
+  if (!state.runV02.channelConfigs[routeKey]) {
+    const local = route ? resolveRunV02LocalProvider(route.platformId) : null;
+    const useLocalKey = Boolean(local?.api_key_hint);
+    state.runV02.channelConfigs[routeKey] = {
+      baseUrl: local?.base_url || route?.endpointUrl || "",
+      apiKey: "",
+      apiKeyHint: local?.api_key_hint || "",
+      useLocalKey
+    };
+  }
+  return state.runV02.channelConfigs[routeKey];
+}
+
+function renderRunV02RouteOptions() {
   const lookupApi = window.NOCTUA_MODEL_LOOKUP;
   const modelId = ensureRunV02ModelId();
   const options = lookupApi?.listModelRouteOptions?.(modelId) || [];
   state.runV02.routeOptions = options;
 
+  const runnableCount = runV02RunnableOptions().length;
   if (els.runV02RouteHint) {
-    els.runV02RouteHint.textContent = options.length
-      ? `${options.length} 个渠道协议组合`
-      : "未找到支持该模型的渠道";
+    if (!options.length) {
+      els.runV02RouteHint.textContent = "未找到支持该模型的渠道";
+    } else if (!state.runV02.baselineRoute) {
+      els.runV02RouteHint.textContent = `${runnableCount} 个可跑批渠道协议`;
+    } else {
+      const targetCount = state.runV02.targetRouteKeys.size;
+      els.runV02RouteHint.textContent = targetCount
+        ? `Baseline 已选 · ${targetCount} 个测评渠道`
+        : "请选择至少一个测评渠道";
+    }
   }
-  const routeDisabled = !options.length || state.runV02.isRunning;
-  if (els.runV02RouteInput) els.runV02RouteInput.disabled = routeDisabled;
-  if (els.runV02RouteControl) els.runV02RouteControl.classList.toggle("is-disabled", routeDisabled);
+
+  const baselineDisabled = !runnableCount || state.runV02.isRunning;
+  if (els.runV02BaselineInput) els.runV02BaselineInput.disabled = baselineDisabled;
+  if (els.runV02BaselineControl) els.runV02BaselineControl.classList.toggle("is-disabled", baselineDisabled);
+
+  const targetDisabled = !state.runV02.baselineRoute?.runnable || state.runV02.isRunning;
+  if (els.runV02TargetInput) els.runV02TargetInput.disabled = targetDisabled;
+  if (els.runV02TargetControl) els.runV02TargetControl.classList.toggle("is-disabled", targetDisabled);
 
   if (!options.length) {
-    state.runV02.routeKey = "";
-    state.runV02.selectedRoute = null;
-    if (els.runV02RouteInput) {
-      els.runV02RouteInput.value = "";
-      els.runV02RouteInput.placeholder = "暂无可用渠道";
-    }
-    els.runV02RouteOptions.innerHTML = `<li class="search-select__empty">模型 ${escapeHtml(modelId)} 暂无可用渠道</li>`;
+    state.runV02.baselineRouteKey = "";
+    state.runV02.baselineRoute = null;
+    state.runV02.targetRouteKeys = new Set();
     if (els.runV02ConfigPanel) els.runV02ConfigPanel.classList.add("is-hidden");
     if (els.runV02CasePanel) els.runV02CasePanel.classList.add("is-hidden");
-    syncRunV02RouteMenu();
+  }
+}
+
+function renderRunV02BaselineSelect({ autoSelect = false } = {}) {
+  renderRunV02RouteOptions();
+  if (!els.runV02BaselineOptions) return;
+
+  const options = runV02RunnableOptions();
+  const modelId = ensureRunV02ModelId();
+
+  if (!options.length) {
+    state.runV02.baselineRouteKey = "";
+    state.runV02.baselineRoute = null;
+    if (els.runV02BaselineInput) {
+      els.runV02BaselineInput.value = "";
+      els.runV02BaselineInput.placeholder = "暂无可用渠道";
+    }
+    els.runV02BaselineOptions.innerHTML = `<li class="search-select__empty">模型 ${escapeHtml(modelId)} 暂无可用渠道</li>`;
+    syncRunV02BaselineMenu();
     updateRunV02Availability();
     return;
   }
 
-  if (!options.some((item) => item.key === state.runV02.routeKey)) {
+  if (!options.some((item) => item.key === state.runV02.baselineRouteKey)) {
     if (autoSelect) {
-      const firstRunnable = options.find((item) => item.runnable) || options[0];
-      applyRunV02Route(firstRunnable.key);
+      applyRunV02Baseline(options[0].key);
       return;
     }
-    state.runV02.routeKey = "";
-    state.runV02.selectedRoute = null;
+    state.runV02.baselineRouteKey = "";
+    state.runV02.baselineRoute = null;
   }
 
-  const selectedRoute = state.runV02.selectedRoute;
-  updateRunV02RouteInputDisplay();
+  updateRunV02BaselineInputDisplay();
 
   const filtered = options.filter((option) => matchSearchQuery(
-    state.runV02.routeSearch,
+    state.runV02.baselineSearch,
     option.platformName,
     option.categoryLabel,
     option.protocolLabel,
@@ -5773,20 +6851,147 @@ function renderRunV02RouteSelect({ autoSelect = false } = {}) {
   ));
 
   if (!filtered.length) {
-    els.runV02RouteOptions.innerHTML = `<li class="search-select__empty">没有匹配的渠道或协议</li>`;
+    els.runV02BaselineOptions.innerHTML = `<li class="search-select__empty">没有匹配的 Baseline 渠道</li>`;
   } else {
-    els.runV02RouteOptions.innerHTML = filtered.map((option) => `
+    els.runV02BaselineOptions.innerHTML = filtered.map((option) => `
       <li
-        class="search-select__option ${option.key === state.runV02.routeKey ? "is-selected" : ""} ${option.runnable ? "" : "is-disabled"}"
+        class="search-select__option ${option.key === state.runV02.baselineRouteKey ? "is-selected" : ""}"
         role="option"
-        data-run-v02-route="${escapeHtml(option.key)}"
-        aria-selected="${option.key === state.runV02.routeKey}"
-        ${option.runnable ? "" : 'aria-disabled="true"'}
-      >${escapeHtml(runV02RouteOptionLabel(option))}${option.runnable ? "" : " · 暂未支持跑批"}</li>
+        data-run-v02-baseline="${escapeHtml(option.key)}"
+        aria-selected="${option.key === state.runV02.baselineRouteKey}"
+      >${escapeHtml(runV02RouteOptionLabel(option))}</li>
     `).join("");
   }
-  syncRunV02RouteMenu();
+  syncRunV02BaselineMenu();
   updateRunV02Availability();
+}
+
+function renderRunV02TargetTags() {
+  if (!els.runV02TargetTags) return;
+  const routes = runV02TargetRoutes();
+  if (!routes.length) {
+    els.runV02TargetTags.innerHTML = "";
+    return;
+  }
+  els.runV02TargetTags.innerHTML = routes.map((route) => `
+    <span class="search-select__tag">
+      <span class="search-select__tag-label">${escapeHtml(route.platformName)}</span>
+      <button
+        type="button"
+        class="search-select__tag-remove"
+        data-run-v02-target-remove="${escapeHtml(route.key)}"
+        aria-label="移除 ${escapeHtml(route.platformName)}"
+        ${state.runV02.isRunning ? "disabled" : ""}
+      >×</button>
+    </span>
+  `).join("");
+}
+
+function renderRunV02TargetSelect() {
+  renderRunV02RouteOptions();
+  if (!els.runV02TargetOptions) return;
+  renderRunV02TargetTags();
+
+  const baseline = state.runV02.baselineRoute;
+  if (!baseline) {
+    els.runV02TargetOptions.innerHTML = `<li class="search-select__empty">请先选择 Baseline 渠道</li>`;
+    syncRunV02TargetMenu();
+    return;
+  }
+
+  const options = runV02TargetCandidateOptions();
+  const filtered = options.filter((option) => matchSearchQuery(
+    state.runV02.targetSearch,
+    option.platformName,
+    option.categoryLabel,
+    option.protocolLabel,
+    option.apiModelId,
+    option.platformId,
+    runV02RouteOptionLabel(option)
+  ));
+
+  if (!filtered.length) {
+    els.runV02TargetOptions.innerHTML = `<li class="search-select__empty">没有可测评的同协议渠道</li>`;
+  } else {
+    els.runV02TargetOptions.innerHTML = filtered.map((option) => {
+      const checked = state.runV02.targetRouteKeys.has(option.key);
+      return `
+        <li
+          class="search-select__option ${checked ? "is-checked is-selected" : ""}"
+          role="option"
+          data-run-v02-target="${escapeHtml(option.key)}"
+          aria-selected="${checked}"
+        >${escapeHtml(runV02RouteOptionLabel(option))}</li>
+      `;
+    }).join("");
+  }
+  syncRunV02TargetMenu();
+  updateRunV02Availability();
+}
+
+function renderRunV02ChannelConfigs() {
+  if (!els.runV02ChannelConfigs) return;
+  const baseline = state.runV02.baselineRoute;
+  const targets = runV02TargetRoutes();
+  if (!baseline) {
+    els.runV02ChannelConfigs.innerHTML = "";
+    return;
+  }
+
+  const rows = [
+    { route: baseline, role: "baseline", badge: "Baseline", badgeClass: "run-v02-channel-config__badge--baseline" },
+    ...targets.map((route) => ({ route, role: "target", badge: "测评", badgeClass: "" }))
+  ];
+
+  els.runV02ChannelConfigs.innerHTML = rows.map(({ route, badge, badgeClass }) => {
+    const config = ensureRunV02ChannelConfig(route.key, route);
+    return `
+      <div class="run-v02-channel-config" data-run-v02-config="${escapeHtml(route.key)}">
+        <div class="run-v02-channel-config__head">
+          <span class="run-v02-channel-config__badge ${badgeClass}">${escapeHtml(badge)}</span>
+          <span>${escapeHtml(route.platformName)} · ${escapeHtml(route.protocolLabel)}</span>
+        </div>
+        <div class="config-row">
+          <label class="fld">
+            <span>API 模型 ID</span>
+            <input class="inp mono" type="text" value="${escapeHtml(route.apiModelId || "")}" readonly />
+          </label>
+          <label class="fld">
+            <span>Endpoint 地址</span>
+            <input
+              class="inp mono"
+              type="text"
+              data-run-v02-config-field="baseUrl"
+              data-run-v02-config-key="${escapeHtml(route.key)}"
+              value="${escapeHtml(config.baseUrl || "")}"
+              placeholder="https://..."
+              ${state.runV02.isRunning ? "disabled" : ""}
+            />
+          </label>
+          <label class="fld">
+            <span>API Key${config.useLocalKey ? ' <span class="muted fs-xs">config.yaml</span>' : ""}</span>
+            <input
+              class="inp mono"
+              type="${config.useLocalKey ? "text" : "password"}"
+              data-run-v02-config-field="apiKey"
+              data-run-v02-config-key="${escapeHtml(route.key)}"
+              value="${escapeHtml(runV02ChannelApiKeyValue(config))}"
+              placeholder="${config.useLocalKey ? "" : "sk-..."}"
+              title="${config.useLocalKey ? "来自 config.yaml（已脱敏），跑批时由后端读取完整 Key" : "自定义 API Key"}"
+              autocomplete="off"
+              ${state.runV02.isRunning ? "disabled" : ""}
+            />
+          </label>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderRunV02RouteSelect(opts) {
+  renderRunV02BaselineSelect(opts);
+  renderRunV02TargetSelect();
+  renderRunV02ChannelConfigs();
 }
 
 function ensureRunV02ModelId() {
@@ -5798,30 +7003,50 @@ function ensureRunV02ModelId() {
   return state.runV02.modelId;
 }
 
-function runV02RouteByKey(routeKey = state.runV02.routeKey) {
+function runV02RouteByKey(routeKey = state.runV02.baselineRouteKey) {
   return (state.runV02.routeOptions || []).find((item) => item.key === routeKey) || null;
 }
 
-function runContextForV02() {
-  const route = state.runV02.selectedRoute;
+function runContextForV02(route, config) {
   if (!route) return {};
+  const cfg = config || ensureRunV02ChannelConfig(route.key, route);
   return {
     provider: route.providerId,
     endpoint_id: route.protocolId,
     endpoint_label: route.protocolLabel,
     channel_id: route.runtimeChannelId,
     channel_name: route.platformName,
-    base_url: state.runV02.baseUrl.trim(),
+    base_url: (cfg.baseUrl || "").trim(),
     model: route.apiModelId
   };
 }
 
-function mapRunV02Result(result, index = 0) {
-  const context = runContextForV02();
+function allRunV02ConfigsReady() {
+  const baseline = state.runV02.baselineRoute;
+  if (!baseline) return false;
+  const routes = [baseline, ...runV02TargetRoutes()];
+  return routes.every((route) => {
+    const cfg = ensureRunV02ChannelConfig(route.key, route);
+    return Boolean(cfg.baseUrl?.trim() && runV02ChannelHasApiKey(cfg));
+  });
+}
+
+function mapRunV02Result(result, route, index = 0, { isBaseline = false, baselineResponse = null } = {}) {
+  const config = ensureRunV02ChannelConfig(route.key, route);
+  const context = runContextForV02(route, config);
   const testCase = (state.runV02.cases || []).find((item) => item.case_id === result.case_id);
   const parameters = result.parameters?.length ? result.parameters : testCase?.parameters || ["payload"];
+  const responseBody = result.response_body || null;
   const supportConclusion = result.support_conclusion || inferSiliconFlowConclusion(testCase || {});
   const meta = supportConclusionMeta[supportConclusion] || supportConclusionMeta.unknown;
+  let diffCount = 0;
+  if (isBaseline) {
+    diffCount = 0;
+  } else if (baselineResponse && responseBody && typeof responseBody === "object") {
+    diffCount = compareStructure(baselineResponse, responseBody).length;
+  } else if (result.error) {
+    diffCount = 1;
+  }
   return enrichResultAxes({
     result_uid: resultUid(context, result, index),
     case_id: result.case_id,
@@ -5840,35 +7065,35 @@ function mapRunV02Result(result, index = 0) {
     status: meta.status,
     http_status: result.http_status || meta.httpStatus,
     latency_ms: result.latency_ms || 0,
-    diff_count: result.error ? 1 : 0,
+    diff_count: diffCount,
     message: result.error || meta.note,
     proxy: getProxyConfig(),
     source_case: testCase,
     request_headers: result.request_headers,
     request_body: result.request_body,
-    response_body: result.response_body || null,
+    response_body: responseBody,
     raw_response: result.raw_response || "",
     response_headers: result.response_headers,
     assertions: result.assertions || [],
     expected_http_status: result.expected_http_status,
     expected_support_conclusion: result.expected_support_conclusion,
-    error: result.error || ""
+    error: result.error || "",
+    is_baseline: isBaseline
   });
 }
 
 function updateRunV02Availability() {
   if (!els.runV02Tests) return;
-  const route = state.runV02.selectedRoute;
+  const baseline = state.runV02.baselineRoute;
+  const targets = runV02TargetRoutes();
   const cases = state.runV02.cases || [];
-  const hasApiKey = Boolean(state.runV02.apiKey.trim());
-  const hasBaseUrl = Boolean(state.runV02.baseUrl.trim());
   const canRun = Boolean(
-    route?.runnable
-    && route.providerId
+    baseline?.runnable
+    && baseline.providerId
+    && targets.length
+    && allRunV02ConfigsReady()
     && cases.length
     && state.runV02.selectedCaseIds.size
-    && hasApiKey
-    && hasBaseUrl
     && !state.runV02.isCaseLoading
     && !state.runV02.isRunning
   );
@@ -5914,10 +7139,10 @@ function renderRunV02CaseGroups() {
     return;
   }
   if (!cases.length) {
-    const route = state.runV02.selectedRoute;
-    const hint = route && !route.runnable
+    const baseline = state.runV02.baselineRoute;
+    const hint = baseline && !baseline.runnable
       ? "该协议暂未纳入跑批，或当前渠道尚无可用 case 模板。"
-      : "请选择可跑批的渠道与协议。";
+      : "请先选择 Baseline 渠道与协议。";
     els.runV02CaseGroups.innerHTML = `<div class="case-error"><span>${escapeHtml(hint)}</span></div>`;
     renderRunV02SelectedCaseCount();
     return;
@@ -5945,33 +7170,56 @@ function renderRunV02CaseGroups() {
   renderRunV02SelectedCaseCount();
 }
 
-function applyRunV02Route(routeKey) {
+function applyRunV02Baseline(routeKey) {
   const route = runV02RouteByKey(routeKey);
-  state.runV02.routeKey = routeKey;
-  state.runV02.selectedRoute = route;
-  state.runV02.baseUrl = route?.endpointUrl || "";
+  if (!route?.runnable) return;
+  state.runV02.baselineRouteKey = routeKey;
+  state.runV02.baselineRoute = route;
+  ensureRunV02ChannelConfig(routeKey, route);
+  state.runV02.targetRouteKeys.delete(routeKey);
+  const validTargetKeys = new Set(runV02TargetCandidateOptions().map((item) => item.key));
+  state.runV02.targetRouteKeys = new Set(
+    [...state.runV02.targetRouteKeys].filter((key) => validTargetKeys.has(key))
+  );
+  state.runV02.baselineResults = {};
   state.runV02.cases = [];
   state.runV02.selectedCaseIds = new Set();
+  closeRunV02BaselineMenu();
 
-  if (els.runV02ConfigPanel) els.runV02ConfigPanel.classList.toggle("is-hidden", !route);
-  if (els.runV02CasePanel) els.runV02CasePanel.classList.toggle("is-hidden", !route?.runnable);
-  if (els.runV02ModelId) els.runV02ModelId.value = route?.apiModelId || "";
-  if (els.runV02BaseUrl) els.runV02BaseUrl.value = state.runV02.baseUrl;
+  if (els.runV02ConfigPanel) els.runV02ConfigPanel.classList.remove("is-hidden");
+  if (els.runV02CasePanel) els.runV02CasePanel.classList.remove("is-hidden");
   if (els.runV02SelectedRoute && route) {
-    els.runV02SelectedRoute.textContent = `${route.platformName} · ${route.protocolLabel}`;
+    els.runV02SelectedRoute.textContent = `Baseline: ${route.platformName} · ${route.protocolLabel}`;
   }
-  if (route?.runnable) {
-    loadRunV02Cases();
+  loadRunV02Cases();
+  loadRunV02LocalConfig();
+  renderRunV02BaselineSelect();
+  renderRunV02TargetSelect();
+  renderRunV02ChannelConfigs();
+}
+
+function toggleRunV02Target(routeKey) {
+  const route = runV02RouteByKey(routeKey);
+  if (!route?.runnable || routeKey === state.runV02.baselineRouteKey) return;
+  if (!runV02TargetCandidateOptions().some((item) => item.key === routeKey)) return;
+  if (state.runV02.targetRouteKeys.has(routeKey)) {
+    state.runV02.targetRouteKeys.delete(routeKey);
   } else {
-    state.runV02.isCaseLoading = false;
-    renderRunV02CaseGroups();
-    updateRunV02Availability();
+    state.runV02.targetRouteKeys.add(routeKey);
+    ensureRunV02ChannelConfig(routeKey, route);
   }
-  renderRunV02RouteSelect();
+  loadRunV02LocalConfig();
+  renderRunV02TargetSelect();
+  renderRunV02ChannelConfigs();
+  updateRunV02Availability();
+}
+
+function applyRunV02Route(routeKey) {
+  applyRunV02Baseline(routeKey);
 }
 
 async function loadRunV02Cases() {
-  const route = state.runV02.selectedRoute;
+  const route = state.runV02.baselineRoute;
   if (!route?.providerId || !route.runnable) return;
 
   state.runV02.isCaseLoading = true;
@@ -5982,21 +7230,21 @@ async function loadRunV02Cases() {
     const response = await fetch(`${API_BASE}/api/providers/${route.providerId}/cases?endpoint_id=${encodeURIComponent(route.protocolId)}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
-    if (state.runV02.selectedRoute?.key !== route.key) return;
+    if (state.runV02.baselineRoute?.key !== route.key) return;
     state.runV02.cases = data.cases || [];
     state.runV02.selectedCaseIds = new Set(state.runV02.cases.filter(isDefaultSelectedCase).map((testCase) => testCase.case_id));
     if (els.runV02CaseHint) {
       els.runV02CaseHint.textContent = `已加载 ${state.runV02.cases.length} 个 case；默认勾选常规 case。`;
     }
   } catch (error) {
-    if (state.runV02.selectedRoute?.key !== route.key) return;
+    if (state.runV02.baselineRoute?.key !== route.key) return;
     state.runV02.cases = [];
     state.runV02.selectedCaseIds = new Set();
     if (els.runV02CaseHint) {
       els.runV02CaseHint.textContent = `测试用例加载失败：${error.message}`;
     }
   } finally {
-    if (state.runV02.selectedRoute?.key === route.key) {
+    if (state.runV02.baselineRoute?.key === route.key) {
       state.runV02.isCaseLoading = false;
       renderRunV02CaseGroups();
       updateRunV02Availability();
@@ -6025,6 +7273,7 @@ function renderRunV02Results() {
     return `
       <tr class="${rowTone}">
         <td class="pcell">${escapeHtml(resultTitle(result))}</td>
+        <td class="mono fs-xs">${escapeHtml(result.channel_name || "—")}${result.is_baseline ? " · Baseline" : ""}</td>
         <td class="cat">${escapeHtml(categoryLabel(result.category))}</td>
         <td><span class="tag tag-${rowTone === "s-ok" ? "success" : rowTone === "s-wa" ? "warning" : "danger"}">${escapeHtml(meta.label)}</span></td>
         <td><span class="tag tag-${matchesExpectedResult(result) ? "success" : "danger"}">${escapeHtml(expectationLabel(result))}</span></td>
@@ -6052,22 +7301,69 @@ function resetRunV02Ui() {
   if (els.runV02ResultsPanel) els.runV02ResultsPanel.classList.add("is-hidden");
 }
 
+async function streamRunV02Route(route, config, caseIds, signal, onResult) {
+  const response = await fetch(`${API_BASE}/api/run-stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    signal,
+    body: JSON.stringify({
+      provider: route.providerId,
+      endpoint_id: route.protocolId,
+      base_url: config.baseUrl.trim(),
+      model: route.apiModelId,
+      api_key: config.useLocalKey ? "" : config.apiKey.trim(),
+      config_platform_id: config.useLocalKey ? route.platformId : "",
+      case_ids: caseIds,
+      custom_cases: [],
+      proxy: getProxyConfig(),
+      max_concurrency: 3
+    })
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || `HTTP ${response.status}`);
+  }
+
+  await readRunStream(response, (event) => {
+    if (!state.runV02.isRunning) return;
+    if (event.type === "error") throw new Error(event.error || "run stream failed");
+    if (event.type === "end") return;
+    if (event.type !== "result" || !event.result) return;
+    onResult(event.result);
+  });
+}
+
+function recordRunV02Progress(mapped, count, totalRuns) {
+  if (els.runV02ProgressCount) els.runV02ProgressCount.textContent = `${count} / ${totalRuns}`;
+  if (els.runV02ProgressCase) {
+    els.runV02ProgressCase.textContent = `— 已完成 ${count}/${totalRuns}: ${mapped.channel_name} · ${resultTitle(mapped)}`;
+  }
+  if (els.runV02ProgressBar) {
+    els.runV02ProgressBar.style.width = `${Math.round((count / totalRuns) * 100)}%`;
+  }
+  const diffNote = mapped.is_baseline ? "" : (mapped.diff_count ? ` · ${mapped.diff_count} 处结构差异` : " · 结构一致");
+  appendRunV02Text(`✓ ${mapped.channel_name} · ${mapped.case_id} · HTTP ${mapped.http_status || "—"} · ${conclusionMeta(mapped).label}${diffNote}`);
+  renderRunV02Stats();
+  renderRunV02Results();
+  if (els.runV02ResultsPanel) els.runV02ResultsPanel.classList.remove("is-hidden");
+}
+
 async function runV02Tests() {
-  const route = state.runV02.selectedRoute;
-  const apiKey = state.runV02.apiKey.trim();
-  const baseUrl = state.runV02.baseUrl.trim();
+  const baseline = state.runV02.baselineRoute;
+  const targets = runV02TargetRoutes();
+  const baselineConfig = baseline ? ensureRunV02ChannelConfig(baseline.key, baseline) : null;
   const selectedCases = (state.runV02.cases || []).filter((testCase) => state.runV02.selectedCaseIds.has(testCase.case_id));
 
-  if (!route?.runnable || !route.providerId) {
-    showToast("请选择可跑批的渠道与协议。");
+  if (!baseline?.runnable || !baseline.providerId) {
+    showToast("请选择 Baseline 渠道与协议。");
     return;
   }
-  if (!apiKey) {
-    showToast("请填写 API Key。");
+  if (!targets.length) {
+    showToast("请至少选择一个测评渠道。");
     return;
   }
-  if (!baseUrl) {
-    showToast("请填写 Endpoint 地址。");
+  if (!allRunV02ConfigsReady()) {
+    showToast("请填写所有渠道的 Endpoint 与 API Key。");
     return;
   }
   if (!selectedCases.length) {
@@ -6076,72 +7372,46 @@ async function runV02Tests() {
   }
 
   resetRunV02Ui();
+  state.runV02.baselineResults = {};
   state.runV02.currentRunAbortController = new AbortController();
   state.runV02.isRunning = true;
   updateRunV02Availability();
   if (els.runV02ProgressPanel) els.runV02ProgressPanel.classList.remove("is-hidden");
 
-  const target = {
-    provider: route.providerId,
-    endpoint_id: route.protocolId,
-    base_url: baseUrl,
-    model: route.apiModelId,
-    api_key: apiKey
-  };
-  const context = runContextForV02();
-  const totalRuns = selectedCases.length;
+  const caseIds = selectedCases.map((testCase) => testCase.case_id);
+  const totalRuns = caseIds.length * (1 + targets.length);
+  let count = 0;
+  const signal = state.runV02.currentRunAbortController?.signal;
 
   try {
     appendRunV02Text(`→ 检查后端连接：${API_BASE}`);
-    await ensureBackendReady(state.runV02.currentRunAbortController?.signal);
-    appendRunV02Text(`→ ${route.platformName} / ${route.protocolLabel} 开始请求 ${totalRuns} 个 case`);
-
-    const response = await fetch(`${API_BASE}/api/run-stream`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: state.runV02.currentRunAbortController?.signal,
-      body: JSON.stringify({
-        provider: target.provider,
-        endpoint_id: target.endpoint_id,
-        base_url: target.base_url,
-        model: target.model,
-        api_key: target.api_key,
-        case_ids: selectedCases.map((testCase) => testCase.case_id),
-        custom_cases: [],
-        proxy: getProxyConfig(),
-        max_concurrency: 3
-      })
-    });
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.error || `HTTP ${response.status}`);
-    }
-
-    let count = 0;
-    await readRunStream(response, (event) => {
-      if (!state.runV02.isRunning) return;
-      if (event.type === "error") throw new Error(event.error || "run stream failed");
-      if (event.type === "end") return;
-      if (event.type !== "result" || !event.result) return;
-      const mapped = mapRunV02Result(event.result, count);
+    await ensureBackendReady(signal);
+    appendRunV02Text(`→ Baseline ${baseline.platformName} / ${baseline.protocolLabel} · ${caseIds.length} 个 case`);
+    await streamRunV02Route(baseline, baselineConfig, caseIds, signal, (result) => {
+      state.runV02.baselineResults[result.case_id] = result;
+      const mapped = mapRunV02Result(result, baseline, count, { isBaseline: true });
       state.runV02.completedResults.push(mapped);
       count += 1;
-      if (els.runV02ProgressCount) els.runV02ProgressCount.textContent = `${count} / ${totalRuns}`;
-      if (els.runV02ProgressCase) {
-        els.runV02ProgressCase.textContent = `— 已完成 ${count}/${totalRuns}: ${resultTitle(mapped)}`;
-      }
-      if (els.runV02ProgressBar) {
-        els.runV02ProgressBar.style.width = `${Math.round((count / totalRuns) * 100)}%`;
-      }
-      appendRunV02Text(`✓ ${mapped.case_id} · HTTP ${mapped.http_status || "—"} · ${conclusionMeta(mapped).label}`);
-      renderRunV02Stats();
-      renderRunV02Results();
-      if (els.runV02ResultsPanel) els.runV02ResultsPanel.classList.remove("is-hidden");
+      recordRunV02Progress(mapped, count, totalRuns);
     });
+
+    for (const target of targets) {
+      if (!state.runV02.isRunning) break;
+      const targetConfig = ensureRunV02ChannelConfig(target.key, target);
+      appendRunV02Text(`→ 测评 ${target.platformName} / ${target.protocolLabel} · 对比 Baseline 结构`);
+      await streamRunV02Route(target, targetConfig, caseIds, signal, (result) => {
+        const baselineResult = state.runV02.baselineResults[result.case_id];
+        const baselineResponse = baselineResult?.response_body || null;
+        const mapped = mapRunV02Result(result, target, count, { baselineResponse });
+        state.runV02.completedResults.push(mapped);
+        count += 1;
+        recordRunV02Progress(mapped, count, totalRuns);
+      });
+    }
 
     if (els.runV02ProgressCase) els.runV02ProgressCase.textContent = "— 完成";
     if (els.runV02ProgressBar) els.runV02ProgressBar.style.width = "100%";
-    showToast(`V0.2 跑批完成：${state.runV02.completedResults.length} 个 case。`);
+    showToast(`V0.2 跑批完成：${state.runV02.completedResults.length} 条结果。`);
   } catch (error) {
     if (error?.name === "AbortError") {
       if (els.runV02ProgressCase) els.runV02ProgressCase.textContent = "— 用户已停止";
@@ -6168,14 +7438,14 @@ function stopRunV02Tests() {
 
 function renderRunToolV02() {
   if (!els.runV02ModelSelect) return;
-  renderRunV02ModelSelect();
-  renderRunV02RouteSelect({ autoSelect: !state.runV02.routeKey });
-  if (els.runV02BaseUrl && state.runV02.baseUrl) els.runV02BaseUrl.value = state.runV02.baseUrl;
-  if (els.runV02ApiKey) els.runV02ApiKey.value = state.runV02.apiKey;
-  renderRunV02CaseGroups();
-  renderRunV02Stats();
-  renderRunV02Results();
-  updateRunV02Availability();
+  loadRunV02LocalConfig().then(() => {
+    renderRunV02ModelSelect();
+    renderRunV02RouteSelect({ autoSelect: !state.runV02.baselineRouteKey });
+    renderRunV02CaseGroups();
+    renderRunV02Stats();
+    renderRunV02Results();
+    updateRunV02Availability();
+  });
 }
 
 function bindRunV02Events() {
@@ -6184,8 +7454,11 @@ function bindRunV02Events() {
     if (els.runV02ModelSelect && !els.runV02ModelSelect.contains(event.target)) {
       closeRunV02ModelMenu();
     }
-    if (els.runV02RouteSelect && !els.runV02RouteSelect.contains(event.target)) {
-      closeRunV02RouteMenu();
+    if (els.runV02BaselineSelect && !els.runV02BaselineSelect.contains(event.target)) {
+      closeRunV02BaselineMenu();
+    }
+    if (els.runV02TargetSelect && !els.runV02TargetSelect.contains(event.target)) {
+      closeRunV02TargetMenu();
     }
   });
 
@@ -6209,56 +7482,109 @@ function bindRunV02Events() {
     }
   });
 
-  els.runV02ModelOptions?.addEventListener("click", (event) => {
+  els.runV02ModelOptions?.addEventListener("mousedown", (event) => {
     const option = event.target.closest("[data-run-v02-model]");
     if (!option || state.runV02.isRunning) return;
+    event.preventDefault();
+    event.stopPropagation();
+    closeRunV02ModelMenu();
     applyRunV02Model(option.dataset.runV02Model);
   });
 
-  els.runV02RouteControl?.addEventListener("click", (event) => {
+  els.runV02BaselineControl?.addEventListener("click", (event) => {
     event.stopPropagation();
-    if (state.runV02.isRunning || els.runV02RouteInput?.disabled) return;
-    if (!state.runV02.routeMenuOpen) openRunV02RouteMenu();
-    else els.runV02RouteInput?.focus();
+    if (state.runV02.isRunning || els.runV02BaselineInput?.disabled) return;
+    if (!state.runV02.baselineMenuOpen) openRunV02BaselineMenu();
+    else els.runV02BaselineInput?.focus();
   });
 
-  els.runV02RouteInput?.addEventListener("input", () => {
-    if (!state.runV02.routeMenuOpen) return;
-    state.runV02.routeSearch = els.runV02RouteInput.value;
-    renderRunV02RouteSelect();
+  els.runV02BaselineInput?.addEventListener("input", () => {
+    if (!state.runV02.baselineMenuOpen) return;
+    state.runV02.baselineSearch = els.runV02BaselineInput.value;
+    renderRunV02BaselineSelect();
   });
 
-  els.runV02RouteInput?.addEventListener("keydown", (event) => {
+  els.runV02BaselineInput?.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
-      closeRunV02RouteMenu();
-      els.runV02RouteInput?.blur();
+      closeRunV02BaselineMenu();
+      els.runV02BaselineInput?.blur();
     }
   });
 
-  els.runV02RouteOptions?.addEventListener("click", (event) => {
-    const option = event.target.closest("[data-run-v02-route]");
+  els.runV02BaselineOptions?.addEventListener("mousedown", (event) => {
+    const option = event.target.closest("[data-run-v02-baseline]");
     if (!option || state.runV02.isRunning) return;
-    const route = runV02RouteByKey(option.dataset.runV02Route);
+    event.preventDefault();
+    event.stopPropagation();
+    const route = runV02RouteByKey(option.dataset.runV02Baseline);
     if (!route?.runnable) return;
-    closeRunV02RouteMenu();
-    if (route.key === state.runV02.routeKey) return;
-    applyRunV02Route(option.dataset.runV02Route);
+    if (route.key === state.runV02.baselineRouteKey) {
+      closeRunV02BaselineMenu();
+      return;
+    }
+    applyRunV02Baseline(option.dataset.runV02Baseline);
   });
 
-  els.runV02BaseUrl?.addEventListener("input", () => {
-    state.runV02.baseUrl = els.runV02BaseUrl.value;
+  els.runV02TargetControl?.addEventListener("click", (event) => {
+    if (event.target.closest("[data-run-v02-target-remove]")) return;
+    event.stopPropagation();
+    if (state.runV02.isRunning || els.runV02TargetInput?.disabled) return;
+    if (!state.runV02.targetMenuOpen) openRunV02TargetMenu();
+    else els.runV02TargetInput?.focus();
+  });
+
+  els.runV02TargetInput?.addEventListener("input", () => {
+    if (!state.runV02.targetMenuOpen) return;
+    state.runV02.targetSearch = els.runV02TargetInput.value;
+    renderRunV02TargetSelect();
+  });
+
+  els.runV02TargetInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeRunV02TargetMenu();
+      els.runV02TargetInput?.blur();
+    }
+  });
+
+  els.runV02TargetOptions?.addEventListener("mousedown", (event) => {
+    const option = event.target.closest("[data-run-v02-target]");
+    if (!option || state.runV02.isRunning) return;
+    event.preventDefault();
+    event.stopPropagation();
+    toggleRunV02Target(option.dataset.runV02Target);
+  });
+
+  els.runV02TargetTags?.addEventListener("click", (event) => {
+    const remove = event.target.closest("[data-run-v02-target-remove]");
+    if (!remove || state.runV02.isRunning) return;
+    event.preventDefault();
+    event.stopPropagation();
+    state.runV02.targetRouteKeys.delete(remove.dataset.runV02TargetRemove);
+    renderRunV02TargetSelect();
+    renderRunV02ChannelConfigs();
     updateRunV02Availability();
   });
 
-  els.runV02ApiKey?.addEventListener("input", () => {
-    state.runV02.apiKey = els.runV02ApiKey.value;
+  els.runV02ChannelConfigs?.addEventListener("input", (event) => {
+    const field = event.target.closest("[data-run-v02-config-field]");
+    if (!field || state.runV02.isRunning) return;
+    const routeKey = field.dataset.runV02ConfigKey;
+    const route = runV02RouteByKey(routeKey);
+    const config = ensureRunV02ChannelConfig(routeKey, route);
+    if (field.dataset.runV02ConfigField === "baseUrl") {
+      config.baseUrl = field.value;
+    } else if (field.dataset.runV02ConfigField === "apiKey") {
+      const local = route ? resolveRunV02LocalProvider(route.platformId) : null;
+      if (local?.api_key_hint && field.value === local.api_key_hint) {
+        config.useLocalKey = true;
+        config.apiKeyHint = field.value;
+        config.apiKey = "";
+      } else {
+        config.useLocalKey = false;
+        config.apiKey = field.value;
+      }
+    }
     updateRunV02Availability();
-  });
-
-  els.runV02ToggleSecret?.addEventListener("click", () => {
-    const isPassword = els.runV02ApiKey.type === "password";
-    els.runV02ApiKey.type = isPassword ? "text" : "password";
-    els.runV02ToggleSecret.textContent = isPassword ? "隐藏" : "显示";
   });
 
   els.runV02CaseGroups?.addEventListener("change", (event) => {
@@ -6287,10 +7613,19 @@ function syncModelLookupFromHash() {
   const hash = window.location.hash || "";
   if (!hash.startsWith("#models")) return;
   const queryIndex = hash.indexOf("?");
-  if (queryIndex === -1) return;
+  if (queryIndex === -1) {
+    state.modelLookupAddMode = false;
+    return;
+  }
   const params = new URLSearchParams(hash.slice(queryIndex + 1));
+  if (params.has("add")) {
+    state.modelLookupAddMode = true;
+  }
   const q = params.get("q");
-  if (q) state.modelLookupQuery = q;
+  if (q) {
+    state.modelLookupQuery = q;
+    if (!params.has("add")) state.modelLookupAddMode = false;
+  }
 }
 
 function setActiveView(view) {
@@ -6302,7 +7637,7 @@ function setActiveView(view) {
     state.activeViewKey = viewKey;
     state.runToolVersion = viewKey === "run-v02" ? "v0.2" : "v0.1";
   } else {
-    state.activeView = ["guide", "channels", "models", "run", "reports", "performance", "feishu", "evalscope", "opencompass"].includes(viewKey) ? viewKey : "run";
+    state.activeView = ["guide", "channels", "protocols", "models", "run", "reports", "performance", "feishu", "evalscope", "opencompass"].includes(viewKey) ? viewKey : "run";
     state.activeViewKey = state.activeView === "run" ? "run-v01" : state.activeView;
     if (state.activeView === "run") state.runToolVersion = "v0.1";
   }
@@ -6318,7 +7653,16 @@ function setActiveView(view) {
   if (state.activeView === "reports") renderHistory();
   if (state.activeView === "feishu") renderFeishuReport();
   if (state.activeView === "channels") renderChannelCatalog();
-  if (state.activeView === "models") renderModelLookup();
+  if (state.activeView === "protocols") renderProtocolCatalog();
+  if (state.activeView === "models") {
+    if (state.modelLookupAddMode && state.modelLookupQuery && !state.modelLookupResult && !state.modelLookupLoading) {
+      runModelLookup({ live: "always" });
+    } else if (state.modelLookupQuery && !state.modelLookupResult && !state.modelLookupLoading) {
+      runModelLookup({ live: modelLookupLiveMode(state.modelLookupQuery) });
+    } else {
+      renderModelLookup();
+    }
+  }
   if (state.activeViewKey === "run-v02") renderRunToolV02();
 }
 
@@ -6326,6 +7670,7 @@ function initialViewFromHash() {
   syncModelLookupFromHash();
   if (window.location.hash === "#guide" || window.location.hash === "#guideView") return "guide";
   if (window.location.hash === "#channels" || window.location.hash === "#channelsView") return "channels";
+  if (window.location.hash === "#protocols" || window.location.hash === "#protocolsView") return "protocols";
   if (window.location.hash.startsWith("#models")) return "models";
   if (window.location.hash === "#reports" || window.location.hash === "#historyPanel") return "reports";
   if (window.location.hash === "#performance" || window.location.hash === "#performanceView") return "performance";
@@ -6348,7 +7693,18 @@ function bindEvents() {
 
   window.addEventListener("hashchange", () => {
     syncModelLookupFromHash();
+    const wasModels = state.activeView === "models";
     setActiveView(initialViewFromHash());
+    if (wasModels || state.activeView === "models") {
+      state.modelLookupResult = null;
+      if (state.modelLookupAddMode && state.modelLookupQuery) {
+        runModelLookup({ live: "always" });
+      } else if (state.modelLookupQuery) {
+        runModelLookup({ live: modelLookupLiveMode(state.modelLookupQuery) });
+      } else {
+        renderModelLookup();
+      }
+    }
   });
 
   els.channelCards.addEventListener("click", (event) => {
@@ -6675,6 +8031,7 @@ renderChannels();
 renderEndpointTabs();
 renderSelectedChannel();
 bindEvents();
+bindModelLookupAddTabModalEvents();
 renderProxyState();
 loadFeishuConfig();
 loadEmbedUrl(embedConfigs.evalscope);
@@ -6682,5 +8039,6 @@ loadEmbedUrl(embedConfigs.opencompass);
 renderHistory();
 autoImportOriginalBaselines();
 renderChannelCatalog();
+renderProtocolCatalog();
 syncModelLookupFromHash();
 setActiveView(initialViewFromHash());

@@ -1,13 +1,12 @@
 # OpenRouter Chat Completions Support List
 
-Sources:
+> **Last verified:** 2026-06-16 against official API documentation.  
+> **Official sources:**
+> - https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request (ChatRequest OpenAPI)
+> - https://openrouter.ai/docs/api-reference/parameters
+> - https://openrouter.ai/openapi.json
 
-- https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request
-- https://openrouter.ai/docs/api-reference/parameters
-- https://openrouter.ai/docs/api-reference/overview
-- https://openrouter.ai/openapi.json
-
-This file is a support matrix for compatibility-test design. It intentionally lists supported fields and caveats instead of mirroring the full OpenAPI schema.
+Structured support matrix for compatibility-test design.
 
 ## Endpoint And Headers
 
@@ -18,9 +17,9 @@ This file is a support matrix for compatibility-test design. It intentionally li
 | Auth | required | `Authorization: Bearer <OPENROUTER_API_KEY>` |
 | `Content-Type` | required | `application/json` |
 | `HTTP-Referer` | optional | App attribution / rankings on OpenRouter. |
-| `X-OpenRouter-Title` | optional | App attribution title. `X-Title` is also accepted by docs. |
+| `X-OpenRouter-Title` | optional | App title. `X-Title` also accepted. |
 | `X-OpenRouter-Categories` | optional | Marketplace categories. |
-| `X-OpenRouter-Experimental-Metadata` | optional | `enabled` surfaces `openrouter_metadata` in responses. Default is `disabled`. |
+| `X-OpenRouter-Metadata` | optional | `enabled` surfaces `openrouter_metadata` on response. Legacy `X-OpenRouter-Experimental-Metadata` still accepted. |
 
 ## Required Body Fields
 
@@ -65,7 +64,7 @@ This file is a support matrix for compatibility-test design. It intentionally li
 | `seed` | supported | `integer` | Determinism is not guaranteed for all models. |
 | `user` | supported | `string` | Stable end-user identifier, used for abuse detection. |
 | `service_tier` | supported | `auto`, `default`, `flex`, `priority`, `scale`, `null` | Upstream/provider-dependent. |
-| `session_id` | supported | `string`, max 256 | Groups related requests for observability; body value overrides `x-session-id` header. |
+| `session_id` | supported | `string`, max 256 | Sticky routing + observability grouping. Body overrides `x-session-id` header. |
 | `metadata` | supported | object of string pairs | Max 16 pairs, 64-character keys, 512-character values. |
 | `trace` | supported | object | Known keys: `trace_id`, `trace_name`, `span_name`, `generation_name`, `parent_span_id`; additional keys pass to broadcast destinations. |
 
@@ -75,12 +74,12 @@ This file is a support matrix for compatibility-test design. It intentionally li
 |---|---|---|---|
 | `temperature` | supported | float `0.0` to `2.0` | Default `1.0`. |
 | `top_p` | supported | float `0.0` to `1.0` | Default `1.0`. |
-| `top_k` | accepted by docs, not in current ChatRequest OpenAPI | integer `>= 0` | Default `0`; parameters page says unavailable for OpenAI models. |
+| `top_k` | in ChatRequest OpenAPI | integer `>= 0` | Provider-dependent; parameters page notes unavailable for some OpenAI models. |
 | `frequency_penalty` | supported | float `-2.0` to `2.0` | Default `0.0`. |
 | `presence_penalty` | supported | float `-2.0` to `2.0` | Default `0.0`. |
-| `repetition_penalty` | accepted by docs, not in current ChatRequest OpenAPI | float `0.0` to `2.0` | Default `1.0`; provider/model-dependent. |
-| `min_p` | accepted by docs, not in current ChatRequest OpenAPI | float `0.0` to `1.0` | Default `0.0`; provider/model-dependent. |
-| `top_a` | accepted by docs, not in current ChatRequest OpenAPI | float `0.0` to `1.0` | Default `0.0`; provider/model-dependent. |
+| `repetition_penalty` | in ChatRequest OpenAPI | float | Default `1.0` = no penalty; provider-dependent. |
+| `min_p` | in ChatRequest OpenAPI | float `0.0` to `1.0` | Provider-dependent. |
+| `top_a` | in ChatRequest OpenAPI | float `0.0` to `1.0` | Provider-dependent. |
 | `logit_bias` | supported | object token-id -> number | Values typically `-100` to `100`; provider/tokenizer-dependent. |
 | `logprobs` | supported | `boolean` | Returns output token log probabilities when supported. |
 | `top_logprobs` | supported | integer `0` to `20` | Requires `logprobs: true`. |
@@ -93,7 +92,7 @@ This file is a support matrix for compatibility-test design. It intentionally li
 | `reasoning` | supported | object | Current OpenAPI field for reasoning models. |
 | `reasoning.effort` | supported | `xhigh`, `high`, `medium`, `low`, `minimal`, `none`, `null` | Constrains reasoning effort when supported by the model/provider. |
 | `reasoning.summary` | supported | enum from OpenAPI | Controls reasoning summary verbosity where supported. |
-| `reasoning_effort` | accepted by parameters docs, not in current ChatRequest OpenAPI | `xhigh`, `high`, `medium`, `low`, `minimal`, `none` | OpenAI-style alias/setting. Prefer testing both `reasoning` and `reasoning_effort`. |
+| `reasoning_effort` | in ChatRequest OpenAPI | `xhigh`, `high`, `medium`, `low`, `minimal`, `none` | Shorthand for `reasoning.effort`; cannot conflict with `reasoning.effort` if values differ. |
 | `include_reasoning` | deprecated | `boolean` | Deprecated alias for reasoning inclusion/exclusion behavior. |
 
 ## Output Format Parameters
@@ -271,11 +270,11 @@ This file is a support matrix for compatibility-test design. It intentionally li
 | Plugins | `web`, `web-fetch`, `file-parser`, `response-healing`, `context-compression`, `auto-router`, `pareto-router`, `fusion`, `moderation` |
 | Observability | `metadata`, `trace`, `session_id`, `openrouter_metadata`, cost fields |
 
-Important compatibility caveats:
+Important compatibility caveats (2026-06):
 
-- OpenRouter normalizes schemas across many upstream providers; request acceptance by OpenRouter is not the same as support by every selected provider/model.
-- Use `provider.require_parameters: true` when a test must prove the selected upstream supports every supplied parameter.
-- Parameters page says OpenRouter may forward provider-specific parameters not shown in ChatRequest OpenAPI.
-- Some documented parameter-page fields (`top_k`, `repetition_penalty`, `min_p`, `top_a`, `reasoning_effort`, `verbosity`, `web_search_options`, `structured_outputs`, `prediction`) are not present in the current `ChatRequest` OpenAPI schema; classify these as docs-supported/provider-dependent until verified.
-- `stream_options.include_usage` is deprecated/no-op in current OpenAPI.
+- OpenRouter normalizes schemas across upstream providers; acceptance by OpenRouter ≠ support by every selected provider/model.
+- Use `provider.require_parameters: true` when a test must prove the upstream supports every supplied parameter.
+- `top_k`, `repetition_penalty`, `min_p`, `top_a`, `reasoning_effort` are in current ChatRequest OpenAPI but remain provider/model-dependent upstream.
+- Parameters-page-only fields (`verbosity`, `web_search_options`, `structured_outputs`, `prediction`) may still be forwarded even if absent from ChatRequest schema — verify per model.
+- `stream_options.include_usage` is deprecated/no-op; full usage is always included in streaming responses per current OpenAPI.
 - `max_tokens` is deprecated in favor of `max_completion_tokens`.
