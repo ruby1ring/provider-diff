@@ -20,7 +20,7 @@ git checkout -b feat/简短描述
 
 ### 3. 开发与自测
 
-在分支上修改代码并本地验证（例如 `npm run dev`、`cd backend && go test ./...`）。
+在分支上修改代码并本地验证（例如 `make dev` 或 `npm run dev`、`make test` 或 `cd backend && go test ./...`）。
 
 ### 4. 提交并推送分支
 

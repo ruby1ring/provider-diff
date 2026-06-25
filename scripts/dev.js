@@ -82,7 +82,7 @@ async function main() {
     console.log(`[app] http://127.0.0.1:${appPort} is already running`);
   } else {
     startProcess("app", "python3", ["-m", "http.server", String(appPort)]);
-    console.log(`[app] starting http://127.0.0.1:${appPort}`);
+    console.log(`[app] starting http://127.0.0.1:${appPort}/web/`);
   }
 
   const backendRunning = await isPortOpen("127.0.0.1", backendPort);
@@ -109,7 +109,7 @@ async function main() {
     console.log(`[evalscope] starting http://${evalscopeHost}:${evalscopePort}/dashboard`);
   }
 
-  console.log(`[open] http://127.0.0.1:${appPort}/#evalscope`);
+  console.log(`[open] http://127.0.0.1:${appPort}/web/#evalscope`);
 }
 
 process.once("SIGINT", () => {

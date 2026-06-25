@@ -140,13 +140,13 @@
   }
 
   function suggestFiles(el) {
-    const files = new Set(["index.html"]);
+    const files = new Set(["web/index.html"]);
     const view = nearestAttr(el, "[data-view]", "data-view");
     const id = el.id || "";
     const className = typeof el.className === "string" ? el.className : "";
 
     if (view || id || className) {
-      files.add("main.js");
+      files.add("web/main.js");
     }
 
     files.add("design-system/styles.css");

@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="vLLM">
-  <rect width="64" height="64" rx="14" fill="#111827"/>
-  <path d="M14 19h9l9 27h-7L14 19z" fill="#60A5FA"/>
-  <path d="M25 19h7l7 21 7-21h8L43 46h-9L25 19z" fill="#34D399"/>
-  <path d="M17 47h36v4H17z" fill="#F9FAFB" opacity=".8"/>
-</svg>

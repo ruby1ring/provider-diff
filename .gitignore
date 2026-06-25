@@ -8,6 +8,8 @@ desktop/bin/
 desktop/services/*/
 build/pyinstaller/
 
+.od-skills/
+
 config.yaml
 *.env
 *.local
@@ -15,3 +17,11 @@ config.yaml
 logs/
 tmp/
 temp/
+
+# Generated reports and probes (regenerate via scripts/)
+outputs/*
+!outputs/.gitkeep
+!outputs/README.md
+
+# Root-level stray screenshots / exports (use assets/ with descriptive names)
+/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-*.png

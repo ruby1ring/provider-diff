@@ -23,7 +23,7 @@ Start the static frontend and Go backend locally:
 npm run dev
 ```
 
-Open http://127.0.0.1:4173 (or the URL printed by the dev script). Choose a provider, enter an API key in the browser, and run compatibility cases.
+Open http://127.0.0.1:4173/web/ (or the URL printed by the dev script). Choose a provider, enter an API key in the browser, and run compatibility cases.
 
 Requirements: Node.js (for `npm`), Python 3 (`http.server`), and Go (for `go run` in `backend/`).
 
@@ -37,7 +37,7 @@ cp config.example.yaml config.yaml
 
 Replace the placeholder API keys in `config.yaml`. The file is listed in `.gitignore` and is not pushed to GitHub.
 
-Channel keys used by **测评模型 → 查询渠道** (live model list lookup). Section names match **测评渠道** platform ids in `lib/channel-catalog.js`:
+Channel keys used by **测评模型 → 查询渠道** (live model list lookup). Section names match **测评渠道** platform ids in `web/lib/channel-catalog.js`:
 
 | `config.yaml` section | 测评渠道 |
 | --- | --- |
@@ -82,6 +82,16 @@ node scripts/probe-capacity.js --dry-run
 Capacity probes support target-level concurrency with `--max-concurrency`. Each provider/model target runs independently, while candidate tiers inside one target remain sequential so boundary detection stays correct.
 
 See `docs/project/capacity-probe-methodology.md` for the testing methodology and result interpretation rules.
+
+## Generated outputs
+
+Files under `outputs/` are not committed. See [outputs/README.md](outputs/README.md).
+
+To regenerate the optional startup baseline import bundle:
+
+```sh
+node scripts/run-original-baselines.js
+```
 
 ## macOS desktop (Noctua)
 
@@ -129,7 +139,7 @@ Start the **provider-diff** stack (Noctua UI + Go API + EvalScope + OpenCompass)
 docker compose up --build
 ```
 
-Open http://localhost:4173.
+Open http://localhost:4173/web/.
 
 If Docker Hub is slow or blocked, pin local base images:
 
@@ -159,7 +169,7 @@ docker build -t provider-diff .
 docker run --rm -p 4173:4173 -p 8080:8080 provider-diff
 ```
 
-Open http://localhost:4173. The UI expects the backend at http://localhost:8080 — publish both ports.
+Open http://localhost:4173/web/. The UI expects the backend at http://localhost:8080 — publish both ports.
 
 ## CI/CD
 
@@ -190,7 +200,7 @@ Ensure `assets/noctua/icon.png` exists in the repo (1024×1024 source for the ap
 
 ### Header logo does not appear
 
-Confirm `assets/noctua/icon.png` is present and that you open the UI via `http://127.0.0.1:4173/` (not a `file://` path without assets).
+Confirm `assets/noctua/icon.png` is present and that you open the UI via `http://127.0.0.1:4173/web/` (not a `file://` path without assets).
 
 ### Browser history or Feishu settings seem empty after upgrade
 

@@ -133,19 +133,20 @@ design-system/
 ├── design-system.md   ← this spec
 ├── tokens.css         ← design tokens (the single source of truth for values)
 ├── styles.css         ← component + app-shell styles (built on tokens)
-├── showcase.html      ← living styleguide / component gallery
-└── assets/
-    ├── noctua/        ← brand marks (owl)
-    └── logos/         ← provider logos
+└── showcase.html      ← living styleguide / component gallery
+
+assets/                ← brand marks and provider logos (shared with the app)
+├── noctua/
+└── logos/
 ```
 
-**Consume from app pages** (e.g. `index.html`, `reports.html` at the project root):
+**Consume from app pages** (e.g. `web/index.html`):
 
 ```html
-<link rel="stylesheet" href="design-system/tokens.css" />
-<link rel="stylesheet" href="design-system/styles.css" />
+<link rel="stylesheet" href="/design-system/tokens.css" />
+<link rel="stylesheet" href="/design-system/styles.css" />
 <!-- brand mark -->
-<img src="design-system/assets/noctua/icon-web.png" alt="Noctua" />
+<img src="/assets/noctua/icon-web.png" alt="Noctua" />
 ```
 
 **Update flow:** change a value in `tokens.css` first, then reflect the rationale here. Token
@@ -153,7 +154,7 @@ design-system/
 
 ### Application state utilities (`styles.css` §3)
 
-The production SPA (`index.html` + `main.js`) uses these documented state classes:
+The production SPA (`web/index.html` + `web/main.js`) uses these documented state classes:
 
 | Class | Purpose |
 | --- | --- |

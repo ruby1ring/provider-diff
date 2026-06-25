@@ -252,7 +252,7 @@ async function createWindow() {
       nodeIntegration: false
     }
   });
-  await win.loadFile(path.join(projectRoot(), "index.html"), {
+  await win.loadFile(path.join(projectRoot(), "web", "index.html"), {
     query: {
       apiBase: `http://127.0.0.1:${port}`,
       ...(services.evalscopeUrl ? { evalscopeUrl: services.evalscopeUrl } : {}),

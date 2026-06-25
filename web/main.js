@@ -3535,7 +3535,7 @@ function toastImportedRecords(records, importedCount) {
 
 async function autoImportOriginalBaselines() {
   try {
-    const response = await fetch("./outputs/original-baselines.import.json", { cache: "no-store" });
+    const response = await fetch("/outputs/original-baselines.import.json", { cache: "no-store" });
     if (!response.ok) return;
     const parsed = await response.json();
     const records = importedRecordsFromPayload(parsed, "original-baselines.import.json");

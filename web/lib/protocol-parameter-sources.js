@@ -369,9 +369,9 @@ window.NOCTUA_PROTOCOL_PARAMETER_SOURCES = (() => {
       chat_completions: {
         docStatus: "partial",
         docUrl: null,
-        localDoc: "a.yaml",
+        localDoc: "config/rules/silinex-gateway.yaml",
         parameters: SILINEX_CHAT_PARAMETERS,
-        notes: "SF Silinex CN 独立 API 逻辑（网关转换规则 a.yaml）；官方 Chat 文档待补充。"
+        notes: "SF Silinex CN 独立 API 逻辑（网关转换规则 config/rules/silinex-gateway.yaml）；官方 Chat 文档待补充。"
       },
       anthropic_messages: {
         docStatus: "missing",
@@ -394,9 +394,9 @@ window.NOCTUA_PROTOCOL_PARAMETER_SOURCES = (() => {
       chat_completions: {
         docStatus: "partial",
         docUrl: null,
-        localDoc: "a.yaml",
+        localDoc: "config/rules/silinex-gateway.yaml",
         parameters: SILINEX_CHAT_PARAMETERS,
-        notes: "SF Silinex COM 独立 API 逻辑（网关转换规则 a.yaml）；官方 Chat 文档待补充。"
+        notes: "SF Silinex COM 独立 API 逻辑（网关转换规则 config/rules/silinex-gateway.yaml）；官方 Chat 文档待补充。"
       },
       anthropic_messages: {
         docStatus: "missing",

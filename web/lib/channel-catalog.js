@@ -53,10 +53,10 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
   }
 
   const evalModelVendorDefs = [
-    { id: "deepseek", label: "DeepSeek", logo: "design-system/assets/logos/deepseek.ico" },
-    { id: "moonshot", label: "Moonshot", logo: "design-system/assets/logos/moonshot.ico" },
-    { id: "zhipu", label: "智谱", logo: "design-system/assets/logos/zhipu.svg" },
-    { id: "minimax", label: "MiniMax", logo: "design-system/assets/logos/minimax.ico" },
+    { id: "deepseek", label: "DeepSeek", logo: "/assets/logos/deepseek.ico" },
+    { id: "moonshot", label: "Moonshot", logo: "/assets/logos/moonshot.ico" },
+    { id: "zhipu", label: "智谱", logo: "/assets/logos/zhipu.svg" },
+    { id: "minimax", label: "MiniMax", logo: "/assets/logos/minimax.ico" },
     { id: "other", label: "其他", logo: "" }
   ];
 
@@ -205,7 +205,7 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
     {
       id: "deepseek",
       name: "DeepSeek 开放平台",
-      logo: "design-system/assets/logos/deepseek.ico",
+      logo: "/assets/logos/deepseek.ico",
       channel_id: "deepseek",
       platformProtocols: oemPlatformProtocols,
       models: modelRows(oemProtocols.deepseek)
@@ -213,7 +213,7 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
     {
       id: "moonshot",
       name: "Moonshot 开放平台",
-      logo: "design-system/assets/logos/moonshot.ico",
+      logo: "/assets/logos/moonshot.ico",
       channel_id: "moonshot",
       platformProtocols: oemPlatformProtocols,
       models: modelRows(oemProtocols.moonshot)
@@ -221,7 +221,7 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
     {
       id: "zhipu",
       name: "智谱开放平台",
-      logo: "design-system/assets/logos/zhipu.svg",
+      logo: "/assets/logos/zhipu.svg",
       channel_id: "zhipu",
       platformProtocols: oemPlatformProtocols,
       models: modelRows(oemProtocols.zhipu)
@@ -229,7 +229,7 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
     {
       id: "minimax",
       name: "MiniMax 开放平台",
-      logo: "design-system/assets/logos/minimax.ico",
+      logo: "/assets/logos/minimax.ico",
       channel_id: "minimax",
       platformProtocols: oemPlatformProtocols,
       models: modelRows(oemProtocols.minimax)
@@ -240,7 +240,7 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
     {
       id: "aliyun-cn",
       name: "阿里云百炼（中国-华北 2）",
-      logo: "design-system/assets/logos/aliyun.svg",
+      logo: "/assets/logos/aliyun.svg",
       focus: true,
       channel_id: "aliyun",
       platformProtocols: aliyunPlatformProtocols,
@@ -251,7 +251,7 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
     {
       id: "aliyun-us",
       name: "阿里云百炼（美国-弗吉尼亚）",
-      logo: "design-system/assets/logos/aliyun.svg",
+      logo: "/assets/logos/aliyun.svg",
       focus: true,
       channel_id: "aliyun",
       platformProtocols: aliyunPlatformProtocols,
@@ -262,7 +262,7 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
     {
       id: "siliconflow-cn",
       name: "SiliconFlow CN",
-      logo: "design-system/assets/logos/siliconflow-mark.svg",
+      logo: "/assets/logos/siliconflow-mark.svg",
       focus: true,
       channel_id: "siliconflow",
       platformProtocols: siliconflowCnPlatformProtocols,
@@ -271,7 +271,7 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
     {
       id: "siliconflow-com",
       name: "SiliconFlow COM",
-      logo: "design-system/assets/logos/siliconflow-mark.svg",
+      logo: "/assets/logos/siliconflow-mark.svg",
       focus: true,
       channel_id: "siliconflow",
       platformProtocols: siliconflowComPlatformProtocols,
@@ -280,7 +280,7 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
     {
       id: "streamlake-cn",
       name: "快手万擎（StreamLake）",
-      logo: "design-system/assets/logos/streamlake.png",
+      logo: "/assets/logos/streamlake.png",
       focus: true,
       channel_id: "streamlake",
       platformProtocols: streamlakePlatformProtocols,
@@ -294,7 +294,7 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
     {
       id: "openrouter",
       name: "OpenRouter",
-      logo: "design-system/assets/logos/openrouter.svg",
+      logo: "/assets/logos/openrouter.svg",
       focus: true,
       channel_id: "openrouter",
       platformProtocols: openrouterPlatformProtocols,
@@ -305,7 +305,7 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
     {
       id: "sf-router-cn",
       name: "SF Silinex CN",
-      logo: "design-system/assets/logos/siliconflow-mark.svg",
+      logo: "/assets/logos/siliconflow-mark.svg",
       focus: true,
       channel_id: "silinex_china",
       platformProtocols: siliconflowCnPlatformProtocols,
@@ -314,7 +314,7 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
     {
       id: "sf-router-com",
       name: "SF Silinex COM",
-      logo: "design-system/assets/logos/siliconflow-mark.svg",
+      logo: "/assets/logos/siliconflow-mark.svg",
       focus: true,
       channel_id: "silinex_overseas",
       platformProtocols: siliconflowComPlatformProtocols,
