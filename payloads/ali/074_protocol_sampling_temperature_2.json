@@ -1,0 +1,18 @@
+{
+  "case_id": "ali_protocol_sampling_temperature_2",
+  "title": "temperature=2（JSON integer）",
+  "category": "protocol",
+  "parameters": ["temperature"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [{"role": "user", "content": "用一句中文回复：采样测试。"}],
+    "temperature": 2
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "notes": "协议/采样：temperature=2（JSON integer）。对照官方文档类型与取值范围；若与文档不符请在 docs/api 对应渠道文档「实测：temperature」表记录。"
+  }
+}

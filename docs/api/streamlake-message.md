@@ -1,10 +1,24 @@
+---
+channel_id: streamlake
+protocol_id: anthropic_messages
+doc_status: verified
+doc_url: "https://www.streamlake.com/document/WANQING/mq6k6xfnbs4vn99zggq"
+last_verified: 2026-06-25
+compare: true
+required_parameters: [model, messages, max_tokens]
+parameter_groups:
+  Core: [model, messages, max_tokens, system]
+  Sampling: [stop_sequences]
+  Reasoning.Switch: [thinking]
+  Tools: [tools, tool_choice]
+  Protocol: [stream]
+  Metadata: [metadata, cache_control, service_tier]
+  Extra: [container, inference_geo, output_config]
+notes: 对照 docs/api/streamlake-message.md（2026-06-25）。 类型字段按该渠道官方 API 原文收录。
+---
+
 # StreamLake / 快手万擎 Anthropic Messages API Notes
 
-> **Last verified:** 2026-06-25 against official API documentation.
-> **Official source:** https://www.streamlake.com/document/WANQING/mq6k6xfnbs4vn99zggq
-> **Protocol ID:** `anthropic_messages`
-
-Structured summary for Noctua compatibility-test design.
 
 ## Endpoint
 

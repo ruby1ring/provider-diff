@@ -1,0 +1,19 @@
+{
+  "case_id": "am_protocol_sampling_temperature_1_0",
+  "title": "temperature=1.0（JSON float）",
+  "category": "protocol",
+  "parameters": ["temperature"],
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "max_tokens": 64,
+    "temperature": 1.0,
+    "messages": [{"role": "user", "content": "Say one short sentence for sampling test."}],
+    "thinking": {"type": "disabled"}
+  },
+  "expect": {
+    "http_status": 200,
+    "notes": "协议/采样：temperature=1.0（JSON float）。对照官方文档类型与取值范围；若与文档不符请在 docs/api 对应渠道文档「实测：temperature」表记录。"
+  }
+}

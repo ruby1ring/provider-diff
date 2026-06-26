@@ -116,6 +116,14 @@ var channelModelListSources = []channelModelListSource{
 		RequiresAuth: true,
 		PlatformIDs:  []string{"aliyun-us"},
 	},
+	{
+		Key:          "streamlake-cn",
+		ListURL:      "https://wanqing.streamlakeapi.com/api/gateway/v1/endpoints/models",
+		ConfigKeys:   []string{"streamlake-cn", "streamlake"},
+		AuthEnv:      "WQ_API_KEY",
+		RequiresAuth: true,
+		PlatformIDs:  []string{"streamlake-cn"},
+	},
 }
 
 type modelListCacheEntry struct {
@@ -245,8 +253,18 @@ func lookupModelsAcrossChannels(ctx context.Context, root, query string) (channe
 	}, nil
 }
 
+func sourceAuthEnvs(source channelModelListSource) []string {
+	if source.Key == "streamlake-cn" {
+		return []string{source.AuthEnv, "STREAMLAKE_API_KEY"}
+	}
+	if source.AuthEnv == "" {
+		return nil
+	}
+	return []string{source.AuthEnv}
+}
+
 func fetchChannelModelList(ctx context.Context, root string, source channelModelListSource) ([]modelCandidate, string, error) {
-	if source.RequiresAuth && resolveProviderAPIKey(root, source.ConfigKeys, source.AuthEnv) == "" {
+	if source.RequiresAuth && resolveProviderAPIKey(root, source.ConfigKeys, sourceAuthEnvs(source)...) == "" {
 		return nil, "skipped:no_api_key", nil
 	}
 
@@ -274,7 +292,7 @@ func downloadModelList(ctx context.Context, root string, source channelModelList
 	if err != nil {
 		return nil, err
 	}
-	if token := resolveProviderAPIKey(root, source.ConfigKeys, source.AuthEnv); token != "" {
+	if token := resolveProviderAPIKey(root, source.ConfigKeys, sourceAuthEnvs(source)...); token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 

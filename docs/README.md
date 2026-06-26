@@ -1,25 +1,23 @@
 # Noctua 文档索引
 
-`docs/` 按内容类型分为三个子目录，外加原始材料归档。
+`docs/` 按内容类型分为三个子目录。
 
 ## 目录结构
 
 | 目录 | 用途 |
 |------|------|
-| [`api/`](api/) | 各渠道 API 协议参数摘要与跨渠道参考 |
-| [`errorcode/`](errorcode/) | 各渠道错误码参考 |
+| [`api/`](api/) | 各渠道 API 协议参数摘要（**唯一人工维护层** → 自动生成 Web 矩阵） |
+| [`errorcode/`](errorcode/) | 各渠道错误码参考（**人工层** + registry → 自动生成 Web 目录） |
 | [`project/`](project/) | 项目内部方法论与运维文档 |
-| [`archive/`](archive/) | 原始导出与待归一化材料（飞书剪存、OpenAPI 全文等） |
 
 ## 命名约定
 
-- **API 协议**：`api/{provider}-{protocol}.md`
+- **API 协议**：`api/{provider}-{protocol}.md`（含 YAML frontmatter）
   - `chat` — Chat Completions
   - `message` — Anthropic Messages
   - `response` — Responses API
   - 部分渠道 Chat Completions 沿用 `{provider}.md`（如 `deepseek.md`）
 - **错误码**：`errorcode/{provider}.md`
-- **原始材料**：`archive/{provider}-{protocol}-raw.{md,openapi.md}`
 
 ---
 
@@ -46,13 +44,35 @@
 | [claude.md](api/claude.md) | Anthropic Claude 参数索引 |
 | [vllm.md](api/vllm.md) | vLLM 自托管 OpenAI-compat |
 | [thinking-dialects.md](api/thinking-dialects.md) | thinking/reasoning 参数方言汇总 |
-| [usage.md](api/usage.md) | `usage` 字段断言矩阵 |
-| [chat-completion-openapi-thinking-requirements.md](api/chat-completion-openapi-thinking-requirements.md) | 对外 OpenAPI thinking 适配需求 |
-| [openrouter.case.md](api/openrouter.case.md) | OpenRouter 官方 endpoint 测试导出（用例来源） |
+
+---
+
+## 测评协议 — Web 参数矩阵
+
+| 人工维护 | 自动生成 | Web 消费 |
+|----------|----------|----------|
+| `docs/api/*.md` + [protocol-md-template.md](project/protocol-md-template.md) | `web/data/protocol-matrix.json` | `#protocols` |
+
+```bash
+npm run build:protocol-matrix
+npm run dev   # md 有变更时启动前自动重建
+```
+
+维护规则：[protocol-parameter-mapping.md](project/protocol-parameter-mapping.md)
 
 ---
 
 ## errorcode/ — 错误码
+
+| 人工维护 | 自动生成 | Web 消费 |
+|----------|----------|----------|
+| `docs/errorcode/*.md` + `error-code-registry.json` | `web/data/error-code-catalog.json` | `#error-channels` / `#error-mapping` |
+
+```bash
+npm run build:error-code-catalog
+```
+
+维护规则：[error-code-mapping.md](project/error-code-mapping.md)
 
 | 渠道 | 文件 |
 |------|------|
@@ -62,6 +82,7 @@
 | Moonshot | [moonshot.md](errorcode/moonshot.md) |
 | OpenRouter | [openrouter.md](errorcode/openrouter.md) |
 | StreamLake | [streamlake.md](errorcode/streamlake.md) |
+| SiliconFlow | [siliconflow.md](errorcode/siliconflow.md) |
 | 智谱 Zhipu | [zhipu.md](errorcode/zhipu.md) |
 
 ---
@@ -70,12 +91,7 @@
 
 | 文件 | 说明 |
 |------|------|
+| [protocol-md-template.md](project/protocol-md-template.md) | 协议 md 整理模板 |
+| [protocol-parameter-mapping.md](project/protocol-parameter-mapping.md) | 测评协议参数矩阵维护 |
+| [error-code-mapping.md](project/error-code-mapping.md) | 渠道错误码映射维护 |
 | [capacity-probe-methodology.md](project/capacity-probe-methodology.md) | 容量探测方法论 |
-| [performance-benchmark-design.md](project/performance-benchmark-design.md) | 性能测试范围说明 |
-| [branch-protection.md](project/branch-protection.md) | `main` 分支保护配置 |
-
----
-
-## archive/ — 原始材料
-
-未经 Noctua 结构化整理的原始导出，供对照与归一化脚本参考。详见 [`archive/`](archive/) 目录。

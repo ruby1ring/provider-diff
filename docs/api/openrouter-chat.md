@@ -1,55 +1,69 @@
+---
+channel_id: openrouter
+protocol_id: chat_completions
+doc_status: verified
+doc_url: "https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request"
+last_verified: 2026-06-25
+compare: true
+required_parameters: [messages]
+parameter_groups:
+  Core: [model, messages]
+  Sampling: [temperature, top_p, top_k, frequency_penalty, presence_penalty, repetition_penalty, min_p, top_a, logit_bias, logprobs, top_logprobs]
+  Reasoning.Switch: [reasoning]
+  Reasoning.Intensity: [reasoning_effort]
+  Routing: [models, provider, plugins, session_id]
+  Tools: [parallel_tool_calls]
+notes: 对照 docs/api/openrouter-chat.md（2026-06-25）。矩阵仅收录文档摘要表参数；model 可选。 类型字段按该渠道官方 API 原文收录。
+---
+
 # OpenRouter Chat Completions API Notes
-
-> **Last verified:** 2026-06-25 against official API documentation.
-> **Official source:** https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request
-> **Protocol ID:** `chat_completions`
-
-Structured summary for Noctua compatibility-test design.
 
 
 ## Endpoint
 
 `POST https://openrouter.ai/api/v1/chat/completions`
 
-## Required Body Fields
+## Required Request Fields
 
-| Field | Support | Type | Notes |
-|---|---|---|---|
-| `messages` | required | `array<object>` | OpenAPI requires `messages` with at least one item. Older overview docs also mention `prompt`, but current chat OpenAPI requires `messages`. |
-| `model` | optional | `string` | If omitted, OpenRouter uses the user/payer default model. |
+| Parameter | Type | Notes |
+|---|---|---|
+| `messages` | `array<object>` | Required. OpenAPI requires at least one item |
+| `model` | `string` | Optional. Uses payer default model when omitted |
 
-## Sampling And Generation Parameters
+## Documented Request Parameters
 
-| Parameter | Support | Type / Range | Default / Notes |
-|---|---|---|---|
-| `temperature` | supported | float `0.0` to `2.0` | Default `1.0`. |
-| `top_p` | supported | float `0.0` to `1.0` | Default `1.0`. |
-| `top_k` | in ChatRequest OpenAPI | integer `>= 0` | Provider-dependent; parameters page notes unavailable for some OpenAI models. |
-| `frequency_penalty` | supported | float `-2.0` to `2.0` | Default `0.0`. |
-| `presence_penalty` | supported | float `-2.0` to `2.0` | Default `0.0`. |
-| `repetition_penalty` | in ChatRequest OpenAPI | float | Default `1.0` = no penalty; provider-dependent. |
-| `min_p` | in ChatRequest OpenAPI | float `0.0` to `1.0` | Provider-dependent. |
-| `top_a` | in ChatRequest OpenAPI | float `0.0` to `1.0` | Provider-dependent. |
-| `logit_bias` | supported | object token-id -> number | Values typically `-100` to `100`; provider/tokenizer-dependent. |
-| `logprobs` | supported | `boolean` | Returns output token log probabilities when supported. |
-| `top_logprobs` | supported | integer `0` to `20` | Requires `logprobs: true`. |
-| `prediction` | not in ChatRequest OpenAPI | object | Mentioned on overview/parameters pages only; omitted from protocol matrix until OpenAPI includes it. |
+| Parameter | Type | Required | Default | Range | Notes |
+|---|---|---|---|---|---|
+| `messages` | `array<object>` | yes | — | min 1 | OpenAPI requires at least one item |
+| `model` | `string` | no | — | — | Optional; payer default when omitted |
+| `temperature` | `double` | no | `1` | [0, 2] | |
+| `top_p` | `double` | no | `1` | [0, 1] | |
+| `top_k` | `integer` | no | — | ≥0 | Provider-dependent |
+| `frequency_penalty` | `double` | no | `0` | [-2, 2] | |
+| `presence_penalty` | `double` | no | `0` | [-2, 2] | |
+| `repetition_penalty` | `double` | no | `1` | — | Provider-dependent |
+| `min_p` | `double` | no | — | [0, 1] | Provider-dependent |
+| `top_a` | `double` | no | — | [0, 1] | Provider-dependent |
+| `logit_bias` | `object` | no | — | — | Token-id → number; provider-dependent |
+| `logprobs` | `boolean` | no | — | — | Output token log probabilities |
+| `top_logprobs` | `integer` | no | — | [0, 20] | Requires `logprobs=true` |
+| `reasoning` | `object` | no | — | — | `effort`, `summary` |
+| `reasoning_effort` | `string` | no | — | — | Shorthand for `reasoning.effort` |
+| `models` | `array<string>` | no | — | — | Fallback routing list |
+| `provider` | `object` | no | — | — | Routing preferences |
+| `plugins` | `array` | no | — | — | web_search, web_fetch, datetime |
+| `session_id` | `string` | no | — | max 256 | Sticky routing |
+| `parallel_tool_calls` | `boolean` | no | — | — | |
 
-## Additional OpenRouter Parameters
+## 实测：temperature 字面量
 
-| Parameter | Type | Default | Range | Notes |
+对应测评 case 分组「协议 / 采样」：`temperature` 分别传入 JSON integer `1`、`2` 与 float `1.0`、`2.0`。
+
+| 传入值 | JSON 类型 | 官方文档 | 实测 (Noctua) | 备注 |
 |---|---|---|---|---|
-| `models` | `array<string>` | — | — | Fallback routing list |
-| `provider` | `object` | — | — | Routing preferences |
-| `plugins` | `array` | — | — | web_search, web_fetch, datetime |
-| `reasoning` | `object` | — | — | `effort`, `summary` |
-| `reasoning_effort` | `string` | — | — | Shorthand for `reasoning.effort` |
-| `session_id` | `string` | — | max 256 | Sticky routing |
-| `parallel_tool_calls` | `boolean` | — | — | |
-| `repetition_penalty` | `float` | `1` | — | Provider-dependent |
-| `top_k` | `integer` | — | ≥0 | Provider-dependent |
-| `min_p` | `float` | — | — | Provider-dependent |
+| `1` | integer | 类型 `double`；范围 `[0, 2]` | 待实测 | |
+| `2` | integer | 类型 `double`；范围 `[0, 2]` | 待实测 | |
+| `1.0` | float | 类型 `double`；范围 `[0, 2]` | 待实测 | |
+| `2.0` | float | 类型 `double`；范围 `[0, 2]` | 待实测 | |
 
-## Raw OpenAPI Archive
-
-[`docs/archive/openrouter-chat-raw.openapi.md`](../archive/openrouter-chat-raw.openapi.md)
+> 实测与文档不一致时，在「实测」列记录 HTTP 状态、错误码或实际行为；勿改写「官方文档」列。

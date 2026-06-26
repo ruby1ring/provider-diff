@@ -1,10 +1,21 @@
+---
+channel_id: siliconflow
+protocol_id: anthropic_messages
+doc_status: verified
+doc_url: "https://docs.siliconflow.cn/cn/api-reference/chat-completions/messages"
+last_verified: 2026-06-16
+compare: true
+required_parameters: [model, messages, max_tokens]
+parameter_groups:
+  Core: [model, messages, messages[].role, messages[].content, max_tokens, system, system[].type, system[].text]
+  Sampling: [temperature, top_p, top_k, stop_sequences]
+  Tools: [tools, tools[].name, tools[].description, tools[].input_schema, tool_choice]
+  Protocol: [stream]
+notes: 对照 docs/api/siliconflow-message.md（2026-06-16）。 类型字段按该渠道官方 API 原文收录。
+---
+
 # SiliconFlow Anthropic Messages API Notes
 
-> **Last verified:** 2026-06-16 against official API documentation (browser + OpenAPI).
-> **Official source:** https://docs.siliconflow.cn/cn/api-reference/chat-completions/messages
-> **Protocol ID:** `anthropic_messages`
-
-Structured summary for Noctua compatibility-test design.
 
 ## Endpoint
 
@@ -72,4 +83,3 @@ Structured summary for Noctua compatibility-test design.
 
 ## Raw Archive
 
-[`docs/archive/siliconflow-message-raw.md`](../archive/siliconflow-message-raw.md)

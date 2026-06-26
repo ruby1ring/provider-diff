@@ -194,6 +194,10 @@ window.NOCTUA_MODEL_LOOKUP = (() => {
         apiModelId: "z-ai/glm-5.1",
         aliases: ["zhipu/glm-5.1", "glm-5.1"]
       },
+      "glm-5.2": {
+        apiModelId: "z-ai/glm-5.2",
+        aliases: ["zhipu/glm-5.2", "glm-5.2", "GLM-5.2"]
+      },
       "glm-5": {
         apiModelId: "z-ai/glm-5",
         aliases: ["zhipu/glm-5", "glm-5"]
@@ -889,6 +893,14 @@ window.NOCTUA_MODEL_LOOKUP = (() => {
     listModelRouteOptions,
     resolvePlatformEndpoint,
     resolveProviderId,
-    isRunnableProtocol
+    isRunnableProtocol,
+    resolveOpenRouterModelId(query, lookupResult) {
+      const canonical = lookupResult?.canonical || query;
+      const matches = lookupResult?.matches || [];
+      const openRouterMatch = matches.find((match) => String(match.platformId || "").startsWith("openrouter"));
+      if (openRouterMatch?.apiModelId) return openRouterMatch.apiModelId;
+      const entry = aliasOverlay.openrouter?.[normalizeModelName(canonical)];
+      return entry?.apiModelId || null;
+    }
   };
 })();

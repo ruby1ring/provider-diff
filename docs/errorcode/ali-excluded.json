@@ -1,0 +1,780 @@
+{
+  "generatedAt": "2026-06-25T10:51:36.523Z",
+  "count": 86,
+  "records": [
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "input must contain file_urls",
+      "messagePattern": "input must contain file_urls",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Invalid ext_bbox.",
+      "messagePattern": "Invalid ext_bbox.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Driven not exist: driven_id.",
+      "messagePattern": "Driven not exist: driven_id.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "parameters.video_ratio must be 9:16 or 3:4.",
+      "messagePattern": "parameters.video_ratio must be 9:16 or 3:4.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "num_images_per_prompt must be 1.",
+      "messagePattern": "num_images_per_prompt must be 1.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "ref_images_url and obj_or_bg must be the same length.",
+      "messagePattern": "ref_images_url and obj_or_bg must be the same length.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Field required: driven_id",
+      "messagePattern": "Field required: driven_id",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "At least one of 'lyrics' or 'prompt' must be provided.",
+      "messagePattern": "At least one of 'lyrics' or 'prompt' must be provided.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Lyrics content is illegal and cannot be used for music generation.",
+      "messagePattern": "Lyrics content is illegal and cannot be used for music generation.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.DownloadFailed",
+      "nativeCode": "InvalidFile.DownloadFailed",
+      "message": "The audio file cannot be downloaded.",
+      "messagePattern": "The audio file cannot be downloaded.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.DownloadFailed"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.AudioLengthError",
+      "nativeCode": "InvalidFile.AudioLengthError",
+      "message": "Audio length must be between 1s and 300s.",
+      "messagePattern": "Audio length must be between 1s and 300s.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.AudioLengthError"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.AudioLengthError",
+      "nativeCode": "InvalidFile.AudioLengthError",
+      "message": "Audio length must be between 1s and 180s.",
+      "messagePattern": "Audio length must be between 1s and 180s.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.AudioLengthError"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.NoHuman",
+      "nativeCode": "InvalidFile.NoHuman",
+      "message": "The input image has no human body. Please upload other image with single person.",
+      "messagePattern": "The input image has no human body. Please upload other image with single person.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.NoHuman"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.BodyProportion",
+      "nativeCode": "InvalidFile.BodyProportion",
+      "message": "The proportion of the detected person in the picture is too large or too small, please upload other image.",
+      "messagePattern": "The proportion of the detected person in the picture is too large or too small, please upload other image.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.BodyProportion"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.FacePose",
+      "nativeCode": "InvalidFile.FacePose",
+      "message": "The pose of the detected face is invalid, please upload other image with whole face and expected orientation.",
+      "messagePattern": "The pose of the detected face is invalid, please upload other image with whole face and expected orientation.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.FacePose"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.FacePose",
+      "nativeCode": "InvalidFile.FacePose",
+      "message": "The pose of the detected face is invalid, please upload other image with the expected oriention.",
+      "messagePattern": "The pose of the detected face is invalid, please upload other image with the expected oriention.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.FacePose"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.Resolution",
+      "nativeCode": "InvalidFile.Resolution",
+      "message": "The image resolution is invalid, please make sure that the largest length of image is smaller than 7000, and the smallest length of image is larger than 400.",
+      "messagePattern": "The image resolution is invalid, please make sure that the largest length of image is smaller than 7000, and the smallest length of image is larger than 400.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.Resolution"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.Resolution",
+      "nativeCode": "InvalidFile.Resolution",
+      "message": "The image resolution is invalid, please make sure that the aspect ratio is smaller than xxx, and largest length of image is smaller than yyy.",
+      "messagePattern": "The image resolution is invalid, please make sure that the aspect ratio is smaller than xxx, and largest length of image is smaller than yyy.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.Resolution"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.Resolution",
+      "nativeCode": "InvalidFile.Resolution",
+      "message": "Invalid video resolution. The height or width of video must be xxx ~ yyy.",
+      "messagePattern": "Invalid video resolution. The height or width of video must be xxx ~ yyy.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.Resolution"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.FPS",
+      "nativeCode": "InvalidFile.FPS",
+      "message": "Invalid video FPS. The video FPS must be 15 ~ 60.",
+      "messagePattern": "Invalid video FPS. The video FPS must be 15 ~ 60.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.FPS"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.Value",
+      "nativeCode": "InvalidFile.Value",
+      "message": "The value of the image is invalid, please upload other clearer image.",
+      "messagePattern": "The value of the image is invalid, please upload other clearer image.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.Value"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.FrontBody",
+      "nativeCode": "InvalidFile.FrontBody",
+      "message": "The pose of the detected person is invalid, please upload other image with the front view.",
+      "messagePattern": "The pose of the detected person is invalid, please upload other image with the front view.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.FrontBody"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.FullFace",
+      "nativeCode": "InvalidFile.FullFace",
+      "message": "The pose of the detected face is invalid, please upload other image with whole face.",
+      "messagePattern": "The pose of the detected face is invalid, please upload other image with whole face.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.FullFace"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.FaceNotMatch",
+      "nativeCode": "InvalidFile.FaceNotMatch",
+      "message": "There are no matched face in the video with the provided reference image.",
+      "messagePattern": "There are no matched face in the video with the provided reference image.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.FaceNotMatch"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.Content",
+      "nativeCode": "InvalidFile.Content",
+      "message": "The first frame of input video has no human body. Please choose another clip.",
+      "messagePattern": "The first frame of input video has no human body. Please choose another clip.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.Content"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.Content",
+      "nativeCode": "InvalidFile.Content",
+      "message": "The human is too small in the first frame of input video. Please choose another clip.",
+      "messagePattern": "The human is too small in the first frame of input video. Please choose another clip.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.Content"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.Content",
+      "nativeCode": "InvalidFile.Content",
+      "message": "The human is not clear in the first frame of input video. Please choose another clip.",
+      "messagePattern": "The human is not clear in the first frame of input video. Please choose another clip.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.Content"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.Content",
+      "nativeCode": "InvalidFile.Content",
+      "message": "The input image has no human body or multi human bodies. Please upload other image with single person.",
+      "messagePattern": "The input image has no human body or multi human bodies. Please upload other image with single person.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.Content"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.Content",
+      "nativeCode": "InvalidFile.Content",
+      "message": "The input image has no human body or has unclear human body. Please upload other image.",
+      "messagePattern": "The input image has no human body or has unclear human body. Please upload other image.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.Content"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.Content",
+      "nativeCode": "InvalidFile.Content",
+      "message": "The input image has multi human bodies. Please upload other image with single person.",
+      "messagePattern": "The input image has multi human bodies. Please upload other image with single person.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.Content"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.FullBody",
+      "nativeCode": "InvalidFile.FullBody",
+      "message": "The human is not fullbody in the first frame of input video. Please choose another clip.",
+      "messagePattern": "The human is not fullbody in the first frame of input video. Please choose another clip.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.FullBody"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.FullBody",
+      "nativeCode": "InvalidFile.FullBody",
+      "message": "The pose of the detected person is invalid, please upload other image with whole body, or change the ratio parameter to 1:1。",
+      "messagePattern": "The pose of the detected person is invalid, please upload other image with whole body, or change the ratio parameter to 1:1。",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.FullBody"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.BodyPose",
+      "nativeCode": "InvalidFile.BodyPose",
+      "message": "The pose of the detected person is invalid, please upload other image with whole body and expected orientation.",
+      "messagePattern": "The pose of the detected person is invalid, please upload other image with whole body and expected orientation.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.BodyPose"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.Size",
+      "nativeCode": "InvalidFile.Size",
+      "message": "Invalid file size. The video file size must be less than 200MB, and the audio file size must be less than 15MB.",
+      "messagePattern": "Invalid file size. The video file size must be less than 200MB, and the audio file size must be less than 15MB.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.Size"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.Size",
+      "nativeCode": "InvalidFile.Size",
+      "message": "Invalid file size, The image file size must be smaller than 5MB.",
+      "messagePattern": "Invalid file size, The image file size must be smaller than 5MB.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.Size"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.Size",
+      "nativeCode": "InvalidFile.Size",
+      "message": "Invalid file size. The video/audio/image file size must be less than xxxMB.",
+      "messagePattern": "Invalid file size. The video/audio/image file size must be less than xxxMB.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.Size"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.Duration",
+      "nativeCode": "InvalidFile.Duration",
+      "message": "Invalid file duration. The file duration must be xxx s ~ yyy s.",
+      "messagePattern": "Invalid file duration. The file duration must be xxx s ~ yyy s.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.Duration"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.ImageSize",
+      "nativeCode": "InvalidFile.ImageSize",
+      "message": "The size of image is beyond limit.",
+      "messagePattern": "The size of image is beyond limit.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.ImageSize"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.AspectRatio",
+      "nativeCode": "InvalidFile.AspectRatio",
+      "message": "Invalid file ratio. The file aspect ratio (height/width) must be between 3:1 and 1:3.",
+      "messagePattern": "Invalid file ratio. The file aspect ratio (height/width) must be between 3:1 and 1:3.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.AspectRatio"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.AspectRatio",
+      "nativeCode": "InvalidFile.AspectRatio",
+      "message": "Invalid file ratio. The file aspect ratio (height/width) must be between 2.0 and 0.5.",
+      "messagePattern": "Invalid file ratio. The file aspect ratio (height/width) must be between 2.0 and 0.5.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.AspectRatio"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.Openerror",
+      "nativeCode": "InvalidFile.Openerror",
+      "message": "Invalid file, cannot open file as video/audio/image.",
+      "messagePattern": "Invalid file, cannot open file as video/audio/image.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.Openerror"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.Template.Content",
+      "nativeCode": "InvalidFile.Template.Content",
+      "message": "Invalid template content.",
+      "messagePattern": "Invalid template content.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.Template.Content"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.Format",
+      "nativeCode": "InvalidFile.Format",
+      "message": "Invalid file format，the request file format is one of the following types: MP4, AVI, MOV, MP3, WAV, AAC, JPEG, JPG, PNG, BMP, and WEBP.",
+      "messagePattern": "Invalid file format，the request file format is one of the following types: MP4, AVI, MOV, MP3, WAV, AAC, JPEG, JPG, PNG, BMP, and WEBP.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.Format"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidFile.MultiHuman",
+      "nativeCode": "InvalidFile.MultiHuman",
+      "message": "The input image has multi human bodies. Please upload other image with single person.",
+      "messagePattern": "The input image has multi human bodies. Please upload other image with single person.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidFile.MultiHuman"
+    },
+    {
+      "http": 400,
+      "nativeType": "FlowNotPublished",
+      "nativeCode": "FlowNotPublished",
+      "message": "Flow has not published yet, please publish flow and try again.",
+      "messagePattern": "Flow has not published yet, please publish flow and try again.",
+      "category": "excluded",
+      "sectionTitle": "400-FlowNotPublished"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidImage.ImageSize",
+      "nativeCode": "InvalidImage.ImageSize",
+      "message": "The size of image is beyond limit.",
+      "messagePattern": "The size of image is beyond limit.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidImage.ImageSize"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidImage.NoHumanFace",
+      "nativeCode": "InvalidImage.NoHumanFace",
+      "message": "No human face detected.",
+      "messagePattern": "No human face detected.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidImage.NoHumanFace"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidImageResolution",
+      "nativeCode": "InvalidImageResolution",
+      "message": "The input image resolution is too large or small.",
+      "messagePattern": "The input image resolution is too large or small.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidImageResolution"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidImageFormat",
+      "nativeCode": "InvalidImageFormat",
+      "message": "The input image is in invalid format.",
+      "messagePattern": "The input image is in invalid format.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidImageFormat"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidImage.FileFormat",
+      "nativeCode": "InvalidImage.FileFormat",
+      "message": "Invalid image type. Please ensure the uploaded file is a valid image.",
+      "messagePattern": "Invalid image type. Please ensure the uploaded file is a valid image.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidImage.FileFormat"
+    },
+    {
+      "http": 400,
+      "nativeType": "BadRequest.UnsupportedFileFormat",
+      "nativeCode": "BadRequest.UnsupportedFileFormat",
+      "message": "File format unsupported.",
+      "messagePattern": "File format unsupported.",
+      "category": "excluded",
+      "sectionTitle": "400-BadRequest.UnsupportedFileFormat"
+    },
+    {
+      "http": 400,
+      "nativeType": "BadRequest.UnsupportedFileFormat",
+      "nativeCode": "BadRequest.UnsupportedFileFormat",
+      "message": "Input file format is not supported.",
+      "messagePattern": "Input file format is not supported.",
+      "category": "excluded",
+      "sectionTitle": "400-BadRequest.UnsupportedFileFormat"
+    },
+    {
+      "http": 400,
+      "nativeType": "Throttling.AllocationQuota",
+      "nativeCode": "Throttling.AllocationQuota",
+      "message": "Maximum voice storage limit exceeded, please delete existing voices.",
+      "messagePattern": "Maximum voice storage limit exceeded, please delete existing voices.",
+      "category": "excluded",
+      "sectionTitle": "400-Throttling.AllocationQuota"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidGarment",
+      "nativeCode": "InvalidGarment",
+      "message": "Missing clothing image.Please input at least one top garment or bottom garment image.",
+      "messagePattern": "Missing clothing image.Please input at least one top garment or bottom garment image.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidGarment"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidSchema",
+      "nativeCode": "InvalidSchema",
+      "message": "Database schema is invalid for text2sql.",
+      "messagePattern": "Database schema is invalid for text2sql.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidSchema"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidSchemaFormat",
+      "nativeCode": "InvalidSchemaFormat",
+      "message": "Database schema format is invalid for text2sql.",
+      "messagePattern": "Database schema format is invalid for text2sql.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidSchemaFormat"
+    },
+    {
+      "http": 400,
+      "nativeType": "Audio.AudioShortError",
+      "nativeCode": "Audio.AudioShortError",
+      "message": "valid audio too short!",
+      "messagePattern": "valid audio too short!",
+      "category": "excluded",
+      "sectionTitle": "400-Audio.AudioShortError"
+    },
+    {
+      "http": 400,
+      "nativeType": "Audio.AudioSilentError",
+      "nativeCode": "Audio.AudioSilentError",
+      "message": "silent audio error.",
+      "messagePattern": "silent audio error.",
+      "category": "excluded",
+      "sectionTitle": "400-Audio.AudioSilentError"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidInputLength",
+      "nativeCode": "InvalidInputLength",
+      "message": "The image resolution is invalid, please make sure that the largest length of image is smaller than 4096, and the smallest length of image is larger than 150. and the size of image ranges from 5KB to 5MB.",
+      "messagePattern": "The image resolution is invalid, please make sure that the largest length of image is smaller than 4096, and the smallest length of image is larger than 150. and the size of image ranges from 5KB to 5MB.",
+      "category": "excluded",
+      "sectionTitle": "400-InvalidInputLength"
+    },
+    {
+      "http": 400,
+      "nativeType": "FaqRuleBlocked",
+      "nativeCode": "FaqRuleBlocked",
+      "message": "Input or output data is blocked by faq rule.",
+      "messagePattern": "Input or output data is blocked by faq rule.",
+      "category": "excluded",
+      "sectionTitle": "400-FaqRuleBlocked"
+    },
+    {
+      "http": 400,
+      "nativeType": "ClientDisconnect",
+      "nativeCode": "ClientDisconnect",
+      "message": "Client disconnected before task finished!",
+      "messagePattern": "Client disconnected before task finished!",
+      "category": "excluded",
+      "sectionTitle": "400-ClientDisconnect"
+    },
+    {
+      "http": 400,
+      "nativeType": "IPInfringementSuspect",
+      "nativeCode": "IPInfringementSuspect",
+      "message": "Input data is suspected of being involved in IP infringement.",
+      "messagePattern": "Input data is suspected of being involved in IP infringement.",
+      "category": "excluded",
+      "sectionTitle": "400-IPInfringementSuspect"
+    },
+    {
+      "http": 400,
+      "nativeType": "UnsupportedOperation",
+      "nativeCode": "UnsupportedOperation",
+      "message": "The operation is unsupported on the referee object.",
+      "messagePattern": "The operation is unsupported on the referee object.",
+      "category": "excluded",
+      "sectionTitle": "400-UnsupportedOperation"
+    },
+    {
+      "http": 400,
+      "nativeType": "UnsupportedOperation",
+      "nativeCode": "UnsupportedOperation",
+      "message": "The fine-tune job can not be deleted because it is succeeded,failed or canceled.",
+      "messagePattern": "The fine-tune job can not be deleted because it is succeeded,failed or canceled.",
+      "category": "excluded",
+      "sectionTitle": "400-UnsupportedOperation"
+    },
+    {
+      "http": 400,
+      "nativeType": "CustomRoleBlocked",
+      "nativeCode": "CustomRoleBlocked",
+      "message": "Input or output data may contain inappropriate content with custom rule.",
+      "messagePattern": "Input or output data may contain inappropriate content with custom rule.",
+      "category": "excluded",
+      "sectionTitle": "400-CustomRoleBlocked"
+    },
+    {
+      "http": 400,
+      "nativeType": "Audio.PreprocessError",
+      "nativeCode": "Audio.PreprocessError",
+      "message": "Audio preprocess error.",
+      "messagePattern": "Audio preprocess error.",
+      "category": "excluded",
+      "sectionTitle": "400-Audio.PreprocessError"
+    },
+    {
+      "http": 400,
+      "nativeType": "Audio.PreprocessError",
+      "nativeCode": "Audio.PreprocessError",
+      "message": "No segments meet minimum duration requirement",
+      "messagePattern": "No segments meet minimum duration requirement",
+      "category": "excluded",
+      "sectionTitle": "400-Audio.PreprocessError"
+    },
+    {
+      "http": 400,
+      "nativeType": "BadRequest.VoiceNotFound",
+      "nativeCode": "BadRequest.VoiceNotFound",
+      "message": "Voice '%s' not found.",
+      "messagePattern": "Voice '%s' not found.",
+      "category": "excluded",
+      "sectionTitle": "400-BadRequest.VoiceNotFound"
+    },
+    {
+      "http": 400,
+      "nativeType": "Audio.DecoderError",
+      "nativeCode": "Audio.DecoderError",
+      "message": "Decoder audio file failed.",
+      "messagePattern": "Decoder audio file failed.",
+      "category": "excluded",
+      "sectionTitle": "400-Audio.DecoderError"
+    },
+    {
+      "http": 400,
+      "nativeType": "Audio.AudioRateError",
+      "nativeCode": "Audio.AudioRateError",
+      "message": "File sample rate unsupported.",
+      "messagePattern": "File sample rate unsupported.",
+      "category": "excluded",
+      "sectionTitle": "400-Audio.AudioRateError"
+    },
+    {
+      "http": 400,
+      "nativeType": "Audio.DurationLimitError",
+      "nativeCode": "Audio.DurationLimitError",
+      "message": "Audio duration exceeds maximum allowed limit.",
+      "messagePattern": "Audio duration exceeds maximum allowed limit.",
+      "category": "excluded",
+      "sectionTitle": "400-Audio.DurationLimitError"
+    },
+    {
+      "http": 409,
+      "nativeType": "Conflict",
+      "nativeCode": "Conflict",
+      "message": "Model instance xxx already exists, please specify a suffix.",
+      "messagePattern": "Model instance xxx already exists, please specify a suffix.",
+      "category": "excluded",
+      "sectionTitle": "409-Conflict"
+    },
+    {
+      "http": 429,
+      "nativeType": "CommodityNotPurchased",
+      "nativeCode": "CommodityNotPurchased",
+      "message": "Commodity has not purchased yet.",
+      "messagePattern": "Commodity has not purchased yet.",
+      "category": "excluded",
+      "sectionTitle": "429-CommodityNotPurchased"
+    },
+    {
+      "http": 429,
+      "nativeType": "PrepaidBillOverdue",
+      "nativeCode": "PrepaidBillOverdue",
+      "message": "The prepaid bill is overdue.",
+      "messagePattern": "The prepaid bill is overdue.",
+      "category": "excluded",
+      "sectionTitle": "429-PrepaidBillOverdue"
+    },
+    {
+      "http": 429,
+      "nativeType": "PostpaidBillOverdue",
+      "nativeCode": "PostpaidBillOverdue",
+      "message": "The postpaid bill is overdue.",
+      "messagePattern": "The postpaid bill is overdue.",
+      "category": "excluded",
+      "sectionTitle": "429-PostpaidBillOverdue"
+    },
+    {
+      "http": 430,
+      "nativeType": "Audio.FileSizeExceed",
+      "nativeCode": "Audio.FileSizeExceed",
+      "message": "File too large",
+      "messagePattern": "File too large",
+      "category": "excluded",
+      "sectionTitle": "430-Audio.FileSizeExceed"
+    },
+    {
+      "http": 430,
+      "nativeType": "Audio.AudioRateError",
+      "nativeCode": "Audio.AudioRateError",
+      "message": "File sample rate unsupported",
+      "messagePattern": "File sample rate unsupported",
+      "category": "excluded",
+      "sectionTitle": "430-Audio.AudioRateError"
+    },
+    {
+      "http": 430,
+      "nativeType": "Audio.AudioSilentError",
+      "nativeCode": "Audio.AudioSilentError",
+      "message": "Silent file unsupported.",
+      "messagePattern": "Silent file unsupported.",
+      "category": "excluded",
+      "sectionTitle": "430-Audio.AudioSilentError"
+    },
+    {
+      "http": 500,
+      "nativeType": "InternalError.FileUpload",
+      "nativeCode": "InternalError.FileUpload",
+      "message": "oss upload error.",
+      "messagePattern": "oss upload error.",
+      "category": "excluded",
+      "sectionTitle": "500-InternalError.FileUpload"
+    },
+    {
+      "http": 500,
+      "nativeType": "InternalError.Upload",
+      "nativeCode": "InternalError.Upload",
+      "message": "Failed to upload result.",
+      "messagePattern": "Failed to upload result.",
+      "category": "excluded",
+      "sectionTitle": "500-InternalError.Upload"
+    },
+    {
+      "http": 500,
+      "nativeType": "ModelServiceFailed",
+      "nativeCode": "ModelServiceFailed",
+      "message": "Failed to request model service.",
+      "messagePattern": "Failed to request model service.",
+      "category": "excluded",
+      "sectionTitle": "500-ModelServiceFailed"
+    },
+    {
+      "http": 500,
+      "nativeType": "ResponseTimeout",
+      "nativeCode": "ResponseTimeout",
+      "message": "Response stream timeout",
+      "messagePattern": "Response stream timeout",
+      "category": "excluded",
+      "sectionTitle": "500-ResponseTimeout"
+    },
+    {
+      "http": 500,
+      "nativeType": "InvokePluginFailed",
+      "nativeCode": "InvokePluginFailed",
+      "message": "Failed to invoke plugin.",
+      "messagePattern": "Failed to invoke plugin.",
+      "category": "excluded",
+      "sectionTitle": "500-InvokePluginFailed"
+    },
+    {
+      "http": 500,
+      "nativeType": "AppProcessFailed",
+      "nativeCode": "AppProcessFailed",
+      "message": "Failed to proceed application request.",
+      "messagePattern": "Failed to proceed application request.",
+      "category": "excluded",
+      "sectionTitle": "500-AppProcessFailed"
+    },
+    {
+      "http": 500,
+      "nativeType": "RewriteFailed",
+      "nativeCode": "RewriteFailed",
+      "message": "Failed to rewrite content for prompt.",
+      "messagePattern": "Failed to rewrite content for prompt.",
+      "category": "excluded",
+      "sectionTitle": "500-RewriteFailed"
+    },
+    {
+      "http": 500,
+      "nativeType": "RetrivalFailed",
+      "nativeCode": "RetrivalFailed",
+      "message": "Failed to retrieve data from documents.",
+      "messagePattern": "Failed to retrieve data from documents.",
+      "category": "excluded",
+      "sectionTitle": "500-RetrivalFailed"
+    }
+  ]
+}

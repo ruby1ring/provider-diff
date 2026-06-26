@@ -1,10 +1,23 @@
+---
+channel_id: minimax
+protocol_id: anthropic_messages
+doc_status: verified
+doc_url: "https://platform.minimax.io/docs/api-reference/text-chat-openai"
+last_verified: 2026-06-25
+compare: true
+required_parameters: [model, messages, max_tokens]
+parameter_groups:
+  Core: [model, messages, max_tokens, system]
+  Sampling: [temperature, top_p]
+  Reasoning.Switch: [thinking, thinking.type]
+  Tools: [tools, tool_choice]
+  Protocol: [stream]
+  Extra: [service_tier, metadata]
+notes: 对照 docs/api/minimax-message.md（2026-06-25）。 类型字段按该渠道官方 API 原文收录。
+---
+
 # MiniMax Anthropic Messages API Notes
 
-> **Last verified:** 2026-06-25 against official API documentation.
-> **Official source:** https://platform.minimax.io/docs/api-reference/text-chat-openai
-> **Protocol ID:** `anthropic_messages`
-
-Structured summary for Noctua compatibility-test design.
 
 ## Endpoint
 
@@ -43,4 +56,3 @@ Structured summary for Noctua compatibility-test design.
 
 ## Raw Archive
 
-[`docs/archive/minimax-message-raw.md`](../archive/minimax-message-raw.md)

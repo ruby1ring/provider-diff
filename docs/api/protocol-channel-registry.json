@@ -1,0 +1,160 @@
+{
+  "evalChannels": [
+    "deepseek",
+    "moonshot",
+    "zhipu",
+    "aliyun",
+    "openrouter",
+    "minimax",
+    "siliconflow",
+    "streamlake"
+  ],
+  "protocolDefaultRequired": {
+    "chat_completions": ["model", "messages"],
+    "anthropic_messages": ["model", "messages", "max_tokens"],
+    "responses_api": ["model", "input"]
+  },
+  "protocolRequiredOverrides": {
+    "openrouter::chat_completions": ["messages"]
+  },
+  "docStatus": {
+    "verified": { "label": "已对照文档", "className": "protocol-doc-badge--verified" },
+    "partial": { "label": "文档不完整", "className": "protocol-doc-badge--partial" },
+    "inherited": { "label": "继承参考", "className": "protocol-doc-badge--inherited" },
+    "missing": { "label": "待补充 API 文档", "className": "protocol-doc-badge--missing" },
+    "internal": { "label": "内部探针", "className": "protocol-doc-badge--internal" }
+  },
+  "openAiBaseline": {
+    "chat_completions": {
+      "temperature": { "type": "number", "range": { "min": 0, "max": 2, "minInclusive": true, "maxInclusive": true } },
+      "top_p": { "type": "number" },
+      "n": { "type": "integer" },
+      "seed": { "type": "integer" },
+      "stop": { "type": "string", "notes": "string 或 array<string>，最多 4 个" },
+      "frequency_penalty": { "type": "number", "range": { "min": -2, "max": 2, "minInclusive": true, "maxInclusive": true } },
+      "presence_penalty": { "type": "number", "range": { "min": -2, "max": 2, "minInclusive": true, "maxInclusive": true } },
+      "max_tokens": { "type": "integer" },
+      "max_completion_tokens": { "type": "integer" },
+      "stream": { "type": "boolean", "default": false },
+      "tools": { "type": "array" },
+      "tool_choice": { "type": "string" },
+      "parallel_tool_calls": { "type": "boolean" }
+    },
+    "anthropic_messages": {
+      "model": { "type": "string" },
+      "messages": { "type": "array" },
+      "max_tokens": { "type": "integer" },
+      "system": { "type": "string" },
+      "temperature": { "type": "number", "range": { "min": 0, "max": 1, "minInclusive": true, "maxInclusive": true } },
+      "top_p": { "type": "number", "range": { "min": 0, "max": 1, "minInclusive": false, "maxInclusive": true } },
+      "stop_sequences": { "type": "array" },
+      "stream": { "type": "boolean", "default": false }
+    },
+    "responses_api": {
+      "model": { "type": "string" },
+      "input": { "type": "string" },
+      "temperature": { "type": "number", "range": { "min": 0, "max": 2, "minInclusive": true, "maxInclusive": true } },
+      "top_p": { "type": "number" },
+      "max_output_tokens": { "type": "integer" },
+      "stream": { "type": "boolean", "default": false }
+    }
+  },
+  "staticEntries": {
+    "moonshot": {
+      "anthropic_messages": {
+        "docStatus": "missing",
+        "docUrl": null,
+        "localDoc": null,
+        "compare": false,
+        "parameters": {},
+        "notes": "Moonshot 不提供 Anthropic Messages 兼容端点，不纳入协议对比。"
+      }
+    },
+    "zhipu": {
+      "anthropic_messages": {
+        "docStatus": "partial",
+        "docUrl": "https://open.bigmodel.cn/dev/api#glm-4",
+        "localDoc": null,
+        "compare": true,
+        "requiredParameters": ["model", "messages", "max_tokens"],
+        "parameterGroups": {
+          "Core": ["model", "messages", "max_tokens", "system"],
+          "Sampling": ["temperature", "top_p", "stop_sequences"],
+          "Tools": ["tools", "tool_choice"],
+          "Protocol": ["stream"]
+        },
+        "notes": "智谱已接入 Anthropic Messages 兼容端点；请求参数待对照官方文档补充。"
+      }
+    },
+    "silinex_china": {
+      "chat_completions": {
+        "docStatus": "partial",
+        "docUrl": null,
+        "localDoc": "config/rules/silinex-gateway.yaml",
+        "compare": false,
+        "requiredParameters": ["model", "messages"],
+        "parameterGroups": {
+          "Core": ["model", "messages"],
+          "Sampling": ["temperature", "top_p", "frequency_penalty", "presence_penalty", "logit_bias", "seed", "n", "stop"],
+          "Length": ["max_tokens", "max_completion_tokens"],
+          "Reasoning.Switch": ["enable_thinking"],
+          "Reasoning.Intensity": ["thinking_budget", "reasoning_effort"],
+          "Output": ["response_format", "modalities", "prediction"],
+          "Tools": ["tools", "tool_choice"],
+          "Protocol": ["stream", "stream_options"],
+          "Debug": ["logprobs", "top_logprobs"],
+          "Metadata": ["user", "metadata", "store", "service_tier"],
+          "Extra": ["audio"]
+        },
+        "notes": "SF Silinex CN 独立 API 逻辑（网关转换规则 config/rules/silinex-gateway.yaml）；官方 Chat 文档待补充。"
+      },
+      "anthropic_messages": {
+        "docStatus": "missing",
+        "compare": false,
+        "parameters": {},
+        "notes": "Anthropic Messages 官方文档待提供，暂不纳入协议对比。"
+      },
+      "responses_api": {
+        "docStatus": "missing",
+        "compare": false,
+        "parameters": {},
+        "notes": "Responses 官方文档待提供，暂不纳入协议对比。"
+      }
+    },
+    "silinex_overseas": {
+      "chat_completions": {
+        "docStatus": "partial",
+        "docUrl": null,
+        "localDoc": "config/rules/silinex-gateway.yaml",
+        "compare": false,
+        "requiredParameters": ["model", "messages"],
+        "parameterGroups": {
+          "Core": ["model", "messages"],
+          "Sampling": ["temperature", "top_p", "frequency_penalty", "presence_penalty", "logit_bias", "seed", "n", "stop"],
+          "Length": ["max_tokens", "max_completion_tokens"],
+          "Reasoning.Switch": ["enable_thinking"],
+          "Reasoning.Intensity": ["thinking_budget", "reasoning_effort"],
+          "Output": ["response_format", "modalities", "prediction"],
+          "Tools": ["tools", "tool_choice"],
+          "Protocol": ["stream", "stream_options"],
+          "Debug": ["logprobs", "top_logprobs"],
+          "Metadata": ["user", "metadata", "store", "service_tier"],
+          "Extra": ["audio"]
+        },
+        "notes": "SF Silinex COM 独立 API 逻辑（网关转换规则 config/rules/silinex-gateway.yaml）；官方 Chat 文档待补充。"
+      },
+      "anthropic_messages": {
+        "docStatus": "missing",
+        "compare": false,
+        "parameters": {},
+        "notes": "Anthropic Messages 官方文档待提供，暂不纳入协议对比。"
+      },
+      "responses_api": {
+        "docStatus": "missing",
+        "compare": false,
+        "parameters": {},
+        "notes": "Responses 官方文档待提供，暂不纳入协议对比。"
+      }
+    }
+  }
+}

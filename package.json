@@ -5,6 +5,9 @@
   "main": "desktop/main.js",
   "scripts": {
     "dev": "node scripts/dev.js",
+    "rebuild:docs": "node scripts/rebuild-docs.mjs --force",
+    "build:protocol-matrix": "node scripts/inject-protocol-frontmatter.mjs && node scripts/build-protocol-matrix.mjs && node scripts/audit-protocol-types.mjs",
+    "build:error-code-catalog": "node scripts/build-error-code-catalog.mjs",
     "desktop:dev": "node scripts/build-dmg.js --skip-package && electron .",
     "build:evalscope-service": "node scripts/build-evalscope-service.js",
     "dist:dmg": "node scripts/build-dmg.js"
@@ -21,6 +24,7 @@
       "web/index.html",
       "web/main.js",
       "web/lib/**",
+      "web/data/**",
       "package.json",
       "assets/**",
       "design-system/**",

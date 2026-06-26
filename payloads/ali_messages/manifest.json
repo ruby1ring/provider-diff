@@ -36,6 +36,10 @@
     "040_tools_auto.json",
     "050_stream_basic.json",
     "051_stream_false.json",
+    "052_protocol_sampling_temperature_1.json",
+    "053_protocol_sampling_temperature_2.json",
+    "054_protocol_sampling_temperature_1_0.json",
+    "055_protocol_sampling_temperature_2_0.json",
     "060_thinking_budget.json"
   ]
 }

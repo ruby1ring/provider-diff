@@ -1,10 +1,24 @@
+---
+channel_id: openrouter
+protocol_id: anthropic_messages
+doc_status: verified
+doc_url: "https://openrouter.ai/docs/api/api-reference/anthropic-messages/create-messages"
+last_verified: 2026-06-25
+compare: true
+required_parameters: [model, messages, max_tokens]
+parameter_groups:
+  Core: [model, messages, max_tokens, system]
+  Sampling: [temperature, top_p, top_k, stop_sequences]
+  Reasoning.Switch: [thinking]
+  Tools: [tools, tool_choice]
+  Protocol: [stream]
+  Routing: [models, fallbacks, provider, session_id, route, trace, stop_server_tools_when]
+  Extra: [output_config, metadata, user, cache_control, plugins, service_tier, context_management, speed]
+notes: 对照 docs/api/openrouter-message.md（2026-06-25）。 类型字段按该渠道官方 API 原文收录。
+---
+
 # OpenRouter Anthropic Messages API Notes
 
-> **Last verified:** 2026-06-25 against official API documentation.
-> **Official source:** https://openrouter.ai/docs/api/api-reference/anthropic-messages/create-messages
-> **Protocol ID:** `anthropic_messages`
-
-Structured summary for Noctua compatibility-test design.
 
 ## Endpoint
 
@@ -62,4 +76,3 @@ Optional header `X-OpenRouter-Metadata: enabled` — 在响应中返回 `openrou
 
 ## Raw OpenAPI Archive
 
-[`docs/archive/openrouter-message-raw.openapi.md`](../archive/openrouter-message-raw.openapi.md)

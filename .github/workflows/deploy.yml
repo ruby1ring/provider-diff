@@ -49,6 +49,14 @@ jobs:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.mod
 
+      - name: Rebuild generated docs
+        run: node scripts/rebuild-docs.mjs --force
+
+      - name: Verify generated docs committed
+        run: |
+          git diff --exit-code web/data/protocol-matrix.json web/data/error-code-catalog.json || \
+            (echo "Generated docs are stale. Run: npm run rebuild:docs" && exit 1)
+
       - name: Test backend
         working-directory: backend
         run: go test ./...

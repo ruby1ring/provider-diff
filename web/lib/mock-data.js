@@ -314,13 +314,16 @@ window.LLM_ROSETTA_DATA = (() => {
       default_model: "qwen-plus",
       api_docs_url: "https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions",
       parameters: {
-        Sampling: ["temperature", "top_p", "presence_penalty", "seed", "stop", "n"],
+        Sampling: ["temperature", "top_p", "top_k", "repetition_penalty", "presence_penalty", "seed", "stop", "n"],
         Length: ["max_tokens", "max_completion_tokens"],
-        Output: ["response_format", "modalities", "audio"],
-        Tools: ["tools", "tool_choice", "parallel_tool_calls"],
-        Protocol: ["stream", "stream_options", "stream_options.include_usage"],
+        Reasoning: ["enable_thinking", "thinking", "thinking_budget", "preserve_thinking", "reasoning_effort"],
+        Output: ["response_format", "modalities", "vl_high_resolution_images", "audio"],
+        Tools: ["tools", "tool_choice", "parallel_tool_calls", "tool_stream", "enable_code_interpreter"],
+        Protocol: ["stream", "stream_options.include_usage"],
         Multimodal: ["messages[].content[].image_url", "messages[].content[].video_url"],
-        Debug: ["logprobs", "top_logprobs"]
+        Debug: ["logprobs", "top_logprobs"],
+        Search: ["enable_search", "search_options"],
+        Extra: ["skill", "X-DashScope-DataInspection"]
       }
     }, {
       provider_id: "ali_messages",

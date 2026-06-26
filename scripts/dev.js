@@ -1,4 +1,4 @@
-const { spawn } = require("child_process");
+const { spawn, execSync } = require("child_process");
 const fs = require("fs");
 const net = require("net");
 const path = require("path");
@@ -85,6 +85,13 @@ function stopAll() {
 }
 
 async function main() {
+  try {
+    execSync("node scripts/rebuild-docs.mjs", { cwd: root, stdio: "inherit" });
+  } catch (error) {
+    console.error("[rebuild-docs] failed:", error.message);
+    process.exit(1);
+  }
+
   fs.mkdirSync(evalscopeOutputs, { recursive: true });
 
   const appRunning = await isPortOpen("127.0.0.1", appPort);

@@ -1,10 +1,26 @@
+---
+channel_id: minimax
+protocol_id: responses_api
+doc_status: verified
+doc_url: "https://platform.minimax.io/docs/api-reference/text-chat-openai"
+last_verified: 2026-06-16
+compare: true
+required_parameters: [model, input]
+parameter_groups:
+  Core: [model, input]
+  Sampling: [temperature, top_p]
+  Length: [max_output_tokens]
+  Reasoning.Switch: [reasoning]
+  Reasoning.Intensity: [reasoning.effort]
+  Tools: [tools, tool_choice]
+  Protocol: [stream]
+  Output.Structure: [instructions, text, text.format.type]
+  Extra: [service_tier, metadata, prompt_cache_key, parallel_tool_calls, store, truncation]
+notes: 对照 docs/api/minimax-response.md（2026-06-16）。temperature/top_p 范围 (0,1]，非 OpenAI Responses 标准。 类型字段按该渠道官方 API 原文收录。
+---
+
 # MiniMax Responses API Notes
 
-> **Last verified:** 2026-06-16 against official API documentation.
-> **Official source:** https://platform.minimax.io/docs/api-reference/text-chat-openai
-> **Protocol ID:** `responses_api`
-
-Structured summary for Noctua compatibility-test design.
 
 ## Endpoint
 
@@ -70,4 +86,3 @@ For `MiniMax-M3`, `reasoning` controls whether the response includes reasoning o
 
 ## Raw Archive
 
-[`docs/archive/minimax-response-raw.md`](../archive/minimax-response-raw.md)

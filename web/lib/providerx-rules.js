@@ -115,13 +115,16 @@ window.PROVIDERX_RULES = (() => {
     max_tokens: "最大生成 token 数（部分渠道已废弃）",
     max_completion_tokens: "最大输出 token 数（推荐替代 max_tokens）",
     max_output_tokens: "Responses API 的最大输出 token 数",
-    reasoning_effort: "推理强度档位（如 low / medium / high）",
-    thinking: "Anthropic 思考模式配置",
+    reasoning_effort: "推理强度档位（如 low / medium / high）；部分渠道 none 兼作关闭",
+    thinking: "思考模式配置对象（各家子字段语义不同）",
+    "thinking.type": "思考模式开/关或 adaptive 类型",
+    "thinking.clear_thinking": "是否剥离历史 reasoning_content",
     thinking_budget: "思考阶段可用 token 预算",
+    preserve_thinking: "多轮对话是否保留历史思考内容",
     thinking_budget_tokens: "Anthropic Messages 思考 token 上限",
     enable_thinking: "是否开启深度思考/推理模式",
-    reasoning: "Responses API 推理配置对象",
-    "reasoning.effort": "推理强度（Responses reasoning 子字段）",
+    reasoning: "推理/思考配置对象（子字段因协议与渠道而异）",
+    "reasoning.effort": "推理强度子字段（多见于 Responses API 的 reasoning 对象）",
     "reasoning.summary": "是否在响应中返回推理摘要",
     include_reasoning: "是否在响应中包含推理内容",
     reasoning_content: "助手消息中的推理过程文本",
@@ -195,6 +198,103 @@ window.PROVIDERX_RULES = (() => {
     reasnoing_effort: "推理强度（部分渠道拼写变体）",
     "anthropic-version": "Anthropic API 版本号请求头"
   };
+
+  const PARAMETER_DESCRIPTIONS_BY_PROTOCOL = {
+    chat_completions: {
+      reasoning: "Chat Completions 推理配置对象（OpenRouter 扩展；子字段如 effort、summary）"
+    },
+    responses_api: {
+      reasoning: "Responses API 推理配置对象",
+      "reasoning.effort": "推理强度档位（reasoning 子字段）"
+    }
+  };
+
+  const OUTPUT_PARAM_SUBGROUPS = {
+    response_format: "structure",
+    "response_format.type": "structure",
+    structured_outputs: "structure",
+    prediction: "structure",
+    output_config: "structure",
+    instructions: "structure",
+    text: "structure",
+    "text.format.type": "structure",
+    modalities: "modality",
+    audio: "modality",
+    vl_high_resolution_images: "modality",
+    image_config: "modality"
+  };
+
+  const OUTPUT_SUBGROUP_ORDER = ["structure", "modality"];
+
+  const OUTPUT_SUBGROUP_LABELS = {
+    structure: "输出控制-结构 Structure",
+    modality: "输出控制-模态 Modality"
+  };
+
+  const OUTPUT_SUBGROUP_HINTS = {
+    structure: "规定输出格式、结构化约束或文本形态",
+    modality: "声明非文本输出模态（音频、图像等）"
+  };
+
+  const THINKING_PARAM_SUBGROUPS = {
+    enable_thinking: "switch",
+    thinking: "switch",
+    "thinking.type": "switch",
+    "chat_template_kwargs.enable_thinking": "switch",
+    reasoning: "switch",
+    "reasoning.enabled": "switch",
+    reasoning_effort: "intensity",
+    thinking_budget: "intensity",
+    "thinking.budget_tokens": "intensity",
+    thinking_budget_tokens: "intensity",
+    "reasoning.effort": "intensity",
+    "reasoning.max_tokens": "intensity",
+    preserve_thinking: "output",
+    "thinking.clear_thinking": "output",
+    reasoning_split: "output",
+    "reasoning.summary": "output",
+    include_reasoning: "output",
+    "reasoning.exclude": "output"
+  };
+
+  const THINKING_PARAM_ROLES = {
+    reasoning_effort: "dual",
+    reasoning: "composite",
+    thinking: "composite"
+  };
+
+  const THINKING_ROLE_LABELS = {
+    switch: "开关 Switch",
+    intensity: "强度 Intensity",
+    output: "可见性 Output",
+    dual: "开关+强度 Switch+Intensity",
+    composite: "对象字段 Object"
+  };
+
+  const THINKING_SUBGROUP_ORDER = ["switch", "intensity", "output"];
+
+  const THINKING_SUBGROUP_LABELS = {
+    switch: "思考模式开关 Switch",
+    intensity: "思考强度控制 Intensity",
+    output: "输出与可见性 Output"
+  };
+
+  const THINKING_SUBGROUP_HINTS = {
+    switch: "控制模型是否进入思考阶段",
+    intensity: "控制思考深度、档位或 token 预算",
+    output: "控制思考内容是否返回、如何展示或多轮保留"
+  };
+
+  /** Per eval-channel thinking control fields for Chat Completions matrix header. */
+  const THINKING_CHANNEL_FIELD_SUMMARY = [
+    { channelId: "aliyun", switchField: "enable_thinking", intensityField: "thinking_budget", note: "hybrid 可关；thinking-only 不可关" },
+    { channelId: "deepseek", switchField: "thinking.type", intensityField: "reasoning_effort", note: "默认 thinking 开启" },
+    { channelId: "zhipu", switchField: "thinking.type", intensityField: "reasoning_effort", note: "reasoning_effort 仅 GLM-5.2" },
+    { channelId: "minimax", switchField: "thinking.type", intensityField: "—", note: "reasoning_split 只管输出格式" },
+    { channelId: "streamlake", switchField: "enable_thinking", intensityField: "—", note: "文档仅列开关" },
+    { channelId: "openrouter", switchField: "reasoning", intensityField: "reasoning.effort / max_tokens", note: "统一 reasoning 对象" },
+    { channelId: "siliconflow", switchField: "enable_thinking", intensityField: "thinking_budget", note: "模型列表限定" }
+  ];
 
   const ORIGIN_LABELS = {
     "openai-standard": "OpenAI 标准",
@@ -291,6 +391,18 @@ window.PROVIDERX_RULES = (() => {
   return {
     PARAMETER_ORIGINS,
     PARAMETER_DESCRIPTIONS,
+    PARAMETER_DESCRIPTIONS_BY_PROTOCOL,
+    OUTPUT_PARAM_SUBGROUPS,
+    OUTPUT_SUBGROUP_ORDER,
+    OUTPUT_SUBGROUP_LABELS,
+    OUTPUT_SUBGROUP_HINTS,
+    THINKING_PARAM_SUBGROUPS,
+    THINKING_PARAM_ROLES,
+    THINKING_ROLE_LABELS,
+    THINKING_SUBGROUP_ORDER,
+    THINKING_SUBGROUP_LABELS,
+    THINKING_SUBGROUP_HINTS,
+    THINKING_CHANNEL_FIELD_SUMMARY,
     ORIGIN_LABELS,
     SUPPORT_CONCLUSIONS,
     EVIDENCE_LEVELS,

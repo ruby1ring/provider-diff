@@ -1,4 +1,26 @@
+---
+channel_id: openai
+protocol_id: chat_completions
+doc_status: verified
+doc_url: "https://platform.openai.com/docs/api-reference/chat/create"
+last_verified: 2026-06-16
+compare: false
+required_parameters: [model, messages]
+parameter_groups:
+  Sampling: [temperature, top_p, n, seed, stop, frequency_penalty, presence_penalty, logit_bias]
+  Length: [max_tokens, max_completion_tokens]
+  Reasoning.Intensity: [reasoning_effort]
+  Output.Structure: [response_format]
+  Tools: [tools, tool_choice, parallel_tool_calls]
+  Protocol: [stream, stream_options, stream_options.include_usage]
+  Debug: [logprobs, top_logprobs]
+  Metadata: [user, metadata, store]
+  Extra: [service_tier, prediction, audio]
+notes: 参考基线渠道；docs/api/openai.md 含更多未列入矩阵的字段。
+---
+
 # OpenAI Chat Completions Support List
+
 
 Sources:
 

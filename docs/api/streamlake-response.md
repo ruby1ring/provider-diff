@@ -1,10 +1,24 @@
+---
+channel_id: streamlake
+protocol_id: responses_api
+doc_status: verified
+doc_url: "https://www.streamlake.com/document/WANQING/mq6k6jmxvq9ngxkozfl"
+last_verified: 2026-06-25
+compare: true
+required_parameters: [model, input]
+parameter_groups:
+  Core: [model, input]
+  Sampling: [temperature, top_p]
+  Length: [max_output_tokens]
+  Reasoning.Switch: [reasoning, enable_thinking]
+  Tools: [tools, tool_choice]
+  Protocol: [stream]
+  Metadata: [instructions, previous_response_id, conversation]
+notes: 对照 docs/api/streamlake-response.md（2026-06-25）。 类型字段按该渠道官方 API 原文收录。
+---
+
 # StreamLake / 快手万擎 Responses API Notes
 
-> **Last verified:** 2026-06-25 against official API documentation.
-> **Official source:** https://www.streamlake.com/document/WANQING/mq6k6jmxvq9ngxkozfl
-> **Protocol ID:** `responses_api`
-
-Structured summary for Noctua compatibility-test design.
 
 ## Endpoint
 

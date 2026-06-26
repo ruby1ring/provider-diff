@@ -160,7 +160,7 @@ func resolveLocalProviderConfig(root, platformID string) (localProviderConfig, b
 	return localProviderConfig{}, false
 }
 
-func resolveProviderAPIKey(root string, configKeys []string, authEnv string) string {
+func resolveProviderAPIKey(root string, configKeys []string, authEnvs ...string) string {
 	if len(configKeys) > 0 {
 		providers, err := loadLocalConfig(root)
 		if err == nil {
@@ -172,7 +172,10 @@ func resolveProviderAPIKey(root string, configKeys []string, authEnv string) str
 			}
 		}
 	}
-	if authEnv != "" {
+	for _, authEnv := range authEnvs {
+		if authEnv == "" {
+			continue
+		}
 		key := strings.TrimSpace(os.Getenv(authEnv))
 		if key != "" && !isPlaceholderAPIKey(key) {
 			return key

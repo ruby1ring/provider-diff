@@ -1,0 +1,3554 @@
+{
+  "generatedAt": "2026-06-26T10:44:27.087Z",
+  "evalChannels": [
+    "deepseek",
+    "moonshot",
+    "zhipu",
+    "aliyun",
+    "openrouter",
+    "minimax",
+    "siliconflow",
+    "streamlake"
+  ],
+  "protocolDefaultRequired": {
+    "chat_completions": [
+      "model",
+      "messages"
+    ],
+    "anthropic_messages": [
+      "model",
+      "messages",
+      "max_tokens"
+    ],
+    "responses_api": [
+      "model",
+      "input"
+    ]
+  },
+  "protocolRequiredOverrides": {
+    "openrouter::chat_completions": [
+      "messages"
+    ]
+  },
+  "docStatus": {
+    "verified": {
+      "label": "已对照文档",
+      "className": "protocol-doc-badge--verified"
+    },
+    "partial": {
+      "label": "文档不完整",
+      "className": "protocol-doc-badge--partial"
+    },
+    "inherited": {
+      "label": "继承参考",
+      "className": "protocol-doc-badge--inherited"
+    },
+    "missing": {
+      "label": "待补充 API 文档",
+      "className": "protocol-doc-badge--missing"
+    },
+    "internal": {
+      "label": "内部探针",
+      "className": "protocol-doc-badge--internal"
+    }
+  },
+  "openAiBaseline": {
+    "chat_completions": {
+      "temperature": {
+        "type": "number",
+        "range": {
+          "min": 0,
+          "max": 2,
+          "minInclusive": true,
+          "maxInclusive": true
+        }
+      },
+      "top_p": {
+        "type": "number"
+      },
+      "n": {
+        "type": "integer"
+      },
+      "seed": {
+        "type": "integer"
+      },
+      "stop": {
+        "type": "string",
+        "notes": "string 或 array<string>，最多 4 个"
+      },
+      "frequency_penalty": {
+        "type": "number",
+        "range": {
+          "min": -2,
+          "max": 2,
+          "minInclusive": true,
+          "maxInclusive": true
+        }
+      },
+      "presence_penalty": {
+        "type": "number",
+        "range": {
+          "min": -2,
+          "max": 2,
+          "minInclusive": true,
+          "maxInclusive": true
+        }
+      },
+      "max_tokens": {
+        "type": "integer"
+      },
+      "max_completion_tokens": {
+        "type": "integer"
+      },
+      "stream": {
+        "type": "boolean",
+        "default": false
+      },
+      "tools": {
+        "type": "array"
+      },
+      "tool_choice": {
+        "type": "string"
+      },
+      "parallel_tool_calls": {
+        "type": "boolean"
+      }
+    },
+    "anthropic_messages": {
+      "model": {
+        "type": "string"
+      },
+      "messages": {
+        "type": "array"
+      },
+      "max_tokens": {
+        "type": "integer"
+      },
+      "system": {
+        "type": "string"
+      },
+      "temperature": {
+        "type": "number",
+        "range": {
+          "min": 0,
+          "max": 1,
+          "minInclusive": true,
+          "maxInclusive": true
+        }
+      },
+      "top_p": {
+        "type": "number",
+        "range": {
+          "min": 0,
+          "max": 1,
+          "minInclusive": false,
+          "maxInclusive": true
+        }
+      },
+      "stop_sequences": {
+        "type": "array"
+      },
+      "stream": {
+        "type": "boolean",
+        "default": false
+      }
+    },
+    "responses_api": {
+      "model": {
+        "type": "string"
+      },
+      "input": {
+        "type": "string"
+      },
+      "temperature": {
+        "type": "number",
+        "range": {
+          "min": 0,
+          "max": 2,
+          "minInclusive": true,
+          "maxInclusive": true
+        }
+      },
+      "top_p": {
+        "type": "number"
+      },
+      "max_output_tokens": {
+        "type": "integer"
+      },
+      "stream": {
+        "type": "boolean",
+        "default": false
+      }
+    }
+  },
+  "channels": {
+    "deepseek": {
+      "chat_completions": {
+        "compare": true,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://api-docs.deepseek.com/zh-cn/api/create-chat-completion",
+          "localDoc": "docs/api/deepseek.md",
+          "notes": "对照 docs/api/deepseek.md（2026-06-16）。frequency_penalty / presence_penalty 已 deprecated，接受但无效果。 类型字段按该渠道官方 API 原文收录。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages"
+        ],
+        "parameters": {
+          "Sampling": [
+            "temperature",
+            "top_p",
+            "stop",
+            "frequency_penalty",
+            "presence_penalty"
+          ],
+          "Length": [
+            "max_tokens"
+          ],
+          "Reasoning.Switch": [
+            "thinking"
+          ],
+          "Reasoning.Intensity": [
+            "reasoning_effort"
+          ],
+          "Output.Structure": [
+            "response_format"
+          ],
+          "Tools": [
+            "tools",
+            "tool_choice",
+            "tools[].function.strict"
+          ],
+          "Protocol": [
+            "stream",
+            "stream_options",
+            "stream_options.include_usage"
+          ],
+          "Debug": [
+            "logprobs",
+            "top_logprobs"
+          ],
+          "Metadata": [
+            "user_id"
+          ],
+          "Beta": [
+            "messages[].prefix",
+            "messages[].reasoning_content"
+          ]
+        },
+        "specs": {
+          "model": {
+            "type": "string",
+            "notes": "Required."
+          },
+          "messages": {
+            "type": "array<object>",
+            "notes": "Required."
+          },
+          "thinking": {
+            "type": "object ",
+            "notes": "null`"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "notes": "`high`, `max`. Default `high` for ordinary requests; complex agent requests may auto-use `max`. `low`/`medium` → `high`, `xhigh` → `max`."
+          },
+          "max_tokens": {
+            "type": "integer ",
+            "notes": "null`"
+          },
+          "response_format": {
+            "type": "object ",
+            "notes": "null`"
+          },
+          "stop": {
+            "type": "string ",
+            "notes": "array<string> \\"
+          },
+          "stream": {
+            "type": "boolean ",
+            "notes": "null`"
+          },
+          "stream_options": {
+            "type": "object ",
+            "notes": "null`"
+          },
+          "stream_options.include_usage": {
+            "type": "boolean",
+            "notes": "Extra pre-`[DONE]` chunk with full `usage` and empty `choices`."
+          },
+          "temperature": {
+            "type": "number ",
+            "notes": "null`"
+          },
+          "top_p": {
+            "type": "number ",
+            "notes": "null`"
+          },
+          "tools": {
+            "type": "array<object> ",
+            "notes": "null`"
+          },
+          "tool_choice": {
+            "type": "string ",
+            "notes": "object \\"
+          },
+          "tools[].function.strict": {
+            "type": "boolean",
+            "notes": "Default `false`. Beta strict JSON-schema mode."
+          },
+          "logprobs": {
+            "type": "boolean ",
+            "notes": "null`"
+          },
+          "top_logprobs": {
+            "type": "integer ",
+            "notes": "null`"
+          },
+          "user_id": {
+            "type": "string ",
+            "notes": "null`"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "effective": "deprecated",
+            "notes": "No effect."
+          },
+          "presence_penalty": {
+            "type": "number",
+            "effective": "deprecated",
+            "notes": "No effect."
+          }
+        }
+      },
+      "anthropic_messages": {
+        "compare": true,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://api-docs.deepseek.com/zh-cn/guides/anthropic_api",
+          "localDoc": "docs/api/deepseek-message.md",
+          "notes": "对照 docs/api/deepseek-message.md（2026-06-16）。temperature [0,2]；thinking.budget_tokens Ignored。 类型字段按该渠道官方 API 原文收录。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages",
+          "max_tokens"
+        ],
+        "parameters": {
+          "Core": [
+            "model",
+            "messages",
+            "max_tokens",
+            "system"
+          ],
+          "Sampling": [
+            "temperature",
+            "top_p",
+            "stop_sequences"
+          ],
+          "Reasoning.Switch": [
+            "thinking"
+          ],
+          "Output.Structure": [
+            "output_config"
+          ],
+          "Tools": [
+            "tools",
+            "tools[].name",
+            "tools[].description",
+            "tools[].input_schema",
+            "tool_choice"
+          ],
+          "Protocol": [
+            "stream"
+          ],
+          "Metadata": [
+            "metadata",
+            "metadata.user_id"
+          ],
+          "Unsupported": [
+            "top_k",
+            "container",
+            "mcp_servers",
+            "service_tier"
+          ]
+        },
+        "specs": {
+          "model": {
+            "type": "string",
+            "notes": "见 Models 映射"
+          },
+          "messages": {
+            "type": "array",
+            "notes": "Anthropic Messages 格式；见 Message Fields"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "notes": "官方示例必填"
+          },
+          "system": {
+            "type": "string ",
+            "notes": "array`"
+          },
+          "stream": {
+            "type": "boolean"
+          },
+          "stop_sequences": {
+            "type": "array<string>"
+          },
+          "temperature": {
+            "type": "number",
+            "notes": "范围 [0.0, 2.0]"
+          },
+          "top_p": {
+            "type": "number"
+          },
+          "top_k": {
+            "type": "integer",
+            "effective": "ignored",
+            "notes": "Ignored"
+          },
+          "thinking": {
+            "type": "object",
+            "effective": "ignored",
+            "notes": "`budget_tokens` Ignored"
+          },
+          "output_config": {
+            "type": "object",
+            "notes": "仅 `effort` 支持"
+          },
+          "metadata": {
+            "type": "object",
+            "effective": "ignored",
+            "notes": "仅 `user_id` 支持，其余 Ignored"
+          },
+          "container": {
+            "type": "object",
+            "effective": "ignored",
+            "notes": "Ignored"
+          },
+          "mcp_servers": {
+            "type": "array",
+            "effective": "ignored",
+            "notes": "Ignored"
+          },
+          "service_tier": {
+            "type": "string",
+            "effective": "ignored",
+            "notes": "Ignored"
+          }
+        }
+      }
+    },
+    "moonshot": {
+      "chat_completions": {
+        "compare": true,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://platform.moonshot.cn/docs/api/chat",
+          "localDoc": "docs/api/moonshot-chat.md",
+          "notes": "对照 docs/api/moonshot-chat.md（2026-06-25）。temperature 范围 [0,1]（非 OpenAI [0,2]）；max_tokens 已弃用。 类型字段按该渠道官方 API 原文收录。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages"
+        ],
+        "parameters": {
+          "Sampling": [
+            "temperature",
+            "top_p",
+            "n",
+            "stop",
+            "presence_penalty",
+            "frequency_penalty"
+          ],
+          "Length": [
+            "max_tokens",
+            "max_completion_tokens"
+          ],
+          "Output.Structure": [
+            "response_format"
+          ],
+          "Tools": [
+            "tools"
+          ],
+          "Protocol": [
+            "stream",
+            "stream_options.include_usage"
+          ],
+          "Metadata": [
+            "prompt_cache_key",
+            "safety_identifier"
+          ]
+        },
+        "specs": {
+          "model": {
+            "type": "string",
+            "notes": "Required. e.g. `moonshot-v1-128k`, vision-preview variants, kimi-k2.x"
+          },
+          "messages": {
+            "type": "array<object>",
+            "notes": "Required. Roles: `system`, `user`, `assistant`; multimodal content supported"
+          },
+          "temperature": {
+            "type": "float",
+            "default": 0,
+            "range": {
+              "min": 0,
+              "max": 1,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "Higher = more random"
+          },
+          "top_p": {
+            "type": "float",
+            "default": 1,
+            "range": {
+              "min": 0,
+              "max": 1,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "Nucleus sampling; adjust temperature or top_p, not both"
+          },
+          "n": {
+            "type": "integer",
+            "default": 1,
+            "range": {
+              "min": 1,
+              "max": 5,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "Completions per input; near-zero temperature limits to 1"
+          },
+          "presence_penalty": {
+            "type": "float",
+            "default": 0,
+            "range": {
+              "min": -2,
+              "max": 2,
+              "minInclusive": true,
+              "maxInclusive": true
+            }
+          },
+          "frequency_penalty": {
+            "type": "float",
+            "default": 0,
+            "range": {
+              "min": -2,
+              "max": 2,
+              "minInclusive": true,
+              "maxInclusive": true
+            }
+          },
+          "max_tokens": {
+            "type": "integer",
+            "effective": "deprecated",
+            "notes": "Deprecated — use `max_completion_tokens`"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "default": "~1024",
+            "notes": "Exceeding context window → error"
+          },
+          "stop": {
+            "type": "string ",
+            "default": "no",
+            "notes": "max 5 strings, ≤32 bytes each"
+          },
+          "stream": {
+            "type": "boolean",
+            "default": false,
+            "notes": "SSE streaming"
+          },
+          "stream_options.include_usage": {
+            "type": "boolean",
+            "default": false,
+            "notes": "Final usage chunk before `[DONE]`"
+          },
+          "response_format": {
+            "type": "object",
+            "default": "{\"type\":\"text\"}",
+            "notes": "`text`, `json_object`, `json_schema`"
+          },
+          "tools": {
+            "type": "array",
+            "range": {
+              "min": null,
+              "max": 128,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "Function tools"
+          },
+          "prompt_cache_key": {
+            "type": "string",
+            "notes": "Prompt caching / Kimi Code Plan"
+          },
+          "safety_identifier": {
+            "type": "string",
+            "notes": "Hashed stable user id"
+          }
+        }
+      },
+      "anthropic_messages": {
+        "compare": false,
+        "docMeta": {
+          "docStatus": "missing",
+          "docStatusLabel": "待补充 API 文档",
+          "docStatusClass": "protocol-doc-badge--missing",
+          "docUrl": null,
+          "localDoc": null,
+          "notes": "Moonshot 不提供 Anthropic Messages 兼容端点，不纳入协议对比。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages",
+          "max_tokens"
+        ],
+        "parameters": {},
+        "specs": {}
+      }
+    },
+    "zhipu": {
+      "chat_completions": {
+        "compare": true,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://open.bigmodel.cn/dev/api#glm-4",
+          "localDoc": "docs/api/zhipu-chat.md",
+          "notes": "对照 docs/api/zhipu-chat.md（2026-06-25）。temperature 范围 [0,1]；reasoning_effort 仅 GLM-5.2。 类型字段按该渠道官方 API 原文收录。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages"
+        ],
+        "parameters": {
+          "Sampling": [
+            "temperature",
+            "top_p",
+            "stop"
+          ],
+          "Length": [
+            "max_tokens"
+          ],
+          "Reasoning.Switch": [
+            "thinking",
+            "thinking.type"
+          ],
+          "Reasoning.Intensity": [
+            "reasoning_effort"
+          ],
+          "Reasoning.Output": [
+            "thinking.clear_thinking"
+          ],
+          "Output.Structure": [
+            "response_format"
+          ],
+          "Tools": [
+            "tools",
+            "tool_choice",
+            "tool_stream"
+          ],
+          "Protocol": [
+            "stream",
+            "do_sample"
+          ],
+          "Metadata": [
+            "request_id",
+            "user_id"
+          ]
+        },
+        "specs": {
+          "model": {
+            "type": "string",
+            "notes": "Required. e.g. `glm-5.2`, `glm-4.7`"
+          },
+          "messages": {
+            "type": "array",
+            "notes": "Required. min 1 item"
+          },
+          "stream": {
+            "type": "boolean",
+            "default": false,
+            "notes": "SSE; ends with `data: [DONE]`"
+          },
+          "thinking": {
+            "type": "object",
+            "notes": "GLM-4.5+ thinking control"
+          },
+          "thinking.type": {
+            "type": "string",
+            "default": "enabled",
+            "notes": "`disabled`"
+          },
+          "thinking.clear_thinking": {
+            "type": "boolean",
+            "default": true,
+            "notes": "Strip historical `reasoning_content`"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "default": "max",
+            "notes": "`max` \\"
+          },
+          "do_sample": {
+            "type": "boolean",
+            "default": true,
+            "notes": "`false` ignores temperature/top_p"
+          },
+          "temperature": {
+            "type": "float",
+            "default": 1,
+            "range": {
+              "min": 0,
+              "max": 1,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "Model-family defaults vary"
+          },
+          "top_p": {
+            "type": "float",
+            "default": 0.95,
+            "range": {
+              "min": 0.01,
+              "max": 1,
+              "minInclusive": true,
+              "maxInclusive": true
+            }
+          },
+          "max_tokens": {
+            "type": "integer",
+            "range": {
+              "min": 1,
+              "max": 131072,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "GLM-5.x/4.6 up to 128K"
+          },
+          "tool_stream": {
+            "type": "boolean",
+            "default": false,
+            "notes": "GLM-5.x/4.6+"
+          },
+          "tools": {
+            "type": "array",
+            "range": {
+              "min": null,
+              "max": 128,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "function / retrieval / web_search / mcp"
+          },
+          "tool_choice": {
+            "type": "string",
+            "default": "auto",
+            "notes": "Function tools: auto only"
+          },
+          "stop": {
+            "type": "array<string>",
+            "range": {
+              "min": null,
+              "max": 4,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "Currently single stop word"
+          },
+          "response_format": {
+            "type": "object",
+            "default": "{\"type\":\"text\"}",
+            "notes": "`text` \\"
+          },
+          "request_id": {
+            "type": "string",
+            "default": "auto"
+          },
+          "user_id": {
+            "type": "string",
+            "notes": "End-user identifier"
+          }
+        }
+      },
+      "anthropic_messages": {
+        "compare": true,
+        "docMeta": {
+          "docStatus": "partial",
+          "docStatusLabel": "文档不完整",
+          "docStatusClass": "protocol-doc-badge--partial",
+          "docUrl": "https://open.bigmodel.cn/dev/api#glm-4",
+          "localDoc": null,
+          "notes": "智谱已接入 Anthropic Messages 兼容端点；请求参数待对照官方文档补充。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages",
+          "max_tokens"
+        ],
+        "parameters": {
+          "Core": [
+            "model",
+            "messages",
+            "max_tokens",
+            "system"
+          ],
+          "Sampling": [
+            "temperature",
+            "top_p",
+            "stop_sequences"
+          ],
+          "Tools": [
+            "tools",
+            "tool_choice"
+          ],
+          "Protocol": [
+            "stream"
+          ]
+        },
+        "specs": {}
+      }
+    },
+    "aliyun": {
+      "chat_completions": {
+        "compare": true,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions",
+          "localDoc": "docs/api/ali-chat.md",
+          "notes": "对照 docs/api/ali-chat.md（2026-06-25）。含百炼 extra_body 与搜索扩展参数。 类型字段按该渠道官方 API 原文收录。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages"
+        ],
+        "parameters": {
+          "Sampling": [
+            "temperature",
+            "top_p",
+            "top_k",
+            "repetition_penalty",
+            "presence_penalty",
+            "seed",
+            "stop",
+            "n"
+          ],
+          "Length": [
+            "max_tokens",
+            "max_completion_tokens"
+          ],
+          "Reasoning.Switch": [
+            "enable_thinking",
+            "thinking"
+          ],
+          "Reasoning.Intensity": [
+            "thinking_budget",
+            "reasoning_effort"
+          ],
+          "Reasoning.Output": [
+            "preserve_thinking"
+          ],
+          "Output.Structure": [
+            "response_format"
+          ],
+          "Output.Modality": [
+            "modalities",
+            "vl_high_resolution_images",
+            "audio"
+          ],
+          "Tools": [
+            "tools",
+            "tool_choice",
+            "parallel_tool_calls",
+            "tool_stream",
+            "enable_code_interpreter"
+          ],
+          "Protocol": [
+            "stream",
+            "stream_options.include_usage"
+          ],
+          "Debug": [
+            "logprobs",
+            "top_logprobs"
+          ],
+          "Search": [
+            "enable_search",
+            "search_options"
+          ],
+          "Extra": [
+            "skill",
+            "X-DashScope-DataInspection"
+          ]
+        },
+        "specs": {
+          "model": {
+            "type": "string",
+            "notes": "Required. Qwen / third-party models on Bailian"
+          },
+          "messages": {
+            "type": "array<object>",
+            "notes": "Required. `system`, `user`, `assistant`, `tool`; multimodal parts"
+          },
+          "stream": {
+            "type": "boolean",
+            "default": false,
+            "notes": "Non-stream timeout 300s; use stream for long output"
+          },
+          "stream_options.include_usage": {
+            "type": "boolean",
+            "default": false,
+            "notes": "Only when `stream=true`"
+          },
+          "temperature": {
+            "type": "float",
+            "range": {
+              "min": 0,
+              "max": 2,
+              "minInclusive": true,
+              "maxInclusive": false
+            },
+            "notes": "See official doc for per-model defaults"
+          },
+          "top_p": {
+            "type": "float",
+            "range": {
+              "min": 0,
+              "max": 1,
+              "minInclusive": false,
+              "maxInclusive": true
+            }
+          },
+          "top_k": {
+            "type": "integer ",
+            "default": "**no**",
+            "notes": "≥0; null or >100 disables"
+          },
+          "repetition_penalty": {
+            "type": "float",
+            "notes": "`extra_body`"
+          },
+          "presence_penalty": {
+            "type": "float",
+            "range": {
+              "min": -2,
+              "max": 2,
+              "minInclusive": true,
+              "maxInclusive": true
+            }
+          },
+          "response_format": {
+            "type": "object",
+            "default": "{\"type\":\"text\"}",
+            "notes": "`text` \\"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "effective": "deprecated",
+            "notes": "即将废弃 — prefer `max_completion_tokens`"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "notes": "Includes thinking chain; recommended for thinking models"
+          },
+          "vl_high_resolution_images": {
+            "type": "boolean",
+            "default": false,
+            "notes": "VL models; `extra_body`"
+          },
+          "n": {
+            "type": "integer",
+            "default": 1,
+            "range": {
+              "min": 1,
+              "max": 4,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "Must be 1 when `tools` present"
+          },
+          "enable_thinking": {
+            "type": "boolean",
+            "notes": "`extra_body`; hybrid thinking"
+          },
+          "thinking": {
+            "type": "object",
+            "notes": "MiniMax-M3 on Bailian: `adaptive` \\"
+          },
+          "preserve_thinking": {
+            "type": "boolean",
+            "default": false,
+            "notes": "`extra_body`"
+          },
+          "thinking_budget": {
+            "type": "integer",
+            "notes": "Qwen3.x / Qwen3-VL"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "default": "high",
+            "notes": "`high` \\"
+          },
+          "tool_stream": {
+            "type": "boolean",
+            "default": false,
+            "notes": "`extra_body`; stream only"
+          },
+          "enable_code_interpreter": {
+            "type": "boolean",
+            "default": false,
+            "notes": "`extra_body`"
+          },
+          "seed": {
+            "type": "integer"
+          },
+          "logprobs": {
+            "type": "boolean",
+            "default": false,
+            "notes": "Thinking `reasoning_content` excluded"
+          },
+          "top_logprobs": {
+            "type": "integer",
+            "default": 0,
+            "range": {
+              "min": 0,
+              "max": 5,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "Requires `logprobs=true`"
+          },
+          "stop": {
+            "type": "string ",
+            "default": "yes"
+          },
+          "tools": {
+            "type": "array",
+            "notes": "Function tools"
+          },
+          "tool_choice": {
+            "type": "string ",
+            "default": "yes"
+          },
+          "parallel_tool_calls": {
+            "type": "boolean",
+            "default": false
+          },
+          "enable_search": {
+            "type": "boolean",
+            "default": false,
+            "notes": "`extra_body`"
+          },
+          "search_options": {
+            "type": "object",
+            "notes": "`extra_body`"
+          },
+          "modalities": {
+            "type": "array",
+            "default": "[\"text\"]",
+            "notes": "Qwen-Omni: `[\"text\",\"audio\"]`"
+          },
+          "audio": {
+            "type": "object",
+            "notes": "Qwen-Omni output audio; `format`: `wav`"
+          },
+          "skill": {
+            "type": "array",
+            "notes": "`qwen-doc-turbo` PPT only; requires `stream=true`"
+          },
+          "X-DashScope-DataInspection": {
+            "type": "header",
+            "notes": "Content safety header, not body"
+          }
+        }
+      },
+      "anthropic_messages": {
+        "compare": true,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://help.aliyun.com/zh/model-studio/anthropic-api-messages",
+          "localDoc": "docs/api/ali-message.md",
+          "notes": "对照 docs/api/ali-message.md（2026-06-25）。temperature 范围 [0,2)（非 Anthropic 官方 [0,1]）。 类型字段按该渠道官方 API 原文收录。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages",
+          "max_tokens"
+        ],
+        "parameters": {
+          "Core": [
+            "model",
+            "messages",
+            "max_tokens",
+            "system"
+          ],
+          "Sampling": [
+            "temperature",
+            "top_p",
+            "top_k",
+            "stop_sequences"
+          ],
+          "Reasoning.Switch": [
+            "thinking"
+          ],
+          "Reasoning.Intensity": [
+            "thinking.budget_tokens",
+            "reasoning_effort"
+          ],
+          "Tools": [
+            "tools",
+            "tool_choice"
+          ],
+          "Protocol": [
+            "stream"
+          ],
+          "Output.Structure": [
+            "output_config"
+          ]
+        },
+        "specs": {
+          "model": {
+            "type": "string",
+            "notes": "Qwen / DeepSeek / Kimi / GLM / MiniMax 等"
+          },
+          "messages": {
+            "type": "array",
+            "notes": "`user` / `assistant` 交替；不含 `system` 角色"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "notes": "回复上限；不限制 thinking token（由 `thinking.budget_tokens` 控制）"
+          },
+          "system": {
+            "type": "string ",
+            "default": "no"
+          },
+          "stream": {
+            "type": "boolean",
+            "default": false
+          },
+          "temperature": {
+            "type": "number",
+            "range": {
+              "min": 0,
+              "max": 2,
+              "minInclusive": true,
+              "maxInclusive": false
+            },
+            "notes": "注意：非 Anthropic 官方 [0,1]"
+          },
+          "top_p": {
+            "type": "number",
+            "notes": "与 temperature 建议只设其一"
+          },
+          "top_k": {
+            "type": "integer"
+          },
+          "stop_sequences": {
+            "type": "array",
+            "notes": "命中后 `stop_reason` 仍为 `end_turn`"
+          },
+          "thinking": {
+            "type": "object",
+            "notes": "`enabled` / `disabled`"
+          },
+          "thinking.budget_tokens": {
+            "type": "integer",
+            "notes": "`type=enabled` 时生效"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "default": "max",
+            "notes": "`max`"
+          },
+          "tools": {
+            "type": "array",
+            "notes": "Function Call"
+          },
+          "tool_choice": {
+            "type": "object",
+            "default": "auto"
+          },
+          "output_config": {
+            "type": "object",
+            "notes": "结构化输出；deepseek/glm 严格 schema"
+          }
+        }
+      },
+      "responses_api": {
+        "compare": true,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-responses",
+          "localDoc": "docs/api/ali-response.md",
+          "notes": "对照 docs/api/ali-response.md（2026-06-25）。仅文档化参数生效；background 异步不支持。 类型字段按该渠道官方 API 原文收录。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "input"
+        ],
+        "parameters": {
+          "Core": [
+            "model",
+            "input"
+          ],
+          "Sampling": [
+            "temperature",
+            "top_p"
+          ],
+          "Length": [
+            "max_output_tokens"
+          ],
+          "Reasoning.Intensity": [
+            "reasoning.effort"
+          ],
+          "Tools": [
+            "tools",
+            "tool_choice"
+          ],
+          "Protocol": [
+            "stream"
+          ]
+        },
+        "specs": {
+          "model": {
+            "type": "string",
+            "notes": "Qwen series"
+          },
+          "input": {
+            "type": "string ",
+            "notes": "array`"
+          },
+          "temperature": {
+            "type": "number"
+          },
+          "top_p": {
+            "type": "number"
+          },
+          "max_output_tokens": {
+            "type": "integer"
+          },
+          "stream": {
+            "type": "boolean"
+          },
+          "tools": {
+            "type": "array",
+            "notes": "Built-in + function tools per Bailian docs"
+          },
+          "tool_choice": {
+            "type": "string"
+          },
+          "reasoning.effort": {
+            "type": "string",
+            "notes": "Thinking strength control"
+          }
+        }
+      }
+    },
+    "openrouter": {
+      "chat_completions": {
+        "compare": true,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request",
+          "localDoc": "docs/api/openrouter-chat.md",
+          "notes": "对照 docs/api/openrouter-chat.md（2026-06-25）。矩阵仅收录文档摘要表参数；model 可选。 类型字段按该渠道官方 API 原文收录。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "messages"
+        ],
+        "parameters": {
+          "Core": [
+            "model",
+            "messages"
+          ],
+          "Sampling": [
+            "temperature",
+            "top_p",
+            "top_k",
+            "frequency_penalty",
+            "presence_penalty",
+            "repetition_penalty",
+            "min_p",
+            "top_a",
+            "logit_bias",
+            "logprobs",
+            "top_logprobs"
+          ],
+          "Reasoning.Switch": [
+            "reasoning"
+          ],
+          "Reasoning.Intensity": [
+            "reasoning_effort"
+          ],
+          "Routing": [
+            "models",
+            "provider",
+            "plugins",
+            "session_id"
+          ],
+          "Tools": [
+            "parallel_tool_calls"
+          ]
+        },
+        "specs": {
+          "messages": {
+            "type": "array<object>",
+            "notes": "OpenAPI requires at least one item"
+          },
+          "model": {
+            "type": "string",
+            "notes": "Optional; payer default when omitted"
+          },
+          "temperature": {
+            "type": "double",
+            "default": 1,
+            "range": {
+              "min": 0,
+              "max": 2,
+              "minInclusive": true,
+              "maxInclusive": true
+            }
+          },
+          "top_p": {
+            "type": "double",
+            "default": 1,
+            "range": {
+              "min": 0,
+              "max": 1,
+              "minInclusive": true,
+              "maxInclusive": true
+            }
+          },
+          "top_k": {
+            "type": "integer",
+            "range": {
+              "min": 0,
+              "max": null,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "Provider-dependent"
+          },
+          "frequency_penalty": {
+            "type": "double",
+            "default": 0,
+            "range": {
+              "min": -2,
+              "max": 2,
+              "minInclusive": true,
+              "maxInclusive": true
+            }
+          },
+          "presence_penalty": {
+            "type": "double",
+            "default": 0,
+            "range": {
+              "min": -2,
+              "max": 2,
+              "minInclusive": true,
+              "maxInclusive": true
+            }
+          },
+          "repetition_penalty": {
+            "type": "double",
+            "default": 1,
+            "notes": "Provider-dependent"
+          },
+          "min_p": {
+            "type": "double",
+            "range": {
+              "min": 0,
+              "max": 1,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "Provider-dependent"
+          },
+          "top_a": {
+            "type": "double",
+            "range": {
+              "min": 0,
+              "max": 1,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "Provider-dependent"
+          },
+          "logit_bias": {
+            "type": "object",
+            "notes": "Token-id → number; provider-dependent"
+          },
+          "logprobs": {
+            "type": "boolean",
+            "notes": "Output token log probabilities"
+          },
+          "top_logprobs": {
+            "type": "integer",
+            "range": {
+              "min": 0,
+              "max": 20,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "Requires `logprobs=true`"
+          },
+          "reasoning": {
+            "type": "object",
+            "notes": "`effort`, `summary`"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "notes": "Shorthand for `reasoning.effort`"
+          },
+          "models": {
+            "type": "array<string>",
+            "notes": "Fallback routing list"
+          },
+          "provider": {
+            "type": "object",
+            "notes": "Routing preferences"
+          },
+          "plugins": {
+            "type": "array",
+            "notes": "web_search, web_fetch, datetime"
+          },
+          "session_id": {
+            "type": "string",
+            "range": {
+              "min": null,
+              "max": 256,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "Sticky routing"
+          },
+          "parallel_tool_calls": {
+            "type": "boolean"
+          }
+        }
+      },
+      "anthropic_messages": {
+        "compare": true,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://openrouter.ai/docs/api/api-reference/anthropic-messages/create-messages",
+          "localDoc": "docs/api/openrouter-message.md",
+          "notes": "对照 docs/api/openrouter-message.md（2026-06-25）。 类型字段按该渠道官方 API 原文收录。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages",
+          "max_tokens"
+        ],
+        "parameters": {
+          "Core": [
+            "model",
+            "messages",
+            "max_tokens",
+            "system"
+          ],
+          "Sampling": [
+            "temperature",
+            "top_p",
+            "top_k",
+            "stop_sequences"
+          ],
+          "Reasoning.Switch": [
+            "thinking"
+          ],
+          "Tools": [
+            "tools",
+            "tool_choice"
+          ],
+          "Protocol": [
+            "stream"
+          ],
+          "Routing": [
+            "models",
+            "fallbacks",
+            "provider",
+            "session_id",
+            "route",
+            "trace",
+            "stop_server_tools_when"
+          ],
+          "Extra": [
+            "output_config",
+            "metadata",
+            "user",
+            "cache_control",
+            "plugins",
+            "service_tier",
+            "context_management",
+            "speed"
+          ]
+        },
+        "specs": {
+          "model": {
+            "type": "string",
+            "notes": "主路由模型"
+          },
+          "messages": {
+            "type": "array",
+            "notes": "Anthropic Messages 格式"
+          },
+          "system": {
+            "type": "string ",
+            "default": "no"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "notes": "最大输出 token"
+          },
+          "temperature": {
+            "type": "number",
+            "notes": "Anthropic 兼容"
+          },
+          "top_p": {
+            "type": "number"
+          },
+          "top_k": {
+            "type": "integer"
+          },
+          "stop_sequences": {
+            "type": "array<string>"
+          },
+          "stream": {
+            "type": "boolean"
+          },
+          "thinking": {
+            "type": "object",
+            "notes": "Extended thinking"
+          },
+          "tools": {
+            "type": "array"
+          },
+          "tool_choice": {
+            "type": "object"
+          },
+          "output_config": {
+            "type": "object",
+            "notes": "结构化输出"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "user": {
+            "type": "string",
+            "range": {
+              "min": null,
+              "max": 256,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "终端用户标识"
+          },
+          "service_tier": {
+            "type": "string"
+          },
+          "cache_control": {
+            "type": "object",
+            "notes": "Prompt caching"
+          },
+          "context_management": {
+            "type": "object"
+          },
+          "speed": {
+            "type": "string",
+            "notes": "Anthropic speed 档位"
+          },
+          "models": {
+            "type": "array<string>",
+            "notes": "多模型路由列表；不可与 `fallbacks` 同用"
+          },
+          "fallbacks": {
+            "type": "array",
+            "notes": "主模型失败时依次尝试，最多 3 项，每项仅 `model`"
+          },
+          "provider": {
+            "type": "object",
+            "notes": "路由偏好（order / only / ignore 等）"
+          },
+          "plugins": {
+            "type": "array",
+            "notes": "web_search、web_fetch、datetime 等"
+          },
+          "session_id": {
+            "type": "string",
+            "notes": "Sticky routing，≤256 字符；与 header `x-session-id` 冲突时 body 优先"
+          },
+          "route": {
+            "type": "any",
+            "notes": "路由控制"
+          },
+          "trace": {
+            "type": "object",
+            "notes": "追踪配置"
+          },
+          "stop_server_tools_when": {
+            "type": "object",
+            "notes": "服务端工具停止条件"
+          }
+        }
+      },
+      "responses_api": {
+        "compare": true,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://openrouter.ai/docs/api/reference/responses/overview",
+          "localDoc": "docs/api/openrouter-response.md",
+          "notes": "对照 docs/api/openrouter-response.md（2026-06-25）。类型字段按 OpenRouter 官方 OpenAPI 原文收录。 类型字段按该渠道官方 API 原文收录。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "input"
+        ],
+        "parameters": {
+          "Core": [
+            "model",
+            "input"
+          ],
+          "Sampling": [
+            "temperature",
+            "top_p"
+          ],
+          "Length": [
+            "max_output_tokens"
+          ],
+          "Tools": [
+            "tools",
+            "tool_choice"
+          ],
+          "Protocol": [
+            "stream"
+          ]
+        },
+        "specs": {
+          "model": {
+            "type": "string"
+          },
+          "input": {
+            "type": "string ",
+            "notes": "array`"
+          },
+          "temperature": {
+            "type": "double"
+          },
+          "top_p": {
+            "type": "double"
+          },
+          "max_output_tokens": {
+            "type": "integer"
+          },
+          "stream": {
+            "type": "boolean"
+          },
+          "tools": {
+            "type": "array"
+          },
+          "tool_choice": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "minimax": {
+      "chat_completions": {
+        "compare": true,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://platform.minimax.io/docs/api-reference/text-chat-openai",
+          "localDoc": "docs/api/minimax-chat.md",
+          "notes": "对照 docs/api/minimax-chat.md（2026-06-25）。 类型字段按该渠道官方 API 原文收录。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages"
+        ],
+        "parameters": {
+          "Sampling": [
+            "temperature",
+            "top_p"
+          ],
+          "Length": [
+            "max_completion_tokens",
+            "max_tokens"
+          ],
+          "Reasoning.Switch": [
+            "thinking",
+            "thinking.type"
+          ],
+          "Reasoning.Output": [
+            "reasoning_split"
+          ],
+          "Tools": [
+            "tools"
+          ],
+          "Protocol": [
+            "stream",
+            "stream_options.include_usage"
+          ],
+          "Extra": [
+            "service_tier"
+          ]
+        },
+        "specs": {
+          "model": {
+            "type": "string",
+            "notes": "MiniMax-M3, M2.7, M2.5, M2.1, M2 variants"
+          },
+          "messages": {
+            "type": "array<object>",
+            "notes": "Text / image / video / tool content"
+          },
+          "thinking": {
+            "type": "object",
+            "default": "{\"type\":\"adaptive\"}",
+            "notes": "M3 on/off; M2.x cannot disable"
+          },
+          "thinking.type": {
+            "type": "string",
+            "default": "adaptive",
+            "notes": "`disabled`"
+          },
+          "reasoning_split": {
+            "type": "boolean",
+            "notes": "Output format only; does not toggle thinking"
+          },
+          "stream": {
+            "type": "boolean",
+            "default": false
+          },
+          "stream_options.include_usage": {
+            "type": "boolean",
+            "default": false
+          },
+          "max_completion_tokens": {
+            "type": "integer"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "effective": "deprecated",
+            "notes": "Deprecated"
+          },
+          "temperature": {
+            "type": "number",
+            "default": 1,
+            "range": {
+              "min": 0,
+              "max": 2,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "Out-of-range → error"
+          },
+          "top_p": {
+            "type": "number",
+            "default": "M3: `0.95`; M2.x: `0.9",
+            "range": {
+              "min": 0,
+              "max": 1,
+              "minInclusive": true,
+              "maxInclusive": true
+            }
+          },
+          "tools": {
+            "type": "array",
+            "notes": "Use `tools`, not `function_call`"
+          },
+          "service_tier": {
+            "type": "string",
+            "default": "standard",
+            "notes": "`priority`"
+          }
+        }
+      },
+      "anthropic_messages": {
+        "compare": true,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://platform.minimax.io/docs/api-reference/text-chat-openai",
+          "localDoc": "docs/api/minimax-message.md",
+          "notes": "对照 docs/api/minimax-message.md（2026-06-25）。 类型字段按该渠道官方 API 原文收录。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages",
+          "max_tokens"
+        ],
+        "parameters": {
+          "Core": [
+            "model",
+            "messages",
+            "max_tokens",
+            "system"
+          ],
+          "Sampling": [
+            "temperature",
+            "top_p"
+          ],
+          "Reasoning.Switch": [
+            "thinking",
+            "thinking.type"
+          ],
+          "Tools": [
+            "tools",
+            "tool_choice"
+          ],
+          "Protocol": [
+            "stream"
+          ],
+          "Extra": [
+            "service_tier",
+            "metadata"
+          ]
+        },
+        "specs": {
+          "model": {
+            "type": "string",
+            "notes": "MiniMax-M3（多模态）或 M2.7 / M2.5 / M2.1 / M2 系列"
+          },
+          "messages": {
+            "type": "array",
+            "notes": "M3 支持 text / image / video / tool / thinking；M2.x 仅 text / tool"
+          },
+          "system": {
+            "type": "string ",
+            "default": "no"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "range": {
+              "min": 1,
+              "max": null,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "M3 推荐 131072，最大 524288；M2.x 推荐 65536，最大 204800"
+          },
+          "stream": {
+            "type": "boolean",
+            "default": false,
+            "notes": "SSE 流式"
+          },
+          "temperature": {
+            "type": "number",
+            "default": 1,
+            "range": {
+              "min": 0,
+              "max": 2,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "越界报错"
+          },
+          "top_p": {
+            "type": "number",
+            "default": "M3: `0.95`; M2.x: `0.9",
+            "range": {
+              "min": 0,
+              "max": 1,
+              "minInclusive": true,
+              "maxInclusive": true
+            }
+          },
+          "thinking": {
+            "type": "object",
+            "default": "{\"type\":\"disabled\"}",
+            "notes": "M3：`disabled` / `adaptive`；省略时默认 disabled；M2.x 无法关闭 thinking"
+          },
+          "thinking.type": {
+            "type": "string",
+            "default": "disabled",
+            "notes": "`adaptive`"
+          },
+          "tools": {
+            "type": "array",
+            "notes": "Anthropic 兼容 tool use"
+          },
+          "tool_choice": {
+            "type": "object",
+            "notes": "auto / any / tool / none"
+          },
+          "service_tier": {
+            "type": "string",
+            "default": "standard",
+            "notes": "`priority`"
+          },
+          "metadata": {
+            "type": "object",
+            "notes": "建议含 `user_id`"
+          }
+        }
+      },
+      "responses_api": {
+        "compare": true,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://platform.minimax.io/docs/api-reference/text-chat-openai",
+          "localDoc": "docs/api/minimax-response.md",
+          "notes": "对照 docs/api/minimax-response.md（2026-06-16）。temperature/top_p 范围 (0,1]，非 OpenAI Responses 标准。 类型字段按该渠道官方 API 原文收录。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "input"
+        ],
+        "parameters": {
+          "Core": [
+            "model",
+            "input"
+          ],
+          "Sampling": [
+            "temperature",
+            "top_p"
+          ],
+          "Length": [
+            "max_output_tokens"
+          ],
+          "Reasoning.Switch": [
+            "reasoning"
+          ],
+          "Reasoning.Intensity": [
+            "reasoning.effort"
+          ],
+          "Tools": [
+            "tools",
+            "tool_choice"
+          ],
+          "Protocol": [
+            "stream"
+          ],
+          "Output.Structure": [
+            "instructions",
+            "text",
+            "text.format.type"
+          ],
+          "Extra": [
+            "service_tier",
+            "metadata",
+            "prompt_cache_key",
+            "parallel_tool_calls",
+            "store",
+            "truncation"
+          ]
+        },
+        "specs": {
+          "model": {
+            "type": "string",
+            "notes": "e.g. `MiniMax-M3`"
+          },
+          "input": {
+            "type": "string ",
+            "notes": "array`"
+          },
+          "service_tier": {
+            "type": "string",
+            "default": "standard",
+            "notes": "`priority`"
+          },
+          "instructions": {
+            "type": "string",
+            "notes": "系统指令"
+          },
+          "max_output_tokens": {
+            "type": "integer",
+            "notes": "最大输出 token"
+          },
+          "temperature": {
+            "type": "number",
+            "default": 1,
+            "range": {
+              "min": 0,
+              "max": 1,
+              "minInclusive": false,
+              "maxInclusive": true
+            },
+            "notes": "采样温度"
+          },
+          "top_p": {
+            "type": "number",
+            "default": 0.95,
+            "range": {
+              "min": 0,
+              "max": 1,
+              "minInclusive": false,
+              "maxInclusive": true
+            },
+            "notes": "Nucleus sampling"
+          },
+          "stream": {
+            "type": "boolean",
+            "default": false,
+            "notes": "SSE 流式"
+          },
+          "reasoning": {
+            "type": "object",
+            "default": "{\"effort\":\"none\"}",
+            "notes": "见上文 Reasoning Control"
+          },
+          "reasoning.effort": {
+            "type": "string",
+            "default": "none",
+            "notes": "`minimal` \\"
+          },
+          "tools": {
+            "type": "array",
+            "notes": "Tool 定义列表"
+          },
+          "tool_choice": {
+            "type": "string",
+            "notes": "`auto`"
+          },
+          "metadata": {
+            "type": "object",
+            "notes": "键值均为 string"
+          },
+          "prompt_cache_key": {
+            "type": "string",
+            "notes": "Prompt cache 路由标识"
+          },
+          "text": {
+            "type": "object",
+            "notes": "输出格式控制"
+          },
+          "text.format.type": {
+            "type": "string",
+            "default": "text"
+          },
+          "parallel_tool_calls": {
+            "type": "boolean",
+            "notes": "是否支持并行 tool call"
+          },
+          "store": {
+            "type": "boolean",
+            "notes": "是否持久化响应"
+          },
+          "truncation": {
+            "type": "string",
+            "notes": "上下文截断策略"
+          },
+          "type": {
+            "type": "string",
+            "notes": "`message`（默认）/ `function_call` / `function_call_output` / `reasoning`"
+          },
+          "role": {
+            "type": "string",
+            "notes": "`type=message` 时：`user` / `assistant` / `system` / `developer` / `tool`"
+          },
+          "content": {
+            "type": "string ",
+            "notes": "array`"
+          },
+          "call_id": {
+            "type": "string",
+            "notes": "`function_call` / `function_call_output`"
+          },
+          "name": {
+            "type": "string",
+            "notes": "`function_call` 函数名"
+          },
+          "arguments": {
+            "type": "string",
+            "notes": "`function_call` JSON 参数字符串"
+          },
+          "output": {
+            "type": "any",
+            "notes": "`function_call_output` 工具返回"
+          }
+        }
+      }
+    },
+    "siliconflow": {
+      "chat_completions": {
+        "compare": true,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://docs.siliconflow.cn/cn/api-reference/chat-completions/chat-completions",
+          "localDoc": "docs/api/siliconflow-chat.md",
+          "notes": "对照 docs/api/siliconflow-chat.md（2026-06-16）。 类型字段按该渠道官方 API 原文收录。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages"
+        ],
+        "parameters": {
+          "Core": [
+            "model",
+            "messages",
+            "messages[].role",
+            "messages[].content"
+          ],
+          "Sampling": [
+            "temperature",
+            "top_p",
+            "top_k",
+            "min_p",
+            "n",
+            "stop",
+            "frequency_penalty"
+          ],
+          "Length": [
+            "max_tokens"
+          ],
+          "Reasoning.Switch": [
+            "enable_thinking"
+          ],
+          "Reasoning.Intensity": [
+            "thinking_budget",
+            "reasoning_effort"
+          ],
+          "Output.Structure": [
+            "response_format",
+            "response_format.type"
+          ],
+          "Tools": [
+            "tools",
+            "tools[].type",
+            "tools[].function.name",
+            "tools[].function.description",
+            "tools[].function.parameters",
+            "tools[].function.strict"
+          ],
+          "Protocol": [
+            "stream"
+          ],
+          "Multimodal": [
+            "messages[].content[].type=text",
+            "messages[].content[].type=image_url",
+            "messages[].content[].image_url.url",
+            "messages[].content[].image_url.detail",
+            "messages[].content[].type=video_url",
+            "messages[].content[].video_url.url",
+            "messages[].content[].video_url.fps",
+            "messages[].content[].type=audio_url",
+            "messages[].content[].audio_url.url"
+          ]
+        },
+        "specs": {
+          "model": {
+            "type": "string",
+            "notes": "见 [Models](https://cloud.siliconflow.cn/models?types=chat)"
+          },
+          "messages": {
+            "type": "array<object>",
+            "notes": "min 1，max 10"
+          },
+          "messages[].role": {
+            "type": "string",
+            "default": "user",
+            "notes": "`user` \\"
+          },
+          "messages[].content": {
+            "type": "string",
+            "notes": "LLM 为纯文本"
+          },
+          "stream": {
+            "type": "boolean",
+            "notes": "SSE；以 `data: [DONE]` 结束"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "notes": "预留约 10k 给输入/系统开销"
+          },
+          "enable_thinking": {
+            "type": "boolean",
+            "notes": "见下方支持模型列表"
+          },
+          "thinking_budget": {
+            "type": "integer",
+            "range": {
+              "min": 128,
+              "max": 32768,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "推理模型思维链 token 上限"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "notes": "`max`"
+          },
+          "min_p": {
+            "type": "number",
+            "range": {
+              "min": 0,
+              "max": 1,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "仅 Qwen3"
+          },
+          "stop": {
+            "type": "string ",
+            "default": "no",
+            "range": {
+              "min": null,
+              "max": 4,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "max 4"
+          },
+          "temperature": {
+            "type": "number",
+            "range": {
+              "min": null,
+              "max": 2,
+              "minInclusive": true,
+              "maxInclusive": true
+            }
+          },
+          "top_p": {
+            "type": "number",
+            "default": 0.7,
+            "notes": "Nucleus sampling"
+          },
+          "top_k": {
+            "type": "number",
+            "range": {
+              "min": null,
+              "max": 100,
+              "minInclusive": true,
+              "maxInclusive": true
+            }
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "range": {
+              "min": -2,
+              "max": 2,
+              "minInclusive": true,
+              "maxInclusive": true
+            }
+          },
+          "n": {
+            "type": "integer",
+            "default": 1,
+            "notes": "返回生成数量"
+          },
+          "response_format": {
+            "type": "object",
+            "notes": "输出格式"
+          },
+          "response_format.type": {
+            "type": "string",
+            "default": "text"
+          },
+          "tools": {
+            "type": "array",
+            "range": {
+              "min": null,
+              "max": 128,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "仅 `function` 类型"
+          },
+          "tools[].type": {
+            "type": "string"
+          },
+          "tools[].function.name": {
+            "type": "string",
+            "range": {
+              "min": null,
+              "max": 64,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "a-zA-Z0-9_-"
+          },
+          "tools[].function.description": {
+            "type": "string"
+          },
+          "tools[].function.parameters": {
+            "type": "object",
+            "notes": "JSON Schema"
+          },
+          "tools[].function.strict": {
+            "type": "boolean",
+            "default": false,
+            "notes": "Structured Outputs 子集"
+          }
+        }
+      },
+      "anthropic_messages": {
+        "compare": true,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://docs.siliconflow.cn/cn/api-reference/chat-completions/messages",
+          "localDoc": "docs/api/siliconflow-message.md",
+          "notes": "对照 docs/api/siliconflow-message.md（2026-06-16）。 类型字段按该渠道官方 API 原文收录。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages",
+          "max_tokens"
+        ],
+        "parameters": {
+          "Core": [
+            "model",
+            "messages",
+            "messages[].role",
+            "messages[].content",
+            "max_tokens",
+            "system",
+            "system[].type",
+            "system[].text"
+          ],
+          "Sampling": [
+            "temperature",
+            "top_p",
+            "top_k",
+            "stop_sequences"
+          ],
+          "Tools": [
+            "tools",
+            "tools[].name",
+            "tools[].description",
+            "tools[].input_schema",
+            "tool_choice"
+          ],
+          "Protocol": [
+            "stream"
+          ]
+        },
+        "specs": {
+          "model": {
+            "type": "string",
+            "notes": "见 [Models](https://cloud.siliconflow.cn/models?types=chat)"
+          },
+          "messages": {
+            "type": "array",
+            "notes": "min 1，max 10；`user` / `assistant` 交替（Anthropic 惯例）"
+          },
+          "messages[].role": {
+            "type": "string",
+            "default": "user",
+            "notes": "`system` \\"
+          },
+          "messages[].content": {
+            "type": "string",
+            "notes": "消息内容"
+          },
+          "system": {
+            "type": "string ",
+            "default": "no"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "notes": "生成上限；模型各有最大值"
+          },
+          "stream": {
+            "type": "boolean",
+            "notes": "SSE；以 `data: [DONE]` 结束"
+          },
+          "temperature": {
+            "type": "number",
+            "range": {
+              "min": 0,
+              "max": 2,
+              "minInclusive": true,
+              "maxInclusive": true
+            }
+          },
+          "top_p": {
+            "type": "number",
+            "range": {
+              "min": 0.1,
+              "max": 1,
+              "minInclusive": true,
+              "maxInclusive": true
+            }
+          },
+          "top_k": {
+            "type": "number",
+            "range": {
+              "min": 0,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true
+            }
+          },
+          "stop_sequences": {
+            "type": "array<string>",
+            "notes": "命中后 `stop_reason=stop_sequence`"
+          },
+          "tools": {
+            "type": "array",
+            "notes": "Anthropic tool use"
+          },
+          "tools[].name": {
+            "type": "string",
+            "notes": "工具名称"
+          },
+          "tools[].description": {
+            "type": "string",
+            "notes": "强烈建议提供"
+          },
+          "tools[].input_schema": {
+            "type": "object",
+            "notes": "JSON Schema（draft 2020-12）"
+          },
+          "tool_choice": {
+            "type": "object",
+            "notes": "见下方子类型"
+          },
+          "type": {
+            "type": "string",
+            "notes": "`text`"
+          },
+          "text": {
+            "type": "string",
+            "notes": "文本内容"
+          }
+        }
+      }
+    },
+    "streamlake": {
+      "chat_completions": {
+        "compare": true,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://www.streamlake.com/document/WANQING/mq6k66r6xgqwnfbd8t",
+          "localDoc": "docs/api/streamlake-chat.md",
+          "notes": "对照 docs/api/streamlake-chat.md（2026-06-25）。model 为推理点 ID（ep-xxx）。 类型字段按该渠道官方 API 原文收录。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages"
+        ],
+        "parameters": {
+          "Core": [
+            "model",
+            "messages"
+          ],
+          "Sampling": [
+            "temperature",
+            "top_p",
+            "top_k",
+            "presence_penalty",
+            "seed",
+            "stop",
+            "n"
+          ],
+          "Length": [
+            "max_tokens",
+            "max_completion_tokens"
+          ],
+          "Reasoning.Switch": [
+            "enable_thinking"
+          ],
+          "Output.Structure": [
+            "response_format"
+          ],
+          "Output.Modality": [
+            "modalities",
+            "audio"
+          ],
+          "Tools": [
+            "tools",
+            "tool_choice",
+            "parallel_tool_calls"
+          ],
+          "Protocol": [
+            "stream",
+            "stream_options",
+            "stream_options.include_usage"
+          ],
+          "Debug": [
+            "logprobs",
+            "top_logprobs"
+          ]
+        },
+        "specs": {
+          "model": {
+            "type": "string",
+            "notes": "推理点 ID，如 `ep-b0cx22-...`"
+          },
+          "messages": {
+            "type": "array",
+            "notes": "System / User / Assistant / Tool 消息"
+          },
+          "stream": {
+            "type": "boolean",
+            "default": false,
+            "notes": "推荐 `true` 降低超时风险"
+          },
+          "stream_options": {
+            "type": "object",
+            "notes": "仅 `stream=true`；`include_usage` 默认 false"
+          },
+          "modalities": {
+            "type": "array",
+            "default": "[\"text\"]",
+            "notes": "Qwen-Omni：`[\"text\",\"audio\"]`"
+          },
+          "audio": {
+            "type": "object",
+            "notes": "需 `modalities` 含 `audio`"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "notes": "推荐使用"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "effective": "deprecated",
+            "notes": "Deprecated"
+          },
+          "n": {
+            "type": "integer",
+            "default": 1,
+            "range": {
+              "min": 1,
+              "max": 4,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "仅部分 Qwen3 / qwen-plus-character"
+          },
+          "response_format": {
+            "type": "object",
+            "default": "{\"type\":\"text\"}",
+            "notes": "`text` / `json_object` / `json_schema`"
+          },
+          "stop": {
+            "type": "string ",
+            "default": "array"
+          },
+          "temperature": {
+            "type": "float",
+            "range": {
+              "min": 0,
+              "max": 2,
+              "minInclusive": true,
+              "maxInclusive": false
+            },
+            "notes": "与 `top_p` 建议只设其一"
+          },
+          "top_p": {
+            "type": "float",
+            "range": {
+              "min": 0,
+              "max": 1,
+              "minInclusive": false,
+              "maxInclusive": true
+            }
+          },
+          "top_k": {
+            "type": "integer",
+            "range": {
+              "min": 0,
+              "max": null,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "Python SDK 放 `extra_body`"
+          },
+          "presence_penalty": {
+            "type": "float",
+            "range": {
+              "min": -2,
+              "max": 2,
+              "minInclusive": true,
+              "maxInclusive": true
+            }
+          },
+          "seed": {
+            "type": "integer",
+            "notes": "可复现采样"
+          },
+          "logprobs": {
+            "type": "boolean",
+            "default": false
+          },
+          "top_logprobs": {
+            "type": "integer",
+            "default": 0,
+            "range": {
+              "min": 0,
+              "max": 5,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "需 `logprobs=true`"
+          },
+          "enable_thinking": {
+            "type": "boolean",
+            "default": "因模型",
+            "notes": "混合思考模型；SDK 放 `extra_body`"
+          },
+          "tools": {
+            "type": "array",
+            "notes": "Function Calling"
+          },
+          "tool_choice": {
+            "type": "string ",
+            "default": "object",
+            "notes": "`auto`"
+          },
+          "parallel_tool_calls": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "anthropic_messages": {
+        "compare": true,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://www.streamlake.com/document/WANQING/mq6k6xfnbs4vn99zggq",
+          "localDoc": "docs/api/streamlake-message.md",
+          "notes": "对照 docs/api/streamlake-message.md（2026-06-25）。 类型字段按该渠道官方 API 原文收录。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages",
+          "max_tokens"
+        ],
+        "parameters": {
+          "Core": [
+            "model",
+            "messages",
+            "max_tokens",
+            "system"
+          ],
+          "Sampling": [
+            "stop_sequences"
+          ],
+          "Reasoning.Switch": [
+            "thinking"
+          ],
+          "Tools": [
+            "tools",
+            "tool_choice"
+          ],
+          "Protocol": [
+            "stream"
+          ],
+          "Metadata": [
+            "metadata",
+            "cache_control",
+            "service_tier"
+          ],
+          "Extra": [
+            "container",
+            "inference_geo",
+            "output_config"
+          ]
+        },
+        "specs": {
+          "model": {
+            "type": "string",
+            "notes": "推理点 ID（`ep-xxx`）"
+          },
+          "messages": {
+            "type": "array",
+            "notes": "role + content"
+          },
+          "max_tokens": {
+            "type": "number",
+            "notes": "最大输出 token"
+          },
+          "system": {
+            "type": "string ",
+            "notes": "array`"
+          },
+          "stream": {
+            "type": "boolean",
+            "default": false,
+            "notes": "SSE 流式"
+          },
+          "stop_sequences": {
+            "type": "array",
+            "notes": "自定义停止序列"
+          },
+          "thinking": {
+            "type": "object",
+            "notes": "Extended Thinking：`enabled` / `disabled` / `adaptive` 等"
+          },
+          "tools": {
+            "type": "array",
+            "notes": "工具定义"
+          },
+          "tool_choice": {
+            "type": "object",
+            "default": "auto",
+            "notes": "auto / any / tool / none"
+          },
+          "metadata": {
+            "type": "object",
+            "notes": "含 `user_id`，≤64KB"
+          },
+          "cache_control": {
+            "type": "object",
+            "notes": "`type: ephemeral`，可选 `ttl`"
+          },
+          "container": {
+            "type": "string",
+            "notes": "跨请求容器标识"
+          },
+          "inference_geo": {
+            "type": "string",
+            "notes": "推理地理区域"
+          },
+          "output_config": {
+            "type": "object",
+            "notes": "`effort` / `format`；可替代 temperature"
+          },
+          "service_tier": {
+            "type": "string",
+            "default": "auto",
+            "notes": "`auto` / `standard_only`"
+          }
+        }
+      },
+      "responses_api": {
+        "compare": true,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://www.streamlake.com/document/WANQING/mq6k6jmxvq9ngxkozfl",
+          "localDoc": "docs/api/streamlake-response.md",
+          "notes": "对照 docs/api/streamlake-response.md（2026-06-25）。 类型字段按该渠道官方 API 原文收录。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "input"
+        ],
+        "parameters": {
+          "Core": [
+            "model",
+            "input"
+          ],
+          "Sampling": [
+            "temperature",
+            "top_p"
+          ],
+          "Length": [
+            "max_output_tokens"
+          ],
+          "Reasoning.Switch": [
+            "reasoning",
+            "enable_thinking"
+          ],
+          "Tools": [
+            "tools",
+            "tool_choice"
+          ],
+          "Protocol": [
+            "stream"
+          ],
+          "Metadata": [
+            "instructions",
+            "previous_response_id",
+            "conversation"
+          ]
+        },
+        "specs": {
+          "model": {
+            "type": "string",
+            "notes": "推理点 ID（`ep-xxx`）"
+          },
+          "input": {
+            "type": "string ",
+            "notes": "array`"
+          },
+          "temperature": {
+            "type": "number"
+          },
+          "top_p": {
+            "type": "number"
+          },
+          "max_output_tokens": {
+            "type": "integer"
+          },
+          "stream": {
+            "type": "boolean"
+          },
+          "reasoning": {
+            "type": "object",
+            "notes": "推理配置"
+          },
+          "enable_thinking": {
+            "type": "boolean",
+            "notes": "思考模式"
+          },
+          "tools": {
+            "type": "array"
+          },
+          "tool_choice": {
+            "type": "string"
+          },
+          "instructions": {
+            "type": "string",
+            "notes": "系统级指令"
+          },
+          "previous_response_id": {
+            "type": "string",
+            "notes": "上下文续接"
+          },
+          "conversation": {
+            "type": "object",
+            "notes": "会话管理"
+          }
+        }
+      }
+    },
+    "vllm": {
+      "chat_completions": {
+        "compare": false,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://docs.vllm.ai/en/latest/serving/online_serving/openai_compatible_server/",
+          "localDoc": "docs/api/vllm.md",
+          "notes": "vLLM extra_body 扩展参数见 docs/api/vllm.md。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages"
+        ],
+        "parameters": {
+          "Sampling": [
+            "temperature",
+            "top_p",
+            "top_k",
+            "min_p",
+            "repetition_penalty",
+            "stop",
+            "stop_token_ids",
+            "include_stop_str_in_output",
+            "min_tokens"
+          ],
+          "Length": [
+            "max_tokens",
+            "max_completion_tokens"
+          ],
+          "Reasoning.Switch": [
+            "chat_template_kwargs.enable_thinking"
+          ],
+          "Reasoning.Intensity": [
+            "reasoning_effort"
+          ],
+          "Output.Structure": [
+            "response_format",
+            "structured_outputs"
+          ],
+          "Tools": [
+            "tools",
+            "tool_choice",
+            "parallel_tool_calls"
+          ],
+          "Protocol": [
+            "stream",
+            "stream_options",
+            "stream_options.include_usage"
+          ],
+          "Template": [
+            "continue_final_message",
+            "add_generation_prompt"
+          ],
+          "Debug": [
+            "return_token_ids",
+            "request_id"
+          ]
+        },
+        "specs": {
+          "model": {
+            "type": "string",
+            "notes": "Served model id. The docs examples commonly use Hugging Face model ids such as `NousResearch/Meta-Llama-3-8B-Instruct`."
+          },
+          "messages": {
+            "type": "array<object>",
+            "notes": "OpenAI-style chat messages. The served model needs a chat template for Chat Completions."
+          },
+          "top_k": {
+            "type": "string",
+            "notes": "Top-k sampling; not part of core OpenAI Chat Completions."
+          },
+          "min_p": {
+            "type": "string",
+            "notes": "Alternative sampling cutoff."
+          },
+          "repetition_penalty": {
+            "type": "string",
+            "notes": "Penalizes repeated generation."
+          },
+          "length_penalty": {
+            "type": "string",
+            "notes": "Beam-search related length penalty."
+          },
+          "stop_token_ids": {
+            "type": "string",
+            "notes": "Token-id stop conditions."
+          },
+          "include_stop_str_in_output": {
+            "type": "string",
+            "notes": "Controls whether matched stop strings remain in output."
+          },
+          "ignore_eos": {
+            "type": "string",
+            "notes": "Continue generation after EOS when true."
+          },
+          "min_tokens": {
+            "type": "string",
+            "notes": "Minimum number of generated tokens."
+          },
+          "skip_special_tokens": {
+            "type": "string",
+            "notes": "Controls special-token stripping."
+          },
+          "spaces_between_special_tokens": {
+            "type": "string",
+            "notes": "Controls spacing between special tokens."
+          },
+          "truncate_prompt_tokens": {
+            "type": "string",
+            "notes": "Truncate prompt token count."
+          },
+          "truncation_side": {
+            "type": "string",
+            "notes": "Which side to truncate when truncation is active."
+          },
+          "allowed_token_ids": {
+            "type": "string",
+            "notes": "Restrict possible output token ids."
+          },
+          "prompt_logprobs": {
+            "type": "string",
+            "notes": "Prompt token log probabilities."
+          },
+          "echo": {
+            "type": "string",
+            "notes": "Prepends the last message when the role matches."
+          },
+          "add_generation_prompt": {
+            "type": "string",
+            "notes": "Chat-template control for adding the generation prompt."
+          },
+          "continue_final_message": {
+            "type": "string",
+            "notes": "Allows assistant prefill / continuing the final message; cannot be combined with `add_generation_prompt`."
+          },
+          "structured_outputs": {
+            "type": "string",
+            "notes": "Current structured-output wrapper, e.g. `{ \"choice\": [\"positive\", \"negative\"] }` or `{ \"json\": {...schema...} }`."
+          },
+          "request_id": {
+            "type": "string",
+            "notes": "Request id carried through inference and returned in response."
+          },
+          "return_token_ids": {
+            "type": "string",
+            "notes": "Adds token ids to response/chunks for debugging."
+          },
+          "return_prompt_text": {
+            "type": "string",
+            "notes": "Adds rendered prompt text for chat-template inspection."
+          },
+          "cache_salt": {
+            "type": "string",
+            "notes": "Salts prefix cache in multi-tenant deployments."
+          },
+          "vllm_xargs": {
+            "type": "string",
+            "notes": "Extra custom-extension request parameters."
+          }
+        }
+      }
+    },
+    "openai": {
+      "chat_completions": {
+        "compare": false,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://platform.openai.com/docs/api-reference/chat/create",
+          "localDoc": "docs/api/openai.md",
+          "notes": "参考基线渠道；docs/api/openai.md 含更多未列入矩阵的字段。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages"
+        ],
+        "parameters": {
+          "Sampling": [
+            "temperature",
+            "top_p",
+            "n",
+            "seed",
+            "stop",
+            "frequency_penalty",
+            "presence_penalty",
+            "logit_bias"
+          ],
+          "Length": [
+            "max_tokens",
+            "max_completion_tokens"
+          ],
+          "Reasoning.Intensity": [
+            "reasoning_effort"
+          ],
+          "Output.Structure": [
+            "response_format"
+          ],
+          "Tools": [
+            "tools",
+            "tool_choice",
+            "parallel_tool_calls"
+          ],
+          "Protocol": [
+            "stream",
+            "stream_options",
+            "stream_options.include_usage"
+          ],
+          "Debug": [
+            "logprobs",
+            "top_logprobs"
+          ],
+          "Metadata": [
+            "user",
+            "metadata",
+            "store"
+          ],
+          "Extra": [
+            "service_tier",
+            "prediction",
+            "audio"
+          ]
+        },
+        "specs": {
+          "model": {
+            "type": "string"
+          },
+          "messages": {
+            "type": "string",
+            "notes": "Chat conversation."
+          },
+          "stream": {
+            "type": "string",
+            "notes": "Returns SSE chunks when true."
+          },
+          "stream_options.include_usage": {
+            "type": "string",
+            "notes": "Adds a final pre-`[DONE]` chunk with total usage and `choices: []`; may be missing if stream is interrupted."
+          },
+          "stream_options.include_obfuscation": {
+            "type": "string",
+            "notes": "Controls random `obfuscation` fields on streaming deltas."
+          },
+          "max_completion_tokens": {
+            "type": "string",
+            "notes": "Preferred max output limit; includes visible output tokens and reasoning tokens."
+          },
+          "max_tokens": {
+            "type": "string",
+            "effective": "deprecated",
+            "notes": "Deprecated in favor of `max_completion_tokens`; not compatible with o-series models."
+          },
+          "n": {
+            "type": "string",
+            "notes": "Number of choices to generate; billed across all generated choices."
+          },
+          "store": {
+            "type": "string",
+            "notes": "Allows storing output for distillation/evals. Supports text and image inputs; image inputs over 8 MB may be dropped."
+          },
+          "metadata": {
+            "type": "string",
+            "notes": "Max 16 pairs; key max 64 chars; value max 512 chars."
+          },
+          "service_tier": {
+            "type": "string"
+          },
+          "user": {
+            "type": "string",
+            "notes": "Legacy stable end-user identifier; docs say use `safety_identifier` and `prompt_cache_key` instead."
+          },
+          "safety_identifier": {
+            "type": "string",
+            "notes": "Stable abuse-prevention identifier; should not contain raw private user data."
+          },
+          "prompt_cache_key": {
+            "type": "string",
+            "notes": "Replaces `user` for cache bucketing / prompt-cache hit-rate optimization."
+          },
+          "prompt_cache_retention": {
+            "type": "string",
+            "notes": "`24h` enables extended prompt cache retention up to 24 hours."
+          },
+          "prediction": {
+            "type": "string",
+            "notes": "array<text part> }`"
+          },
+          "temperature": {
+            "type": "number `0` to `2",
+            "notes": "Docs recommend changing either `temperature` or `top_p`, not both. Reasoning-model support can differ."
+          },
+          "top_p": {
+            "type": "number",
+            "notes": "Nucleus sampling alternative to temperature."
+          },
+          "frequency_penalty": {
+            "type": "number `-2.0` to `2.0",
+            "notes": "Penalizes repeated token frequency."
+          },
+          "presence_penalty": {
+            "type": "number `-2.0` to `2.0",
+            "notes": "Penalizes already-mentioned topics/tokens."
+          },
+          "logit_bias": {
+            "type": "token-id map to number `-100` to `100",
+            "notes": "Tokenizer/model-dependent."
+          },
+          "seed": {
+            "type": "integer",
+            "notes": "Best-effort deterministic sampling; use `system_fingerprint` to detect backend changes."
+          },
+          "stop": {
+            "type": "string or `array<string>",
+            "notes": "Up to 4 stop sequences. Not supported with latest reasoning models `o3` and `o4-mini`."
+          },
+          "logprobs": {
+            "type": "boolean",
+            "notes": "Returns log probabilities for output tokens in `message.content` when supported."
+          },
+          "top_logprobs": {
+            "type": "integer `0` to `20",
+            "notes": "Requires `logprobs: true`."
+          },
+          "verbosity": {
+            "type": "low`, `medium`, `high",
+            "notes": "Controls response verbosity where supported."
+          },
+          "id": {
+            "type": "string"
+          },
+          "object": {
+            "type": "string"
+          },
+          "created": {
+            "type": "string"
+          },
+          "choices": {
+            "type": "string"
+          },
+          "system_fingerprint": {
+            "type": "string"
+          },
+          "usage": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "claude": {
+      "chat_completions": {
+        "compare": false,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://platform.claude.com/docs/en/api/openai-sdk",
+          "localDoc": "docs/api/claude.md",
+          "notes": "OpenAI SDK 兼容层；多项参数文档标注为 accepted but ignored。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages"
+        ],
+        "parameters": {
+          "Sampling": [
+            "temperature",
+            "top_p",
+            "n",
+            "stop",
+            "seed",
+            "frequency_penalty",
+            "presence_penalty"
+          ],
+          "Length": [
+            "max_tokens",
+            "max_completion_tokens"
+          ],
+          "Reasoning.Switch": [
+            "thinking"
+          ],
+          "Reasoning.Intensity": [
+            "reasoning_effort"
+          ],
+          "Output.Structure": [
+            "response_format"
+          ],
+          "Tools": [
+            "tools",
+            "tool_choice",
+            "parallel_tool_calls",
+            "tools[].function.strict",
+            "functions",
+            "function_call"
+          ],
+          "Protocol": [
+            "stream",
+            "stream_options",
+            "stream_options.include_usage"
+          ],
+          "Debug": [
+            "logprobs",
+            "top_logprobs"
+          ],
+          "Metadata": [
+            "metadata",
+            "store",
+            "user"
+          ],
+          "Multimodal": [
+            "messages[].content[].image_url",
+            "messages[].content[].image_url.detail",
+            "messages[].content[].input_audio"
+          ]
+        },
+        "specs": {
+          "model": {
+            "type": "string",
+            "notes": "Use Claude model names."
+          },
+          "messages": {
+            "type": "array<object>",
+            "notes": "OpenAI-style chat messages are translated to Claude Messages API input."
+          }
+        }
+      }
+    },
+    "thinking": {
+      "chat_completions": {
+        "compare": false,
+        "docMeta": {
+          "docStatus": "internal",
+          "docStatusLabel": "内部探针",
+          "docStatusClass": "protocol-doc-badge--internal",
+          "docUrl": null,
+          "localDoc": "docs/api/thinking-dialects.md",
+          "notes": "跨渠道推理方言探针，非单一供应商 API 文档。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [],
+        "parameters": {
+          "Reasoning.Switch": [
+            "enable_thinking",
+            "thinking",
+            "reasoning",
+            "chat_template_kwargs.enable_thinking"
+          ],
+          "Reasoning.Intensity": [
+            "reasoning_effort",
+            "thinking_budget",
+            "reasoning.effort",
+            "reasoning.max_tokens",
+            "thinking.budget_tokens"
+          ],
+          "Reasoning.Output": [
+            "reasoning.summary",
+            "reasoning.exclude",
+            "include_reasoning",
+            "reasoning_split",
+            "preserve_thinking",
+            "thinking.clear_thinking"
+          ],
+          "Length": [
+            "max_completion_tokens"
+          ],
+          "Observability": [
+            "reasoning_content",
+            "usage.completion_tokens_details.reasoning_tokens"
+          ]
+        },
+        "specs": {}
+      }
+    },
+    "silinex_china": {
+      "chat_completions": {
+        "compare": false,
+        "docMeta": {
+          "docStatus": "partial",
+          "docStatusLabel": "文档不完整",
+          "docStatusClass": "protocol-doc-badge--partial",
+          "docUrl": null,
+          "localDoc": "config/rules/silinex-gateway.yaml",
+          "notes": "SF Silinex CN 独立 API 逻辑（网关转换规则 config/rules/silinex-gateway.yaml）；官方 Chat 文档待补充。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages"
+        ],
+        "parameters": {
+          "Core": [
+            "model",
+            "messages"
+          ],
+          "Sampling": [
+            "temperature",
+            "top_p",
+            "frequency_penalty",
+            "presence_penalty",
+            "logit_bias",
+            "seed",
+            "n",
+            "stop"
+          ],
+          "Length": [
+            "max_tokens",
+            "max_completion_tokens"
+          ],
+          "Reasoning.Switch": [
+            "enable_thinking"
+          ],
+          "Reasoning.Intensity": [
+            "thinking_budget",
+            "reasoning_effort"
+          ],
+          "Output": [
+            "response_format",
+            "modalities",
+            "prediction"
+          ],
+          "Tools": [
+            "tools",
+            "tool_choice"
+          ],
+          "Protocol": [
+            "stream",
+            "stream_options"
+          ],
+          "Debug": [
+            "logprobs",
+            "top_logprobs"
+          ],
+          "Metadata": [
+            "user",
+            "metadata",
+            "store",
+            "service_tier"
+          ],
+          "Extra": [
+            "audio"
+          ]
+        },
+        "specs": {}
+      },
+      "anthropic_messages": {
+        "compare": false,
+        "docMeta": {
+          "docStatus": "missing",
+          "docStatusLabel": "待补充 API 文档",
+          "docStatusClass": "protocol-doc-badge--missing",
+          "docUrl": null,
+          "localDoc": null,
+          "notes": "Anthropic Messages 官方文档待提供，暂不纳入协议对比。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages",
+          "max_tokens"
+        ],
+        "parameters": {},
+        "specs": {}
+      },
+      "responses_api": {
+        "compare": false,
+        "docMeta": {
+          "docStatus": "missing",
+          "docStatusLabel": "待补充 API 文档",
+          "docStatusClass": "protocol-doc-badge--missing",
+          "docUrl": null,
+          "localDoc": null,
+          "notes": "Responses 官方文档待提供，暂不纳入协议对比。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "input"
+        ],
+        "parameters": {},
+        "specs": {}
+      }
+    },
+    "silinex_overseas": {
+      "chat_completions": {
+        "compare": false,
+        "docMeta": {
+          "docStatus": "partial",
+          "docStatusLabel": "文档不完整",
+          "docStatusClass": "protocol-doc-badge--partial",
+          "docUrl": null,
+          "localDoc": "config/rules/silinex-gateway.yaml",
+          "notes": "SF Silinex COM 独立 API 逻辑（网关转换规则 config/rules/silinex-gateway.yaml）；官方 Chat 文档待补充。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages"
+        ],
+        "parameters": {
+          "Core": [
+            "model",
+            "messages"
+          ],
+          "Sampling": [
+            "temperature",
+            "top_p",
+            "frequency_penalty",
+            "presence_penalty",
+            "logit_bias",
+            "seed",
+            "n",
+            "stop"
+          ],
+          "Length": [
+            "max_tokens",
+            "max_completion_tokens"
+          ],
+          "Reasoning.Switch": [
+            "enable_thinking"
+          ],
+          "Reasoning.Intensity": [
+            "thinking_budget",
+            "reasoning_effort"
+          ],
+          "Output": [
+            "response_format",
+            "modalities",
+            "prediction"
+          ],
+          "Tools": [
+            "tools",
+            "tool_choice"
+          ],
+          "Protocol": [
+            "stream",
+            "stream_options"
+          ],
+          "Debug": [
+            "logprobs",
+            "top_logprobs"
+          ],
+          "Metadata": [
+            "user",
+            "metadata",
+            "store",
+            "service_tier"
+          ],
+          "Extra": [
+            "audio"
+          ]
+        },
+        "specs": {}
+      },
+      "anthropic_messages": {
+        "compare": false,
+        "docMeta": {
+          "docStatus": "missing",
+          "docStatusLabel": "待补充 API 文档",
+          "docStatusClass": "protocol-doc-badge--missing",
+          "docUrl": null,
+          "localDoc": null,
+          "notes": "Anthropic Messages 官方文档待提供，暂不纳入协议对比。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages",
+          "max_tokens"
+        ],
+        "parameters": {},
+        "specs": {}
+      },
+      "responses_api": {
+        "compare": false,
+        "docMeta": {
+          "docStatus": "missing",
+          "docStatusLabel": "待补充 API 文档",
+          "docStatusClass": "protocol-doc-badge--missing",
+          "docUrl": null,
+          "localDoc": null,
+          "notes": "Responses 官方文档待提供，暂不纳入协议对比。",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "input"
+        ],
+        "parameters": {},
+        "specs": {}
+      }
+    }
+  }
+}

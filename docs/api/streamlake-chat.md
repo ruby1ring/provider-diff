@@ -1,10 +1,26 @@
+---
+channel_id: streamlake
+protocol_id: chat_completions
+doc_status: verified
+doc_url: "https://www.streamlake.com/document/WANQING/mq6k66r6xgqwnfbd8t"
+last_verified: 2026-06-25
+compare: true
+required_parameters: [model, messages]
+parameter_groups:
+  Core: [model, messages]
+  Sampling: [temperature, top_p, top_k, presence_penalty, seed, stop, n]
+  Length: [max_tokens, max_completion_tokens]
+  Reasoning.Switch: [enable_thinking]
+  Output.Structure: [response_format]
+  Output.Modality: [modalities, audio]
+  Tools: [tools, tool_choice, parallel_tool_calls]
+  Protocol: [stream, stream_options, stream_options.include_usage]
+  Debug: [logprobs, top_logprobs]
+notes: 对照 docs/api/streamlake-chat.md（2026-06-25）。model 为推理点 ID（ep-xxx）。 类型字段按该渠道官方 API 原文收录。
+---
+
 # StreamLake / 快手万擎 Chat Completions API Notes
 
-> **Last verified:** 2026-06-25 against official API documentation.
-> **Official source:** https://www.streamlake.com/document/WANQING/mq6k66r6xgqwnfbd8t
-> **Protocol ID:** `chat_completions`
-
-Structured summary for Noctua compatibility-test design.
 
 ## Endpoint
 
@@ -70,3 +86,16 @@ Structured summary for Noctua compatibility-test design.
 | `tools` | `array` | — | Function Calling |
 | `tool_choice` | `string \| object` | `auto` | `auto` / `none` / `required` |
 | `parallel_tool_calls` | `boolean` | `false` | |
+
+## 实测：temperature 字面量
+
+对应测评 case 分组「协议 / 采样」：`temperature` 分别传入 JSON integer `1`、`2` 与 float `1.0`、`2.0`。
+
+| 传入值 | JSON 类型 | 官方文档 | 实测 (Noctua) | 备注 |
+|---|---|---|---|---|
+| `1` | integer | 类型 `float`；范围 `[0, 2)` | 待实测 | |
+| `2` | integer | 类型 `float`；范围 `[0, 2)`（上界不含 2） | 待实测 | |
+| `1.0` | float | 类型 `float`；范围 `[0, 2)` | 待实测 | |
+| `2.0` | float | 类型 `float`；范围 `[0, 2)`（上界不含 2） | 待实测 | |
+
+> 实测与文档不一致时，在「实测」列记录 HTTP 状态、错误码或实际行为；勿改写「官方文档」列。

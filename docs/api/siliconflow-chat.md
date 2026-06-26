@@ -1,10 +1,26 @@
+---
+channel_id: siliconflow
+protocol_id: chat_completions
+doc_status: verified
+doc_url: "https://docs.siliconflow.cn/cn/api-reference/chat-completions/chat-completions"
+last_verified: 2026-06-16
+compare: true
+required_parameters: [model, messages]
+parameter_groups:
+  Core: [model, messages, messages[].role, messages[].content]
+  Sampling: [temperature, top_p, top_k, min_p, n, stop, frequency_penalty]
+  Length: [max_tokens]
+  Reasoning.Switch: [enable_thinking]
+  Reasoning.Intensity: [thinking_budget, reasoning_effort]
+  Output.Structure: [response_format, response_format.type]
+  Tools: [tools, tools[].type, tools[].function.name, tools[].function.description, tools[].function.parameters, tools[].function.strict]
+  Protocol: [stream]
+  Multimodal: [messages[].content[].type=text, messages[].content[].type=image_url, messages[].content[].image_url.url, messages[].content[].image_url.detail, messages[].content[].type=video_url, messages[].content[].video_url.url, messages[].content[].video_url.fps, messages[].content[].type=audio_url, messages[].content[].audio_url.url]
+notes: 对照 docs/api/siliconflow-chat.md（2026-06-16）。 类型字段按该渠道官方 API 原文收录。
+---
+
 # SiliconFlow Chat Completions API Notes
 
-> **Last verified:** 2026-06-16 against official API documentation (browser + OpenAPI).
-> **Official source:** https://docs.siliconflow.cn/cn/api-reference/chat-completions/chat-completions
-> **Protocol ID:** `chat_completions`
-
-Structured summary for Noctua compatibility-test design.
 
 ## Endpoint
 
@@ -79,6 +95,18 @@ VLM schema（`ChatCompletionVLMRequest`）与 LLM 共享 `stream`、`max_tokens`
 | `usage.completion_tokens_details.reasoning_tokens` | 推理 token |
 | Header `x-siliconcloud-trace-id` | 请求追踪 ID |
 
+## 实测：temperature 字面量
+
+对应测评 case 分组「协议 / 采样」：`temperature` 分别传入 JSON integer `1`、`2` 与 float `1.0`、`2.0`。
+
+| 传入值 | JSON 类型 | 官方文档 | 实测 (Noctua) | 备注 |
+|---|---|---|---|---|
+| `1` | integer | 类型 `number`；范围 `≤ 2` | 待实测 | |
+| `2` | integer | 类型 `number`；范围 `≤ 2` | 待实测 | |
+| `1.0` | float | 类型 `number`；范围 `≤ 2` | 待实测 | |
+| `2.0` | float | 类型 `number`；范围 `≤ 2` | 待实测 | |
+
+> 实测与文档不一致时，在「实测」列记录 HTTP 状态、错误码或实际行为；勿改写「官方文档」列。
+
 ## Raw Archive
 
-[`docs/archive/siliconflow-chat-raw.md`](../archive/siliconflow-chat-raw.md)

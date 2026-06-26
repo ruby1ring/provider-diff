@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/design-system/tokens.css" />
-    <link rel="stylesheet" href="/design-system/styles.css?v=noctua-param-specs" />
+    <link rel="stylesheet" href="/design-system/styles.css?v=noctua-param-hierarchy" />
   </head>
   <body>
     <div class="app">
@@ -46,6 +46,14 @@
                 <a class="is-active" href="#run-v01" data-view-link="run-v01">测评工具 V0.1</a>
                 <a href="#run-v02" data-view-link="run-v02">测评工具 V0.2</a>
                 <a href="#reports" data-view-link="reports">测评报告</a>
+              </div>
+            </div>
+            <div class="sidebar-group">
+              <div class="sidebar-group-label">渠道错误码映射</div>
+              <div class="sidebar-group-items">
+                <a href="#error-guide" data-view-link="error-guide">映射说明</a>
+                <a href="#error-channels" data-view-link="error-channels">渠道错误码</a>
+                <a href="#error-mapping" data-view-link="error-mapping">错误码映射</a>
               </div>
             </div>
           </nav>
@@ -153,7 +161,7 @@
           <div class="page-head">
             <div>
               <h1>测评协议</h1>
-              <p id="protocolScopeNote">在同一协议下横向对比各渠道官方 API 文档中的参数覆盖与扩展差异；矩阵数据来自 docs/*.md（2026-06-16 对照官方文档更新）。</p>
+              <p id="protocolScopeNote">在同一协议下横向对比各渠道官方 API 文档中的参数覆盖与扩展差异；矩阵数据来自 docs/*.md（2026-06-25 对照官方文档更新）。</p>
             </div>
           </div>
           <div id="protocolCatalog"></div>
@@ -532,7 +540,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
             </div>
             <div class="case-summary">
               <span id="runV02SelectedCaseCount" class="mono">已选 0 个</span>
-              <span id="runV02CaseHint" class="muted">先选择测评分组：连通性 → 协议 / 流式 → 其他分组；再勾选该分组内的 case。</span>
+              <span id="runV02CaseHint" class="muted">先选择测评分组：连通性 → 协议 / 流式 → 协议 / 采样 → 协议 / 思考模式 → 其他分组；再勾选该分组内的 case。</span>
             </div>
             <div id="runV02CaseGroupPicker" class="run-v02-case-group-picker" role="tablist" aria-label="测评 case 分组"></div>
             <div id="runV02CaseGroups" class="case-groups run-v02-case-list"></div>
@@ -634,6 +642,36 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
             </div>
             <div id="historyList"></div>
           </section>
+        </section>
+
+        <section id="errorGuideView" class="app-view is-hidden" data-view="error-guide">
+          <div class="page-head">
+            <div>
+              <h1>映射说明</h1>
+              <p>LLM 网关对外通常暴露 OpenAI-compatible 错误形态；各上游渠道的错误字段、码值与 HTTP 语义并不一致。本模块整理渠道原生错误与建议的 OpenAI <code>error</code> 映射，供网关适配与排障参考。</p>
+            </div>
+          </div>
+          <div id="errorCodeGuide"></div>
+        </section>
+
+        <section id="errorChannelsView" class="app-view is-hidden" data-view="error-channels">
+          <div class="page-head">
+            <div>
+              <h1>渠道错误码</h1>
+              <p id="errorChannelScopeNote">按渠道浏览错误响应 envelope 与代表性错误码条目；完整文档见 docs/errorcode/。</p>
+            </div>
+          </div>
+          <div id="errorCodeChannelCatalog"></div>
+        </section>
+
+        <section id="errorMappingView" class="app-view is-hidden" data-view="error-mapping">
+          <div class="page-head">
+            <div>
+              <h1>错误码映射</h1>
+              <p id="errorMappingScopeNote">按统一场景横向对比各渠道原生错误与建议的 OpenAI error 映射；点击单元格查看详情。</p>
+            </div>
+          </div>
+          <div id="errorCodeMappingCatalog"></div>
         </section>
 
         <section id="performanceView" class="app-view is-hidden" data-view="performance">
@@ -914,6 +952,21 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
         </div>
       </div>
 
+      <div id="errorCodeMappingDrawer" class="protocol-param-drawer error-code-drawer is-hidden" role="dialog" aria-modal="true" aria-labelledby="errorCodeMappingDrawerTitle" aria-hidden="true">
+        <div class="protocol-param-drawer__backdrop" data-error-code-drawer-dismiss></div>
+        <aside class="protocol-param-drawer__panel panel">
+          <header class="protocol-param-drawer__head">
+            <div>
+              <p class="protocol-param-drawer__eyebrow">错误码映射详情</p>
+              <h2 id="errorCodeMappingDrawerTitle" class="protocol-param-drawer__title"></h2>
+            </div>
+            <button type="button" class="btn btn-ghost btn-xs protocol-param-drawer__close" data-error-code-drawer-dismiss aria-label="关闭">关闭</button>
+          </header>
+          <div id="errorCodeMappingDrawerSummary" class="protocol-param-drawer__summary"></div>
+          <div id="errorCodeMappingDrawerBody" class="protocol-param-drawer__body"></div>
+        </aside>
+      </div>
+
       <div id="protocolParamDrawer" class="protocol-param-drawer is-hidden" role="dialog" aria-modal="true" aria-labelledby="protocolParamDrawerTitle" aria-hidden="true">
         <div class="protocol-param-drawer__backdrop" data-protocol-param-drawer-dismiss></div>
         <aside class="protocol-param-drawer__panel panel">
@@ -929,17 +982,51 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
         </aside>
       </div>
 
+      <div id="modelIntroDrawer" class="protocol-param-drawer model-intro-drawer is-hidden" role="dialog" aria-modal="true" aria-labelledby="modelIntroDrawerTitle" aria-hidden="true">
+        <div class="protocol-param-drawer__backdrop" data-model-intro-drawer-dismiss></div>
+        <aside class="protocol-param-drawer__panel panel">
+          <header class="protocol-param-drawer__head">
+            <div>
+              <p class="protocol-param-drawer__eyebrow">模型介绍</p>
+              <h2 id="modelIntroDrawerTitle" class="protocol-param-drawer__title"></h2>
+            </div>
+            <button type="button" class="btn btn-ghost btn-xs protocol-param-drawer__close" data-model-intro-drawer-dismiss aria-label="关闭">关闭</button>
+          </header>
+          <div id="modelIntroDrawerSummary" class="protocol-param-drawer__summary"></div>
+          <div id="modelIntroDrawerBody" class="protocol-param-drawer__body"></div>
+        </aside>
+      </div>
+
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </div>
 
     <script src="/web/lib/providerx-rules.js?v=noctua-param-meaning"></script>
     <script src="/web/lib/channel-catalog.js?v=noctua-streamlake-logo"></script>
     <script src="/web/lib/custom-eval-models.js?v=noctua-nav42"></script>
-    <script src="/web/lib/protocol-parameter-sources.js?v=noctua-deepseek-msg"></script>
-    <script src="/web/lib/protocol-parameter-specs.js?v=noctua-deepseek-msg"></script>
+    <script src="/web/lib/protocol-matrix-runtime.js?v=noctua-protocol-matrix"></script>
+    <script src="/web/lib/error-code-catalog-runtime.js?v=noctua-error-catalog"></script>
     <script src="/web/lib/mock-data.js?v=noctua-oem-protocol"></script>
     <script src="/web/lib/model-lookup.js?v=noctua-streamlake"></script>
-    <script src="/web/main.js?v=noctua-param-specs"></script>
+    <script src="/web/lib/openrouter-model-detail.js?v=noctua-model-intro"></script>
+    <script>
+      (function loadNoctuaDocs() {
+        const matrixUrl = "/web/data/protocol-matrix.json";
+        const errorUrl = "/web/data/error-code-catalog.json";
+        Promise.all([
+          fetch(matrixUrl).then((r) => { if (!r.ok) throw new Error("missing " + matrixUrl); return r.json(); }),
+          fetch(errorUrl).then((r) => { if (!r.ok) throw new Error("missing " + errorUrl); return r.json(); })
+        ]).then(([matrixData, errorData]) => {
+          window.NOCTUA_PROTOCOL_MATRIX = window.NOCTUA_PROTOCOL_MATRIX_RUNTIME.createApi(matrixData);
+          window.NOCTUA_ERROR_CODE_CATALOG = window.NOCTUA_ERROR_CODE_CATALOG_RUNTIME.createApi(errorData);
+          window.NOCTUA_DOCS_READY = true;
+          document.dispatchEvent(new Event("noctua-docs-ready"));
+        }).catch((err) => {
+          console.error("[noctua] failed to load generated docs:", err);
+          console.error("Run: npm run rebuild:docs");
+        });
+      })();
+    </script>
+    <script src="/web/main.js?v=noctua-protocol-thinking-combos"></script>
     <script>
       if (new URLSearchParams(location.search).has("canvas-annotate")) {
         const s = document.createElement("script");

@@ -1,4 +1,26 @@
+---
+channel_id: vllm
+protocol_id: chat_completions
+doc_status: verified
+doc_url: "https://docs.vllm.ai/en/latest/serving/online_serving/openai_compatible_server/"
+last_verified: 2026-06-16
+compare: false
+required_parameters: [model, messages]
+parameter_groups:
+  Sampling: [temperature, top_p, top_k, min_p, repetition_penalty, stop, stop_token_ids, include_stop_str_in_output, min_tokens]
+  Length: [max_tokens, max_completion_tokens]
+  Reasoning.Switch: [chat_template_kwargs.enable_thinking]
+  Reasoning.Intensity: [reasoning_effort]
+  Output.Structure: [response_format, structured_outputs]
+  Tools: [tools, tool_choice, parallel_tool_calls]
+  Protocol: [stream, stream_options, stream_options.include_usage]
+  Template: [continue_final_message, add_generation_prompt]
+  Debug: [return_token_ids, request_id]
+notes: vLLM extra_body 扩展参数见 docs/api/vllm.md。
+---
+
 # vLLM OpenAI-Compatible Server Notes
+
 
 Sources:
 

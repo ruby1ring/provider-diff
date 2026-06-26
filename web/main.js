@@ -8,6 +8,10 @@ const {
 } = window.LLM_ROSETTA_DATA;
 const PROVIDERX_RULES = window.PROVIDERX_RULES || {};
 
+function getProtocolMatrix() {
+  return window.NOCTUA_PROTOCOL_MATRIX || null;
+}
+
 const els = {
   viewLinks: Array.from(document.querySelectorAll("[data-view-link]")),
   views: Array.from(document.querySelectorAll("[data-view]")),
@@ -177,7 +181,20 @@ const els = {
   protocolParamDrawer: document.querySelector("#protocolParamDrawer"),
   protocolParamDrawerTitle: document.querySelector("#protocolParamDrawerTitle"),
   protocolParamDrawerSummary: document.querySelector("#protocolParamDrawerSummary"),
-  protocolParamDrawerBody: document.querySelector("#protocolParamDrawerBody")
+  protocolParamDrawerBody: document.querySelector("#protocolParamDrawerBody"),
+  errorCodeGuide: document.querySelector("#errorCodeGuide"),
+  errorChannelScopeNote: document.querySelector("#errorChannelScopeNote"),
+  errorCodeChannelCatalog: document.querySelector("#errorCodeChannelCatalog"),
+  errorMappingScopeNote: document.querySelector("#errorMappingScopeNote"),
+  errorCodeMappingCatalog: document.querySelector("#errorCodeMappingCatalog"),
+  errorCodeMappingDrawer: document.querySelector("#errorCodeMappingDrawer"),
+  errorCodeMappingDrawerTitle: document.querySelector("#errorCodeMappingDrawerTitle"),
+  errorCodeMappingDrawerSummary: document.querySelector("#errorCodeMappingDrawerSummary"),
+  errorCodeMappingDrawerBody: document.querySelector("#errorCodeMappingDrawerBody"),
+  modelIntroDrawer: document.querySelector("#modelIntroDrawer"),
+  modelIntroDrawerTitle: document.querySelector("#modelIntroDrawerTitle"),
+  modelIntroDrawerSummary: document.querySelector("#modelIntroDrawerSummary"),
+  modelIntroDrawerBody: document.querySelector("#modelIntroDrawerBody")
 };
 
 const state = {
@@ -191,6 +208,12 @@ const state = {
   protocolCompareChannelOrder: {},
   protocolMatrices: {},
   protocolParamDrawerOpen: false,
+  protocolParamCollapse: new Set(),
+  errorCodeChannelTab: "deepseek",
+  errorCodeCompareChannels: null,
+  errorCodeMappingDrawerOpen: false,
+  errorCodeMappingDrawerContext: null,
+  modelIntroDrawerOpen: false,
   modelLookupQuery: "",
   modelLookupVendorId: "",
   modelLookupAddMode: false,
@@ -421,7 +444,7 @@ const RUN_V02_CONNECTIVITY_CASE_TITLE = '连通性检查：发"Hello"，确认�
 const RUN_V02_CONNECTIVITY_CASE_TOOLTIP =
   "该 Case 目的是用这个协议、这个 endpoint、这个模型，发一个最小合法请求，看能不能调通（HTTP 200 + 基本响应结构）。";
 
-const RUN_V02_PROTOCOL_STREAM_BASIC_TITLE = "流式检查：开启流式（Stream），确认能正常收到流式数据。";
+const RUN_V02_PROTOCOL_STREAM_BASIC_TITLE = "流式检查：开启流式（stream=true），确认能正常收到流式数据。";
 const RUN_V02_PROTOCOL_STREAM_FALSE_TITLE = "非流式检查：显式关闭流式（stream=false），确认返回普通 JSON。";
 const RUN_V02_PROTOCOL_STREAM_USAGE_TITLE = "流式用量：最后一包应返回 token 用量（usage）。";
 const RUN_V02_PROTOCOL_STREAM_BASIC_TOOLTIP =
@@ -430,6 +453,43 @@ const RUN_V02_PROTOCOL_STREAM_FALSE_TOOLTIP =
   "该 Case 在 stream=false 时验证响应为普通 JSON（非 SSE），结构含 choices / usage 等字段。";
 const RUN_V02_PROTOCOL_STREAM_USAGE_TOOLTIP =
   "该 Case 在 stream_options.include_usage=true 时验证流式最后一包是否包含 usage 字段，便于计费与监控。";
+
+const RUN_V02_PROTOCOL_SAMPLING_TOOLTIP =
+  "对照该渠道官方文档中 temperature 的类型与取值范围；JSON integer（1、2）与 float（1.0、2.0）是否等价由实测判定，不符请在 docs/api 对应文档「实测：temperature 字面量」表记录。";
+
+const RUN_V02_PROTOCOL_THINKING_TOOLTIP =
+  "对照该渠道官方思考模式参数字段：开关字段（如 enable_thinking、thinking.type）与强度/预算字段（如 thinking_budget、reasoning_effort）的组合是否被接受，以及开启/关闭时 thinking 证据是否符合预期。";
+
+/** V0.2 协议/思考模式：跨渠道 canonical 组合探针（payloads/thinking）。 */
+const PROTOCOL_THINKING_CANONICAL_CASE_IDS = new Set([
+  "thinking_enable_thinking_true",
+  "thinking_enable_thinking_false",
+  "thinking_budget_only",
+  "thinking_reasoning_effort_medium",
+  "thinking_reasoning_effort_none",
+  "thinking_enable_thinking_with_budget",
+  "thinking_enable_thinking_budget_effort",
+  "thinking_object_enabled",
+  "thinking_object_disabled",
+  "thinking_object_enabled_budget_tokens"
+]);
+
+const PROTOCOL_THINKING_DEFAULT_CASE_IDS = new Set([
+  "thinking_enable_thinking_true",
+  "thinking_enable_thinking_false",
+  "thinking_enable_thinking_with_budget",
+  "thinking_enable_thinking_budget_effort"
+]);
+
+const PROTOCOL_THINKING_COMBO_ORDER = [
+  "enable_thinking",
+  "thinking_budget",
+  "reasoning_effort",
+  "enable_thinking + thinking_budget",
+  "enable_thinking + thinking_budget + reasoning_effort",
+  "thinking",
+  "thinking + thinking.budget_tokens"
+];
 
 const caseTitleZh = {
   ali_basic_minimal: RUN_V02_CONNECTIVITY_CASE_TITLE,
@@ -482,6 +542,14 @@ const caseTitleZh = {
   am_basic_minimal: RUN_V02_CONNECTIVITY_CASE_TITLE,
   am_protocol_stream: RUN_V02_PROTOCOL_STREAM_BASIC_TITLE,
   am_protocol_stream_false: RUN_V02_PROTOCOL_STREAM_FALSE_TITLE,
+  ali_protocol_sampling_temperature_1: "temperature=1（JSON integer）",
+  ali_protocol_sampling_temperature_2: "temperature=2（JSON integer）",
+  ali_protocol_sampling_temperature_1_0: "temperature=1.0（JSON float）",
+  ali_protocol_sampling_temperature_2_0: "temperature=2.0（JSON float）",
+  am_protocol_sampling_temperature_1: "temperature=1（JSON integer）",
+  am_protocol_sampling_temperature_2: "temperature=2（JSON integer）",
+  am_protocol_sampling_temperature_1_0: "temperature=1.0（JSON float）",
+  am_protocol_sampling_temperature_2_0: "temperature=2.0（JSON float）",
   am_sampling_temperature: "Messages 接口接受 temperature",
   am_sampling_top_p: "Messages 接口接受 top_p",
   am_sampling_top_k: "Messages 接口接受 top_k 扩展参数",
@@ -518,15 +586,15 @@ function endpointTemplateById(endpointId) {
 }
 
 const groupLabelZh = {
-  Core: "核心",
+  Core: "核心参数",
   Content: "内容",
-  Sampling: "采样",
-  Length: "长度",
-  Reasoning: "推理",
-  Output: "输出",
-  Tools: "tools",
+  Sampling: "采样参数",
+  Length: "输出长度",
+  Reasoning: "思考模式",
+  Output: "输出控制",
+  Tools: "工具调用",
   Protocol: "协议",
-  Debug: "调试",
+  Debug: "输出概率",
   Multimodal: "多模态",
   Metadata: "元数据",
   Extra: "扩展",
@@ -545,14 +613,14 @@ const groupHintZh = {
   Core: "指定用哪个模型、传入对话或输入内容",
   Sampling: "控制回复随机性与措辞风格，如 temperature、top_p",
   Length: "限制生成内容的长度上限",
-  Reasoning: "控制是否深度思考，以及思考预算或强度",
-  Output: "规定返回格式，如 JSON、结构化或多模态输出",
+  Reasoning: "控制是否思考、思考深度，以及思考内容如何返回；各渠道使用的参数字段不同",
+  Output: "规定返回格式、结构化约束，以及音频/图像等非文本输出模态",
   Tools: "声明模型可调用的外部函数，以及调用方式",
   Protocol: "流式返回、流式选项等传输层行为",
   Multimodal: "图片、音频等非纯文本输入相关字段",
   Search: "是否联网搜索及检索相关选项",
   Metadata: "用户标识、会话元数据、存储策略等旁路信息",
-  Debug: "调试用途，如返回 token 概率等诊断信息",
+  Debug: "控制是否在响应中返回输出 token 的对数概率（logprobs / top_logprobs）",
   Extra: "平台特有或较少使用的扩展字段",
   Beta: "实验性参数，文档或行为可能变更",
   Template: "聊天模板与续写提示相关控制",
@@ -560,7 +628,7 @@ const groupHintZh = {
   Plugins: "网页搜索、时间注入等增强插件能力",
   Observability: "追踪 ID、指纹、推理 token 统计等可观测字段",
   Ignored: "接口接受但文档标注为无实际效果",
-  "Compatibility Probe": "跨渠道推理方言与能力差异探测",
+  "Compatibility Probe": "跨渠道思考参数字段与能力差异探测",
   "Expected Rejected": "用于验证错误处理与拒绝逻辑的探针",
   Content: "消息内容与结构相关字段"
 };
@@ -1910,9 +1978,70 @@ function isProtocolStreamCase(testCase) {
     || isProtocolStreamCaseP1(testCase);
 }
 
+function isProtocolSamplingCase(testCase) {
+  if (testCase?.category !== "protocol") return false;
+  const caseId = String(testCase?.case_id || "");
+  return /_protocol_sampling_temperature_/.test(caseId);
+}
+
+const protocolThinkingParameters = new Set([
+  "enable_thinking",
+  "thinking",
+  "thinking.type",
+  "thinking.budget_tokens",
+  "thinking_budget",
+  "thinking_budget_tokens",
+  "preserve_thinking",
+  "reasoning_effort",
+  "reasoning",
+  "reasoning.effort",
+  "reasoning.enabled",
+  "reasoning.summary"
+]);
+
+function isProtocolThinkingCase(testCase) {
+  if (!testCase) return false;
+  const caseId = String(testCase.case_id || "");
+  if (caseId.startsWith("ali_protocol_thinking_") || caseId.startsWith("am_protocol_thinking_")) return true;
+  return PROTOCOL_THINKING_CANONICAL_CASE_IDS.has(caseId);
+}
+
+function protocolThinkingComboKey(testCase) {
+  const params = (testCase.parameters || [])
+    .map((param) => String(param))
+    .filter((param) => protocolThinkingParameters.has(param)
+      || param.startsWith("thinking")
+      || param.startsWith("reasoning"))
+    .sort();
+  return params.join(" + ") || "other";
+}
+
+function partitionProtocolThinkingCombos(cases = []) {
+  const byCombo = new Map();
+  for (const testCase of cases) {
+    const key = protocolThinkingComboKey(testCase);
+    if (!byCombo.has(key)) byCombo.set(key, []);
+    byCombo.get(key).push(testCase);
+  }
+  const rank = (key) => {
+    const index = PROTOCOL_THINKING_COMBO_ORDER.indexOf(key);
+    return index === -1 ? 100 + key.length : index;
+  };
+  return [...byCombo.entries()]
+    .sort(([left], [right]) => {
+      const byRank = rank(left) - rank(right);
+      if (byRank !== 0) return byRank;
+      return left.localeCompare(right);
+    });
+}
+
+function protocolSamplingCaseTitle(testCase) {
+  return caseTitleZh[testCase?.case_id] || testCase?.title || testCase?.case_id || "";
+}
+
 function runV02ProtocolEvalChannelId(route) {
   if (!route) return null;
-  const sources = window.NOCTUA_PROTOCOL_PARAMETER_SOURCES;
+  const sources = getProtocolMatrix();
   const candidates = [route.runtimeChannelId, route.platformId, route.channelId].filter(Boolean);
   for (const id of candidates) {
     if (sources?.isProtocolEvalChannel?.(id)) return id;
@@ -1926,7 +2055,7 @@ function baselineSupportsStreamIncludeUsage() {
   if (!route) return false;
   const channelId = runV02ProtocolEvalChannelId(route);
   if (!channelId) return false;
-  const params = window.NOCTUA_PROTOCOL_PARAMETER_SOURCES?.getParameters?.(channelId, route.protocolId);
+  const params = getProtocolMatrix()?.getParameters?.(channelId, route.protocolId);
   if (!params) return false;
   return Object.values(params).flat().includes("stream_options.include_usage");
 }
@@ -1938,6 +2067,12 @@ function runV02CaseGroupHint(group) {
   }
   if (group.key === "protocol") {
     return `当前分组：${group.title}。验证流式与非流式传输：stream=true 应返回 SSE；stream=false 应返回普通 JSON；可选验证流式末包 usage。`;
+  }
+  if (group.key === "protocol_sampling") {
+    return `当前分组：${group.title}。验证 temperature 在 JSON integer（1、2）与 float（1.0、2.0）字面量下是否与各渠道协议文档一致；不一致请在 docs/api 对应渠道文档「实测：temperature 字面量」表记录。`;
+  }
+  if (group.key === "protocol_thinking") {
+    return `当前分组：${group.title}。按参数组合验证思考模式字段（如 enable_thinking、thinking_budget、reasoning_effort 及其组合）；对照各渠道官方文档与响应中的 thinking 证据。`;
   }
   return `当前分组：${group.title}。仅运行本分组内已勾选的 case。`;
 }
@@ -2070,6 +2205,14 @@ function reportGroupForResult(result = {}) {
       order: 50,
       title: "图像输入能力",
       description: "验证模型是否能理解图片、多图对比等视觉输入，非视觉模型通常不需要看这一组。"
+    };
+  }
+  if (sourceCase && isProtocolThinkingCase(sourceCase)) {
+    return {
+      key: "protocol_thinking",
+      order: 35,
+      title: "协议 / 思考模式",
+      description: "验证思考模式相关参数是否被接受，以及开启/关闭时响应中的 thinking 内容与 token 证据是否符合预期。"
     };
   }
   if (sourceCase && isOptionalExtensionCase(sourceCase)) {
@@ -2337,6 +2480,7 @@ function caseTitle(testCase) {
   if (isProtocolStreamCaseP0(testCase)) return RUN_V02_PROTOCOL_STREAM_BASIC_TITLE;
   if (isProtocolStreamCaseP0NonStream(testCase)) return RUN_V02_PROTOCOL_STREAM_FALSE_TITLE;
   if (isProtocolStreamCaseP1(testCase)) return RUN_V02_PROTOCOL_STREAM_USAGE_TITLE;
+  if (isProtocolSamplingCase(testCase)) return protocolSamplingCaseTitle(testCase);
   return caseTitleZh[testCase.case_id] || testCase.title || testCase.case_id;
 }
 
@@ -2397,12 +2541,238 @@ function caseIntentText(testCase, context = {}, capacityDisplay = null, title = 
   return [base, capabilityRequirementText(testCase)].filter(Boolean).join(" ");
 }
 
+function paramSubgroupRank(category, subgroup) {
+  if (category === "Reasoning") return thinkingSubgroupRank(subgroup);
+  if (category === "Output") {
+    const order = PROVIDERX_RULES.OUTPUT_SUBGROUP_ORDER || ["structure", "modality"];
+    const index = order.indexOf(subgroup);
+    return index === -1 ? 99 : index;
+  }
+  return 99;
+}
+
+function paramSubgroupLabel(category, subgroup) {
+  if (category === "Reasoning") return thinkingSubgroupLabel(subgroup);
+  if (category === "Output") {
+    return PROVIDERX_RULES.OUTPUT_SUBGROUP_LABELS?.[subgroup] || subgroup || "";
+  }
+  return subgroup || "";
+}
+
+function paramSubgroupHint(category, subgroup) {
+  if (category === "Reasoning") return thinkingSubgroupHint(subgroup);
+  if (category === "Output") {
+    return PROVIDERX_RULES.OUTPUT_SUBGROUP_HINTS?.[subgroup] || "";
+  }
+  return "";
+}
+
+function thinkingSubgroupRank(subgroup) {
+  const order = PROVIDERX_RULES.THINKING_SUBGROUP_ORDER || ["switch", "intensity", "output"];
+  const index = order.indexOf(subgroup);
+  return index === -1 ? 99 : index;
+}
+
+function thinkingSubgroupLabel(subgroup) {
+  return PROVIDERX_RULES.THINKING_SUBGROUP_LABELS?.[subgroup] || subgroup || "";
+}
+
+function thinkingSubgroupHint(subgroup) {
+  return PROVIDERX_RULES.THINKING_SUBGROUP_HINTS?.[subgroup] || "";
+}
+
+function thinkingParamRole(parameter) {
+  const roles = PROVIDERX_RULES.THINKING_PARAM_ROLES || {};
+  if (roles[parameter]) return roles[parameter];
+  const subgroups = PROVIDERX_RULES.THINKING_PARAM_SUBGROUPS || {};
+  const subgroup = subgroups[parameter];
+  if (!subgroup) return null;
+  return subgroup;
+}
+
+function renderThinkingRoleBadge(parameter) {
+  const role = thinkingParamRole(parameter);
+  if (!role) return "";
+  const label = PROVIDERX_RULES.THINKING_ROLE_LABELS?.[role] || role;
+  return `<span class="protocol-thinking-role protocol-thinking-role--${escapeHtml(role)}" title="参数语义角色">${escapeHtml(label)}</span>`;
+}
+
+function renderProtocolParamSubgroupHeading(category, subgroup) {
+  const label = paramSubgroupLabel(category, subgroup);
+  const hint = paramSubgroupHint(category, subgroup);
+  if (!hint) {
+    return `<span class="protocol-param-subgroup-label">${escapeHtml(label)}</span>`;
+  }
+  return `
+    <span class="protocol-param-subgroup-label">${escapeHtml(label)}</span>
+    <span class="protocol-param-group-sep" aria-hidden="true">—</span>
+    <span class="protocol-param-subgroup-hint">${escapeHtml(hint)}</span>
+  `;
+}
+
+function renderThinkingDialectSummary(channels, protocolId) {
+  if (protocolId !== "chat_completions") return "";
+  const summary = PROVIDERX_RULES.THINKING_CHANNEL_FIELD_SUMMARY || [];
+  const channelById = new Map(channels.map((channel) => [channel.channel_id, channel]));
+  const rows = summary
+    .filter((item) => channelById.has(item.channelId))
+    .map((item) => {
+      const channel = channelById.get(item.channelId);
+      return `
+        <tr>
+          <th scope="row">${escapeHtml(channel.name)}</th>
+          <td><code>${escapeHtml(item.switchField)}</code></td>
+          <td><code>${escapeHtml(item.intensityField)}</code></td>
+          <td>${escapeHtml(item.note || "")}</td>
+        </tr>
+      `;
+    })
+    .join("");
+  if (!rows) return "";
+  const collapsedClass = protocolParamSectionCollapsedClass(protocolId, "Reasoning");
+  return `
+    <tr class="protocol-thinking-dialect-row ${collapsedClass}" data-protocol-section-category="Reasoning" data-protocol-section-subgroup="">
+      <td colspan="100">
+        <details class="protocol-thinking-dialect" open>
+          <summary>各渠道思考模式字段对照（开关 × 强度）</summary>
+          <p class="protocol-thinking-dialect-note">同一请求通常只应使用当前渠道文档列出的一组字段；下表汇总各测评渠道官方文档中的主路径。</p>
+          <table class="protocol-thinking-dialect-table">
+            <thead>
+              <tr>
+                <th scope="col">渠道</th>
+                <th scope="col">开关字段 Switch</th>
+                <th scope="col">强度 / 预算 Intensity</th>
+                <th scope="col">备注</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </details>
+      </td>
+    </tr>
+  `;
+}
+
 function groupLabel(group) {
+  const submatch = /^(Reasoning|Output)\.(\w+)$/i.exec(String(group || ""));
+  if (submatch) {
+    const parentKey = submatch[1];
+    const parent = groupLabelZh[parentKey] || parentKey;
+    const child = paramSubgroupLabel(parentKey, submatch[2].toLowerCase());
+    return child ? `${parent} · ${child}` : parent;
+  }
   return groupLabelZh[group] || categoryLabel(String(group).toLowerCase());
 }
 
 function groupHint(group) {
   return groupHintZh[group] || "";
+}
+
+function getProtocolParamCollapseSet() {
+  if (!state.protocolParamCollapse) state.protocolParamCollapse = new Set();
+  return state.protocolParamCollapse;
+}
+
+function protocolParamCategorySectionKey(protocolId, category) {
+  return `${protocolId}::${category}`;
+}
+
+function protocolParamSubgroupSectionKey(protocolId, category, subgroup) {
+  return `${protocolId}::${category}::${subgroup}`;
+}
+
+function isProtocolParamSectionCollapsed(sectionKey) {
+  return getProtocolParamCollapseSet().has(sectionKey);
+}
+
+function protocolParamSectionCollapsedClass(protocolId, category, subgroup = "") {
+  if (isProtocolParamSectionCollapsed(protocolParamCategorySectionKey(protocolId, category))) {
+    return "is-section-collapsed";
+  }
+  if (subgroup && isProtocolParamSectionCollapsed(protocolParamSubgroupSectionKey(protocolId, category, subgroup))) {
+    return "is-section-collapsed";
+  }
+  return "";
+}
+
+function renderProtocolParamSectionToggleButton(sectionKey, labelHtml, { level = "category" } = {}) {
+  const collapsed = isProtocolParamSectionCollapsed(sectionKey);
+  return `
+    <button
+      type="button"
+      class="protocol-param-section-toggle protocol-param-section-toggle--${level}"
+      data-protocol-param-section-toggle
+      data-section-key="${escapeHtml(sectionKey)}"
+      aria-expanded="${collapsed ? "false" : "true"}"
+    >
+      <span class="protocol-param-section-chevron${collapsed ? " is-collapsed" : ""}" aria-hidden="true">›</span>
+      <span class="protocol-param-section-toggle-label">${labelHtml}</span>
+    </button>
+  `;
+}
+
+function syncProtocolParamSectionVisibility(panel) {
+  if (!panel) return;
+  const protocolId = panel.dataset.protocolPanel;
+  if (!protocolId) return;
+
+  panel.querySelectorAll("[data-protocol-section-category]").forEach((row) => {
+    const category = row.dataset.protocolSectionCategory;
+    const subgroup = row.dataset.protocolSectionSubgroup || "";
+    const isGroupHeader = row.classList.contains("protocol-param-group-row");
+    const isSubgroupHeader = row.classList.contains("protocol-param-subgroup-row");
+    const categoryCollapsed = isProtocolParamSectionCollapsed(protocolParamCategorySectionKey(protocolId, category));
+
+    if (isGroupHeader) {
+      row.classList.remove("is-section-collapsed");
+      return;
+    }
+    if (categoryCollapsed) {
+      row.classList.add("is-section-collapsed");
+      return;
+    }
+    if (isSubgroupHeader) {
+      row.classList.remove("is-section-collapsed");
+      return;
+    }
+    if (subgroup) {
+      const subgroupCollapsed = isProtocolParamSectionCollapsed(
+        protocolParamSubgroupSectionKey(protocolId, category, subgroup)
+      );
+      row.classList.toggle("is-section-collapsed", subgroupCollapsed);
+      return;
+    }
+    row.classList.remove("is-section-collapsed");
+  });
+
+  panel.querySelectorAll("[data-protocol-param-section-toggle]").forEach((button) => {
+    const collapsed = isProtocolParamSectionCollapsed(button.dataset.sectionKey);
+    button.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    button.querySelector(".protocol-param-section-chevron")?.classList.toggle("is-collapsed", collapsed);
+  });
+}
+
+function toggleProtocolParamSection(sectionKey) {
+  const set = getProtocolParamCollapseSet();
+  if (set.has(sectionKey)) set.delete(sectionKey);
+  else set.add(sectionKey);
+  const panel = els.protocolCatalog?.querySelector(`[data-protocol-panel="${state.protocolCatalogTab}"]`);
+  syncProtocolParamSectionVisibility(panel);
+}
+
+function bindProtocolParamSectionToggles() {
+  if (!els.protocolCatalog) return;
+  els.protocolCatalog.querySelectorAll("[data-protocol-param-section-toggle]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const sectionKey = button.dataset.sectionKey;
+      if (sectionKey) toggleProtocolParamSection(sectionKey);
+    });
+  });
+  els.protocolCatalog.querySelectorAll("[data-protocol-panel]").forEach((panel) => {
+    syncProtocolParamSectionVisibility(panel);
+  });
 }
 
 function renderProtocolParamGroupHeading(category, { showHint = true } = {}) {
@@ -2422,7 +2792,9 @@ function originLabel(origin) {
   return originLabelZh[origin] || origin;
 }
 
-function parameterDescription(parameter) {
+function parameterDescription(parameter, protocolId = "") {
+  const byProtocol = protocolId && PROVIDERX_RULES.PARAMETER_DESCRIPTIONS_BY_PROTOCOL?.[protocolId]?.[parameter];
+  if (byProtocol) return byProtocol;
   return MOCK_PARAMETER_DESCRIPTIONS?.[parameter]
     || PROVIDERX_RULES.PARAMETER_DESCRIPTIONS?.[parameter]
     || "";
@@ -5487,7 +5859,7 @@ function sortProtocolChannels(channels) {
 }
 
 function getProtocolCatalogChannels(protocolId) {
-  const sources = window.NOCTUA_PROTOCOL_PARAMETER_SOURCES;
+  const sources = getProtocolMatrix();
   const ids = sources?.getChannelIdsForProtocol?.(protocolId) || [];
   if (!ids.length) {
     return sortProtocolChannels(
@@ -5504,7 +5876,7 @@ function getProtocolCatalogChannels(protocolId) {
 }
 
 function buildProtocolParameterMatrix(channels, protocolId) {
-  const sources = window.NOCTUA_PROTOCOL_PARAMETER_SOURCES;
+  const sources = getProtocolMatrix();
   const channelRows = channels.map((channel) => {
     const docMeta = sources?.getDocMeta?.(channel.channel_id, protocolId) || null;
     const flat = sources?.flattenEntryParameters?.(channel.channel_id, protocolId) || [];
@@ -5520,10 +5892,11 @@ function buildProtocolParameterMatrix(channels, protocolId) {
   const paramMeta = new Map();
   for (const row of channelRows) {
     for (const item of row.flat) {
-      const paramKey = `${item.category}::${item.parameter}`;
+      const paramKey = `${item.category}::${item.subgroup || ""}::${item.parameter}`;
       if (!paramMeta.has(paramKey)) {
         paramMeta.set(paramKey, {
           category: item.category,
+          subgroup: item.subgroup || null,
           parameter: item.parameter,
           channels: new Set(),
           requiredByChannel: new Map()
@@ -5538,6 +5911,10 @@ function buildProtocolParameterMatrix(channels, protocolId) {
   const parameters = [...paramMeta.values()].sort((a, b) => {
     const categoryOrder = protocolParamCategoryRank(a.category) - protocolParamCategoryRank(b.category);
     if (categoryOrder !== 0) return categoryOrder;
+    if (a.category === b.category && a.subgroup && b.subgroup) {
+      const subgroupOrder = paramSubgroupRank(a.category, a.subgroup) - paramSubgroupRank(b.category, b.subgroup);
+      if (subgroupOrder !== 0) return subgroupOrder;
+    }
     return a.parameter.localeCompare(b.parameter);
   });
 
@@ -5623,7 +6000,7 @@ function renderProtocolParamDrawerCell(value, isDiff) {
 }
 
 function renderProtocolParamDrawerTable(protocolId, parameter, matrix, paramItem) {
-  const specsApi = window.NOCTUA_PROTOCOL_PARAMETER_SPECS;
+  const specsApi = getProtocolMatrix();
   if (!specsApi) {
     return `<p class="guide-copy">约束数据模块未加载。</p>`;
   }
@@ -5648,7 +6025,7 @@ function renderProtocolParamDrawerTable(protocolId, parameter, matrix, paramItem
   );
 
   const baseline = specsApi.getOpenAiBaseline(protocolId, parameter);
-  const meaning = parameterDescription(parameter);
+  const meaning = parameterDescription(parameter, protocolId);
   const consensusLine = consensus.consensus
     ? `${consensus.consensusCount}/${consensus.documentedCount} 渠道约束一致 · ${consensus.consensus}`
     : consensus.documentedCount
@@ -5683,8 +6060,10 @@ function renderProtocolParamDrawerTable(protocolId, parameter, matrix, paramItem
     return `
       <tr>
         <th scope="row" class="protocol-spec-drawer-channel">
-          <img src="${escapeHtml(channel.logo)}" alt="" width="16" height="16" />
-          <span>${escapeHtml(channel.name)}</span>
+          <span class="protocol-spec-drawer-channel-inner">
+            <img src="${escapeHtml(channel.logo)}" alt="" width="16" height="16" />
+            <span>${escapeHtml(channel.name)}</span>
+          </span>
         </th>
         ${renderProtocolParamDrawerCell(typeText, diffFields.includes("type"))}
         ${renderProtocolParamDrawerCell(defaultText, diffFields.includes("default"))}
@@ -5791,6 +6170,59 @@ function renderProtocolParameterCoverageCell(supported, required, { unique = fal
   return `<td class="channel-protocol-cell protocol-param-cell protocol-param-cell--present${modifier}"><span class="protocol-param-req ${reqClass}" title="官方文档：${reqLabel}">${reqLabel}</span></td>`;
 }
 
+function protocolParameterSegments(parameter) {
+  return String(parameter).split(".").filter(Boolean);
+}
+
+function protocolParameterDepth(parameter) {
+  return Math.max(0, protocolParameterSegments(parameter).length - 1);
+}
+
+function protocolParameterParent(parameter) {
+  const segments = protocolParameterSegments(parameter);
+  if (segments.length <= 1) return "";
+  return segments.slice(0, -1).join(".");
+}
+
+function protocolParameterLeaf(parameter) {
+  const segments = protocolParameterSegments(parameter);
+  return segments[segments.length - 1] || parameter;
+}
+
+function renderProtocolParameterNameCell(parameter) {
+  const depth = protocolParameterDepth(parameter);
+  const chevron = '<span class="protocol-param-row-chevron" aria-hidden="true">›</span>';
+
+  if (depth === 0) {
+    return `
+      <span class="protocol-param-row-label">
+        ${chevron}
+        ${escapeHtml(parameter)}
+      </span>
+    `;
+  }
+
+  const leaf = protocolParameterLeaf(parameter);
+  const parent = protocolParameterParent(parameter);
+  return `
+    <span
+      class="protocol-param-row-label protocol-param-row-label--nested"
+      data-depth="${depth}"
+      title="${escapeHtml(parameter)}"
+    >
+      <span class="protocol-param-tree" aria-hidden="true">
+        ${Array.from({ length: depth }, (_, index) => `
+          <span class="protocol-param-tree-gutter${index === depth - 1 ? " protocol-param-tree-gutter--branch" : ""}"></span>
+        `).join("")}
+      </span>
+      ${chevron}
+      <span class="protocol-param-leaf">
+        <span class="protocol-param-leaf-parent mono">${escapeHtml(parent)}.</span><span class="mono">${escapeHtml(leaf)}</span>
+      </span>
+    </span>
+  `;
+}
+
 function renderProtocolParameterMatrix(matrix, protocolDef) {
   if (!matrix.channels.length) {
     return `<p class="guide-copy">当前暂无已接入 ${escapeHtml(protocolDef.tabLabel)} 协议的测评渠道。</p>`;
@@ -5818,6 +6250,8 @@ function renderProtocolParameterMatrix(matrix, protocolDef) {
   }).join("");
 
   let currentCategory = "";
+  let currentSubgroup = "";
+  let dialectRendered = false;
   const bodyRows = matrix.parameters.map((item) => {
     const origin = MOCK_PARAMETER_ORIGINS[item.parameter] || "provider-private";
     const coverage = item.channels.size;
@@ -5825,34 +6259,78 @@ function renderProtocolParameterMatrix(matrix, protocolDef) {
     const isUnique = coverage === 1;
     const isPartial = !isUniversal && !isUnique;
     const rowClass = isUnique ? "protocol-param-row protocol-param-row--unique" : isPartial ? "protocol-param-row protocol-param-row--partial" : "protocol-param-row";
-    const categoryRow = item.category !== currentCategory
-      ? (() => {
-          currentCategory = item.category;
-          return `
-            <tr class="protocol-param-group-row">
-              <th scope="rowgroup" colspan="${matrix.channels.length + 3}">${renderProtocolParamGroupHeading(item.category, { showHint: false })}</th>
-            </tr>
-          `;
-        })()
-      : "";
 
-    const meaning = parameterDescription(item.parameter);
+    let categoryRow = "";
+    if (item.category !== currentCategory) {
+      currentCategory = item.category;
+      currentSubgroup = "";
+      const categoryKey = protocolParamCategorySectionKey(protocolDef.id, item.category);
+      categoryRow = `
+        <tr class="protocol-param-group-row" data-protocol-section-category="${escapeHtml(item.category)}">
+          <th scope="rowgroup" colspan="${matrix.channels.length + 3}">
+            ${renderProtocolParamSectionToggleButton(
+              categoryKey,
+              renderProtocolParamGroupHeading(item.category, { showHint: item.category === "Reasoning" || item.category === "Output" }),
+              { level: "category" }
+            )}
+          </th>
+        </tr>
+      `;
+      if (item.category === "Reasoning" && !dialectRendered) {
+        dialectRendered = true;
+        categoryRow += renderThinkingDialectSummary(matrix.channels, protocolDef.id);
+      }
+    }
+
+    let subgroupRow = "";
+    if (item.subgroup && item.subgroup !== currentSubgroup) {
+      currentSubgroup = item.subgroup;
+      const subgroupKey = protocolParamSubgroupSectionKey(protocolDef.id, item.category, item.subgroup);
+      const subgroupCollapsedClass = protocolParamSectionCollapsedClass(protocolDef.id, item.category);
+      subgroupRow = `
+        <tr
+          class="protocol-param-subgroup-row ${subgroupCollapsedClass}"
+          data-protocol-section-category="${escapeHtml(item.category)}"
+          data-protocol-section-subgroup="${escapeHtml(item.subgroup)}"
+        >
+          <th scope="rowgroup" colspan="${matrix.channels.length + 3}">
+            ${renderProtocolParamSectionToggleButton(
+              subgroupKey,
+              renderProtocolParamSubgroupHeading(item.category, item.subgroup),
+              { level: "subgroup" }
+            )}
+          </th>
+        </tr>
+      `;
+    }
+
+    const meaning = parameterDescription(item.parameter, protocolDef.id);
+    const depth = protocolParameterDepth(item.parameter);
+    const nestedClass = depth > 0 ? " protocol-param-row--nested" : "";
+    const roleBadge = item.category === "Reasoning" ? renderThinkingRoleBadge(item.parameter) : "";
+    const sectionCollapsedClass = protocolParamSectionCollapsedClass(
+      protocolDef.id,
+      item.category,
+      item.subgroup || ""
+    );
     return `
       ${categoryRow}
+      ${subgroupRow}
       <tr
-        class="${rowClass} protocol-param-row--clickable"
+        class="${rowClass} protocol-param-row--clickable${nestedClass} ${sectionCollapsedClass}"
         data-protocol-param-row
         data-protocol-id="${escapeHtml(protocolDef.id)}"
+        data-protocol-section-category="${escapeHtml(item.category)}"
+        data-protocol-section-subgroup="${escapeHtml(item.subgroup || "")}"
         data-parameter="${escapeHtml(item.parameter)}"
+        data-depth="${depth}"
         tabindex="0"
         role="button"
         aria-label="查看 ${escapeHtml(item.parameter)} 约束对比"
       >
         <th scope="row" class="protocol-param-name mono">
-          <span class="protocol-param-row-label">
-            <span class="protocol-param-row-chevron" aria-hidden="true">›</span>
-            ${escapeHtml(item.parameter)}
-          </span>
+          ${renderProtocolParameterNameCell(item.parameter)}
+          ${roleBadge}
         </th>
         <td class="protocol-param-meaning">${meaning ? escapeHtml(meaning) : '<span class="protocol-dash" aria-hidden="true">—</span>'}</td>
         <td class="protocol-param-origin">${escapeHtml(originLabel(origin))}</td>
@@ -5891,6 +6369,8 @@ function renderProtocolParameterMatrix(matrix, protocolDef) {
       <span><span class="protocol-param-req protocol-param-req--optional">选填</span> 官方文档已列入、非必填</span>
       <span><span class="protocol-dash">—</span> 该渠道文档未列入</span>
       <span class="protocol-param-legend-diff">高亮行 = 仅部分渠道文档化；深色格 = 单渠道独有</span>
+      <span class="protocol-param-legend-diff">思考模式参数带角色标签：开关 Switch / 强度 Intensity / 开关+强度 Switch+Intensity / 对象字段 Object</span>
+      <span class="protocol-param-legend-diff">点击分组标题可单独收起 / 展开各模块</span>
       <span class="protocol-param-legend-diff">点击参数行查看类型 / 默认 / 边界约束对比</span>
     </p>
   `;
@@ -5904,7 +6384,7 @@ function providerIdForChannelOnEndpoint(channel, endpointId) {
   if (endpointId === "anthropic_messages" && channel.endpoints?.anthropic_messages?.supported !== false) {
     return channel.endpoints.anthropic_messages?.provider_id || (baseProvider ? `${baseProvider}_messages` : null);
   }
-  if (endpointId === "responses_api" && window.NOCTUA_PROTOCOL_PARAMETER_SOURCES?.getParameters?.(channel.channel_id, "responses_api")) {
+  if (endpointId === "responses_api" && getProtocolMatrix()?.getParameters?.(channel.channel_id, "responses_api")) {
     return baseProvider || null;
   }
   if (endpoint && endpoint.supported !== false) {
@@ -6383,6 +6863,7 @@ function renderProtocolCatalog() {
   bindProtocolCompareChannelPicker();
   bindProtocolOpenToolButtons();
   bindProtocolParamDrawerRows();
+  bindProtocolParamSectionToggles();
 }
 
 function renderModelLookupProtocolCells(protocols, protocolColumns) {
@@ -6444,6 +6925,8 @@ function renderModelLookupSummary({ query, result, isAddMode, isKnownModel }) {
     ? `<span class="model-lookup-summary-live">实时检索</span>`
     : "";
 
+  const introBtn = renderModelIntroButton({ query, result, isAddMode, isKnownModel, modelId });
+
   return `
     <div class="model-lookup-result-head">
       <div class="model-lookup-result-head__identity">
@@ -6451,7 +6934,10 @@ function renderModelLookupSummary({ query, result, isAddMode, isKnownModel }) {
           <span class="model-lookup-result-head__eyebrow">${escapeHtml(eyebrow)}</span>
           ${liveBadge}
         </div>
-        <span class="model-lookup-result-head__model mono">${escapeHtml(isKnownModel || result.canonical ? modelId : query)}</span>
+        <div class="model-lookup-result-head__model-row">
+          <span class="model-lookup-result-head__model mono">${escapeHtml(isKnownModel || result.canonical ? modelId : query)}</span>
+          ${introBtn}
+        </div>
         ${note ? `<span class="model-lookup-result-head__note">${escapeHtml(note)}</span>` : ""}
       </div>
       <div class="model-lookup-result-head__metrics">
@@ -6464,6 +6950,176 @@ function renderModelLookupSummary({ query, result, isAddMode, isKnownModel }) {
   `;
 }
 
+function renderModelIntroButton({ isAddMode, isKnownModel, result, modelId }) {
+  if (isAddMode || (!isKnownModel && !result?.canonical)) return "";
+  const lookupApi = window.NOCTUA_MODEL_LOOKUP;
+  const hintId = lookupApi?.resolveOpenRouterModelId?.(modelId, result) || "";
+  return `
+    <button
+      type="button"
+      class="btn btn-ghost btn-xs model-intro-btn"
+      data-model-intro="${escapeHtml(modelId)}"
+      ${hintId ? `data-or-hint="${escapeHtml(hintId)}"` : ""}
+      title="查看 OpenRouter 模型详情"
+    >模型介绍</button>
+  `;
+}
+
+function renderModelIntroChipList(items) {
+  if (!items?.length) return `<span class="muted">—</span>`;
+  return `<div class="model-intro-chip-list">${items.map((item) => `<span class="model-intro-chip mono">${escapeHtml(item)}</span>`).join("")}</div>`;
+}
+
+function renderModelIntroDrawerBody(model, evalModelId) {
+  const api = window.NOCTUA_OPENROUTER_MODEL_DETAIL;
+  const pricing = model.pricing || {};
+  const architecture = model.architecture || {};
+  const topProvider = model.top_provider || {};
+  const reasoning = model.reasoning || {};
+  const benchmarks = model.benchmarks?.artificial_analysis || null;
+
+  const priceRows = [
+    ["Prompt", api?.formatPricePerMillion?.(pricing.prompt)],
+    ["Completion", api?.formatPricePerMillion?.(pricing.completion)],
+    ["Input cache read", api?.formatPricePerMillion?.(pricing.input_cache_read)]
+  ].filter(([, value]) => value);
+
+  const benchmarkRows = benchmarks
+    ? [
+        ["Intelligence index", benchmarks.intelligence_index],
+        ["Coding index", benchmarks.coding_index],
+        ["Agentic index", benchmarks.agentic_index]
+      ].filter(([, value]) => value != null && value !== "")
+    : [];
+
+  const reasoningBits = [];
+  if (reasoning.mandatory != null) reasoningBits.push(`mandatory: ${reasoning.mandatory}`);
+  if (Array.isArray(reasoning.supported_efforts) && reasoning.supported_efforts.length) {
+    reasoningBits.push(`efforts: ${reasoning.supported_efforts.join(", ")}`);
+  }
+
+  return `
+    <div class="model-intro-drawer-sections">
+      ${model.description ? `<p class="model-intro-description">${escapeHtml(model.description)}</p>` : ""}
+      <section class="model-intro-section">
+        <h3 class="model-intro-section__title">基本信息</h3>
+        <dl class="model-intro-dl">
+          <div><dt>测评模型</dt><dd class="mono">${escapeHtml(evalModelId || "—")}</dd></div>
+          <div><dt>OpenRouter ID</dt><dd class="mono">${escapeHtml(model.id || "—")}</dd></div>
+          ${model.canonical_slug ? `<div><dt>Canonical slug</dt><dd class="mono">${escapeHtml(model.canonical_slug)}</dd></div>` : ""}
+          ${model.hugging_face_id ? `<div><dt>Hugging Face</dt><dd class="mono">${escapeHtml(model.hugging_face_id)}</dd></div>` : ""}
+          ${api?.formatEpochDate?.(model.created) ? `<div><dt>上架日期</dt><dd>${escapeHtml(api.formatEpochDate(model.created))}</dd></div>` : ""}
+          ${model.knowledge_cutoff ? `<div><dt>Knowledge cutoff</dt><dd>${escapeHtml(model.knowledge_cutoff)}</dd></div>` : ""}
+        </dl>
+      </section>
+      <section class="model-intro-section">
+        <h3 class="model-intro-section__title">能力与上下文</h3>
+        <dl class="model-intro-dl">
+          <div><dt>Context</dt><dd>${escapeHtml(api?.formatContext?.(model.context_length) || "—")}</dd></div>
+          ${topProvider.max_completion_tokens ? `<div><dt>Max completion</dt><dd>${escapeHtml(api.formatContext(topProvider.max_completion_tokens) || String(topProvider.max_completion_tokens))}</dd></div>` : ""}
+          ${architecture.modality ? `<div><dt>Modality</dt><dd class="mono">${escapeHtml(architecture.modality)}</dd></div>` : ""}
+          ${architecture.input_modalities?.length ? `<div><dt>Input</dt><dd>${renderModelIntroChipList(architecture.input_modalities)}</dd></div>` : ""}
+          ${architecture.output_modalities?.length ? `<div><dt>Output</dt><dd>${renderModelIntroChipList(architecture.output_modalities)}</dd></div>` : ""}
+          ${architecture.tokenizer ? `<div><dt>Tokenizer</dt><dd>${escapeHtml(architecture.tokenizer)}</dd></div>` : ""}
+          ${reasoningBits.length ? `<div><dt>Reasoning</dt><dd>${escapeHtml(reasoningBits.join(" · "))}</dd></div>` : ""}
+        </dl>
+      </section>
+      ${priceRows.length ? `
+      <section class="model-intro-section">
+        <h3 class="model-intro-section__title">定价（OpenRouter）</h3>
+        <dl class="model-intro-dl">
+          ${priceRows.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}
+        </dl>
+      </section>` : ""}
+      ${model.supported_parameters?.length ? `
+      <section class="model-intro-section">
+        <h3 class="model-intro-section__title">Supported parameters</h3>
+        ${renderModelIntroChipList(model.supported_parameters)}
+      </section>` : ""}
+      ${model.default_parameters && Object.keys(model.default_parameters).length ? `
+      <section class="model-intro-section">
+        <h3 class="model-intro-section__title">Default parameters</h3>
+        <pre class="model-intro-json mono">${escapeHtml(JSON.stringify(model.default_parameters, null, 2))}</pre>
+      </section>` : ""}
+      ${benchmarkRows.length ? `
+      <section class="model-intro-section">
+        <h3 class="model-intro-section__title">Benchmarks（Artificial Analysis）</h3>
+        <dl class="model-intro-dl">
+          ${benchmarkRows.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(String(value))}</dd></div>`).join("")}
+        </dl>
+      </section>` : ""}
+      <p class="guide-copy muted model-intro-source">数据来源：<a href="https://openrouter.ai/docs/api/api-reference/models/get-models" target="_blank" rel="noopener noreferrer">OpenRouter GET /api/v1/models</a></p>
+    </div>
+  `;
+}
+
+async function openModelIntroDrawer(evalModelId, hintId = "") {
+  if (!els.modelIntroDrawer || !els.modelIntroDrawerBody) return;
+  const detailApi = window.NOCTUA_OPENROUTER_MODEL_DETAIL;
+  if (!detailApi) {
+    showToast("模型详情模块未加载。");
+    return;
+  }
+
+  state.modelIntroDrawerOpen = true;
+  els.modelIntroDrawer.classList.remove("is-hidden");
+  els.modelIntroDrawer.setAttribute("aria-hidden", "false");
+  document.body.classList.add("protocol-param-drawer-open");
+  if (els.modelIntroDrawerTitle) els.modelIntroDrawerTitle.textContent = evalModelId || "模型介绍";
+  if (els.modelIntroDrawerSummary) {
+    els.modelIntroDrawerSummary.innerHTML = `<p class="muted">正在从 OpenRouter 加载模型详情…</p>`;
+  }
+  els.modelIntroDrawerBody.innerHTML = "";
+
+  try {
+    const model = await detailApi.resolveModel({ query: evalModelId, hintId });
+    if (!state.modelIntroDrawerOpen) return;
+    if (!model) {
+      if (els.modelIntroDrawerSummary) {
+        els.modelIntroDrawerSummary.innerHTML = `<p class="muted">未在 OpenRouter 模型清单中找到「${escapeHtml(evalModelId)}」。</p>`;
+      }
+      return;
+    }
+
+    const pageUrl = detailApi.openRouterModelPage(model);
+    if (els.modelIntroDrawerTitle) els.modelIntroDrawerTitle.textContent = model.name || model.id || evalModelId;
+    if (els.modelIntroDrawerSummary) {
+      els.modelIntroDrawerSummary.innerHTML = `
+        <div class="model-intro-drawer-summary">
+          <span class="mono">${escapeHtml(model.id)}</span>
+          <a href="${escapeHtml(pageUrl)}" target="_blank" rel="noopener noreferrer">在 OpenRouter 查看</a>
+        </div>
+      `;
+    }
+    els.modelIntroDrawerBody.innerHTML = renderModelIntroDrawerBody(model, evalModelId);
+  } catch (error) {
+    if (!state.modelIntroDrawerOpen) return;
+    if (els.modelIntroDrawerSummary) {
+      els.modelIntroDrawerSummary.innerHTML = `<p class="muted">加载失败：${escapeHtml(error.message || String(error))}</p>`;
+    }
+  }
+}
+
+function closeModelIntroDrawer() {
+  if (!els.modelIntroDrawer) return;
+  state.modelIntroDrawerOpen = false;
+  els.modelIntroDrawer.classList.add("is-hidden");
+  els.modelIntroDrawer.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("protocol-param-drawer-open");
+}
+
+function bindModelIntroDrawer() {
+  if (!els.modelIntroDrawer) return;
+  els.modelIntroDrawer.querySelectorAll("[data-model-intro-drawer-dismiss]").forEach((node) => {
+    node.addEventListener("click", closeModelIntroDrawer);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && state.modelIntroDrawerOpen) {
+      closeModelIntroDrawer();
+    }
+  });
+}
+
 function liveLookupSourceNote(result) {
   const status = result?.liveSourceStatus;
   if (!status || typeof status !== "object") return "";
@@ -6471,7 +7127,7 @@ function liveLookupSourceNote(result) {
     .filter(([, value]) => String(value).startsWith("skipped:"))
     .map(([key]) => key);
   if (!skipped.length) return "";
-  return `<p class="guide-copy model-lookup-live-note">部分渠道（${escapeHtml(skipped.join("、"))}）未配置 API Key：请在 <span class="mono">config.yaml</span> 中填写与测评渠道同名的段（如 <span class="mono">siliconflow-cn</span>、<span class="mono">aliyun-cn</span>，见 <span class="mono">config.example.yaml</span>）。OpenRouter 公开模型清单无需 Key。</p>`;
+  return `<p class="guide-copy model-lookup-live-note">部分渠道（${escapeHtml(skipped.join("、"))}）未配置 API Key：请在 <span class="mono">config.yaml</span> 中填写与测评渠道同名的段（如 <span class="mono">siliconflow-cn</span>、<span class="mono">aliyun-cn</span>、<span class="mono">streamlake-cn</span>，见 <span class="mono">config.example.yaml</span>）。OpenRouter 公开模型清单无需 Key。</p>`;
 }
 
 function loadModelLookupAddTabDismissed() {
@@ -6998,6 +7654,15 @@ function bindModelLookupEvents() {
       showToast(`已切换到 ${channelId}，Model 已填入 ${modelName || "默认模型"}。`);
     });
   });
+
+  els.modelLookup.querySelectorAll("[data-model-intro]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const modelId = button.dataset.modelIntro || "";
+      const hintId = button.dataset.orHint || "";
+      if (!modelId) return;
+      openModelIntroDrawer(modelId, hintId);
+    });
+  });
 }
 
 function compactSearchText(value) {
@@ -7194,13 +7859,74 @@ function runV02ChannelOptions() {
   return (state.runV02.routeOptions || []).filter((item) => runV02SupportedProtocol(item.protocolId));
 }
 
+/** payloads/ 下已有 manifest 的 provider，与 GET /api/providers 一致。 */
+const casePayloadProviders = new Set([
+  "ali",
+  "ali_messages",
+  "claude",
+  "claude_messages",
+  "deepseek",
+  "deepseek_messages",
+  "minimax",
+  "minimax_messages",
+  "openai",
+  "openrouter",
+  "openrouter_messages",
+  "siliconflow",
+  "siliconflow_messages",
+  "thinking",
+  "vllm"
+]);
+
 /** case 模板与 /api/run-stream 的 provider：渠道无专用 payloads 时回退到通用 OpenAI-compatible 库。 */
+const RUN_V02_CANONICAL_PROTOCOL_CASE_PROVIDER = {
+  chat_completions: "ali",
+  anthropic_messages: "ali_messages"
+};
+
 function runV02CaseProviderId(route) {
   if (!route) return null;
-  if (route.providerId) return route.providerId;
+  if (route.providerId && casePayloadProviders.has(route.providerId)) return route.providerId;
   if (route.protocolId === "anthropic_messages") return "ali_messages";
   if (route.protocolId === "chat_completions") return "ali";
   return null;
+}
+
+/** 协议/采样、协议/思考模式 case 固定使用 canonical payloads；实际请求仍走各渠道的 base_url / model。 */
+function runV02PayloadProviderId(route, caseIds = []) {
+  const ids = caseIds || [];
+  if (ids.some((id) => /_protocol_sampling_temperature_/.test(id))) {
+    return RUN_V02_CANONICAL_PROTOCOL_CASE_PROVIDER[route?.protocolId] || runV02CaseProviderId(route);
+  }
+  if (ids.some((id) => PROTOCOL_THINKING_CANONICAL_CASE_IDS.has(id) || /^a[ml]_protocol_thinking_/.test(id))) {
+    return "thinking";
+  }
+  return runV02CaseProviderId(route);
+}
+
+async function loadCanonicalProtocolThinkingCases(protocolId) {
+  if (protocolId !== "chat_completions") return [];
+  try {
+    const response = await fetch(`${API_BASE}/api/providers/thinking/cases?endpoint_id=${encodeURIComponent(protocolId)}`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return (data.cases || []).filter(isProtocolThinkingCase);
+  } catch {
+    return [];
+  }
+}
+
+async function loadCanonicalProtocolSamplingCases(protocolId) {
+  const providerId = RUN_V02_CANONICAL_PROTOCOL_CASE_PROVIDER[protocolId];
+  if (!providerId) return [];
+  try {
+    const response = await fetch(`${API_BASE}/api/providers/${providerId}/cases?endpoint_id=${encodeURIComponent(protocolId)}`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return (data.cases || []).filter(isProtocolSamplingCase);
+  } catch {
+    return [];
+  }
 }
 
 function runV02TargetCandidateOptions() {
@@ -7638,10 +8364,14 @@ function renderRunV02SelectedCaseCount() {
 function listRunV02CaseGroups(cases = []) {
   const connectivity = [];
   const protocolStream = [];
+  const protocolSampling = [];
+  const protocolThinking = [];
   const rest = [];
   for (const testCase of cases) {
     if (isConnectivityCase(testCase)) connectivity.push(testCase);
     else if (isProtocolStreamCase(testCase)) protocolStream.push(testCase);
+    else if (isProtocolSamplingCase(testCase)) protocolSampling.push(testCase);
+    else if (isProtocolThinkingCase(testCase)) protocolThinking.push(testCase);
     else rest.push(testCase);
   }
   const partition = partitionCases(rest);
@@ -7649,6 +8379,8 @@ function listRunV02CaseGroups(cases = []) {
   return [
     { key: "connectivity", title: "连通性", cases: connectivity },
     { key: "protocol", title: "协议 / 流式", cases: protocolStream },
+    { key: "protocol_sampling", title: "协议 / 采样", cases: protocolSampling },
+    { key: "protocol_thinking", title: "协议 / 思考模式", cases: protocolThinking },
     { key: "scenario", title: "基础协议与场景", cases: partition.scenarios },
     { key: "single", title: "单参数", cases: singles },
     { key: "combo", title: "参数组合", cases: partition.combos },
@@ -7665,6 +8397,8 @@ function isDefaultSelectedRunV02Case(groupKey, testCase) {
     if (isProtocolStreamCaseP1(testCase)) return baselineSupportsStreamIncludeUsage();
     return false;
   }
+  if (groupKey === "protocol_sampling") return isProtocolSamplingCase(testCase);
+  if (groupKey === "protocol_thinking") return PROTOCOL_THINKING_DEFAULT_CASE_IDS.has(testCase.case_id);
   return isDefaultSelectedCase(testCase);
 }
 
@@ -7746,13 +8480,17 @@ function renderRunV02CaseRow(testCase) {
   const protocolP0 = isProtocolStreamCaseP0(testCase);
   const protocolP0NonStream = isProtocolStreamCaseP0NonStream(testCase);
   const protocolP1 = isProtocolStreamCaseP1(testCase);
+  const protocolSampling = isProtocolSamplingCase(testCase);
+  const protocolThinking = isProtocolThinkingCase(testCase);
   const title = caseTitle(testCase);
   let tipHtml = "";
   if (connectivity) tipHtml = renderRunV02CaseInfoTip(RUN_V02_CONNECTIVITY_CASE_TOOLTIP);
   else if (protocolP0) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_STREAM_BASIC_TOOLTIP);
   else if (protocolP0NonStream) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_STREAM_FALSE_TOOLTIP);
   else if (protocolP1) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_STREAM_USAGE_TOOLTIP);
-  const hideCaseId = connectivity || protocolP0 || protocolP0NonStream || protocolP1;
+  else if (protocolSampling) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_SAMPLING_TOOLTIP);
+  else if (protocolThinking) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_THINKING_TOOLTIP);
+  const hideCaseId = connectivity || protocolP0 || protocolP0NonStream || protocolP1 || protocolSampling || protocolThinking;
   const caseIdHtml = hideCaseId
     ? ""
     : `<span class="muted mono fs-xs">${escapeHtml(testCase.case_id)}</span>`;
@@ -7764,6 +8502,24 @@ function renderRunV02CaseRow(testCase) {
         ${caseIdHtml}
       </span>
     </label>
+  `;
+}
+
+function renderRunV02ProtocolThinkingSections(cases = []) {
+  const combos = partitionProtocolThinkingCombos(cases);
+  if (!combos.length) return '<div class="case-empty">暂无思考模式组合 case</div>';
+  return `
+    <div class="run-v02-thinking-combos">
+      ${combos.map(([comboKey, comboCases]) => `
+        <section class="run-v02-thinking-combo">
+          <header class="run-v02-thinking-combo__head">
+            <code class="run-v02-thinking-combo__params">${escapeHtml(comboKey)}</code>
+            <span class="muted fs-xs">${comboCases.length} 个 case</span>
+          </header>
+          <div class="case-rows">${comboCases.map(renderRunV02CaseRow).join("")}</div>
+        </section>
+      `).join("")}
+    </div>
   `;
 }
 
@@ -7795,9 +8551,9 @@ function renderRunV02CaseGroups() {
     return;
   }
 
-  els.runV02CaseGroups.innerHTML = `
-    <div class="case-rows">${group.cases.map(renderRunV02CaseRow).join("")}</div>
-  `;
+  els.runV02CaseGroups.innerHTML = group.key === "protocol_thinking"
+    ? renderRunV02ProtocolThinkingSections(group.cases)
+    : `<div class="case-rows">${group.cases.map(renderRunV02CaseRow).join("")}</div>`;
   renderRunV02SelectedCaseCount();
 }
 
@@ -7864,7 +8620,23 @@ async function loadRunV02Cases() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     if (state.runV02.baselineRoute?.key !== route.key) return;
-    state.runV02.cases = data.cases || [];
+    let cases = data.cases || [];
+    if (!cases.some(isProtocolSamplingCase)) {
+      const supplemental = await loadCanonicalProtocolSamplingCases(route.protocolId);
+      if (supplemental.length) {
+        const existingIds = new Set(cases.map((testCase) => testCase.case_id));
+        cases = cases.concat(supplemental.filter((testCase) => !existingIds.has(testCase.case_id)));
+      }
+    }
+    if (!cases.some(isProtocolThinkingCase)) {
+      const supplementalThinking = await loadCanonicalProtocolThinkingCases(route.protocolId);
+      if (supplementalThinking.length) {
+        const existingIds = new Set(cases.map((testCase) => testCase.case_id));
+        cases = cases.concat(supplementalThinking.filter((testCase) => !existingIds.has(testCase.case_id)));
+      }
+    }
+    if (state.runV02.baselineRoute?.key !== route.key) return;
+    state.runV02.cases = cases;
     initRunV02CaseGroupState(state.runV02.cases);
     updateRunV02CaseGroupHint();
   } catch (error) {
@@ -7939,7 +8711,7 @@ async function streamRunV02Route(route, config, caseIds, signal, onResult) {
     headers: { "Content-Type": "application/json" },
     signal,
     body: JSON.stringify({
-      provider: runV02CaseProviderId(route),
+      provider: runV02PayloadProviderId(route, caseIds),
       endpoint_id: route.protocolId,
       base_url: config.baseUrl.trim(),
       model: route.apiModelId,
@@ -8282,6 +9054,481 @@ function syncModelLookupFromHash() {
   }
 }
 
+function getErrorCodeCatalog() {
+  return window.NOCTUA_ERROR_CODE_CATALOG || null;
+}
+
+function renderErrorCodeDocBadge(channel) {
+  const catalog = getErrorCodeCatalog();
+  if (!catalog || !channel) return "";
+  const meta = catalog.getDocStatusMeta(channel.docStatus);
+  const title = channel.notes || meta.docStatusLabel;
+  return `<span class="protocol-doc-badge ${escapeHtml(meta.docStatusClass)}" title="${escapeHtml(title)}">${escapeHtml(meta.docStatusLabel)}</span>`;
+}
+
+function renderErrorCodeDocLinks(channel) {
+  const links = [];
+  if (channel.localDoc) {
+    links.push(`<a href="/${escapeHtml(channel.localDoc)}" target="_blank" rel="noopener noreferrer">本地整理</a>`);
+  }
+  if (channel.docUrl) {
+    links.push(`<a href="${escapeHtml(channel.docUrl)}" target="_blank" rel="noopener noreferrer">官方文档</a>`);
+  }
+  return links.length ? `<div class="error-code-doc-links">${links.join(" · ")}</div>` : "";
+}
+
+function formatNativeCodeSummary(mapping) {
+  if (!mapping) return "—";
+  const parts = [];
+  if (mapping.http) parts.push(String(mapping.http));
+  if (mapping.nativeType) parts.push(mapping.nativeType);
+  else if (mapping.nativeCode) parts.push(mapping.nativeCode);
+  return parts.join(" · ") || "—";
+}
+
+function ensureErrorCodeCompareChannels(channelList) {
+  const catalog = getErrorCodeCatalog();
+  if (!catalog) return new Set();
+  if (!state.errorCodeCompareChannels) {
+    state.errorCodeCompareChannels = new Set(catalog.channelOrder);
+  }
+  const validIds = new Set(channelList.map((channel) => channel.channel_id));
+  for (const id of [...state.errorCodeCompareChannels]) {
+    if (!validIds.has(id)) state.errorCodeCompareChannels.delete(id);
+  }
+  if (!state.errorCodeCompareChannels.size) {
+    channelList.forEach((channel) => state.errorCodeCompareChannels.add(channel.channel_id));
+  }
+  return state.errorCodeCompareChannels;
+}
+
+function getErrorCodeCompareChannels(channelList) {
+  const selected = ensureErrorCodeCompareChannels(channelList);
+  const filtered = channelList.filter((channel) => selected.has(channel.channel_id));
+  return filtered.length ? filtered : channelList.slice(0, 1);
+}
+
+function renderErrorCodeChannelPicker(channelList, selectedChannels) {
+  const selectedIds = ensureErrorCodeCompareChannels(channelList);
+  return `
+    <div class="protocol-compare-picker error-code-compare-picker">
+      <div class="protocol-compare-picker__head">
+        <span class="protocol-compare-picker__label">对比渠道</span>
+        <span class="protocol-compare-picker__count muted">已选 ${selectedChannels.length} / ${channelList.length}</span>
+        <button type="button" class="btn btn-ghost btn-xs" data-error-code-compare-action="all">全选</button>
+      </div>
+      <div class="protocol-compare-picker__list">
+        ${channelList.map((channel) => {
+          const checked = selectedIds.has(channel.channel_id);
+          return `
+            <label class="protocol-compare-picker__item ${checked ? "is-checked" : ""}">
+              <input type="checkbox" data-error-code-compare-channel data-channel-id="${escapeHtml(channel.channel_id)}" ${checked ? "checked" : ""} />
+              <img src="${escapeHtml(channel.logo)}" alt="" width="16" height="16" />
+              <span>${escapeHtml(channel.label)}</span>
+            </label>
+          `;
+        }).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderErrorCodeGuide() {
+  const catalog = getErrorCodeCatalog();
+  if (!catalog || !els.errorCodeGuide) return;
+  const example = JSON.stringify(catalog.canonicalShape.example, null, 2);
+  const fieldRows = catalog.canonicalShape.fields.map((field) => `
+    <tr>
+      <td class="mono">${escapeHtml(field.path)}</td>
+      <td>${escapeHtml(field.type)}</td>
+      <td>${field.required ? "是" : "否"}</td>
+      <td class="muted">${escapeHtml(field.notes)}</td>
+    </tr>
+  `).join("");
+
+  els.errorCodeGuide.innerHTML = `
+    <section class="panel">
+      <div class="sec-head">
+        <div>
+          <p class="eyebrow">Canonical</p>
+          <h2>${escapeHtml(catalog.canonicalShape.label)}</h2>
+        </div>
+      </div>
+      <p class="guide-copy">网关对外统一出口时，建议将各渠道原生错误归一为 OpenAI Chat Completions 的 <code>error</code> 对象。下表为字段含义；右侧为典型示例。</p>
+      <div class="error-code-guide-grid">
+        <div class="table-wrap">
+          <table class="rtable">
+            <thead>
+              <tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr>
+            </thead>
+            <tbody>${fieldRows}</tbody>
+          </table>
+        </div>
+        <pre class="error-code-json-preview mono">${escapeHtml(example)}</pre>
+      </div>
+    </section>
+
+    <section class="panel" style="margin-top: var(--space-5)">
+      <div class="sec-head">
+        <div>
+          <p class="eyebrow">Workflow</p>
+          <h2>如何使用本模块</h2>
+        </div>
+      </div>
+      <ol class="guide-steps">
+        <li>在<strong>渠道错误码</strong>中查看各渠道 error envelope 与代表性条目。</li>
+        <li>在<strong>错误码映射</strong>矩阵中按场景对比上游原生码与建议 OpenAI 映射。</li>
+        <li>点击矩阵单元格展开详情，复制建议 <code>error</code> JSON 用于网关适配规则。</li>
+        <li>完整错误码列表见 <code>docs/errorcode/</code>；百炼 LLM/VLM 见 <code>docs/errorcode/ali.md</code>，垂直能力 FAQ 见 <code>docs/errorcode/archive/</code>。</li>
+      </ol>
+    </section>
+
+    <section class="panel" style="margin-top: var(--space-5)">
+      <div class="sec-head">
+        <div>
+          <p class="eyebrow">Envelope</p>
+          <h2>各渠道 error 形态差异</h2>
+        </div>
+      </div>
+      <div class="error-code-envelope-cards">
+        ${catalog.getChannelList().map((channel) => `
+          <div class="error-code-envelope-card">
+            <div class="error-code-envelope-card__head">
+              <img src="${escapeHtml(channel.logo)}" alt="" width="20" height="20" />
+              <strong>${escapeHtml(channel.label)}</strong>
+              ${renderErrorCodeDocBadge(channel)}
+            </div>
+            <p class="guide-copy">${escapeHtml(channel.envelope.summary)}</p>
+            <dl class="error-code-envelope-dl mono fs-xs">
+              <div><dt>HTTP</dt><dd>${escapeHtml(channel.envelope.httpPath)}</dd></div>
+              <div><dt>code</dt><dd>${escapeHtml(channel.envelope.codePath || "—")}</dd></div>
+              <div><dt>type</dt><dd>${escapeHtml(channel.envelope.typePath || "—")}</dd></div>
+              <div><dt>message</dt><dd>${escapeHtml(channel.envelope.messagePath)}</dd></div>
+            </dl>
+          </div>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderErrorCodeChannelCatalog() {
+  const catalog = getErrorCodeCatalog();
+  if (!catalog || !els.errorCodeChannelCatalog) return;
+
+  const channelList = catalog.getChannelList();
+  const tabIds = channelList.map((channel) => channel.channel_id);
+  const activeTab = tabIds.includes(state.errorCodeChannelTab) ? state.errorCodeChannelTab : tabIds[0];
+  state.errorCodeChannelTab = activeTab;
+  const channel = catalog.channels[activeTab];
+  if (!channel) return;
+
+  if (els.errorChannelScopeNote) {
+    els.errorChannelScopeNote.textContent =
+      "按渠道浏览错误响应 envelope 与代表性错误码条目；完整文档见 docs/errorcode/。";
+  }
+
+  const tabButtons = channelList.map((item) => `
+    <button type="button" class="${activeTab === item.channel_id ? "on" : ""}" data-error-channel-tab="${escapeHtml(item.channel_id)}" role="tab" aria-selected="${activeTab === item.channel_id}">
+      <img src="${escapeHtml(item.logo)}" alt="" width="16" height="16" />
+      ${escapeHtml(item.label)}
+    </button>
+  `).join("");
+
+  const entryRows = (channel.entries || []).map((entry) => `
+    <tr>
+      <td class="mono">${entry.http ?? "—"}</td>
+      <td class="mono">${escapeHtml(entry.nativeCode || entry.nativeType || "—")}</td>
+      <td class="mono">${escapeHtml(entry.nativeType || "—")}</td>
+      <td>${escapeHtml(entry.message)}</td>
+    </tr>
+  `).join("");
+
+  els.errorCodeChannelCatalog.innerHTML = `
+    <section class="panel protocol-catalog-panel">
+      <div class="protocol-nav-tabs endpoint-tabs error-code-channel-tabs" role="tablist" aria-label="渠道">
+        ${tabButtons}
+      </div>
+      <div class="error-code-channel-panel">
+        <div class="protocol-catalog-meta">
+          <div class="protocol-catalog-meta-head">
+            <h2>${escapeHtml(channel.label)}</h2>
+            ${renderErrorCodeDocBadge(channel)}
+          </div>
+          <p class="guide-copy">${escapeHtml(channel.envelope.summary)}</p>
+          ${renderErrorCodeDocLinks(channel)}
+        </div>
+        <div class="error-code-envelope-card" style="margin-top: var(--space-4)">
+          <p class="eyebrow">Error envelope</p>
+          <dl class="error-code-envelope-dl mono fs-xs">
+            <div><dt>HTTP</dt><dd>${escapeHtml(channel.envelope.httpPath)}</dd></div>
+            <div><dt>code</dt><dd>${escapeHtml(channel.envelope.codePath || "—")}</dd></div>
+            <div><dt>type</dt><dd>${escapeHtml(channel.envelope.typePath || "—")}</dd></div>
+            <div><dt>message</dt><dd>${escapeHtml(channel.envelope.messagePath)}</dd></div>
+          </dl>
+        </div>
+        <div class="table-wrap" style="margin-top: var(--space-4)">
+          <table class="rtable">
+            <thead>
+              <tr><th>HTTP</th><th>原生 code</th><th>原生 type</th><th>说明</th></tr>
+            </thead>
+            <tbody>${entryRows}</tbody>
+          </table>
+        </div>
+        <div class="error-code-channel-actions">
+          <button type="button" class="btn btn-secondary btn-sm" data-error-code-jump-mapping data-channel-id="${escapeHtml(channel.channel_id)}">在映射矩阵中查看</button>
+        </div>
+      </div>
+    </section>
+  `;
+
+  bindErrorCodeChannelTabs();
+  bindErrorCodeChannelActions();
+}
+
+function renderErrorCodeMappingMatrixCell(channelId, scenarioId) {
+  const catalog = getErrorCodeCatalog();
+  if (!catalog) return `<td class="error-code-matrix-cell muted">—</td>`;
+  const mapping = catalog.channels[channelId]?.mappings?.[scenarioId];
+  if (!mapping) {
+    return `<td class="error-code-matrix-cell error-code-matrix-cell--missing muted" title="暂无映射">—</td>`;
+  }
+  const scenario = catalog.scenarios.find((item) => item.id === scenarioId);
+  const summary = formatNativeCodeSummary(mapping);
+  const openaiCode = scenario?.openai?.code || "";
+  return `
+    <td class="error-code-matrix-cell error-code-matrix-cell--mapped">
+      <button
+        type="button"
+        class="error-code-matrix-cell__btn"
+        data-error-code-mapping-cell
+        data-channel-id="${escapeHtml(channelId)}"
+        data-scenario-id="${escapeHtml(scenarioId)}"
+        title="点击查看映射详情"
+      >
+        <span class="mono error-code-matrix-cell__native">${escapeHtml(summary)}</span>
+        <span class="error-code-matrix-cell__arrow" aria-hidden="true">→</span>
+        <span class="mono error-code-matrix-cell__openai">${escapeHtml(openaiCode)}</span>
+      </button>
+    </td>
+  `;
+}
+
+function renderErrorCodeMappingCatalog() {
+  const catalog = getErrorCodeCatalog();
+  if (!catalog || !els.errorCodeMappingCatalog) return;
+  if (state.errorCodeMappingDrawerOpen) closeErrorCodeMappingDrawer();
+
+  const channelList = catalog.getChannelList();
+  const selectedChannels = getErrorCodeCompareChannels(channelList);
+  const scenarios = catalog.getScenarioList();
+
+  if (els.errorMappingScopeNote) {
+    els.errorMappingScopeNote.textContent =
+      "按统一场景横向对比各渠道原生错误与建议的 OpenAI error 映射；点击单元格查看详情并可复制 JSON。";
+  }
+
+  const headerCells = selectedChannels.map((channel) => `
+    <th scope="col" class="error-code-matrix-channel-head">
+      <img src="${escapeHtml(channel.logo)}" alt="" width="16" height="16" />
+      <span>${escapeHtml(channel.label)}</span>
+    </th>
+  `).join("");
+
+  const bodyRows = scenarios.map((scenario) => `
+    <tr>
+      <th scope="row" class="error-code-matrix-scenario-head">
+        <span class="error-code-matrix-scenario-label">${escapeHtml(scenario.label)}</span>
+        <span class="mono fs-xs muted">${escapeHtml(scenario.openai.type)} / ${escapeHtml(scenario.openai.code)}</span>
+      </th>
+      ${selectedChannels.map((channel) => renderErrorCodeMappingMatrixCell(channel.channel_id, scenario.id)).join("")}
+    </tr>
+  `).join("");
+
+  els.errorCodeMappingCatalog.innerHTML = `
+    <section class="panel protocol-catalog-panel">
+      ${renderErrorCodeChannelPicker(channelList, selectedChannels)}
+      <div class="table-wrap error-code-matrix-wrap">
+        <table class="rtable error-code-matrix">
+          <thead>
+            <tr>
+              <th scope="col">场景 / OpenAI 目标</th>
+              ${headerCells}
+            </tr>
+          </thead>
+          <tbody>${bodyRows}</tbody>
+        </table>
+      </div>
+    </section>
+  `;
+
+  bindErrorCodeCompareChannelPicker();
+  bindErrorCodeMappingCells();
+}
+
+function openErrorCodeMappingDrawer(channelId, scenarioId) {
+  const catalog = getErrorCodeCatalog();
+  if (!catalog || !els.errorCodeMappingDrawer) return;
+  const data = catalog.getMapping(channelId, scenarioId);
+  if (!data) return;
+
+  const { channel, scenario, mapping } = data;
+  const openAiError = catalog.buildOpenAiError(channelId, scenarioId);
+  state.errorCodeMappingDrawerOpen = true;
+  state.errorCodeMappingDrawerContext = { channelId, scenarioId };
+
+  if (els.errorCodeMappingDrawerTitle) {
+    els.errorCodeMappingDrawerTitle.textContent = `${scenario.label} · ${channel.label}`;
+  }
+  if (els.errorCodeMappingDrawerSummary) {
+    els.errorCodeMappingDrawerSummary.innerHTML = `
+      <div class="error-code-drawer-meta">
+        ${renderErrorCodeDocBadge(channel)}
+        ${renderErrorCodeDocLinks(channel)}
+      </div>
+    `;
+  }
+  if (els.errorCodeMappingDrawerBody) {
+    const nativeExample = {
+      http_status: mapping.http ?? null,
+      native_code: mapping.nativeCode ?? null,
+      native_type: mapping.nativeType ?? null,
+      message: mapping.nativeMessage ?? null
+    };
+    els.errorCodeMappingDrawerBody.innerHTML = `
+      <div class="col gap-4">
+        <div>
+          <p class="detail-h">上游原生错误</p>
+          <dl class="error-code-drawer-dl">
+            <div><dt>HTTP</dt><dd class="mono">${mapping.http ?? "—"}</dd></div>
+            <div><dt>code 路径</dt><dd class="mono">${escapeHtml(channel.envelope.codePath || "—")}</dd></div>
+            <div><dt>type 路径</dt><dd class="mono">${escapeHtml(channel.envelope.typePath || "—")}</dd></div>
+            <div><dt>原生 code</dt><dd class="mono">${escapeHtml(mapping.nativeCode || "—")}</dd></div>
+            <div><dt>原生 type</dt><dd class="mono">${escapeHtml(mapping.nativeType || "—")}</dd></div>
+            <div><dt>原生 message</dt><dd>${escapeHtml(mapping.nativeMessage || "—")}</dd></div>
+          </dl>
+          <pre class="error-code-json-preview mono">${escapeHtml(JSON.stringify(nativeExample, null, 2))}</pre>
+        </div>
+        <div>
+          <p class="detail-h">建议 OpenAI error 映射</p>
+          <pre class="error-code-json-preview mono" id="errorCodeOpenAiPreview">${escapeHtml(JSON.stringify(openAiError, null, 2))}</pre>
+          ${mapping.notes ? `<p class="guide-copy muted">${escapeHtml(mapping.notes)}</p>` : ""}
+          <div class="detail-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="errorCodeCopyOpenAi">复制 OpenAI error JSON</button>
+          </div>
+        </div>
+      </div>
+    `;
+    const copyBtn = document.querySelector("#errorCodeCopyOpenAi");
+    if (copyBtn) {
+      copyBtn.addEventListener("click", () => {
+        copyText(JSON.stringify(openAiError, null, 2), "OpenAI error JSON");
+      });
+    }
+  }
+
+  els.errorCodeMappingDrawer.classList.remove("is-hidden");
+  els.errorCodeMappingDrawer.setAttribute("aria-hidden", "false");
+  document.body.classList.add("protocol-param-drawer-open");
+}
+
+function closeErrorCodeMappingDrawer() {
+  if (!els.errorCodeMappingDrawer) return;
+  state.errorCodeMappingDrawerOpen = false;
+  state.errorCodeMappingDrawerContext = null;
+  els.errorCodeMappingDrawer.classList.add("is-hidden");
+  els.errorCodeMappingDrawer.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("protocol-param-drawer-open");
+}
+
+function bindErrorCodeMappingDrawer() {
+  if (!els.errorCodeMappingDrawer) return;
+  els.errorCodeMappingDrawer.querySelectorAll("[data-error-code-drawer-dismiss]").forEach((node) => {
+    node.addEventListener("click", closeErrorCodeMappingDrawer);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && state.errorCodeMappingDrawerOpen) {
+      closeErrorCodeMappingDrawer();
+    }
+  });
+}
+
+function bindErrorCodeChannelTabs() {
+  if (!els.errorCodeChannelCatalog) return;
+  els.errorCodeChannelCatalog.querySelectorAll("[data-error-channel-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const tab = button.dataset.errorChannelTab;
+      if (!tab || tab === state.errorCodeChannelTab) return;
+      state.errorCodeChannelTab = tab;
+      renderErrorCodeChannelCatalog();
+    });
+  });
+}
+
+function bindErrorCodeChannelActions() {
+  if (!els.errorCodeChannelCatalog) return;
+  els.errorCodeChannelCatalog.querySelectorAll("[data-error-code-jump-mapping]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const channelId = button.dataset.channelId;
+      if (channelId) {
+        const catalog = getErrorCodeCatalog();
+        if (catalog) {
+          ensureErrorCodeCompareChannels(catalog.getChannelList());
+          state.errorCodeCompareChannels = new Set([channelId]);
+        }
+      }
+      setActiveView("error-mapping");
+      history.replaceState(null, "", "#error-mapping");
+    });
+  });
+}
+
+function bindErrorCodeCompareChannelPicker() {
+  if (!els.errorCodeMappingCatalog) return;
+  els.errorCodeMappingCatalog.querySelectorAll("[data-error-code-compare-channel]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const catalog = getErrorCodeCatalog();
+      if (!catalog) return;
+      const channelList = catalog.getChannelList();
+      const selected = ensureErrorCodeCompareChannels(channelList);
+      const channelId = input.dataset.channelId;
+      if (input.checked) {
+        selected.add(channelId);
+      } else if (selected.size <= 1) {
+        input.checked = true;
+        showToast("至少保留一个对比渠道");
+        return;
+      } else {
+        selected.delete(channelId);
+      }
+      renderErrorCodeMappingCatalog();
+    });
+  });
+  els.errorCodeMappingCatalog.querySelectorAll("[data-error-code-compare-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const catalog = getErrorCodeCatalog();
+      if (!catalog) return;
+      const channelList = catalog.getChannelList();
+      const selected = ensureErrorCodeCompareChannels(channelList);
+      if (button.dataset.errorCodeCompareAction === "all") {
+        channelList.forEach((channel) => selected.add(channel.channel_id));
+        renderErrorCodeMappingCatalog();
+      }
+    });
+  });
+}
+
+function bindErrorCodeMappingCells() {
+  if (!els.errorCodeMappingCatalog) return;
+  els.errorCodeMappingCatalog.querySelectorAll("[data-error-code-mapping-cell]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const channelId = button.dataset.channelId;
+      const scenarioId = button.dataset.scenarioId;
+      if (channelId && scenarioId) openErrorCodeMappingDrawer(channelId, scenarioId);
+    });
+  });
+}
+
 function setActiveView(view) {
   let viewKey = view;
   if (viewKey === "run") viewKey = "run-v01";
@@ -8291,7 +9538,7 @@ function setActiveView(view) {
     state.activeViewKey = viewKey;
     state.runToolVersion = viewKey === "run-v02" ? "v0.2" : "v0.1";
   } else {
-    state.activeView = ["guide", "channels", "protocols", "models", "run", "reports", "performance", "feishu", "evalscope", "opencompass"].includes(viewKey) ? viewKey : "run";
+    state.activeView = ["guide", "channels", "protocols", "models", "run", "reports", "performance", "feishu", "evalscope", "opencompass", "error-guide", "error-channels", "error-mapping"].includes(viewKey) ? viewKey : "run";
     state.activeViewKey = state.activeView === "run" ? "run-v01" : state.activeView;
     if (state.activeView === "run") state.runToolVersion = "v0.1";
   }
@@ -8318,6 +9565,9 @@ function setActiveView(view) {
     }
   }
   if (state.activeViewKey === "run-v02") renderRunToolV02();
+  if (state.activeView === "error-guide") renderErrorCodeGuide();
+  if (state.activeView === "error-channels") renderErrorCodeChannelCatalog();
+  if (state.activeView === "error-mapping") renderErrorCodeMappingCatalog();
 }
 
 function initialViewFromHash() {
@@ -8328,6 +9578,9 @@ function initialViewFromHash() {
   if (window.location.hash.startsWith("#models")) return "models";
   if (window.location.hash === "#reports" || window.location.hash === "#historyPanel") return "reports";
   if (window.location.hash === "#performance" || window.location.hash === "#performanceView") return "performance";
+  if (window.location.hash === "#error-guide" || window.location.hash === "#errorGuideView") return "error-guide";
+  if (window.location.hash === "#error-channels" || window.location.hash === "#errorChannelsView") return "error-channels";
+  if (window.location.hash === "#error-mapping" || window.location.hash === "#errorMappingView") return "error-mapping";
   if (window.location.hash === "#feishu" || window.location.hash === "#feishuView") return "feishu";
   if (window.location.hash === "#evalscope" || window.location.hash === "#evalscopeView") return "evalscope";
   if (window.location.hash === "#opencompass" || window.location.hash === "#opencompassView") return "opencompass";
@@ -8687,6 +9940,8 @@ renderSelectedChannel();
 bindEvents();
 bindModelLookupAddTabModalEvents();
 bindProtocolParamDrawer();
+bindErrorCodeMappingDrawer();
+bindModelIntroDrawer();
 renderProxyState();
 loadFeishuConfig();
 loadEmbedUrl(embedConfigs.evalscope);
@@ -8694,6 +9949,16 @@ loadEmbedUrl(embedConfigs.opencompass);
 renderHistory();
 autoImportOriginalBaselines();
 renderChannelCatalog();
-renderProtocolCatalog();
-syncModelLookupFromHash();
-setActiveView(initialViewFromHash());
+
+function bootAfterDocsReady() {
+  renderProtocolCatalog();
+  renderErrorCodeGuide();
+  syncModelLookupFromHash();
+  setActiveView(initialViewFromHash());
+}
+
+if (window.NOCTUA_DOCS_READY) {
+  bootAfterDocsReady();
+} else {
+  document.addEventListener("noctua-docs-ready", bootAfterDocsReady, { once: true });
+}

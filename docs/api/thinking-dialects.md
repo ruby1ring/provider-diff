@@ -1,4 +1,22 @@
+---
+channel_id: thinking
+protocol_id: chat_completions
+doc_status: internal
+doc_url: null
+last_verified: 2026-06-08
+compare: false
+required_parameters: []
+parameter_groups:
+  Reasoning.Switch: [enable_thinking, thinking, reasoning, chat_template_kwargs.enable_thinking]
+  Reasoning.Intensity: [reasoning_effort, thinking_budget, reasoning.effort, reasoning.max_tokens, thinking.budget_tokens]
+  Reasoning.Output: [reasoning.summary, reasoning.exclude, include_reasoning, reasoning_split, preserve_thinking, thinking.clear_thinking]
+  Length: [max_completion_tokens]
+  Observability: [reasoning_content, usage.completion_tokens_details.reasoning_tokens]
+notes: 跨渠道推理方言探针，非单一供应商 API 文档。
+---
+
 # Thinking / Reasoning 参数方言官方文档汇总
+
 
 本文档按官方文档口径整理各 provider 的 thinking / reasoning 控制方式，用于设计 `provider-diff` 探针、供应商适配层和对外 API 文档。
 

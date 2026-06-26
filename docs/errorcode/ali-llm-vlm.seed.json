@@ -1,0 +1,1554 @@
+{
+  "generatedAt": "2026-06-25T10:51:36.522Z",
+  "scope": "llm-vlm",
+  "officialUrl": "https://help.aliyun.com/zh/model-studio/error-code",
+  "counts": {
+    "total": 257,
+    "included": 171,
+    "excluded": 86,
+    "gateway": 43,
+    "llm": 112,
+    "vlm": 16
+  },
+  "records": [
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "parameter.enable_thinking must be set to false for non-streaming calls",
+      "messagePattern": "parameter.enable_thinking must be set to false for non-streaming calls",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The thinking_budget parameter must be a positive integer and not greater than xxx",
+      "messagePattern": "The thinking_budget parameter must be a positive integer and not greater than xxx",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "This model only support stream mode, please enable the stream parameter to access the model. / current user api does not support http call.",
+      "messagePattern": "This model only support stream mode, please enable the stream parameter to access the model. / current user api does not support http call.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "This model does not support enable_search.",
+      "messagePattern": "This model does not support enable_search.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "暂时不支持当前设置的语种！",
+      "messagePattern": "暂时不支持当前设置的语种！",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The incremental_output parameter must be \"true\" when enable_thinking is true",
+      "messagePattern": "The incremental_output parameter must be \"true\" when enable_thinking is true",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The incremental_output parameter of this model cannot be set to False.",
+      "messagePattern": "The incremental_output parameter of this model cannot be set to False.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Range of input length should be [1, xxx]",
+      "messagePattern": "Range of input length should be [1, xxx]",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Range of max_tokens should be [1, xxx]",
+      "messagePattern": "Range of max_tokens should be [1, xxx]",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Temperature should be in [0.0, 2.0)/'temperature' must be Float",
+      "messagePattern": "Temperature should be in [0.0, 2.0)/'temperature' must be Float",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Range of top_p should be (0.0, 1.0]/'top_p' must be Float",
+      "messagePattern": "Range of top_p should be (0.0, 1.0]/'top_p' must be Float",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Parameter top_k be greater than or equal to 0",
+      "messagePattern": "Parameter top_k be greater than or equal to 0",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Repetition_penalty should be greater than 0.0",
+      "messagePattern": "Repetition_penalty should be greater than 0.0",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Presence_penalty should be in [-2.0, 2.0]",
+      "messagePattern": "Presence_penalty should be in [-2.0, 2.0]",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Range of n should be [1, 4]",
+      "messagePattern": "Range of n should be [1, 4]",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Range of seed should be [0, 9223372036854775807]",
+      "messagePattern": "Range of seed should be [0, 9223372036854775807]",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Request method 'GET' is not supported.",
+      "messagePattern": "Request method 'GET' is not supported.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "messages with role \"tool\" must be a response to a preceeding message with \"tool_calls\"",
+      "messagePattern": "messages with role \"tool\" must be a response to a preceeding message with \"tool_calls\"",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Required body invalid, please check the request body format.",
+      "messagePattern": "Required body invalid, please check the request body format.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "input content must be a string.",
+      "messagePattern": "input content must be a string.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The content field is a required field.",
+      "messagePattern": "The content field is a required field.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "'messages' must contain the word 'json' in some form, to use 'response_format' of type 'json_object'.",
+      "messagePattern": "'messages' must contain the word 'json' in some form, to use 'response_format' of type 'json_object'.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Json mode response is not supported when enable_thinking is true",
+      "messagePattern": "Json mode response is not supported when enable_thinking is true",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Tool names are not allowed to be [search]",
+      "messagePattern": "Tool names are not allowed to be [search]",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Unknown format of response_format, response_format should be a dict, includes 'type' and an optional key 'json_schema'. The response_format type from user is xxx.",
+      "messagePattern": "Unknown format of response_format, response_format should be a dict, includes 'type' and an optional key 'json_schema'. The response_format type from user is xxx.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The value of the enable_thinking parameter is restricted to True.",
+      "messagePattern": "The value of the enable_thinking parameter is restricted to True.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "'audio' output only support with stream=true",
+      "messagePattern": "'audio' output only support with stream=true",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "tool_choice is one of the strings that should be [\"none\", \"auto\"]",
+      "messagePattern": "tool_choice is one of the strings that should be [\"none\", \"auto\"]",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Model not exist.",
+      "messagePattern": "Model not exist.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The audio is empty",
+      "messagePattern": "The audio is empty",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "File parsing in progress, please try again later.",
+      "messagePattern": "File parsing in progress, please try again later.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The \"stop\" parameter must be of type \"str\", \"list[str]\", \"list[int]\", or \"list[list[int]]\", and all elements within the list must be of the same type.",
+      "messagePattern": "The \"stop\" parameter must be of type \"str\", \"list[str]\", \"list[int]\", or \"list[list[int]]\", and all elements within the list must be of the same type.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Value error, batch size is invalid, it should not be larger than xxx.",
+      "messagePattern": "Value error, batch size is invalid, it should not be larger than xxx.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Invalid file [id:file-fe-\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*].",
+      "messagePattern": "Invalid file [id:file-fe-\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*].",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "[] is too short",
+      "messagePattern": "[] is too short",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The tool call is not supported.",
+      "messagePattern": "The tool call is not supported.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Repetitive tool calls detected in the conversation history. The same tool call with identical name and arguments has been repeated across multiple consecutive rounds. Please modify your request or adjust the tool call arguments to avoid infinite loops.",
+      "messagePattern": "Repetitive tool calls detected in the conversation history. The same tool call with identical name and arguments has been repeated across multiple consecutive rounds. Please modify your request or adjust the tool call arguments to avoid infinite loops.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Required parameter(xxx) missing or invalid, please check the request parameters.",
+      "messagePattern": "Required parameter(xxx) missing or invalid, please check the request parameters.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The provided URL does not appear to be valid. Ensure it is correctly formatted.",
+      "messagePattern": "The provided URL does not appear to be valid. Ensure it is correctly formatted.",
+      "category": "vlm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Input should be a valid dictionary or instance of GPT3Message",
+      "messagePattern": "Input should be a valid dictionary or instance of GPT3Message",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Value error, contents is neither str nor list of str.",
+      "messagePattern": "Value error, contents is neither str nor list of str.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "File [id:file-fe-xxx] format is not supported.",
+      "messagePattern": "File [id:file-fe-xxx] format is not supported.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "File [id:file-fe-\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*] cannot be found.",
+      "messagePattern": "File [id:file-fe-\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*] cannot be found.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Too many files provided.",
+      "messagePattern": "Too many files provided.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "File [id:file-fe-\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*] exceeds size limit.",
+      "messagePattern": "File [id:file-fe-\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*] exceeds size limit.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "File [id:file-fe-\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*] exceeds page limits (15000 pages).",
+      "messagePattern": "File [id:file-fe-\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*] exceeds page limits (15000 pages).",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "File [id:file-fe-\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*] content blank.",
+      "messagePattern": "File [id:file-fe-\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*] content blank.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Total message token length exceed model limit (10000000 tokens).",
+      "messagePattern": "Total message token length exceed model limit (10000000 tokens).",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Exceeded limit on max bytes per data-uri item : 10485760'. / Multimodal file size is too large",
+      "messagePattern": "Exceeded limit on max bytes per data-uri item : 10485760'. / Multimodal file size is too large",
+      "category": "vlm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Input should be 'Cherry', 'Serena', 'Ethan' or 'Chelsie': parameters.audio.voice",
+      "messagePattern": "Input should be 'Cherry', 'Serena', 'Ethan' or 'Chelsie': parameters.audio.voice",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The image length and width do not meet the model restrictions.",
+      "messagePattern": "The image length and width do not meet the model restrictions.",
+      "category": "vlm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Failed to decode the image during the data inspection.",
+      "messagePattern": "Failed to decode the image during the data inspection.",
+      "category": "vlm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The file format is illegal and cannot be opened. / The audio format is illegal and cannot be opened. / The media format is not supported or incorrect for the data inspection.",
+      "messagePattern": "The file format is illegal and cannot be opened. / The audio format is illegal and cannot be opened. / The media format is not supported or incorrect for the data inspection.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The input messages do not contain elements with the role of user.",
+      "messagePattern": "The input messages do not contain elements with the role of user.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Failed to download multimodal content. /",
+      "messagePattern": "Failed to download multimodal content. /",
+      "category": "vlm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Failed to find the requested media resource during the data inspection process.",
+      "messagePattern": "Failed to find the requested media resource during the data inspection process.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "url error, please check url！",
+      "messagePattern": "url error, please check url！",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Don't have authorization to access the media resource during the data inspection process.",
+      "messagePattern": "Don't have authorization to access the media resource during the data inspection process.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The item of content should be a message of a certain modal.",
+      "messagePattern": "The item of content should be a message of a certain modal.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Invalid video file.",
+      "messagePattern": "Invalid video file.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The video modality input does not meet the requirements because: The video file is too long.",
+      "messagePattern": "The video modality input does not meet the requirements because: The video file is too long.",
+      "category": "vlm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Field required: xxx",
+      "messagePattern": "Field required: xxx",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The request is missing required parameters or in a wrong format, please check the parameters that you send.",
+      "messagePattern": "The request is missing required parameters or in a wrong format, please check the parameters that you send.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Missing training files.",
+      "messagePattern": "Missing training files.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The style is invalid.",
+      "messagePattern": "The style is invalid.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The style_level is invalid.",
+      "messagePattern": "The style_level is invalid.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "the xxx parm is invalid!",
+      "messagePattern": "the xxx parm is invalid!",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "input json error.",
+      "messagePattern": "input json error.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "read image error.",
+      "messagePattern": "read image error.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "the parameters must conform to the specification: xxx.",
+      "messagePattern": "the parameters must conform to the specification: xxx.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The size of person image and coarse_image are not the same.",
+      "messagePattern": "The size of person image and coarse_image are not the same.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The request is missing required parameters or the parameters are out of the specified range, please check the parameters that you send.",
+      "messagePattern": "The request is missing required parameters or the parameters are out of the specified range, please check the parameters that you send.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "image format error",
+      "messagePattern": "image format error",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "No messages found in input",
+      "messagePattern": "No messages found in input",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Invalid image format or corrupted file",
+      "messagePattern": "Invalid image format or corrupted file",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "download image failed",
+      "messagePattern": "download image failed",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "messages length only support 1",
+      "messagePattern": "messages length only support 1",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "content length only support 2",
+      "messagePattern": "content length only support 2",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "lack of image or text",
+      "messagePattern": "lack of image or text",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Input files format not supported.",
+      "messagePattern": "Input files format not supported.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Failed to download input files.",
+      "messagePattern": "Failed to download input files.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "oss download error.",
+      "messagePattern": "oss download error.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The image content does not comply with green network verification.",
+      "messagePattern": "The image content does not comply with green network verification.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "read video error.",
+      "messagePattern": "read video error.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "the size of input image is too small or too large.",
+      "messagePattern": "the size of input image is too small or too large.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The request parameter is invalid, please check the request parameter.",
+      "messagePattern": "The request parameter is invalid, please check the request parameter.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The type or value of {parameter} is out of definition.",
+      "messagePattern": "The type or value of {parameter} is out of definition.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The request parameter is invalid, please check the request parameter.",
+      "messagePattern": "The request parameter is invalid, please check the request parameter.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "request timeout after 23 seconds.",
+      "messagePattern": "request timeout after 23 seconds.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Please ensure input text is valid.",
+      "messagePattern": "Please ensure input text is valid.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "[tts:]Engine return error code: 418",
+      "messagePattern": "[tts:]Engine return error code: 418",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Request voice is invalid!",
+      "messagePattern": "Request voice is invalid!",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "check input data style.",
+      "messagePattern": "check input data style.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "An error during model pre-process.",
+      "messagePattern": "An error during model pre-process.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "The image size is not supported for the data inspection.",
+      "messagePattern": "The image size is not supported for the data inspection.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Field required: image_url",
+      "messagePattern": "Field required: image_url",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "Text request limit violated, expected 1.",
+      "messagePattern": "Text request limit violated, expected 1.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter",
+      "nativeCode": "InvalidParameter",
+      "message": "[tts:]Engine return error code: 428",
+      "messagePattern": "[tts:]Engine return error code: 428",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter"
+    },
+    {
+      "http": 400,
+      "nativeType": "invalid_request_error-invalid_value",
+      "nativeCode": "invalid_request_error-invalid_value",
+      "message": "-1 is lesser than the minimum of 0 - 'seed'/'seed' must be Integer",
+      "messagePattern": "-1 is lesser than the minimum of 0 - 'seed'/'seed' must be Integer",
+      "category": "llm",
+      "sectionTitle": "400-invalid_request_error-invalid_value"
+    },
+    {
+      "http": 400,
+      "nativeType": "invalid_request_error",
+      "nativeCode": "invalid_request_error",
+      "message": "you must provide a model parameter.",
+      "messagePattern": "you must provide a model parameter.",
+      "category": "llm",
+      "sectionTitle": "400-invalid_request_error"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter.NotSupportEnableThinking",
+      "nativeCode": "InvalidParameter.NotSupportEnableThinking",
+      "message": "The model xxx does not support enable_thinking.",
+      "messagePattern": "The model xxx does not support enable_thinking.",
+      "category": "llm",
+      "sectionTitle": "400-InvalidParameter.NotSupportEnableThinking"
+    },
+    {
+      "http": 400,
+      "nativeType": "invalid_value",
+      "nativeCode": "invalid_value",
+      "message": "The requested voice 'xxx' is not supported.",
+      "messagePattern": "The requested voice 'xxx' is not supported.",
+      "category": "llm",
+      "sectionTitle": "400-invalid_value"
+    },
+    {
+      "http": 400,
+      "nativeType": "Arrearage",
+      "nativeCode": "Arrearage",
+      "message": "Access denied, please make sure your account is in good standing.",
+      "messagePattern": "Access denied, please make sure your account is in good standing.",
+      "category": "llm",
+      "sectionTitle": "400-Arrearage"
+    },
+    {
+      "http": 400,
+      "nativeType": "DataInspectionFailed",
+      "nativeCode": "DataInspectionFailed",
+      "message": "Input or output data may contain inappropriate content. / Input data may contain inappropriate content. / Output data may contain inappropriate content.",
+      "messagePattern": "Input or output data may contain inappropriate content. / Input data may contain inappropriate content. / Output data may contain inappropriate content.",
+      "category": "llm",
+      "sectionTitle": "400-DataInspectionFailed/data_inspection_failed"
+    },
+    {
+      "http": 400,
+      "nativeType": "DataInspectionFailed",
+      "nativeCode": "DataInspectionFailed",
+      "message": "Input xxx data may contain inappropriate content.",
+      "messagePattern": "Input xxx data may contain inappropriate content.",
+      "category": "llm",
+      "sectionTitle": "400-DataInspectionFailed/data_inspection_failed"
+    },
+    {
+      "http": 400,
+      "nativeType": "APIConnectionError",
+      "nativeCode": "APIConnectionError",
+      "message": "Connection error.",
+      "messagePattern": "Connection error.",
+      "category": "llm",
+      "sectionTitle": "400-APIConnectionError"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidParameter.DataInspection",
+      "nativeCode": "InvalidParameter.DataInspection",
+      "message": "Unable to download the media resource during the data inspection process.",
+      "messagePattern": "Unable to download the media resource during the data inspection process.",
+      "category": "vlm",
+      "sectionTitle": "400-InvalidParameter.DataInspection"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidURL",
+      "nativeCode": "InvalidURL",
+      "message": "Required URL is missing or invalid, please check the request URL.",
+      "messagePattern": "Required URL is missing or invalid, please check the request URL.",
+      "category": "vlm",
+      "sectionTitle": "400-InvalidURL"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidURL",
+      "nativeCode": "InvalidURL",
+      "message": "The request URL is invalid, make sure the url is correct and is an image.",
+      "messagePattern": "The request URL is invalid, make sure the url is correct and is an image.",
+      "category": "vlm",
+      "sectionTitle": "400-InvalidURL"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidURL",
+      "nativeCode": "InvalidURL",
+      "message": "The input audio is longer than xxs.",
+      "messagePattern": "The input audio is longer than xxs.",
+      "category": "vlm",
+      "sectionTitle": "400-InvalidURL"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidURL",
+      "nativeCode": "InvalidURL",
+      "message": "File size is larger than 15MB.",
+      "messagePattern": "File size is larger than 15MB.",
+      "category": "vlm",
+      "sectionTitle": "400-InvalidURL"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidURL",
+      "nativeCode": "InvalidURL",
+      "message": "File type is not supported. Allowed types are: .wav, .mp3.",
+      "messagePattern": "File type is not supported. Allowed types are: .wav, .mp3.",
+      "category": "vlm",
+      "sectionTitle": "400-InvalidURL"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidURL",
+      "nativeCode": "InvalidURL",
+      "message": "The request URL is invalid, please check the request URL is available and the request image format is one of the following types: JPEG, JPG, PNG, BMP, and WEBP.",
+      "messagePattern": "The request URL is invalid, please check the request URL is available and the request image format is one of the following types: JPEG, JPG, PNG, BMP, and WEBP.",
+      "category": "vlm",
+      "sectionTitle": "400-InvalidURL"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidURL.ConnectionRefused",
+      "nativeCode": "InvalidURL.ConnectionRefused",
+      "message": "Connection to xxx refused, please provide available URL.",
+      "messagePattern": "Connection to xxx refused, please provide available URL.",
+      "category": "vlm",
+      "sectionTitle": "400-InvalidURL.ConnectionRefused"
+    },
+    {
+      "http": 400,
+      "nativeType": "InvalidURL.Timeout",
+      "nativeCode": "InvalidURL.Timeout",
+      "message": "Download xxx timeout, please check network connection.",
+      "messagePattern": "Download xxx timeout, please check network connection.",
+      "category": "vlm",
+      "sectionTitle": "400-InvalidURL.Timeout"
+    },
+    {
+      "http": 400,
+      "nativeType": "BadRequestException",
+      "nativeCode": "BadRequestException",
+      "message": "Invalid part type.",
+      "messagePattern": "Invalid part type.",
+      "category": "llm",
+      "sectionTitle": "400-BadRequestException"
+    },
+    {
+      "http": 400,
+      "nativeType": "BadRequest.EmptyInput",
+      "nativeCode": "BadRequest.EmptyInput",
+      "message": "Required input parameter missing from request.",
+      "messagePattern": "Required input parameter missing from request.",
+      "category": "llm",
+      "sectionTitle": "400-BadRequest.EmptyInput"
+    },
+    {
+      "http": 400,
+      "nativeType": "BadRequest.EmptyParameters",
+      "nativeCode": "BadRequest.EmptyParameters",
+      "message": "Required parameter \"parameters\" missing from request.",
+      "messagePattern": "Required parameter \"parameters\" missing from request.",
+      "category": "llm",
+      "sectionTitle": "400-BadRequest.EmptyParameters"
+    },
+    {
+      "http": 400,
+      "nativeType": "BadRequest.EmptyModel",
+      "nativeCode": "BadRequest.EmptyModel",
+      "message": "Required parameter \"model\" missing from request.",
+      "messagePattern": "Required parameter \"model\" missing from request.",
+      "category": "llm",
+      "sectionTitle": "400-BadRequest.EmptyModel"
+    },
+    {
+      "http": 400,
+      "nativeType": "BadRequest.IllegalInput",
+      "nativeCode": "BadRequest.IllegalInput",
+      "message": "The input parameter requires json format.",
+      "messagePattern": "The input parameter requires json format.",
+      "category": "llm",
+      "sectionTitle": "400-BadRequest.IllegalInput"
+    },
+    {
+      "http": 400,
+      "nativeType": "BadRequest.InputDownloadFailed",
+      "nativeCode": "BadRequest.InputDownloadFailed",
+      "message": "Failed to download the input file: xxx.",
+      "messagePattern": "Failed to download the input file: xxx.",
+      "category": "llm",
+      "sectionTitle": "400-BadRequest.InputDownloadFailed"
+    },
+    {
+      "http": 400,
+      "nativeType": "BadRequest.InputDownloadFailed",
+      "nativeCode": "BadRequest.InputDownloadFailed",
+      "message": "Failed to download the input file.",
+      "messagePattern": "Failed to download the input file.",
+      "category": "llm",
+      "sectionTitle": "400-BadRequest.InputDownloadFailed"
+    },
+    {
+      "http": 400,
+      "nativeType": "BadRequest.TooLarge",
+      "nativeCode": "BadRequest.TooLarge",
+      "message": "Payload Too Large.",
+      "messagePattern": "Payload Too Large.",
+      "category": "llm",
+      "sectionTitle": "400-BadRequest.TooLarge"
+    },
+    {
+      "http": 400,
+      "nativeType": "BadRequest.ResourceNotExist",
+      "nativeCode": "BadRequest.ResourceNotExist",
+      "message": "The Required resource not exist.",
+      "messagePattern": "The Required resource not exist.",
+      "category": "llm",
+      "sectionTitle": "400-BadRequest.ResourceNotExist"
+    },
+    {
+      "http": 400,
+      "nativeType": "Throttling.AllocationQuota",
+      "nativeCode": "Throttling.AllocationQuota",
+      "message": "您当前的配额为xxx",
+      "messagePattern": "您当前的配额为xxx",
+      "category": "llm",
+      "sectionTitle": "400-Throttling.AllocationQuota"
+    },
+    {
+      "http": 400,
+      "nativeType": "Throttling.AllocationQuota",
+      "nativeCode": "Throttling.AllocationQuota",
+      "message": "Free allocated quota exceeded.",
+      "messagePattern": "Free allocated quota exceeded.",
+      "category": "llm",
+      "sectionTitle": "400-Throttling.AllocationQuota"
+    },
+    {
+      "http": 400,
+      "nativeType": "ServiceUnavailableError",
+      "nativeCode": "ServiceUnavailableError",
+      "message": "Role must be user or assistant and Content length must be greater than 0.",
+      "messagePattern": "Role must be user or assistant and Content length must be greater than 0.",
+      "category": "llm",
+      "sectionTitle": "400-ServiceUnavailableError"
+    },
+    {
+      "http": 401,
+      "nativeType": "InvalidApiKey",
+      "nativeCode": "InvalidApiKey",
+      "message": "Invalid API-key provided. / Incorrect API key provided.",
+      "messagePattern": "Invalid API-key provided. / Incorrect API key provided.",
+      "category": "gateway",
+      "sectionTitle": "401-InvalidApiKey/invalid_api_key"
+    },
+    {
+      "http": 401,
+      "nativeType": "invalid access token or token expired",
+      "nativeCode": "invalid access token or token expired",
+      "message": "invalid access token or token expired.",
+      "messagePattern": "invalid access token or token expired.",
+      "category": "gateway",
+      "sectionTitle": "401-invalid access token or token expired"
+    },
+    {
+      "http": 403,
+      "nativeType": "AccessDenied",
+      "nativeCode": "AccessDenied",
+      "message": "Current user api does not support asynchronous calls.",
+      "messagePattern": "Current user api does not support asynchronous calls.",
+      "category": "gateway",
+      "sectionTitle": "403-AccessDenied/access_denied"
+    },
+    {
+      "http": 403,
+      "nativeType": "AccessDenied",
+      "nativeCode": "AccessDenied",
+      "message": "current user api does not support synchronous calls.",
+      "messagePattern": "current user api does not support synchronous calls.",
+      "category": "gateway",
+      "sectionTitle": "403-AccessDenied/access_denied"
+    },
+    {
+      "http": 403,
+      "nativeType": "AccessDenied",
+      "nativeCode": "AccessDenied",
+      "message": "Invalid according to Policy: Policy expired.",
+      "messagePattern": "Invalid according to Policy: Policy expired.",
+      "category": "gateway",
+      "sectionTitle": "403-AccessDenied/access_denied"
+    },
+    {
+      "http": 403,
+      "nativeType": "AccessDenied",
+      "nativeCode": "AccessDenied",
+      "message": "Access denied.",
+      "messagePattern": "Access denied.",
+      "category": "gateway",
+      "sectionTitle": "403-AccessDenied/access_denied"
+    },
+    {
+      "http": 403,
+      "nativeType": "AccessDenied.Unpurchased",
+      "nativeCode": "AccessDenied.Unpurchased",
+      "message": "Access to model denied. Please make sure you are eligible for using the model.",
+      "messagePattern": "Access to model denied. Please make sure you are eligible for using the model.",
+      "category": "gateway",
+      "sectionTitle": "403-AccessDenied.Unpurchased"
+    },
+    {
+      "http": 403,
+      "nativeType": "App.AccessDenied",
+      "nativeCode": "App.AccessDenied",
+      "message": "App access denied.",
+      "messagePattern": "App access denied.",
+      "category": "gateway",
+      "sectionTitle": "403-App.AccessDenied"
+    },
+    {
+      "http": 403,
+      "nativeType": "Workspace.AccessDenied",
+      "nativeCode": "Workspace.AccessDenied",
+      "message": "Workspace access denied.",
+      "messagePattern": "Workspace access denied.",
+      "category": "gateway",
+      "sectionTitle": "403-Workspace.AccessDenied"
+    },
+    {
+      "http": 403,
+      "nativeType": "Endpoint.AccessDenied",
+      "nativeCode": "Endpoint.AccessDenied",
+      "message": "Workspace endpoint access denied.",
+      "messagePattern": "Workspace endpoint access denied.",
+      "category": "gateway",
+      "sectionTitle": "403-Endpoint.AccessDenied"
+    },
+    {
+      "http": 404,
+      "nativeType": "ModelNotFound",
+      "nativeCode": "ModelNotFound",
+      "message": "The provided model xxx is not supported by the Batch API.",
+      "messagePattern": "The provided model xxx is not supported by the Batch API.",
+      "category": "gateway",
+      "sectionTitle": "404-ModelNotFound/model_not_found"
+    },
+    {
+      "http": 404,
+      "nativeType": "ModelNotFound",
+      "nativeCode": "ModelNotFound",
+      "message": "Model can not be found. / The model xxx does not exist. / The model xxx does not exist or you do not have access to it.",
+      "messagePattern": "Model can not be found. / The model xxx does not exist. / The model xxx does not exist or you do not have access to it.",
+      "category": "gateway",
+      "sectionTitle": "404-ModelNotFound/model_not_found"
+    },
+    {
+      "http": 404,
+      "nativeType": "model_not_supported",
+      "nativeCode": "model_not_supported",
+      "message": "Unsupported model xxx for OpenAI compatibility mode.",
+      "messagePattern": "Unsupported model xxx for OpenAI compatibility mode.",
+      "category": "gateway",
+      "sectionTitle": "404-model_not_supported"
+    },
+    {
+      "http": 404,
+      "nativeType": "WorkSpaceNotFound",
+      "nativeCode": "WorkSpaceNotFound",
+      "message": "WorkSpace can not be found.",
+      "messagePattern": "WorkSpace can not be found.",
+      "category": "gateway",
+      "sectionTitle": "404-WorkSpaceNotFound"
+    },
+    {
+      "http": 404,
+      "nativeType": "NotFound",
+      "nativeCode": "NotFound",
+      "message": "Not found!",
+      "messagePattern": "Not found!",
+      "category": "gateway",
+      "sectionTitle": "404-NotFound"
+    },
+    {
+      "http": 404,
+      "nativeType": "NotFound",
+      "nativeCode": "NotFound",
+      "message": "Request path not found.",
+      "messagePattern": "Request path not found.",
+      "category": "gateway",
+      "sectionTitle": "404-NotFound"
+    },
+    {
+      "http": 429,
+      "nativeType": "Throttling",
+      "nativeCode": "Throttling",
+      "message": "Too many fine-tune job in running, please retry later. / Only 20 fine-tune job in running or succeeded allowed per user.",
+      "messagePattern": "Too many fine-tune job in running, please retry later. / Only 20 fine-tune job in running or succeeded allowed per user.",
+      "category": "gateway",
+      "sectionTitle": "429-Throttling"
+    },
+    {
+      "http": 429,
+      "nativeType": "Throttling",
+      "nativeCode": "Throttling",
+      "message": "Too many requests in route. Please try again later.",
+      "messagePattern": "Too many requests in route. Please try again later.",
+      "category": "gateway",
+      "sectionTitle": "429-Throttling"
+    },
+    {
+      "http": 429,
+      "nativeType": "Throttling.RateQuota/LimitRequests/limit_requests",
+      "nativeCode": "Throttling.RateQuota/LimitRequests/limit_requests",
+      "message": "You have exceeded your request limit./Requests rate limit exceeded, please try again later.",
+      "messagePattern": "You have exceeded your request limit./Requests rate limit exceeded, please try again later.",
+      "category": "gateway",
+      "sectionTitle": "429-Throttling.RateQuota/LimitRequests/limit_requests"
+    },
+    {
+      "http": 429,
+      "nativeType": "Throttling.AllocationQuota/insufficient_quota",
+      "nativeCode": "Throttling.AllocationQuota/insufficient_quota",
+      "message": "Allocated quota exceeded, please increase your quota limit./ You exceeded your current quota, please check your plan and billing details.",
+      "messagePattern": "Allocated quota exceeded, please increase your quota limit./ You exceeded your current quota, please check your plan and billing details.",
+      "category": "gateway",
+      "sectionTitle": "429-Throttling.AllocationQuota/insufficient_quota"
+    },
+    {
+      "http": 429,
+      "nativeType": "Throttling.AllocationQuota/insufficient_quota",
+      "nativeCode": "Throttling.AllocationQuota/insufficient_quota",
+      "message": "Too many requests. Batch requests are being throttled due to system capacity limits. Please try again later.",
+      "messagePattern": "Too many requests. Batch requests are being throttled due to system capacity limits. Please try again later.",
+      "category": "gateway",
+      "sectionTitle": "429-Throttling.AllocationQuota/insufficient_quota"
+    },
+    {
+      "http": 429,
+      "nativeType": "Throttling.AllocationQuota/insufficient_quota",
+      "nativeCode": "Throttling.AllocationQuota/insufficient_quota",
+      "message": "Free allocated quota exceeded.",
+      "messagePattern": "Free allocated quota exceeded.",
+      "category": "gateway",
+      "sectionTitle": "429-Throttling.AllocationQuota/insufficient_quota"
+    },
+    {
+      "http": 429,
+      "nativeType": "Throttling.AllocationQuota/insufficient_quota",
+      "nativeCode": "Throttling.AllocationQuota/insufficient_quota",
+      "message": "Maximum voice-clone voice limit exceeded.",
+      "messagePattern": "Maximum voice-clone voice limit exceeded.",
+      "category": "gateway",
+      "sectionTitle": "429-Throttling.AllocationQuota/insufficient_quota"
+    },
+    {
+      "http": 500,
+      "nativeType": "InternalError",
+      "nativeCode": "InternalError",
+      "message": "An internal error has occured, please try again later or contact service support.",
+      "messagePattern": "An internal error has occured, please try again later or contact service support.",
+      "category": "gateway",
+      "sectionTitle": "500-InternalError/internal_error"
+    },
+    {
+      "http": 500,
+      "nativeType": "InternalError",
+      "nativeCode": "InternalError",
+      "message": "Internal server error!",
+      "messagePattern": "Internal server error!",
+      "category": "gateway",
+      "sectionTitle": "500-InternalError/internal_error"
+    },
+    {
+      "http": 500,
+      "nativeType": "InternalError",
+      "nativeCode": "InternalError",
+      "message": "audio preprocess server error",
+      "messagePattern": "audio preprocess server error",
+      "category": "gateway",
+      "sectionTitle": "500-InternalError/internal_error"
+    },
+    {
+      "http": 500,
+      "nativeType": "InternalError",
+      "nativeCode": "InternalError",
+      "message": "Remote cancelled grpc stream.",
+      "messagePattern": "Remote cancelled grpc stream.",
+      "category": "gateway",
+      "sectionTitle": "500-InternalError/internal_error"
+    },
+    {
+      "http": 500,
+      "nativeType": "InternalError.Algo",
+      "nativeCode": "InternalError.Algo",
+      "message": "inference internal error.",
+      "messagePattern": "inference internal error.",
+      "category": "gateway",
+      "sectionTitle": "500-InternalError.Algo"
+    },
+    {
+      "http": 500,
+      "nativeType": "InternalError.Algo",
+      "nativeCode": "InternalError.Algo",
+      "message": "Expecting ',' delimiter: line x column xxx (char xxx)",
+      "messagePattern": "Expecting ',' delimiter: line x column xxx (char xxx)",
+      "category": "gateway",
+      "sectionTitle": "500-InternalError.Algo"
+    },
+    {
+      "http": 500,
+      "nativeType": "InternalError.Algo",
+      "nativeCode": "InternalError.Algo",
+      "message": "Missing Content-Length of multimodal url.",
+      "messagePattern": "Missing Content-Length of multimodal url.",
+      "category": "vlm",
+      "sectionTitle": "500-InternalError.Algo"
+    },
+    {
+      "http": 500,
+      "nativeType": "InternalError.Algo",
+      "nativeCode": "InternalError.Algo",
+      "message": "An error occurred in model serving, error message is: [Request rejected by inference engine!]",
+      "messagePattern": "An error occurred in model serving, error message is: [Request rejected by inference engine!]",
+      "category": "gateway",
+      "sectionTitle": "500-InternalError.Algo"
+    },
+    {
+      "http": 500,
+      "nativeType": "InternalError.Algo",
+      "nativeCode": "InternalError.Algo",
+      "message": "An internal error has occured during algorithm execution.",
+      "messagePattern": "An internal error has occured during algorithm execution.",
+      "category": "gateway",
+      "sectionTitle": "500-InternalError.Algo"
+    },
+    {
+      "http": 500,
+      "nativeType": "InternalError.Algo",
+      "nativeCode": "InternalError.Algo",
+      "message": "Inference error: Inference error.",
+      "messagePattern": "Inference error: Inference error.",
+      "category": "gateway",
+      "sectionTitle": "500-InternalError.Algo"
+    },
+    {
+      "http": 500,
+      "nativeType": "InternalError.Algo",
+      "nativeCode": "InternalError.Algo",
+      "message": "Role must be in [user, assistant]",
+      "messagePattern": "Role must be in [user, assistant]",
+      "category": "gateway",
+      "sectionTitle": "500-InternalError.Algo"
+    },
+    {
+      "http": 500,
+      "nativeType": "InternalError.Algo",
+      "nativeCode": "InternalError.Algo",
+      "message": "Embedding_pipeline_Error: xxx",
+      "messagePattern": "Embedding_pipeline_Error: xxx",
+      "category": "gateway",
+      "sectionTitle": "500-InternalError.Algo"
+    },
+    {
+      "http": 500,
+      "nativeType": "InternalError.Algo",
+      "nativeCode": "InternalError.Algo",
+      "message": "Receive batching backend response failed!",
+      "messagePattern": "Receive batching backend response failed!",
+      "category": "gateway",
+      "sectionTitle": "500-InternalError.Algo"
+    },
+    {
+      "http": 500,
+      "nativeType": "InternalError.Algo",
+      "nativeCode": "InternalError.Algo",
+      "message": "[music]Receive batching backend response failed!",
+      "messagePattern": "[music]Receive batching backend response failed!",
+      "category": "gateway",
+      "sectionTitle": "500-InternalError.Algo"
+    },
+    {
+      "http": 500,
+      "nativeType": "InternalError.Algo",
+      "nativeCode": "InternalError.Algo",
+      "message": "Other kinds of server error.",
+      "messagePattern": "Other kinds of server error.",
+      "category": "gateway",
+      "sectionTitle": "500-InternalError.Algo"
+    },
+    {
+      "http": 500,
+      "nativeType": "InternalError.Algo",
+      "nativeCode": "InternalError.Algo",
+      "message": "An internal error has occured during execution, please try again later or contact service support. / algorithm process error. / inference error. / An internal error occurs during computation, please try this model later.",
+      "messagePattern": "An internal error has occured during execution, please try again later or contact service support. / algorithm process error. / inference error. / An internal error occurs during computation, please try this model later.",
+      "category": "gateway",
+      "sectionTitle": "500-InternalError.Algo"
+    },
+    {
+      "http": 500,
+      "nativeType": "InternalError.Algo",
+      "nativeCode": "InternalError.Algo",
+      "message": "list index out of range",
+      "messagePattern": "list index out of range",
+      "category": "gateway",
+      "sectionTitle": "500-InternalError.Algo"
+    },
+    {
+      "http": 500,
+      "nativeType": "InternalError.Timeout",
+      "nativeCode": "InternalError.Timeout",
+      "message": "An internal timeout error has occured during execution, please try again later or contact service support.",
+      "messagePattern": "An internal timeout error has occured during execution, please try again later or contact service support.",
+      "category": "gateway",
+      "sectionTitle": "500-InternalError.Timeout"
+    },
+    {
+      "http": 500,
+      "nativeType": "RequestTimeOut",
+      "nativeCode": "RequestTimeOut",
+      "message": "Request timed out, please try again later. / Response timeout! /",
+      "messagePattern": "Request timed out, please try again later. / Response timeout! /",
+      "category": "gateway",
+      "sectionTitle": "500-RequestTimeOut"
+    },
+    {
+      "http": 503,
+      "nativeType": "ModelServingError",
+      "nativeCode": "ModelServingError",
+      "message": "Too many requests. Your requests are being throttled due to system capacity limits. Please try again later.",
+      "messagePattern": "Too many requests. Your requests are being throttled due to system capacity limits. Please try again later.",
+      "category": "gateway",
+      "sectionTitle": "500/503-ModelServingError"
+    },
+    {
+      "http": 503,
+      "nativeType": "ModelUnavailable",
+      "nativeCode": "ModelUnavailable",
+      "message": "Model is unavailable, please try again later.",
+      "messagePattern": "Model is unavailable, please try again later.",
+      "category": "gateway",
+      "sectionTitle": "503-ModelUnavailable"
+    }
+  ]
+}

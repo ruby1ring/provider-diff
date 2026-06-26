@@ -28,6 +28,7 @@
     "021_enable_thinking_false.json",
     "030_thinking_budget_only.json",
     "031_enable_thinking_with_budget.json",
+    "032_enable_thinking_budget_effort.json",
     "040_thinking_object_enabled.json",
     "041_thinking_object_disabled.json",
     "042_thinking_object_enabled_budget_tokens.json",

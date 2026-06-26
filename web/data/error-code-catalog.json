@@ -1,0 +1,1463 @@
+{
+  "generatedAt": "2026-06-26T03:05:40.848Z",
+  "docStatus": {
+    "verified": {
+      "label": "已对照文档",
+      "className": "protocol-doc-badge--verified"
+    },
+    "partial": {
+      "label": "文档不完整",
+      "className": "protocol-doc-badge--partial"
+    },
+    "missing": {
+      "label": "待补充",
+      "className": "protocol-doc-badge--missing"
+    }
+  },
+  "canonicalShape": {
+    "label": "OpenAI Chat Completions error",
+    "fields": [
+      {
+        "path": "error.message",
+        "type": "string",
+        "required": true,
+        "notes": "人类可读错误描述"
+      },
+      {
+        "path": "error.type",
+        "type": "string",
+        "required": true,
+        "notes": "如 invalid_request_error、rate_limit_error"
+      },
+      {
+        "path": "error.code",
+        "type": "string",
+        "required": false,
+        "notes": "机器可读子码，如 invalid_api_key"
+      },
+      {
+        "path": "error.param",
+        "type": "string",
+        "required": false,
+        "notes": "触发错误的请求参数名"
+      }
+    ],
+    "example": {
+      "error": {
+        "message": "Incorrect API key provided",
+        "type": "invalid_request_error",
+        "param": null,
+        "code": "invalid_api_key"
+      }
+    }
+  },
+  "scenarios": [
+    {
+      "id": "auth_invalid",
+      "label": "API Key 无效",
+      "openai": {
+        "type": "invalid_request_error",
+        "code": "invalid_api_key",
+        "message": "Incorrect API key provided"
+      }
+    },
+    {
+      "id": "rate_limit",
+      "label": "请求限流",
+      "openai": {
+        "type": "rate_limit_error",
+        "code": "rate_limit_exceeded",
+        "message": "Rate limit reached"
+      }
+    },
+    {
+      "id": "insufficient_quota",
+      "label": "余额不足 / 欠费",
+      "openai": {
+        "type": "insufficient_quota",
+        "code": "insufficient_quota",
+        "message": "You exceeded your current quota"
+      }
+    },
+    {
+      "id": "invalid_parameter",
+      "label": "参数无效",
+      "openai": {
+        "type": "invalid_request_error",
+        "code": "invalid_parameter",
+        "message": "Invalid parameter value"
+      }
+    },
+    {
+      "id": "content_filter",
+      "label": "内容审核拒绝",
+      "openai": {
+        "type": "invalid_request_error",
+        "code": "content_filter",
+        "message": "Content was flagged"
+      }
+    },
+    {
+      "id": "permission_denied",
+      "label": "权限拒绝",
+      "openai": {
+        "type": "invalid_request_error",
+        "code": "permission_denied",
+        "message": "You do not have permission"
+      }
+    },
+    {
+      "id": "model_not_found",
+      "label": "模型不存在",
+      "openai": {
+        "type": "invalid_request_error",
+        "code": "model_not_found",
+        "message": "The model does not exist"
+      }
+    },
+    {
+      "id": "context_length",
+      "label": "输入过长",
+      "openai": {
+        "type": "invalid_request_error",
+        "code": "context_length_exceeded",
+        "message": "Input token length too long"
+      }
+    },
+    {
+      "id": "server_error",
+      "label": "服务端故障",
+      "openai": {
+        "type": "server_error",
+        "code": "internal_error",
+        "message": "The server had an error processing your request"
+      }
+    },
+    {
+      "id": "engine_overloaded",
+      "label": "服务繁忙",
+      "openai": {
+        "type": "server_error",
+        "code": "engine_overloaded",
+        "message": "The engine is currently overloaded"
+      }
+    },
+    {
+      "id": "timeout",
+      "label": "请求超时",
+      "openai": {
+        "type": "invalid_request_error",
+        "code": "timeout",
+        "message": "Request timed out"
+      }
+    },
+    {
+      "id": "bad_gateway",
+      "label": "上游不可用",
+      "openai": {
+        "type": "server_error",
+        "code": "bad_gateway",
+        "message": "Upstream model unavailable"
+      }
+    }
+  ],
+  "channelOrder": [
+    "deepseek",
+    "siliconflow",
+    "moonshot",
+    "zhipu",
+    "minimax",
+    "ali",
+    "openrouter",
+    "streamlake"
+  ],
+  "channels": {
+    "deepseek": {
+      "channel_id": "deepseek",
+      "label": "DeepSeek",
+      "logo": "/assets/logos/deepseek.ico",
+      "docStatus": "verified",
+      "localDoc": "docs/errorcode/deepseek.md",
+      "docUrl": "https://api-docs.deepseek.com/zh-cn/quick_start/error_codes",
+      "envelope": {
+        "summary": "主要依赖 HTTP 状态码；响应体未必包含 OpenAI 形态 error 对象",
+        "httpPath": "(HTTP status)",
+        "codePath": null,
+        "typePath": null,
+        "messagePath": "(response body text)"
+      },
+      "entries": [
+        {
+          "http": 401,
+          "nativeCode": "401",
+          "nativeType": null,
+          "message": "API key 错误，认证失败"
+        },
+        {
+          "http": 402,
+          "nativeCode": "402",
+          "nativeType": null,
+          "message": "账号余额不足"
+        },
+        {
+          "http": 422,
+          "nativeCode": "422",
+          "nativeType": null,
+          "message": "请求体参数错误"
+        },
+        {
+          "http": 429,
+          "nativeCode": "429",
+          "nativeType": null,
+          "message": "请求速率达到上限"
+        },
+        {
+          "http": 500,
+          "nativeCode": "500",
+          "nativeType": null,
+          "message": "服务器内部故障"
+        },
+        {
+          "http": 503,
+          "nativeCode": "503",
+          "nativeType": null,
+          "message": "服务器负载过高"
+        }
+      ],
+      "mappings": {
+        "auth_invalid": {
+          "http": 401,
+          "nativeCode": "401",
+          "nativeType": null,
+          "nativeMessage": "API key 错误，认证失败",
+          "notes": "HTTP 401，无独立 error.code"
+        },
+        "rate_limit": {
+          "http": 429,
+          "nativeCode": "429",
+          "nativeType": null,
+          "nativeMessage": "请求速率达到上限"
+        },
+        "insufficient_quota": {
+          "http": 402,
+          "nativeCode": "402",
+          "nativeType": null,
+          "nativeMessage": "账号余额不足"
+        },
+        "invalid_parameter": {
+          "http": 422,
+          "nativeCode": "422",
+          "nativeType": null,
+          "nativeMessage": "请求体参数错误"
+        },
+        "server_error": {
+          "http": 500,
+          "nativeCode": "500",
+          "nativeType": null,
+          "nativeMessage": "服务器内部故障"
+        },
+        "engine_overloaded": {
+          "http": 503,
+          "nativeCode": "503",
+          "nativeType": null,
+          "nativeMessage": "服务器负载过高"
+        }
+      }
+    },
+    "zhipu": {
+      "channel_id": "zhipu",
+      "label": "智谱",
+      "logo": "/assets/logos/zhipu.svg",
+      "docStatus": "verified",
+      "localDoc": "docs/errorcode/zhipu.md",
+      "docUrl": "https://docs.bigmodel.cn/cn/guide/develop/error",
+      "envelope": {
+        "summary": "HTTP 状态码 + 业务错误码 error.code（字符串数字）",
+        "httpPath": "(HTTP status)",
+        "codePath": "error.code",
+        "typePath": null,
+        "messagePath": "error.message"
+      },
+      "entries": [
+        {
+          "http": 401,
+          "nativeCode": "1001",
+          "nativeType": null,
+          "message": "Header 中未收到 Authentication 参数"
+        },
+        {
+          "http": 401,
+          "nativeCode": "1000",
+          "nativeType": null,
+          "message": "身份验证失败"
+        },
+        {
+          "http": 429,
+          "nativeCode": "1302",
+          "nativeType": null,
+          "message": "账户已达到速率限制"
+        },
+        {
+          "http": 429,
+          "nativeCode": "1113",
+          "nativeType": null,
+          "message": "账户已欠费"
+        },
+        {
+          "http": 400,
+          "nativeCode": "1211",
+          "nativeType": null,
+          "message": "模型不存在"
+        },
+        {
+          "http": 400,
+          "nativeCode": "1210",
+          "nativeType": null,
+          "message": "API 调用参数有误"
+        },
+        {
+          "http": 400,
+          "nativeCode": "1301",
+          "nativeType": null,
+          "message": "输入或生成内容可能包含不安全或敏感内容"
+        },
+        {
+          "http": 403,
+          "nativeCode": "1220",
+          "nativeType": null,
+          "message": "无权访问 API"
+        },
+        {
+          "http": 500,
+          "nativeCode": "1200",
+          "nativeType": null,
+          "message": "API 调用失败"
+        }
+      ],
+      "mappings": {
+        "auth_invalid": {
+          "http": 401,
+          "nativeCode": "1001",
+          "nativeType": null,
+          "nativeMessage": "Header 中未收到 Authentication 参数"
+        },
+        "rate_limit": {
+          "http": 429,
+          "nativeCode": "1302",
+          "nativeType": null,
+          "nativeMessage": "账户已达到速率限制"
+        },
+        "insufficient_quota": {
+          "http": 429,
+          "nativeCode": "1113",
+          "nativeType": null,
+          "nativeMessage": "账户已欠费，请充值后重试"
+        },
+        "invalid_parameter": {
+          "http": 400,
+          "nativeCode": "1210",
+          "nativeType": null,
+          "nativeMessage": "API 调用参数有误"
+        },
+        "content_filter": {
+          "http": 400,
+          "nativeCode": "1301",
+          "nativeType": null,
+          "nativeMessage": "内容可能包含不安全或敏感内容"
+        },
+        "permission_denied": {
+          "http": 403,
+          "nativeCode": "1220",
+          "nativeType": null,
+          "nativeMessage": "无权访问 API"
+        },
+        "model_not_found": {
+          "http": 400,
+          "nativeCode": "1211",
+          "nativeType": null,
+          "nativeMessage": "模型不存在"
+        },
+        "context_length": {
+          "http": 400,
+          "nativeCode": "1261",
+          "nativeType": null,
+          "nativeMessage": "Prompt 超长"
+        },
+        "server_error": {
+          "http": 500,
+          "nativeCode": "1200",
+          "nativeType": null,
+          "nativeMessage": "API 调用失败"
+        }
+      }
+    },
+    "moonshot": {
+      "channel_id": "moonshot",
+      "label": "Moonshot",
+      "logo": "/assets/logos/moonshot.ico",
+      "docStatus": "verified",
+      "localDoc": "docs/errorcode/moonshot.md",
+      "docUrl": "https://platform.kimi.com/docs/guide/error",
+      "envelope": {
+        "summary": "OpenAI-like error.type + error.message；与 OpenAI 形态接近",
+        "httpPath": "(HTTP status)",
+        "codePath": null,
+        "typePath": "error.type",
+        "messagePath": "error.message"
+      },
+      "entries": [
+        {
+          "http": 401,
+          "nativeCode": null,
+          "nativeType": "invalid_authentication_error",
+          "message": "Invalid Authentication"
+        },
+        {
+          "http": 401,
+          "nativeCode": null,
+          "nativeType": "incorrect_api_key_error",
+          "message": "Incorrect API key provided"
+        },
+        {
+          "http": 400,
+          "nativeCode": null,
+          "nativeType": "content_filter",
+          "message": "The request was rejected because it was considered high risk"
+        },
+        {
+          "http": 400,
+          "nativeCode": null,
+          "nativeType": "invalid_request_error",
+          "message": "Invalid request"
+        },
+        {
+          "http": 404,
+          "nativeCode": null,
+          "nativeType": "resource_not_found_error",
+          "message": "Not found the model or Permission denied"
+        },
+        {
+          "http": 429,
+          "nativeCode": null,
+          "nativeType": "rate_limit_reached_error",
+          "message": "Request reached rate limit"
+        },
+        {
+          "http": 429,
+          "nativeCode": null,
+          "nativeType": "exceeded_current_quota_error",
+          "message": "You exceeded your current token quota"
+        },
+        {
+          "http": 429,
+          "nativeCode": null,
+          "nativeType": "engine_overloaded_error",
+          "message": "The engine is currently overloaded"
+        },
+        {
+          "http": 500,
+          "nativeCode": null,
+          "nativeType": "server_error",
+          "message": "Failed to extract file"
+        }
+      ],
+      "mappings": {
+        "auth_invalid": {
+          "http": 401,
+          "nativeCode": null,
+          "nativeType": "incorrect_api_key_error",
+          "nativeMessage": "Incorrect API key provided"
+        },
+        "rate_limit": {
+          "http": 429,
+          "nativeCode": null,
+          "nativeType": "rate_limit_reached_error",
+          "nativeMessage": "Request reached organization rate limit"
+        },
+        "insufficient_quota": {
+          "http": 429,
+          "nativeCode": null,
+          "nativeType": "exceeded_current_quota_error",
+          "nativeMessage": "You exceeded your current token quota"
+        },
+        "invalid_parameter": {
+          "http": 400,
+          "nativeCode": null,
+          "nativeType": "invalid_request_error",
+          "nativeMessage": "Invalid request"
+        },
+        "content_filter": {
+          "http": 400,
+          "nativeCode": null,
+          "nativeType": "content_filter",
+          "nativeMessage": "Request rejected: high risk content"
+        },
+        "permission_denied": {
+          "http": 403,
+          "nativeCode": null,
+          "nativeType": "permission_denied_error",
+          "nativeMessage": "The API you are accessing is not open"
+        },
+        "model_not_found": {
+          "http": 404,
+          "nativeCode": null,
+          "nativeType": "resource_not_found_error",
+          "nativeMessage": "Not found the model"
+        },
+        "context_length": {
+          "http": 400,
+          "nativeCode": null,
+          "nativeType": "invalid_request_error",
+          "nativeMessage": "Input token length too long"
+        },
+        "server_error": {
+          "http": 500,
+          "nativeCode": null,
+          "nativeType": "server_error",
+          "nativeMessage": "Internal server error"
+        },
+        "engine_overloaded": {
+          "http": 429,
+          "nativeCode": null,
+          "nativeType": "engine_overloaded_error",
+          "nativeMessage": "The engine is currently overloaded"
+        }
+      }
+    },
+    "minimax": {
+      "channel_id": "minimax",
+      "label": "MiniMax",
+      "logo": "/assets/logos/minimax.ico",
+      "docStatus": "verified",
+      "localDoc": "docs/errorcode/minimax.md",
+      "docUrl": "https://platform.minimax.io/docs/guides/error-code",
+      "envelope": {
+        "summary": "数值业务错误码（常见于 base_resp.status_code 或 error 字段）",
+        "httpPath": "(HTTP status)",
+        "codePath": "base_resp.status_code",
+        "typePath": null,
+        "messagePath": "base_resp.status_msg"
+      },
+      "entries": [
+        {
+          "http": 401,
+          "nativeCode": "1004",
+          "nativeType": null,
+          "message": "not authorized / token not match"
+        },
+        {
+          "http": 429,
+          "nativeCode": "1002",
+          "nativeType": null,
+          "message": "rate limit"
+        },
+        {
+          "http": 402,
+          "nativeCode": "1008",
+          "nativeType": null,
+          "message": "insufficient balance"
+        },
+        {
+          "http": 400,
+          "nativeCode": "2013",
+          "nativeType": null,
+          "message": "invalid params"
+        },
+        {
+          "http": 400,
+          "nativeCode": "1026",
+          "nativeType": null,
+          "message": "input new_sensitive"
+        },
+        {
+          "http": 400,
+          "nativeCode": "1027",
+          "nativeType": null,
+          "message": "output new_sensitive"
+        },
+        {
+          "http": 500,
+          "nativeCode": "1024",
+          "nativeType": null,
+          "message": "internal error"
+        },
+        {
+          "http": 401,
+          "nativeCode": "2049",
+          "nativeType": null,
+          "message": "invalid API Key"
+        }
+      ],
+      "mappings": {
+        "auth_invalid": {
+          "http": 401,
+          "nativeCode": "2049",
+          "nativeType": null,
+          "nativeMessage": "invalid API Key"
+        },
+        "rate_limit": {
+          "http": 429,
+          "nativeCode": "1002",
+          "nativeType": null,
+          "nativeMessage": "rate limit"
+        },
+        "insufficient_quota": {
+          "http": 402,
+          "nativeCode": "1008",
+          "nativeType": null,
+          "nativeMessage": "insufficient balance"
+        },
+        "invalid_parameter": {
+          "http": 400,
+          "nativeCode": "2013",
+          "nativeType": null,
+          "nativeMessage": "invalid params"
+        },
+        "content_filter": {
+          "http": 400,
+          "nativeCode": "1026",
+          "nativeType": null,
+          "nativeMessage": "input new_sensitive"
+        },
+        "server_error": {
+          "http": 500,
+          "nativeCode": "1024",
+          "nativeType": null,
+          "nativeMessage": "internal error"
+        },
+        "engine_overloaded": {
+          "http": 429,
+          "nativeCode": "1039",
+          "nativeType": null,
+          "nativeMessage": "token limit"
+        }
+      }
+    },
+    "ali": {
+      "channel_id": "ali",
+      "label": "阿里云百炼",
+      "logo": "/assets/logos/aliyun.svg",
+      "docStatus": "verified",
+      "localDoc": "docs/errorcode/ali.md",
+      "docUrl": "https://help.aliyun.com/zh/model-studio/error-code",
+      "envelope": {
+        "summary": "OpenAI-like error 对象；error.type 与 error.code 常为相同 PascalCase 字符串（如 InvalidParameter、Arrearage）；部分场景 HTTP 与文档章节前缀不一致",
+        "httpPath": "(HTTP status)",
+        "codePath": "error.code",
+        "typePath": "error.type",
+        "messagePath": "error.message"
+      },
+      "entries": [
+        {
+          "http": 400,
+          "nativeCode": "InvalidParameter",
+          "nativeType": "InvalidParameter",
+          "message": "Invalid parameter value"
+        },
+        {
+          "http": 400,
+          "nativeCode": "invalid_request_error",
+          "nativeType": "invalid_request_error",
+          "message": "you must provide a model parameter"
+        },
+        {
+          "http": 400,
+          "nativeCode": "InvalidParameter.NotSupportEnableThinking",
+          "nativeType": "InvalidParameter.NotSupportEnableThinking",
+          "message": "The model does not support enable_thinking"
+        },
+        {
+          "http": 400,
+          "nativeCode": "Arrearage",
+          "nativeType": "Arrearage",
+          "message": "Access denied, please make sure your account is in good standing"
+        },
+        {
+          "http": 400,
+          "nativeCode": "DataInspectionFailed",
+          "nativeType": "DataInspectionFailed",
+          "message": "Input or output data may contain inappropriate content"
+        },
+        {
+          "http": 400,
+          "nativeCode": "APIConnectionError",
+          "nativeType": "APIConnectionError",
+          "message": "Connection error"
+        },
+        {
+          "http": 400,
+          "nativeCode": "InvalidParameter.DataInspection",
+          "nativeType": "InvalidParameter.DataInspection",
+          "message": "Unable to download the media resource during the data inspection process"
+        },
+        {
+          "http": 400,
+          "nativeCode": "InvalidURL",
+          "nativeType": "InvalidURL",
+          "message": "Invalid URL provided in your request"
+        },
+        {
+          "http": 401,
+          "nativeCode": "InvalidApiKey",
+          "nativeType": "InvalidApiKey",
+          "message": "Invalid API-key provided"
+        },
+        {
+          "http": 401,
+          "nativeCode": "NOT AUTHORIZED",
+          "nativeType": "NOT AUTHORIZED",
+          "message": "Workspace not authorized or endpoint misconfigured"
+        },
+        {
+          "http": 403,
+          "nativeCode": "AccessDenied",
+          "nativeType": "AccessDenied",
+          "message": "Access denied"
+        },
+        {
+          "http": 403,
+          "nativeCode": "AccessDenied.Unpurchased",
+          "nativeType": "AccessDenied.Unpurchased",
+          "message": "Access to model denied"
+        },
+        {
+          "http": 403,
+          "nativeCode": "Model.AccessDenied",
+          "nativeType": "Model.AccessDenied",
+          "message": "Model access denied"
+        },
+        {
+          "http": 403,
+          "nativeCode": "Workspace.AccessDenied",
+          "nativeType": "Workspace.AccessDenied",
+          "message": "Workspace access denied"
+        },
+        {
+          "http": 403,
+          "nativeCode": "AllocationQuota.FreeTierOnly",
+          "nativeType": "AllocationQuota.FreeTierOnly",
+          "message": "Free tier exhausted"
+        },
+        {
+          "http": 404,
+          "nativeCode": "ModelNotFound",
+          "nativeType": "ModelNotFound",
+          "message": "The model does not exist"
+        },
+        {
+          "http": 404,
+          "nativeCode": "model_not_supported",
+          "nativeType": "model_not_supported",
+          "message": "Unsupported model for OpenAI compatibility mode"
+        },
+        {
+          "http": 429,
+          "nativeCode": "Throttling",
+          "nativeType": "Throttling",
+          "message": "Requests throttling triggered"
+        },
+        {
+          "http": 429,
+          "nativeCode": "Throttling.RateQuota",
+          "nativeType": "Throttling.RateQuota",
+          "message": "Requests rate limit exceeded"
+        },
+        {
+          "http": 429,
+          "nativeCode": "Throttling.BurstRate",
+          "nativeType": "Throttling.BurstRate",
+          "message": "Request rate increased too quickly"
+        },
+        {
+          "http": 429,
+          "nativeCode": "Throttling.AllocationQuota",
+          "nativeType": "Throttling.AllocationQuota",
+          "message": "Allocated quota exceeded"
+        },
+        {
+          "http": 500,
+          "nativeCode": "InternalError",
+          "nativeType": "InternalError",
+          "message": "An internal error has occured"
+        },
+        {
+          "http": 500,
+          "nativeCode": "InternalError.Algo",
+          "nativeType": "InternalError.Algo",
+          "message": "inference internal error"
+        },
+        {
+          "http": 500,
+          "nativeCode": "RequestTimeOut",
+          "nativeType": "RequestTimeOut",
+          "message": "Request timed out, please try again later"
+        },
+        {
+          "http": 503,
+          "nativeCode": "ModelServingError",
+          "nativeType": "ModelServingError",
+          "message": "Requests throttled due to system capacity limits"
+        },
+        {
+          "http": 503,
+          "nativeCode": "ModelUnavailable",
+          "nativeType": "ModelUnavailable",
+          "message": "Model is unavailable, please try again later"
+        },
+        {
+          "http": 401,
+          "nativeCode": "invalid access token or token expired",
+          "nativeType": "invalid access token or token expired",
+          "message": "invalid access token or token expired."
+        },
+        {
+          "http": 403,
+          "nativeCode": "App.AccessDenied",
+          "nativeType": "App.AccessDenied",
+          "message": "App access denied."
+        },
+        {
+          "http": 403,
+          "nativeCode": "Endpoint.AccessDenied",
+          "nativeType": "Endpoint.AccessDenied",
+          "message": "Workspace endpoint access denied."
+        },
+        {
+          "http": 404,
+          "nativeCode": "NotFound",
+          "nativeType": "NotFound",
+          "message": "Not found!"
+        },
+        {
+          "http": 404,
+          "nativeCode": "WorkSpaceNotFound",
+          "nativeType": "WorkSpaceNotFound",
+          "message": "WorkSpace can not be found."
+        },
+        {
+          "http": 500,
+          "nativeCode": "InternalError.Timeout",
+          "nativeType": "InternalError.Timeout",
+          "message": "An internal timeout error has occured during execution."
+        },
+        {
+          "http": 400,
+          "nativeCode": "BadRequest.EmptyInput",
+          "nativeType": "BadRequest.EmptyInput",
+          "message": "Required input parameter missing from request."
+        },
+        {
+          "http": 400,
+          "nativeCode": "BadRequest.EmptyModel",
+          "nativeType": "BadRequest.EmptyModel",
+          "message": "Required parameter \"model\" missing from request."
+        },
+        {
+          "http": 400,
+          "nativeCode": "BadRequest.EmptyParameters",
+          "nativeType": "BadRequest.EmptyParameters",
+          "message": "Required parameter \"parameters\" missing from request."
+        },
+        {
+          "http": 400,
+          "nativeCode": "BadRequest.IllegalInput",
+          "nativeType": "BadRequest.IllegalInput",
+          "message": "The input parameter requires json format."
+        },
+        {
+          "http": 400,
+          "nativeCode": "BadRequest.InputDownloadFailed",
+          "nativeType": "BadRequest.InputDownloadFailed",
+          "message": "Failed to download the input file: xxx."
+        },
+        {
+          "http": 400,
+          "nativeCode": "BadRequest.ResourceNotExist",
+          "nativeType": "BadRequest.ResourceNotExist",
+          "message": "The Required resource not exist."
+        },
+        {
+          "http": 400,
+          "nativeCode": "BadRequest.TooLarge",
+          "nativeType": "BadRequest.TooLarge",
+          "message": "Payload Too Large."
+        },
+        {
+          "http": 400,
+          "nativeCode": "BadRequestException",
+          "nativeType": "BadRequestException",
+          "message": "Invalid part type."
+        },
+        {
+          "http": 400,
+          "nativeCode": "invalid_request_error-invalid_value",
+          "nativeType": "invalid_request_error-invalid_value",
+          "message": "-1 is lesser than the minimum of 0 - 'seed'"
+        },
+        {
+          "http": 400,
+          "nativeCode": "invalid_value",
+          "nativeType": "invalid_value",
+          "message": "The requested voice 'xxx' is not supported."
+        },
+        {
+          "http": 400,
+          "nativeCode": "ServiceUnavailableError",
+          "nativeType": "ServiceUnavailableError",
+          "message": "Role must be user or assistant and Content length must be greater than 0."
+        },
+        {
+          "http": 400,
+          "nativeCode": "Throttling.AllocationQuota",
+          "nativeType": "Throttling.AllocationQuota",
+          "message": "您当前的配额为xxx"
+        },
+        {
+          "http": 400,
+          "nativeCode": "InvalidURL.ConnectionRefused",
+          "nativeType": "InvalidURL.ConnectionRefused",
+          "message": "Connection to xxx refused, please provide available URL."
+        },
+        {
+          "http": 400,
+          "nativeCode": "InvalidURL.Timeout",
+          "nativeType": "InvalidURL.Timeout",
+          "message": "Download xxx timeout, please check network connection."
+        }
+      ],
+      "mappings": {
+        "auth_invalid": {
+          "http": 401,
+          "nativeCode": "InvalidApiKey",
+          "nativeType": "InvalidApiKey",
+          "nativeMessage": "Invalid API-key provided",
+          "notes": "亦见 NOT AUTHORIZED、invalid access token"
+        },
+        "rate_limit": {
+          "http": 429,
+          "nativeCode": "Throttling.RateQuota",
+          "nativeType": "Throttling.RateQuota",
+          "nativeMessage": "Requests rate limit exceeded, please try again later",
+          "notes": "RPM/RPS；骤增见 Throttling.BurstRate"
+        },
+        "insufficient_quota": {
+          "http": 400,
+          "nativeCode": "Arrearage",
+          "nativeType": "Arrearage",
+          "nativeMessage": "Access denied, please make sure your account is in good standing",
+          "notes": "账户欠费；Token 配额见 429 Throttling.AllocationQuota"
+        },
+        "invalid_parameter": {
+          "http": 400,
+          "nativeCode": "InvalidParameter",
+          "nativeType": "InvalidParameter",
+          "nativeMessage": "Invalid parameter",
+          "notes": "message 因参数而异，见 docs/errorcode/ali.md 附录"
+        },
+        "content_filter": {
+          "http": 400,
+          "nativeCode": "DataInspectionFailed",
+          "nativeType": "DataInspectionFailed",
+          "nativeMessage": "Input or output data may contain inappropriate content"
+        },
+        "permission_denied": {
+          "http": 403,
+          "nativeCode": "Model.AccessDenied",
+          "nativeType": "Model.AccessDenied",
+          "nativeMessage": "Model access denied",
+          "notes": "亦见 AccessDenied、Workspace.AccessDenied、App.AccessDenied"
+        },
+        "model_not_found": {
+          "http": 404,
+          "nativeCode": "ModelNotFound",
+          "nativeType": "ModelNotFound",
+          "nativeMessage": "The model does not exist or you do not have access to it"
+        },
+        "context_length": {
+          "http": 400,
+          "nativeCode": "InvalidParameter",
+          "nativeType": "InvalidParameter",
+          "nativeMessage": "Range of input length should be [1, xxx]",
+          "notes": "统一为 InvalidParameter；亦见 Total message token length exceed"
+        },
+        "server_error": {
+          "http": 500,
+          "nativeCode": "InternalError",
+          "nativeType": "InternalError",
+          "nativeMessage": "An internal error has occured, please try again later",
+          "notes": "算法层见 InternalError.Algo"
+        },
+        "engine_overloaded": {
+          "http": 503,
+          "nativeCode": "ModelServingError",
+          "nativeType": "ModelServingError",
+          "nativeMessage": "Too many requests. Your requests are being throttled due to system capacity limits",
+          "notes": "亦见 503 ModelUnavailable"
+        },
+        "timeout": {
+          "http": 500,
+          "nativeCode": "RequestTimeOut",
+          "nativeType": "RequestTimeOut",
+          "nativeMessage": "Request timed out, please try again later",
+          "notes": "异步任务见 InternalError.Timeout"
+        },
+        "bad_gateway": {
+          "http": 503,
+          "nativeCode": "ModelUnavailable",
+          "nativeType": "ModelUnavailable",
+          "nativeMessage": "Model is unavailable, please try again later",
+          "notes": "上游不可用或模型暂时下线"
+        }
+      },
+      "notes": "范围：LLM/VLM HTTP API；完整 FAQ 见 docs/errorcode/archive/ali-errorcode-raw.md"
+    },
+    "openrouter": {
+      "channel_id": "openrouter",
+      "label": "OpenRouter",
+      "logo": "/assets/logos/openrouter.svg",
+      "docStatus": "verified",
+      "localDoc": "docs/errorcode/openrouter.md",
+      "docUrl": "https://openrouter.ai/docs/api/reference/errors",
+      "envelope": {
+        "summary": "error.code 为 HTTP 状态码数字；metadata.error_type 为规范化类型",
+        "httpPath": "error.code (= HTTP status)",
+        "codePath": "error.code",
+        "typePath": "error.metadata.error_type",
+        "messagePath": "error.message"
+      },
+      "entries": [
+        {
+          "http": 401,
+          "nativeCode": "401",
+          "nativeType": "authentication",
+          "message": "Invalid credentials"
+        },
+        {
+          "http": 402,
+          "nativeCode": "402",
+          "nativeType": "payment_required",
+          "message": "Insufficient credits"
+        },
+        {
+          "http": 403,
+          "nativeCode": "403",
+          "nativeType": "permission_denied",
+          "message": "Forbidden / guardrail block"
+        },
+        {
+          "http": 429,
+          "nativeCode": "429",
+          "nativeType": "rate_limited",
+          "message": "Rate limited; may include Retry-After"
+        },
+        {
+          "http": 502,
+          "nativeCode": "502",
+          "nativeType": "provider_error",
+          "message": "Model down or invalid upstream response"
+        },
+        {
+          "http": 503,
+          "nativeCode": "503",
+          "nativeType": "service_unavailable",
+          "message": "No available model provider"
+        },
+        {
+          "http": 408,
+          "nativeCode": "408",
+          "nativeType": "timeout",
+          "message": "Request timed out"
+        }
+      ],
+      "mappings": {
+        "auth_invalid": {
+          "http": 401,
+          "nativeCode": "401",
+          "nativeType": "authentication",
+          "nativeMessage": "Invalid credentials",
+          "notes": "metadata.error_type 更精确"
+        },
+        "rate_limit": {
+          "http": 429,
+          "nativeCode": "429",
+          "nativeType": "rate_limited",
+          "nativeMessage": "Rate limited",
+          "notes": "响应可含 Retry-After header"
+        },
+        "insufficient_quota": {
+          "http": 402,
+          "nativeCode": "402",
+          "nativeType": "payment_required",
+          "nativeMessage": "Insufficient credits"
+        },
+        "invalid_parameter": {
+          "http": 400,
+          "nativeCode": "400",
+          "nativeType": "invalid_request",
+          "nativeMessage": "Bad request"
+        },
+        "content_filter": {
+          "http": 403,
+          "nativeCode": "403",
+          "nativeType": "moderation",
+          "nativeMessage": "Input flagged by moderation",
+          "notes": "metadata.reasons 含审核详情"
+        },
+        "permission_denied": {
+          "http": 403,
+          "nativeCode": "403",
+          "nativeType": "permission_denied",
+          "nativeMessage": "Forbidden"
+        },
+        "server_error": {
+          "http": 500,
+          "nativeCode": "500",
+          "nativeType": "internal_error",
+          "nativeMessage": "Internal server error"
+        },
+        "bad_gateway": {
+          "http": 502,
+          "nativeCode": "502",
+          "nativeType": "provider_error",
+          "nativeMessage": "Model down or invalid upstream response"
+        },
+        "engine_overloaded": {
+          "http": 503,
+          "nativeCode": "503",
+          "nativeType": "service_unavailable",
+          "nativeMessage": "No available model provider"
+        },
+        "timeout": {
+          "http": 408,
+          "nativeCode": "408",
+          "nativeType": "timeout",
+          "nativeMessage": "Request timed out"
+        }
+      }
+    },
+    "streamlake": {
+      "channel_id": "streamlake",
+      "label": "快手万擎",
+      "logo": "/assets/logos/streamlake.png",
+      "docStatus": "verified",
+      "localDoc": "docs/errorcode/streamlake.md",
+      "docUrl": "https://www.streamlake.com/document/WANQING/mhyk52ofkyit2gaim3a",
+      "envelope": {
+        "summary": "万擎错误码为点分字符串 Code；公共错误码为短码",
+        "httpPath": "(HTTP status)",
+        "codePath": "error.code",
+        "typePath": null,
+        "messagePath": "error.message"
+      },
+      "entries": [
+        {
+          "http": 400,
+          "nativeCode": "InvalidArgument.Authorization",
+          "nativeType": null,
+          "message": "The provided API key is invalid"
+        },
+        {
+          "http": 403,
+          "nativeCode": "Forbidden.InsufficientBalance",
+          "nativeType": null,
+          "message": "The balance is insufficient"
+        },
+        {
+          "http": 429,
+          "nativeCode": "TooManyRequests",
+          "nativeType": null,
+          "message": "Too many requests"
+        },
+        {
+          "http": 400,
+          "nativeCode": "InvalidArgument.RequestBodyInvalid",
+          "nativeType": null,
+          "message": "Invalid request body format"
+        },
+        {
+          "http": 404,
+          "nativeCode": "ResourceNotFound",
+          "nativeType": null,
+          "message": "Resource not found"
+        },
+        {
+          "http": 500,
+          "nativeCode": "InternalError",
+          "nativeType": null,
+          "message": "Unknown server error"
+        },
+        {
+          "http": 401,
+          "nativeCode": "Unauthorized",
+          "nativeType": null,
+          "message": "AUTH_INFO missing (公共错误码)"
+        },
+        {
+          "http": 400,
+          "nativeCode": "InvalidArgument\\.MissingRequiredParameter",
+          "nativeType": "InvalidArgument\\.MissingRequiredParameter",
+          "message": "The xxx parameter is required\\."
+        },
+        {
+          "http": 400,
+          "nativeCode": "InvalidArgument\\.RequestBodyInvalid",
+          "nativeType": "InvalidArgument\\.RequestBodyInvalid",
+          "message": "Invalid request body format, please check the request body format\\."
+        },
+        {
+          "http": 400,
+          "nativeCode": "InvalidEndpoint\\.StoppedEndpoint",
+          "nativeType": "InvalidEndpoint\\.StoppedEndpoint",
+          "message": "The requested endpoint has been stopped and is currently unavailable\\."
+        },
+        {
+          "http": 400,
+          "nativeCode": "InvalidArgument\\.Authorization",
+          "nativeType": "InvalidArgument\\.Authorization",
+          "message": "The provided API key is invalid\\."
+        },
+        {
+          "http": 400,
+          "nativeCode": "InvalidArgument\\.UserInfoError",
+          "nativeType": "InvalidArgument\\.UserInfoError",
+          "message": "The userInfo is invalid\\."
+        },
+        {
+          "http": 403,
+          "nativeCode": "Forbidden\\.InsufficientBalance",
+          "nativeType": "Forbidden\\.InsufficientBalance",
+          "message": "The balance is insufficient\\."
+        },
+        {
+          "http": 403,
+          "nativeCode": "Forbidden\\.Frozen",
+          "nativeType": "Forbidden\\.Frozen",
+          "message": "User has been frozen\\."
+        },
+        {
+          "http": 403,
+          "nativeCode": "Forbidden",
+          "nativeType": "Forbidden",
+          "message": "The request was denied by the server\\."
+        },
+        {
+          "http": 403,
+          "nativeCode": "UnaccessibleUser",
+          "nativeType": "UnaccessibleUser",
+          "message": "Request was rejected due to reason: user is not allowed to access, reason: CustomerId：\\{CustomerId\\}，Action：\\{Action\\}，No balance and no resource pack, limit request"
+        },
+        {
+          "http": 400,
+          "nativeCode": "InvalidArgument",
+          "nativeType": "InvalidArgument",
+          "message": "Missing Action parameter"
+        }
+      ],
+      "mappings": {
+        "auth_invalid": {
+          "http": 400,
+          "nativeCode": "InvalidArgument.Authorization",
+          "nativeType": null,
+          "nativeMessage": "The provided API key is invalid"
+        },
+        "rate_limit": {
+          "http": 429,
+          "nativeCode": "TooManyRequests",
+          "nativeType": null,
+          "nativeMessage": "Too many requests"
+        },
+        "insufficient_quota": {
+          "http": 403,
+          "nativeCode": "Forbidden.InsufficientBalance",
+          "nativeType": null,
+          "nativeMessage": "The balance is insufficient"
+        },
+        "invalid_parameter": {
+          "http": 400,
+          "nativeCode": "InvalidArgument.RequestBodyInvalid",
+          "nativeType": null,
+          "nativeMessage": "Invalid request body format"
+        },
+        "permission_denied": {
+          "http": 403,
+          "nativeCode": "Forbidden",
+          "nativeType": null,
+          "nativeMessage": "The request was denied by the server"
+        },
+        "model_not_found": {
+          "http": 404,
+          "nativeCode": "ResourceNotFound",
+          "nativeType": null,
+          "nativeMessage": "Resource not found"
+        },
+        "server_error": {
+          "http": 500,
+          "nativeCode": "InternalError",
+          "nativeType": null,
+          "nativeMessage": "The request processing has failed"
+        }
+      }
+    },
+    "siliconflow": {
+      "channel_id": "siliconflow",
+      "label": "SiliconFlow",
+      "logo": "/assets/logos/siliconflow-mark.svg",
+      "docStatus": "verified",
+      "localDoc": "docs/errorcode/siliconflow.md",
+      "docUrl": "https://docs.siliconflow.cn/en/faqs/error-code",
+      "envelope": {
+        "summary": "HTTP 状态码 + 顶层业务错误码 code（数字）与 message；非 OpenAI error 嵌套形态",
+        "httpPath": "(HTTP status)",
+        "codePath": "code",
+        "typePath": null,
+        "messagePath": "message"
+      },
+      "entries": [
+        {
+          "http": 401,
+          "nativeCode": null,
+          "nativeType": null,
+          "message": "API Key 未正确设置"
+        },
+        {
+          "http": 400,
+          "nativeCode": "20015",
+          "nativeType": "ParamInvalidErrorCode",
+          "message": "请求参数无效，请检查并重新尝试"
+        },
+        {
+          "http": 400,
+          "nativeCode": "20012",
+          "nativeType": "ModelNotExistCode",
+          "message": "所选模型不存在，请重新选择"
+        },
+        {
+          "http": 451,
+          "nativeCode": "20021",
+          "nativeType": "NSFWCode",
+          "message": "内容似乎包含禁止或敏感内容"
+        },
+        {
+          "http": 413,
+          "nativeCode": "20042",
+          "nativeType": "EntityTooLargeErrCode",
+          "message": "请求实体太大"
+        },
+        {
+          "http": 403,
+          "nativeCode": "30001",
+          "nativeType": "BalanceNotEnoughCode",
+          "message": "账户余额不足，请充值后重试"
+        },
+        {
+          "http": 403,
+          "nativeCode": "30005",
+          "nativeType": "NotAuthCode",
+          "message": "使用此模型须完成实名认证，请先完成认证"
+        },
+        {
+          "http": 429,
+          "nativeCode": "50601",
+          "nativeType": "RPMRateLimitCode",
+          "message": "已达到 RPM（每分钟请求数）限制，请稍后再试"
+        },
+        {
+          "http": 500,
+          "nativeCode": "50500",
+          "nativeType": "ModelServiceErrCode",
+          "message": "系统出现意外错误，请稍后重试"
+        },
+        {
+          "http": 503,
+          "nativeCode": "50505",
+          "nativeType": "ModelServiceTooBusyErrCode",
+          "message": "系统当前负载较高，请稍后重试"
+        },
+        {
+          "http": 504,
+          "nativeCode": "50501",
+          "nativeType": "ModelServiceTimeoutErrCode",
+          "message": "系统超时，请稍后重试"
+        }
+      ],
+      "mappings": {
+        "auth_invalid": {
+          "http": 401,
+          "nativeCode": null,
+          "nativeType": null,
+          "nativeMessage": "API Key 未正确设置",
+          "notes": "文档仅列 HTTP 401，响应体未必含业务 code"
+        },
+        "rate_limit": {
+          "http": 429,
+          "nativeCode": "50601",
+          "nativeType": "RPMRateLimitCode",
+          "nativeMessage": "已达到 RPM（每分钟请求数）限制，请稍后再试",
+          "notes": "TPM 等见 50602+"
+        },
+        "insufficient_quota": {
+          "http": 403,
+          "nativeCode": "30001",
+          "nativeType": "BalanceNotEnoughCode",
+          "nativeMessage": "账户余额不足，请充值后重试"
+        },
+        "invalid_parameter": {
+          "http": 400,
+          "nativeCode": "20015",
+          "nativeType": "ParamInvalidErrorCode",
+          "nativeMessage": "请求参数无效，请检查并重新尝试"
+        },
+        "content_filter": {
+          "http": 451,
+          "nativeCode": "20021",
+          "nativeType": "NSFWCode",
+          "nativeMessage": "内容似乎包含禁止或敏感内容"
+        },
+        "permission_denied": {
+          "http": 403,
+          "nativeCode": "30004",
+          "nativeType": "NotModelOwnerCode",
+          "nativeMessage": "您没有权限访问该模型，请确认您的权限或选择其他模型"
+        },
+        "model_not_found": {
+          "http": 400,
+          "nativeCode": "20012",
+          "nativeType": "ModelNotExistCode",
+          "nativeMessage": "所选模型不存在，请重新选择"
+        },
+        "context_length": {
+          "http": 413,
+          "nativeCode": "20042",
+          "nativeType": "EntityTooLargeErrCode",
+          "nativeMessage": "请求实体太大",
+          "notes": "多模态总大小见 20043"
+        },
+        "server_error": {
+          "http": 500,
+          "nativeCode": "50500",
+          "nativeType": "ModelServiceErrCode",
+          "nativeMessage": "系统出现意外错误，请稍后重试"
+        },
+        "engine_overloaded": {
+          "http": 503,
+          "nativeCode": "50505",
+          "nativeType": "ModelServiceTooBusyErrCode",
+          "nativeMessage": "系统当前负载较高，请稍后重试",
+          "notes": "亦可 50603 EconnoisseurBannedCode"
+        },
+        "timeout": {
+          "http": 504,
+          "nativeCode": "50501",
+          "nativeType": "ModelServiceTimeoutErrCode",
+          "nativeMessage": "系统超时，请稍后重试"
+        },
+        "bad_gateway": {
+          "http": 503,
+          "nativeCode": "50508",
+          "nativeType": "ModelServiceUnavailableErrCode",
+          "nativeMessage": "系统当前负载较高，请稍后重试"
+        }
+      }
+    }
+  }
+}

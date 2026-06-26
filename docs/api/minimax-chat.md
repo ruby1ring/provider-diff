@@ -1,10 +1,23 @@
+---
+channel_id: minimax
+protocol_id: chat_completions
+doc_status: verified
+doc_url: "https://platform.minimax.io/docs/api-reference/text-chat-openai"
+last_verified: 2026-06-25
+compare: true
+required_parameters: [model, messages]
+parameter_groups:
+  Sampling: [temperature, top_p]
+  Length: [max_completion_tokens, max_tokens]
+  Reasoning.Switch: [thinking, thinking.type]
+  Reasoning.Output: [reasoning_split]
+  Tools: [tools]
+  Protocol: [stream, stream_options.include_usage]
+  Extra: [service_tier]
+notes: 对照 docs/api/minimax-chat.md（2026-06-25）。 类型字段按该渠道官方 API 原文收录。
+---
+
 # MiniMax Chat Completions API Notes
-
-> **Last verified:** 2026-06-25 against official API documentation.
-> **Official source:** https://platform.minimax.io/docs/api-reference/text-chat-openai
-> **Protocol ID:** `chat_completions`
-
-Structured summary for Noctua compatibility-test design.
 
 
 ## Endpoint
@@ -50,6 +63,18 @@ Structured summary for Noctua compatibility-test design.
 
 ### Not in OpenAPI
 
+## 实测：temperature 字面量
+
+对应测评 case 分组「协议 / 采样」：`temperature` 分别传入 JSON integer `1`、`2` 与 float `1.0`、`2.0`。
+
+| 传入值 | JSON 类型 | 官方文档 | 实测 (Noctua) | 备注 |
+|---|---|---|---|---|
+| `1` | integer | 类型 `number`；范围 `[0, 2]` | 待实测 | |
+| `2` | integer | 类型 `number`；范围 `[0, 2]` | 待实测 | |
+| `1.0` | float | 类型 `number`；范围 `[0, 2]` | 待实测 | |
+| `2.0` | float | 类型 `number`；范围 `[0, 2]` | 待实测 | |
+
+> 实测与文档不一致时，在「实测」列记录 HTTP 状态、错误码或实际行为；勿改写「官方文档」列。
+
 ## Raw Archive
 
-[`docs/archive/minimax-chat-raw.md`](../archive/minimax-chat-raw.md)
