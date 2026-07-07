@@ -1,0 +1,25 @@
+{
+  "case_id": "deepseek_length_max_completion_tokens_stop",
+  "title": "max_completion_tokens 与 stop 组合",
+  "category": "length",
+  "parameters": ["max_completion_tokens", "stop"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "user",
+        "content": "按 1、2、3 的格式列出三个测试步骤。"
+      }
+    ],
+    "max_completion_tokens": 48,
+    "stop": "3",
+    "stream": false
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"]
+  }
+}

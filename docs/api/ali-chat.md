@@ -54,45 +54,45 @@ Content-Type: application/json
 
 | Parameter | Type | Notes |
 |---|---|---|
-| `model` | `string` | Required. Qwen / third-party models on Bailian |
-| `messages` | `array<object>` | Required. `system`, `user`, `assistant`, `tool`; multimodal parts |
+| `model` | `string` | 必填。百炼平台 Qwen 及第三方模型名称。 |
+| `messages` | `array<object>` | 必填。角色 `system`、`user`、`assistant`、`tool`；支持多模态内容。 |
 
 ## Documented Request Parameters
 
 | Parameter | Type | OpenAI? | Default | Range | Notes |
 |---|---|---|---|---|---|
-| `stream` | `boolean` | yes | `false` | — | Non-stream timeout 300s; use stream for long output |
-| `stream_options.include_usage` | `boolean` | yes | `false` | — | Only when `stream=true` |
-| `temperature` | `float` | yes | model-dependent | [0, 2) | See official doc for per-model defaults |
-| `top_p` | `float` | yes | model-dependent | (0, 1.0] | |
-| `top_k` | `integer \| null` | **no** | model-dependent | ≥0; null or >100 disables | `extra_body`; not on DeepSeek/Kimi/MiniMax |
-| `repetition_penalty` | `float` | **no** | model-dependent | >0; 1.0=no penalty | `extra_body` |
-| `presence_penalty` | `float` | yes | model-dependent | [-2, 2] | |
-| `response_format` | `object` | yes | `{"type":"text"}` | — | `text` \| `json_object` |
-| `max_tokens` | `integer` | yes | — | — | **即将废弃** — prefer `max_completion_tokens` |
-| `max_completion_tokens` | `integer` | yes | — | — | Includes thinking chain; recommended for thinking models |
-| `vl_high_resolution_images` | `boolean` | **no** | `false` | — | VL models; `extra_body` |
-| `n` | `integer` | yes | `1` | 1–4 | Must be 1 when `tools` present |
-| `enable_thinking` | `boolean` | **no** | model-dependent | — | `extra_body`; hybrid thinking |
-| `thinking` | `object` | **no** | — | — | MiniMax-M3 on Bailian: `adaptive` \| `disabled` |
-| `preserve_thinking` | `boolean` | **no** | `false` | — | `extra_body` |
-| `thinking_budget` | `integer` | **no** | — | — | Qwen3.x / Qwen3-VL |
-| `reasoning_effort` | `string` | **no** | `high` | DeepSeek-V4 | `high` \| `max`; compat mappings |
-| `tool_stream` | `boolean` | **no** | `false` | — | `extra_body`; stream only |
-| `enable_code_interpreter` | `boolean` | **no** | `false` | — | `extra_body` |
-| `seed` | `integer` | yes | model-dependent | [0, 2^31-1] | |
-| `logprobs` | `boolean` | yes | `false` | — | Thinking `reasoning_content` excluded |
-| `top_logprobs` | `integer` | yes | `0` | [0, 5] | Requires `logprobs=true` |
-| `stop` | `string \| array` | yes | — | — | Do not mix token_id and string in array |
-| `tools` | `array` | yes | — | — | Function tools |
-| `tool_choice` | `string \| object` | yes | `auto` | — | Thinking models cannot force tool |
-| `parallel_tool_calls` | `boolean` | yes | `false` | — | |
-| `enable_search` | `boolean` | **no** | `false` | — | `extra_body` |
-| `search_options` | `object` | **no** | — | — | `extra_body` |
-| `modalities` | `array` | yes | `["text"]` | — | Qwen-Omni: `["text","audio"]` |
-| `audio` | `object` | yes | — | — | Qwen-Omni output audio; `format`: `wav` |
-| `skill` | `array` | **no** | — | — | `qwen-doc-turbo` PPT only; requires `stream=true` |
-| `X-DashScope-DataInspection` | header | — | — | — | Content safety header, not body |
+| `stream` | `boolean` | yes | `false` | — | 非流式超时 300s；长输出建议开启流式。 |
+| `stream_options.include_usage` | `boolean` | yes | `false` | — | 仅当 `stream=true` 时生效；最后一个 chunk 附带 usage。 |
+| `temperature` | `float` | yes | 因模型而异 | [0, 2) | 采样温度；各模型默认值见官方文档。 |
+| `top_p` | `float` | yes | 因模型而异 | (0, 1.0] | 核采样概率阈值。 |
+| `top_k` | `integer \| null` | **no** | 因模型而异 | ≥0；null 或 >100 表示不启用 | 通过 `extra_body` 传入；DeepSeek/Kimi/MiniMax 不支持。 |
+| `repetition_penalty` | `float` | **no** | 因模型而异 | >0；1.0 表示无惩罚 | 重复惩罚，通过 `extra_body` 传入。 |
+| `presence_penalty` | `float` | yes | 因模型而异 | [-2, 2] | 存在惩罚，控制内容重复度。 |
+| `response_format` | `object` | yes | `{"type":"text"}` | — | 输出格式：`text` 或 `json_object`。 |
+| `max_tokens` | `integer` | yes | — | — | **即将废弃** — 推荐使用 `max_completion_tokens`。 |
+| `max_completion_tokens` | `integer` | yes | — | — | 最大补全 token，含思维链；思考模型推荐使用。 |
+| `vl_high_resolution_images` | `boolean` | **no** | `false` | — | 视觉语言模型高分辨率图像；通过 `extra_body` 传入。 |
+| `n` | `integer` | yes | `1` | 1–4 | 生成候选数；存在 `tools` 时必须为 1。 |
+| `enable_thinking` | `boolean` | **no** | 因模型而异 | — | 混合思考模式开关；通过 `extra_body` 传入。 |
+| `thinking` | `object` | **no** | — | — | 百炼 MiniMax-M3：`adaptive` 或 `disabled`。 |
+| `preserve_thinking` | `boolean` | **no** | `false` | — | 多轮对话是否保留历史思考内容；通过 `extra_body` 传入。 |
+| `thinking_budget` | `integer` | **no** | — | — | 思考 token 预算；Qwen3.x / Qwen3-VL。 |
+| `reasoning_effort` | `string` | **no** | `high` | DeepSeek-V4 | 推理强度：`high` 或 `max`；含兼容映射。 |
+| `tool_stream` | `boolean` | **no** | `false` | — | 工具调用流式输出；通过 `extra_body` 传入，仅流式。 |
+| `enable_code_interpreter` | `boolean` | **no** | `false` | — | 代码解释器；通过 `extra_body` 传入。 |
+| `seed` | `integer` | yes | 因模型而异 | [0, 2^31-1] | 随机种子，用于可复现采样。 |
+| `logprobs` | `boolean` | yes | `false` | — | 返回对数概率；思考的 `reasoning_content` 不计入。 |
+| `top_logprobs` | `integer` | yes | `0` | [0, 5] | 每步返回 top-N 概率；需 `logprobs=true`。 |
+| `stop` | `string \| array` | yes | — | — | 停止词；数组中勿混用 token_id 与字符串。 |
+| `tools` | `array` | yes | — | — | 函数工具声明列表。 |
+| `tool_choice` | `string \| object` | yes | `auto` | — | 工具选择策略；思考模型无法强制调用工具。 |
+| `parallel_tool_calls` | `boolean` | yes | `false` | — | 是否并行发起多个工具调用。 |
+| `enable_search` | `boolean` | **no** | `false` | — | 联网搜索；通过 `extra_body` 传入。 |
+| `search_options` | `object` | **no** | — | — | 搜索配置；通过 `extra_body` 传入。 |
+| `modalities` | `array` | yes | `["text"]` | — | 输出模态；Qwen-Omni：`["text","audio"]`。 |
+| `audio` | `object` | yes | — | — | Qwen-Omni 输出音频配置；`format`：`wav`。 |
+| `skill` | `array` | **no** | — | — | 仅 `qwen-doc-turbo` PPT 技能；需 `stream=true`。 |
+| `X-DashScope-DataInspection` | header | — | — | — | 内容安全检测请求头，非 body 字段。 |
 
 ## extra_body Parameters
 

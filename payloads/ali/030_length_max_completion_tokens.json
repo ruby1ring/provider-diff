@@ -1,0 +1,25 @@
+{
+  "case_id": "ali_length_max_completion_tokens",
+  "title": "max_completion_tokens 限制输出长度",
+  "category": "length",
+  "parameters": ["max_completion_tokens"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用不超过二十个字解释单元测试。"
+      }
+    ],
+    "max_completion_tokens": 32,
+    "enable_thinking": false
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "仅传 max_completion_tokens 验证接口是否接受；与 max_tokens 接受性 case 分开测试。"
+  }
+}

@@ -1,6 +1,6 @@
 {
   "case_id": "thinking_reasoning_split_true",
-  "title": "reasoning_split=true separates thinking",
+  "title": "reasoning_split=true · thinking 应开启；reasoning 分离到 reasoning_content/reasoning_details 等字段",
   "category": "reasoning",
   "parameters": ["reasoning_split"],
   "requires_model_capability": "reasoning",
@@ -18,6 +18,9 @@
     "max_completion_tokens": 512
   },
   "expect": {
+    "dialect": "reasoning_split",
+    "axis": "output",
+    "enum_value": "true",
     "http_status": 200,
     "thinking_location_probe": true,
     "thinking_evidence_required": true,

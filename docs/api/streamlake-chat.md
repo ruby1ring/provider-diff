@@ -48,10 +48,11 @@ notes: 对照 docs/api/streamlake-chat.md（2026-06-25）。model 为推理点 I
 |---|---|---|---|---|
 | `stream` | `boolean` | `false` | — | 推荐 `true` 降低超时风险 |
 | `stream_options` | `object` | — | — | 仅 `stream=true`；`include_usage` 默认 false |
+| `stream_options.include_usage` | `boolean` | `false` | — | 仅 `stream=true`；最后一个数据块含 Token 消耗 |
 | `modalities` | `array` | `["text"]` | — | Qwen-Omni：`["text","audio"]` |
 | `audio` | `object` | — | — | 需 `modalities` 含 `audio` |
 | `max_completion_tokens` | `integer` | — | — | 推荐使用 |
-| `max_tokens` | `integer` | — | — | **Deprecated** |
+| `max_tokens` | `integer` | — | — | **已弃用**，请使用 `max_completion_tokens` |
 | `n` | `integer` | `1` | 1–4 | 仅部分 Qwen3 / qwen-plus-character |
 | `response_format` | `object` | `{"type":"text"}` | — | `text` / `json_object` / `json_schema` |
 | `stop` | `string \| array` | — | — | 停止词 |
@@ -83,7 +84,7 @@ notes: 对照 docs/api/streamlake-chat.md（2026-06-25）。model 为推理点 I
 
 | Parameter | Type | Default | Notes |
 |---|---|---|---|
-| `tools` | `array` | — | Function Calling |
+| `tools` | `array` | — | Function Calling 函数工具声明 |
 | `tool_choice` | `string \| object` | `auto` | `auto` / `none` / `required` |
 | `parallel_tool_calls` | `boolean` | `false` | |
 

@@ -1,0 +1,43 @@
+{
+  "case_id": "tools_parallel_false",
+  "title": "parallel_tool_calls false",
+  "category": "tools",
+  "parameters": ["parallel_tool_calls"],
+  "requires_model_capability": "tools",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Call one compatibility tool for stream."
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "compatibility_status",
+          "description": "Return compatibility status for one parameter.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "parameter": { "type": "string" },
+              "status": { "type": "string" }
+            },
+            "required": ["parameter"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto",
+    "parallel_tool_calls": false,
+    "max_completion_tokens": 120
+  },
+  "expect": {
+    "axis": "parallel",
+    "notes": "parallel_tool_calls=false 时应被接受；是否实际并行由模型决定。"
+  }
+}

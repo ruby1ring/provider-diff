@@ -199,12 +199,24 @@ export function parseMarkdownTables(body) {
 }
 
 function splitTableRow(line) {
-  return line
-    .trim()
-    .replace(/^\|/, "")
-    .replace(/\|$/, "")
-    .split("|")
-    .map((cell) => cell.trim());
+  const cells = [];
+  let current = "";
+  const text = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  for (let i = 0; i < text.length; i += 1) {
+    if (text[i] === "\\" && text[i + 1] === "|") {
+      current += "|";
+      i += 1;
+      continue;
+    }
+    if (text[i] === "|") {
+      cells.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += text[i];
+  }
+  cells.push(current.trim());
+  return cells;
 }
 
 export function findSectionTables(body, sectionPattern) {
@@ -287,6 +299,71 @@ export function parseEffective(notes, typeCell) {
   return null;
 }
 
+const TYPE_UNION_WORDS = new Set([
+  "string",
+  "number",
+  "integer",
+  "float",
+  "double",
+  "boolean",
+  "object",
+  "array",
+  "null"
+]);
+
+function isNumericRangeText(text) {
+  const raw = String(text || "").trim();
+  if (!raw || raw === "—" || raw === "-") return false;
+  return /^\[|\(|≤|≥|^min\s|^max\s|\d+\s*[–—-]\s*\d+/i.test(raw);
+}
+
+function splitEnumTokens(text) {
+  const raw = String(text || "")
+    .replace(/\*\*/g, "")
+    .trim()
+    .replace(/\\\|/g, "|");
+  if (!raw || raw === "—" || raw === "-" || isNumericRangeText(raw)) return null;
+
+  if (/`/.test(raw) && /\|/.test(raw)) {
+    const values = [...raw.matchAll(/`([^`]+)`/g)].map((match) => match[1].trim()).filter(Boolean);
+    if (values.length >= 2) return values;
+  }
+
+  if (!/\|/.test(raw)) return null;
+
+  const parts = raw
+    .split(/\s*\|\s*/)
+    .map((part) => part.replace(/^`+|`+$/g, "").trim())
+    .filter((part) => part && part.toLowerCase() !== "null");
+  if (parts.length < 2) return null;
+  if (parts.every((part) => TYPE_UNION_WORDS.has(part.toLowerCase()))) return null;
+  return parts;
+}
+
+function parseEnumFromNotes(notes) {
+  if (!notes) return null;
+  const fromPipe = splitEnumTokens(notes);
+  if (fromPipe) return fromPipe;
+
+  const commaList = notes.match(/^((?:`[^`]+`\s*,\s*)+`[^`]+`)/);
+  if (commaList) {
+    const values = [...commaList[1].matchAll(/`([^`]+)`/g)].map((match) => match[1].trim()).filter(Boolean);
+    if (values.length >= 2) return values;
+  }
+  return null;
+}
+
+export function parseEnumValues(rangeCell, notes, typeCell, specType) {
+  const fromRange = splitEnumTokens(rangeCell);
+  if (fromRange) return fromRange;
+
+  const fromNotes = parseEnumFromNotes(notes);
+  if (fromNotes) return fromNotes;
+
+  if (specType === "boolean") return ["true", "false"];
+  return null;
+}
+
 export function rowToSpec(row, header) {
   const idx = Object.fromEntries(header.map((h, i) => [normalizeHeader(h), i]));
   const parameter = normalizeParameterName(row[idx.parameter] || row[idx.field] || "");
@@ -311,6 +388,9 @@ export function rowToSpec(row, header) {
 
   const range = parseRange(rangeCell) || parseRange(typeCell) || parseRange(notes);
   if (range) spec.range = range;
+
+  const enumValues = parseEnumValues(rangeCell, notes, typeCell, spec.type);
+  if (enumValues) spec.enum = enumValues;
 
   const effective = parseEffective(notes, typeCell);
   if (effective) spec.effective = effective;

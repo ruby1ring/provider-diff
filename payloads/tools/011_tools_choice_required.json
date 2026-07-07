@@ -1,0 +1,41 @@
+{
+  "case_id": "tools_choice_required",
+  "title": "tool_choice required · 应返回 tool_calls",
+  "category": "tools",
+  "parameters": ["tools", "tool_choice"],
+  "requires_model_capability": "tools",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Get the weather for Beijing."
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_current_weather",
+          "description": "Get current weather for a city.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": { "type": "string" },
+              "unit": { "type": "string", "enum": ["celsius", "fahrenheit"] }
+            },
+            "required": ["location"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "required",
+    "max_completion_tokens": 120
+  },
+  "expect": {
+    "axis": "invoke",
+    "notes": "tool_choice=required 时应返回 tool_calls；这是渠道是否真正支持工具调用的核心探针。"
+  }
+}

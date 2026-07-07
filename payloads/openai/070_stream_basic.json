@@ -7,15 +7,17 @@
   "path": "/chat/completions",
   "payload": {
     "model": "gpt-4o-mini",
-    "messages": [{"role": "user", "content": "Stream one short sentence."}],
+    "messages": [{"role": "user", "content": "Stream 3 to 5 short greeting sentences incrementally, not all at once."}],
     "stream": true,
-    "max_completion_tokens": 60
+    "max_completion_tokens": 128
   },
   "expect": {
     "http_status": 200,
     "support_conclusion": "supported",
     "response_mode": "sse",
+    "stream_incremental": true,
+    "stream_probe_attempts": 3,
     "required_chunk_fields": ["id", "object", "created", "model", "choices"],
-    "notes": "Validate SSE framing, not normal JSON response parsing."
+    "notes": "Validate SSE framing and incremental content chunks; probe 3 times, fail if any attempt is pseudo-streaming."
   }
 }

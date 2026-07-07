@@ -54,3 +54,55 @@ npm run dev                     # 启动前自动检测 md 变更并重建
 ## 与探针用例的关系
 
 `payloads/` 目录的兼容性用例与矩阵展示解耦；更新矩阵不要求同步改 payload，除非测评范围本身变化。
+
+## 思考模式实测回写（两阶段）
+
+矩阵参数来自 `docs/api` 文档摘要，**不会**随单次探针运行自动变更。Thinking 开关/强度实测结论通过独立 observed 层回写，经人工审核后再同步文档。
+
+### 阶段 A：生成 observed 层（不改 docs）
+
+1. 对待测渠道运行 `payloads/thinking/` 通用探针 + 渠道 `reasoning` 类 case（需 reasoning 模型）。
+2. 从 UI 导出报告 JSON，或把文件放到 `outputs/` / `outputs/thinking-probes/`。
+3. 构建 observed：
+
+```bash
+npm run build:thinking-observed
+# 或指定输入
+node scripts/build-thinking-observed.mjs --input outputs/my-siliconflow-run.json
+```
+
+产物：`web/data/thinking-observed.json`。协议矩阵页（`#protocols`）在 Reasoning 参数格显示角标：**实测有效** / **接受无效** / **文档缺口** 等，与文档「必填/选填」并列。
+
+`thinking_effectiveness` 取值：
+
+| 值 | 含义 |
+|----|------|
+| `effective` | 开关或强度实测改变行为 |
+| `accepted_ineffective` | 2xx 但无行为差异 |
+| `rejected` | 4xx 或明确不支持 |
+| `unproven` | 2xx 但证据不足 |
+| `default_on` | 默认即 thinking，开关无法隔离 |
+| `doc_gap` | 矩阵未列但实测 `effective` |
+
+`effort_profile`（强度类参数如 `reasoning_effort`）额外记录：
+
+| 字段 | 含义 |
+|------|------|
+| `default_effort` | 不传 effort 时推断的默认档位（与 baseline case 对比 high/max token） |
+| `accepted_values` | 实测 2xx 的档位：`low` / `medium` / `high` / `xhigh` / `max` / `none` |
+| `canonical_values` | 实测确认为独立档位的 canonical 值（如 `high`、`max`） |
+| `direct_values` | 直接生效、未映射到其他档位的值 |
+| `mappings` | 别名映射推断，如 `{ from: "low", to: "high", basis: "token_or_visible_parity" }` |
+| `documented_aliases` | 文档声明的兼容映射（实测用于对照） |
+
+报告页 **Effort 枚举与映射** 表展示上述结论；DeepSeek 文档示例：`low/medium→high`、`xhigh→max`，普通请求默认 `high`（Agent 类请求自动 `max` 需专用探针）。
+
+### 阶段 B：人工审核后同步 docs
+
+1. 在报告页查看 **Thinking Probe 结论** 与 **Thinking 强度配对** 表。
+2. 审核通过后按需修改：
+   - `doc_gap` → 补进 `docs/api/{provider}-chat.md` + `scripts/protocol-doc-manifest.mjs`
+   - `accepted_ineffective` → Notes 标注「接受但实测无效果」
+3. `npm run build:protocol-matrix` 重建矩阵并提交 `web/data/protocol-matrix.json`。
+
+**不自动改 docs**：observed 仅作候选与 UI 对照，矩阵正式收录仍以人工更新的 `docs/api` 为准。

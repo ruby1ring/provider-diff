@@ -1,6 +1,6 @@
 {
   "case_id": "thinking_chat_template_kwargs_enable_false",
-  "title": "chat_template_kwargs.enable_thinking=false closes thinking",
+  "title": "chat_template_kwargs.enable_thinking=false 关闭思考 · 不应出现 thinking 内容；usage 无正数 reasoning_tokens/thinking_tokens",
   "category": "reasoning",
   "parameters": ["chat_template_kwargs.enable_thinking"],
   "method": "POST",

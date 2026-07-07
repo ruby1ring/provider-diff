@@ -1,0 +1,35 @@
+{
+  "case_id": "thinking_switch_alt_thinking_disabled",
+  "title": "thinking.type=disabled 关闭思考 · 不应出现 thinking 内容；usage 无正数 reasoning_tokens/thinking_tokens",
+  "category": "reasoning",
+  "parameters": ["thinking"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Compute 23 + 19. Reply with one short sentence."
+      }
+    ],
+    "thinking": {
+      "type": "disabled"
+    },
+    "max_completion_tokens": 512,
+    "temperature": 0
+  },
+  "expect": {
+    "dialect": "thinking_object",
+    "axis": "switch_equiv_off",
+    "enum_value": "disabled",
+    "equivalence_group": "reasoning_switch_close",
+    "reference_case_id": "thinking_enable_thinking_false",
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_absent": true,
+    "assistant_content_non_empty": true,
+    "provider_extension": true,
+    "notes": "与 enable_thinking=false 共用 prompt；判断 thinking 对象形态是否可关闭 thinking。"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "case_id": "openrouter_length_max_completion_tokens_only_effective",
+  "title": "仅 max_completion_tokens 生效性",
+  "category": "length",
+  "parameters": ["max_completion_tokens"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "请持续写一段很长的技术说明，不要提前结束，直到被截断为止。"
+      }
+    ],
+    "max_completion_tokens": 64,
+    "stream": false
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "output_cap_effective": "observed",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"]
+  }
+}

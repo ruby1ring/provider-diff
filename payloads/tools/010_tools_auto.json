@@ -1,0 +1,41 @@
+{
+  "case_id": "tools_auto",
+  "title": "tools + tool_choice auto · 渠道应接受 tools 参数",
+  "category": "tools",
+  "parameters": ["tools", "tool_choice"],
+  "requires_model_capability": "tools",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is the weather in Shanghai? Use a tool if needed."
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_current_weather",
+          "description": "Get current weather for a city.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": { "type": "string" },
+              "unit": { "type": "string", "enum": ["celsius", "fahrenheit"] }
+            },
+            "required": ["location"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto",
+    "max_completion_tokens": 128
+  },
+  "expect": {
+    "axis": "accept",
+    "notes": "Model may answer directly or return tool_calls; only HTTP acceptance and response structure are asserted."
+  }
+}

@@ -1,6 +1,6 @@
 {
   "case_id": "thinking_reasoning_object_disabled",
-  "title": "reasoning.enabled=false closes thinking",
+  "title": "reasoning.enabled=false 关闭思考 · 不应出现 thinking 内容；usage 无正数 reasoning_tokens/thinking_tokens",
   "category": "reasoning",
   "parameters": ["reasoning", "reasoning.enabled"],
   "optional": true,
@@ -20,6 +20,9 @@
     "max_completion_tokens": 256
   },
   "expect": {
+    "dialect": "reasoning_object",
+    "axis": "switch_off",
+    "enum_value": "disabled",
     "http_status": 200,
     "thinking_location_probe": true,
     "thinking_absent": true,

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-26T10:44:27.087Z",
+  "generatedAt": "2026-06-29T08:09:19.813Z",
   "evalChannels": [
     "deepseek",
     "moonshot",
@@ -243,85 +243,116 @@
         "specs": {
           "model": {
             "type": "string",
-            "notes": "Required."
+            "notes": "必填。"
           },
           "messages": {
             "type": "array<object>",
-            "notes": "Required."
+            "notes": "必填。"
           },
           "thinking": {
-            "type": "object ",
-            "notes": "null`"
+            "type": "object",
+            "nullable": true,
+            "notes": "思考模式开关：`{\"type\":\"enabled\"}` 或 `{\"type\":\"disabled\"}`，默认 `enabled`。OpenAI SDK 请通过 `extra_body` 传入。"
           },
           "reasoning_effort": {
             "type": "string",
-            "notes": "`high`, `max`. Default `high` for ordinary requests; complex agent requests may auto-use `max`. `low`/`medium` → `high`, `xhigh` → `max`."
+            "notes": "推理强度：`high`、`max`。普通请求默认 `high`；复杂 Agent 请求可能自动使用 `max`。`low`/`medium` 映射为 `high`，`xhigh` 映射为 `max`。"
           },
           "max_tokens": {
-            "type": "integer ",
-            "notes": "null`"
+            "type": "integer",
+            "nullable": true,
+            "notes": "最大补全 token 数。输入与输出合计受上下文窗口限制。"
           },
           "response_format": {
-            "type": "object ",
-            "notes": "null`"
+            "type": "object",
+            "nullable": true,
+            "notes": "默认 `{ \"type\": \"text\" }` 或 `{ \"type\": \"json_object\" }`。JSON 模式仍需在提示词中说明格式要求。"
           },
           "stop": {
-            "type": "string ",
-            "notes": "array<string> \\"
+            "type": "string | array<string>",
+            "nullable": true,
+            "notes": "停止词，数组形式最多 16 个字符串。"
           },
           "stream": {
-            "type": "boolean ",
-            "notes": "null`"
+            "type": "boolean",
+            "nullable": true,
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "SSE 流式输出；以 `data: [DONE]` 结束。"
           },
           "stream_options": {
-            "type": "object ",
-            "notes": "null`"
+            "type": "object",
+            "nullable": true,
+            "notes": "仅当 `stream=true` 时生效。"
           },
           "stream_options.include_usage": {
             "type": "boolean",
-            "notes": "Extra pre-`[DONE]` chunk with full `usage` and empty `choices`."
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "在 `[DONE]` 前额外返回一块含完整 `usage`、空 `choices` 的数据块。"
           },
           "temperature": {
-            "type": "number ",
-            "notes": "null`"
+            "type": "number",
+            "nullable": true,
+            "effective": "ignored",
+            "notes": "默认 `1`，最大 `2`。思考模式下接受但无效果。"
           },
           "top_p": {
-            "type": "number ",
-            "notes": "null`"
+            "type": "number",
+            "nullable": true,
+            "effective": "ignored",
+            "notes": "默认 `1`，最大 `1`。思考模式下接受但无效果。"
           },
           "tools": {
-            "type": "array<object> ",
-            "notes": "null`"
+            "type": "array<object>",
+            "nullable": true,
+            "notes": "仅支持函数工具；最多 128 个。"
           },
           "tool_choice": {
-            "type": "string ",
-            "notes": "object \\"
+            "type": "string | object",
+            "nullable": true,
+            "notes": "取值 `none`、`auto`、`required` 或指定函数。无 tools 时默认 `none`，有 tools 时默认 `auto`。"
           },
           "tools[].function.strict": {
             "type": "boolean",
-            "notes": "Default `false`. Beta strict JSON-schema mode."
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "默认 `false`。Beta 严格 JSON Schema 模式。"
           },
           "logprobs": {
-            "type": "boolean ",
-            "notes": "null`"
+            "type": "boolean",
+            "nullable": true,
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "是否返回输出 token 的对数概率。"
           },
           "top_logprobs": {
-            "type": "integer ",
-            "notes": "null`"
+            "type": "integer",
+            "nullable": true,
+            "notes": "范围 `0`–`20`；需 `logprobs=true`。"
           },
           "user_id": {
-            "type": "string ",
-            "notes": "null`"
+            "type": "string",
+            "nullable": true,
+            "notes": "字符集 `[a-zA-Z0-9\\-_]`，最长 512。用于安全、KVCache 隔离与调度。"
           },
           "frequency_penalty": {
             "type": "number",
             "effective": "deprecated",
-            "notes": "No effect."
+            "notes": "无效果（已废弃）。"
           },
           "presence_penalty": {
             "type": "number",
             "effective": "deprecated",
-            "notes": "No effect."
+            "notes": "无效果（已废弃）。"
           }
         }
       },
@@ -394,11 +425,14 @@
             "notes": "官方示例必填"
           },
           "system": {
-            "type": "string ",
-            "notes": "array`"
+            "type": "string | array"
           },
           "stream": {
-            "type": "boolean"
+            "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ]
           },
           "stop_sequences": {
             "type": "array<string>"
@@ -412,13 +446,11 @@
           },
           "top_k": {
             "type": "integer",
-            "effective": "ignored",
-            "notes": "Ignored"
+            "notes": "忽略（无效）"
           },
           "thinking": {
             "type": "object",
-            "effective": "ignored",
-            "notes": "`budget_tokens` Ignored"
+            "notes": "`budget_tokens` 忽略"
           },
           "output_config": {
             "type": "object",
@@ -426,23 +458,19 @@
           },
           "metadata": {
             "type": "object",
-            "effective": "ignored",
-            "notes": "仅 `user_id` 支持，其余 Ignored"
+            "notes": "仅 `user_id` 支持，其余忽略"
           },
           "container": {
             "type": "object",
-            "effective": "ignored",
-            "notes": "Ignored"
+            "notes": "忽略"
           },
           "mcp_servers": {
             "type": "array",
-            "effective": "ignored",
-            "notes": "Ignored"
+            "notes": "忽略"
           },
           "service_tier": {
             "type": "string",
-            "effective": "ignored",
-            "notes": "Ignored"
+            "notes": "忽略"
           }
         }
       }
@@ -494,11 +522,11 @@
         "specs": {
           "model": {
             "type": "string",
-            "notes": "Required. e.g. `moonshot-v1-128k`, vision-preview variants, kimi-k2.x"
+            "notes": "必填。如 `moonshot-v1-128k`、vision-preview 系列、kimi-k2.x 等。"
           },
           "messages": {
             "type": "array<object>",
-            "notes": "Required. Roles: `system`, `user`, `assistant`; multimodal content supported"
+            "notes": "必填。角色：`system`、`user`、`assistant`；支持多模态内容。"
           },
           "temperature": {
             "type": "float",
@@ -509,7 +537,7 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "Higher = more random"
+            "notes": "采样温度，值越高随机性越强。"
           },
           "top_p": {
             "type": "float",
@@ -520,7 +548,7 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "Nucleus sampling; adjust temperature or top_p, not both"
+            "notes": "核采样概率阈值；`temperature` 与 `top_p` 建议只设其一。"
           },
           "n": {
             "type": "integer",
@@ -531,7 +559,7 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "Completions per input; near-zero temperature limits to 1"
+            "notes": "每个输入返回的候选回复数；`temperature` 接近 0 时只能为 1。"
           },
           "presence_penalty": {
             "type": "float",
@@ -541,7 +569,8 @@
               "max": 2,
               "minInclusive": true,
               "maxInclusive": true
-            }
+            },
+            "notes": "存在惩罚，正值降低重复提及已出现内容。"
           },
           "frequency_penalty": {
             "type": "float",
@@ -551,55 +580,57 @@
               "max": 2,
               "minInclusive": true,
               "maxInclusive": true
-            }
+            },
+            "notes": "频率惩罚，正值降低重复用词。"
           },
           "max_tokens": {
             "type": "integer",
             "effective": "deprecated",
-            "notes": "Deprecated — use `max_completion_tokens`"
+            "notes": "已弃用 — 请使用 `max_completion_tokens`。"
           },
           "max_completion_tokens": {
             "type": "integer",
             "default": "~1024",
-            "notes": "Exceeding context window → error"
+            "notes": "最大补全 token 数；超出上下文窗口会报错。"
           },
           "stop": {
-            "type": "string ",
-            "default": "no",
-            "notes": "max 5 strings, ≤32 bytes each"
+            "type": "string | array",
+            "notes": "停止词，命中后终止生成。"
           },
           "stream": {
             "type": "boolean",
             "default": false,
-            "notes": "SSE streaming"
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "是否 SSE 流式返回。"
           },
           "stream_options.include_usage": {
             "type": "boolean",
             "default": false,
-            "notes": "Final usage chunk before `[DONE]`"
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "在 `data: [DONE]` 前输出含 usage 的最终块。"
           },
           "response_format": {
             "type": "object",
             "default": "{\"type\":\"text\"}",
-            "notes": "`text`, `json_object`, `json_schema`"
+            "notes": "输出格式：`text`、`json_object`、`json_schema`。"
           },
           "tools": {
             "type": "array",
-            "range": {
-              "min": null,
-              "max": 128,
-              "minInclusive": true,
-              "maxInclusive": true
-            },
-            "notes": "Function tools"
+            "notes": "函数工具声明列表。"
           },
           "prompt_cache_key": {
             "type": "string",
-            "notes": "Prompt caching / Kimi Code Plan"
+            "notes": "Prompt 缓存键；Kimi Code Plan 相关。"
           },
           "safety_identifier": {
             "type": "string",
-            "notes": "Hashed stable user id"
+            "notes": "哈希后的稳定用户标识，用于安全与滥用追踪。"
           }
         }
       },
@@ -678,40 +709,56 @@
         "specs": {
           "model": {
             "type": "string",
-            "notes": "Required. e.g. `glm-5.2`, `glm-4.7`"
+            "notes": "必填。如 `glm-5.2`、`glm-4.7` 等。"
           },
           "messages": {
             "type": "array",
-            "notes": "Required. min 1 item"
+            "notes": "必填。至少 1 条消息。"
           },
           "stream": {
             "type": "boolean",
             "default": false,
-            "notes": "SSE; ends with `data: [DONE]`"
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "SSE 流式输出；以 `data: [DONE]` 结束。"
           },
           "thinking": {
             "type": "object",
-            "notes": "GLM-4.5+ thinking control"
+            "notes": "GLM-4.5+ 思考模式控制对象。"
           },
           "thinking.type": {
             "type": "string",
             "default": "enabled",
-            "notes": "`disabled`"
+            "enum": [
+              "enabled",
+              "disabled"
+            ],
+            "notes": "思考模式开/关。"
           },
           "thinking.clear_thinking": {
             "type": "boolean",
             "default": true,
-            "notes": "Strip historical `reasoning_content`"
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "是否清除历史 `reasoning_content`。"
           },
           "reasoning_effort": {
             "type": "string",
             "default": "max",
-            "notes": "`max` \\"
+            "notes": "推理强度：`max`、`xhigh`、`high`、`medium`、`low`、`minimal`、`none`（仅 GLM-5.2）。"
           },
           "do_sample": {
             "type": "boolean",
             "default": true,
-            "notes": "`false` ignores temperature/top_p"
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "为 `false` 时忽略 `temperature`/`top_p`。"
           },
           "temperature": {
             "type": "float",
@@ -722,7 +769,7 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "Model-family defaults vary"
+            "notes": "采样温度；不同模型族默认值不同。"
           },
           "top_p": {
             "type": "float",
@@ -732,7 +779,8 @@
               "max": 1,
               "minInclusive": true,
               "maxInclusive": true
-            }
+            },
+            "notes": "核采样概率阈值。"
           },
           "max_tokens": {
             "type": "integer",
@@ -742,50 +790,43 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "GLM-5.x/4.6 up to 128K"
+            "notes": "最大输出 token；GLM-5.x/4.6 最高 128K。"
           },
           "tool_stream": {
             "type": "boolean",
             "default": false,
-            "notes": "GLM-5.x/4.6+"
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "工具调用流式输出（GLM-5.x/4.6+）。"
           },
           "tools": {
             "type": "array",
-            "range": {
-              "min": null,
-              "max": 128,
-              "minInclusive": true,
-              "maxInclusive": true
-            },
-            "notes": "function / retrieval / web_search / mcp"
+            "notes": "工具类型：function / retrieval / web_search / mcp。"
           },
           "tool_choice": {
             "type": "string",
             "default": "auto",
-            "notes": "Function tools: auto only"
+            "notes": "函数工具仅支持 `auto`。"
           },
           "stop": {
             "type": "array<string>",
-            "range": {
-              "min": null,
-              "max": 4,
-              "minInclusive": true,
-              "maxInclusive": true
-            },
-            "notes": "Currently single stop word"
+            "notes": "停止词；当前仅支持单个停止词。"
           },
           "response_format": {
             "type": "object",
             "default": "{\"type\":\"text\"}",
-            "notes": "`text` \\"
+            "notes": "输出格式：`text` 或 `json_object`。"
           },
           "request_id": {
             "type": "string",
-            "default": "auto"
+            "default": "自动生成",
+            "notes": "请求追踪 ID。"
           },
           "user_id": {
             "type": "string",
-            "notes": "End-user identifier"
+            "notes": "终端用户标识。"
           }
         }
       },
@@ -905,77 +946,96 @@
         "specs": {
           "model": {
             "type": "string",
-            "notes": "Required. Qwen / third-party models on Bailian"
+            "notes": "必填。百炼平台 Qwen 及第三方模型名称。"
           },
           "messages": {
             "type": "array<object>",
-            "notes": "Required. `system`, `user`, `assistant`, `tool`; multimodal parts"
+            "notes": "必填。角色 `system`、`user`、`assistant`、`tool`；支持多模态内容。"
           },
           "stream": {
             "type": "boolean",
             "default": false,
-            "notes": "Non-stream timeout 300s; use stream for long output"
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "非流式超时 300s；长输出建议开启流式。"
           },
           "stream_options.include_usage": {
             "type": "boolean",
             "default": false,
-            "notes": "Only when `stream=true`"
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "仅当 `stream=true` 时生效；最后一个 chunk 附带 usage。"
           },
           "temperature": {
             "type": "float",
+            "default": "因模型而异",
             "range": {
               "min": 0,
               "max": 2,
               "minInclusive": true,
               "maxInclusive": false
             },
-            "notes": "See official doc for per-model defaults"
+            "notes": "采样温度；各模型默认值见官方文档。"
           },
           "top_p": {
             "type": "float",
+            "default": "因模型而异",
             "range": {
               "min": 0,
               "max": 1,
               "minInclusive": false,
               "maxInclusive": true
-            }
+            },
+            "notes": "核采样概率阈值。"
           },
           "top_k": {
-            "type": "integer ",
-            "default": "**no**",
-            "notes": "≥0; null or >100 disables"
+            "type": "integer",
+            "nullable": true,
+            "default": "因模型而异",
+            "notes": "通过 `extra_body` 传入；DeepSeek/Kimi/MiniMax 不支持。"
           },
           "repetition_penalty": {
             "type": "float",
-            "notes": "`extra_body`"
+            "default": "因模型而异",
+            "notes": "重复惩罚，通过 `extra_body` 传入。"
           },
           "presence_penalty": {
             "type": "float",
+            "default": "因模型而异",
             "range": {
               "min": -2,
               "max": 2,
               "minInclusive": true,
               "maxInclusive": true
-            }
+            },
+            "notes": "存在惩罚，控制内容重复度。"
           },
           "response_format": {
             "type": "object",
             "default": "{\"type\":\"text\"}",
-            "notes": "`text` \\"
+            "notes": "输出格式：`text`、`json_object`、`json_schema`。"
           },
           "max_tokens": {
             "type": "integer",
             "effective": "deprecated",
-            "notes": "即将废弃 — prefer `max_completion_tokens`"
+            "notes": "即将废弃 — 推荐使用 `max_completion_tokens`。"
           },
           "max_completion_tokens": {
             "type": "integer",
-            "notes": "Includes thinking chain; recommended for thinking models"
+            "notes": "最大补全 token，含思维链；思考模型推荐使用。"
           },
           "vl_high_resolution_images": {
             "type": "boolean",
             "default": false,
-            "notes": "VL models; `extra_body`"
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "视觉语言模型高分辨率图像；通过 `extra_body` 传入。"
           },
           "n": {
             "type": "integer",
@@ -986,47 +1046,70 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "Must be 1 when `tools` present"
+            "notes": "生成候选数；存在 `tools` 时必须为 1。"
           },
           "enable_thinking": {
             "type": "boolean",
-            "notes": "`extra_body`; hybrid thinking"
+            "default": "因模型而异",
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "混合思考模式开关；通过 `extra_body` 传入。"
           },
           "thinking": {
             "type": "object",
-            "notes": "MiniMax-M3 on Bailian: `adaptive` \\"
+            "notes": "百炼 MiniMax-M3：`adaptive` 或 `disabled`。"
           },
           "preserve_thinking": {
             "type": "boolean",
             "default": false,
-            "notes": "`extra_body`"
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "多轮对话是否保留历史思考内容；通过 `extra_body` 传入。"
           },
           "thinking_budget": {
             "type": "integer",
-            "notes": "Qwen3.x / Qwen3-VL"
+            "notes": "思考 token 预算；Qwen3.x / Qwen3-VL。"
           },
           "reasoning_effort": {
             "type": "string",
             "default": "high",
-            "notes": "`high` \\"
+            "notes": "推理强度：`high` 或 `max`；含兼容映射。"
           },
           "tool_stream": {
             "type": "boolean",
             "default": false,
-            "notes": "`extra_body`; stream only"
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "工具调用流式输出；通过 `extra_body` 传入，仅流式。"
           },
           "enable_code_interpreter": {
             "type": "boolean",
             "default": false,
-            "notes": "`extra_body`"
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "代码解释器；通过 `extra_body` 传入。"
           },
           "seed": {
-            "type": "integer"
+            "type": "integer",
+            "default": "因模型而异",
+            "notes": "随机种子，用于可复现采样。"
           },
           "logprobs": {
             "type": "boolean",
             "default": false,
-            "notes": "Thinking `reasoning_content` excluded"
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "返回对数概率；思考的 `reasoning_content` 不计入。"
           },
           "top_logprobs": {
             "type": "integer",
@@ -1037,49 +1120,59 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "Requires `logprobs=true`"
+            "notes": "每步返回 top-N 概率；需 `logprobs=true`。"
           },
           "stop": {
-            "type": "string ",
-            "default": "yes"
+            "type": "string | array",
+            "notes": "停止词；数组中勿混用 token_id 与字符串。"
           },
           "tools": {
             "type": "array",
-            "notes": "Function tools"
+            "notes": "函数工具声明列表。"
           },
           "tool_choice": {
-            "type": "string ",
-            "default": "yes"
+            "type": "string | object",
+            "default": "auto",
+            "notes": "工具选择策略；思考模型无法强制调用工具。"
           },
           "parallel_tool_calls": {
             "type": "boolean",
-            "default": false
+            "default": false,
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "是否并行发起多个工具调用。"
           },
           "enable_search": {
             "type": "boolean",
             "default": false,
-            "notes": "`extra_body`"
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "联网搜索；通过 `extra_body` 传入。"
           },
           "search_options": {
             "type": "object",
-            "notes": "`extra_body`"
+            "notes": "搜索配置；通过 `extra_body` 传入。"
           },
           "modalities": {
             "type": "array",
             "default": "[\"text\"]",
-            "notes": "Qwen-Omni: `[\"text\",\"audio\"]`"
+            "notes": "输出模态；Qwen-Omni：`[\"text\",\"audio\"]`。"
           },
           "audio": {
             "type": "object",
-            "notes": "Qwen-Omni output audio; `format`: `wav`"
+            "notes": "Qwen-Omni 输出音频配置；`format`：`wav`。"
           },
           "skill": {
             "type": "array",
-            "notes": "`qwen-doc-turbo` PPT only; requires `stream=true`"
+            "notes": "仅 `qwen-doc-turbo` PPT 技能；需 `stream=true`。"
           },
           "X-DashScope-DataInspection": {
             "type": "header",
-            "notes": "Content safety header, not body"
+            "notes": "内容安全检测请求头，非 body 字段。"
           }
         }
       },
@@ -1144,12 +1237,16 @@
             "notes": "回复上限；不限制 thinking token（由 `thinking.budget_tokens` 控制）"
           },
           "system": {
-            "type": "string ",
-            "default": "no"
+            "type": "string | array",
+            "notes": "顶层传入；数组形式支持 `cache_control`"
           },
           "stream": {
             "type": "boolean",
-            "default": false
+            "default": false,
+            "enum": [
+              "true",
+              "false"
+            ]
           },
           "temperature": {
             "type": "number",
@@ -1183,11 +1280,15 @@
           "reasoning_effort": {
             "type": "string",
             "default": "max",
-            "notes": "`max`"
+            "enum": [
+              "high",
+              "max"
+            ],
+            "notes": "DeepSeek-V4 系列；low/medium→high，xhigh→max"
           },
           "tools": {
             "type": "array",
-            "notes": "Function Call"
+            "notes": "函数工具声明"
           },
           "tool_choice": {
             "type": "object",
@@ -1240,34 +1341,43 @@
         "specs": {
           "model": {
             "type": "string",
-            "notes": "Qwen series"
+            "notes": "Qwen 系列模型名称"
           },
           "input": {
-            "type": "string ",
-            "notes": "array`"
+            "type": "string | array",
+            "notes": "输入文本或消息数组"
           },
           "temperature": {
-            "type": "number"
+            "type": "number",
+            "notes": "采样温度"
           },
           "top_p": {
-            "type": "number"
+            "type": "number",
+            "notes": "核采样概率阈值"
           },
           "max_output_tokens": {
-            "type": "integer"
+            "type": "integer",
+            "notes": "最大输出 token 数"
           },
           "stream": {
-            "type": "boolean"
+            "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "是否流式返回"
           },
           "tools": {
             "type": "array",
-            "notes": "Built-in + function tools per Bailian docs"
+            "notes": "百炼文档所列内置工具与函数工具"
           },
           "tool_choice": {
-            "type": "string"
+            "type": "string",
+            "notes": "工具选择策略"
           },
           "reasoning.effort": {
             "type": "string",
-            "notes": "Thinking strength control"
+            "notes": "思考强度控制"
           }
         }
       }
@@ -1301,9 +1411,7 @@
             "repetition_penalty",
             "min_p",
             "top_a",
-            "logit_bias",
-            "logprobs",
-            "top_logprobs"
+            "logit_bias"
           ],
           "Reasoning.Switch": [
             "reasoning"
@@ -1314,21 +1422,34 @@
           "Routing": [
             "models",
             "provider",
-            "plugins",
+            "plugins"
+          ],
+          "Metadata": [
             "session_id"
+          ],
+          "Output.Structure": [
+            "response_format"
           ],
           "Tools": [
             "parallel_tool_calls"
+          ],
+          "Debug": [
+            "logprobs",
+            "top_logprobs"
           ]
         },
         "specs": {
           "messages": {
             "type": "array<object>",
-            "notes": "OpenAPI requires at least one item"
+            "notes": "对话消息列表，OpenAPI 要求至少一条。"
           },
           "model": {
             "type": "string",
-            "notes": "Optional; payer default when omitted"
+            "notes": "模型 ID；省略时使用付费方默认模型。"
+          },
+          "response_format": {
+            "type": "object",
+            "notes": "输出格式：`text`、`json_object`、`json_schema` 等，取决于底层路由模型。"
           },
           "temperature": {
             "type": "double",
@@ -1338,7 +1459,8 @@
               "max": 2,
               "minInclusive": true,
               "maxInclusive": true
-            }
+            },
+            "notes": "采样温度，控制输出随机性。"
           },
           "top_p": {
             "type": "double",
@@ -1348,7 +1470,8 @@
               "max": 1,
               "minInclusive": true,
               "maxInclusive": true
-            }
+            },
+            "notes": "核采样概率阈值。"
           },
           "top_k": {
             "type": "integer",
@@ -1358,7 +1481,7 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "Provider-dependent"
+            "notes": "采样候选数；取决于底层供应商。"
           },
           "frequency_penalty": {
             "type": "double",
@@ -1368,7 +1491,8 @@
               "max": 2,
               "minInclusive": true,
               "maxInclusive": true
-            }
+            },
+            "notes": "频率惩罚，降低重复用词。"
           },
           "presence_penalty": {
             "type": "double",
@@ -1378,12 +1502,13 @@
               "max": 2,
               "minInclusive": true,
               "maxInclusive": true
-            }
+            },
+            "notes": "存在惩罚，降低重复提及。"
           },
           "repetition_penalty": {
             "type": "double",
             "default": 1,
-            "notes": "Provider-dependent"
+            "notes": "重复惩罚；取决于底层供应商。"
           },
           "min_p": {
             "type": "double",
@@ -1393,7 +1518,7 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "Provider-dependent"
+            "notes": "最小概率阈值；取决于底层供应商。"
           },
           "top_a": {
             "type": "double",
@@ -1403,15 +1528,19 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "Provider-dependent"
+            "notes": "自适应核采样；取决于底层供应商。"
           },
           "logit_bias": {
             "type": "object",
-            "notes": "Token-id → number; provider-dependent"
+            "notes": "token-id 到数值的偏置映射；取决于底层供应商。"
           },
           "logprobs": {
             "type": "boolean",
-            "notes": "Output token log probabilities"
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "是否返回输出 token 的对数概率。"
           },
           "top_logprobs": {
             "type": "integer",
@@ -1421,40 +1550,39 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "Requires `logprobs=true`"
+            "notes": "每步返回 top-N 概率；需 `logprobs=true`。"
           },
           "reasoning": {
             "type": "object",
-            "notes": "`effort`, `summary`"
+            "notes": "推理配置对象，含 `effort`、`summary` 等子字段。"
           },
           "reasoning_effort": {
             "type": "string",
-            "notes": "Shorthand for `reasoning.effort`"
+            "notes": "`reasoning.effort` 的简写形式。"
           },
           "models": {
             "type": "array<string>",
-            "notes": "Fallback routing list"
+            "notes": "回退路由模型列表，主模型不可用时依次尝试。"
           },
           "provider": {
             "type": "object",
-            "notes": "Routing preferences"
+            "notes": "路由偏好，如供应商排序、排除列表等。"
           },
           "plugins": {
             "type": "array",
-            "notes": "web_search, web_fetch, datetime"
+            "notes": "插件列表，如 web_search、web_fetch、datetime。"
           },
           "session_id": {
             "type": "string",
-            "range": {
-              "min": null,
-              "max": 256,
-              "minInclusive": true,
-              "maxInclusive": true
-            },
-            "notes": "Sticky routing"
+            "notes": "粘性路由会话 ID，同会话固定后端。"
           },
           "parallel_tool_calls": {
-            "type": "boolean"
+            "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "是否并行发起多个工具调用。"
           }
         }
       },
@@ -1501,10 +1629,12 @@
             "models",
             "fallbacks",
             "provider",
-            "session_id",
             "route",
             "trace",
             "stop_server_tools_when"
+          ],
+          "Metadata": [
+            "session_id"
           ],
           "Extra": [
             "output_config",
@@ -1527,8 +1657,8 @@
             "notes": "Anthropic Messages 格式"
           },
           "system": {
-            "type": "string ",
-            "default": "no"
+            "type": "string | array",
+            "notes": "系统提示"
           },
           "max_tokens": {
             "type": "integer",
@@ -1536,7 +1666,7 @@
           },
           "temperature": {
             "type": "number",
-            "notes": "Anthropic 兼容"
+            "notes": "采样温度（Anthropic 兼容语义）"
           },
           "top_p": {
             "type": "number"
@@ -1548,11 +1678,15 @@
             "type": "array<string>"
           },
           "stream": {
-            "type": "boolean"
+            "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ]
           },
           "thinking": {
             "type": "object",
-            "notes": "Extended thinking"
+            "notes": "扩展思考模式配置"
           },
           "tools": {
             "type": "array"
@@ -1582,7 +1716,7 @@
           },
           "cache_control": {
             "type": "object",
-            "notes": "Prompt caching"
+            "notes": "Prompt 缓存策略"
           },
           "context_management": {
             "type": "object"
@@ -1609,7 +1743,7 @@
           },
           "session_id": {
             "type": "string",
-            "notes": "Sticky routing，≤256 字符；与 header `x-session-id` 冲突时 body 优先"
+            "notes": "粘性路由会话 ID，≤256 字符；与请求头 `x-session-id` 冲突时以 body 为准"
           },
           "route": {
             "type": "any",
@@ -1665,8 +1799,7 @@
             "type": "string"
           },
           "input": {
-            "type": "string ",
-            "notes": "array`"
+            "type": "string | array"
           },
           "temperature": {
             "type": "double"
@@ -1678,7 +1811,11 @@
             "type": "integer"
           },
           "stream": {
-            "type": "boolean"
+            "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ]
           },
           "tools": {
             "type": "array"
@@ -1735,41 +1872,60 @@
         "specs": {
           "model": {
             "type": "string",
-            "notes": "MiniMax-M3, M2.7, M2.5, M2.1, M2 variants"
+            "notes": "MiniMax-M3、M2.7、M2.5、M2.1、M2 等模型名称。"
           },
           "messages": {
             "type": "array<object>",
-            "notes": "Text / image / video / tool content"
+            "notes": "对话消息，支持文本 / 图片 / 视频 / 工具内容。"
           },
           "thinking": {
             "type": "object",
             "default": "{\"type\":\"adaptive\"}",
-            "notes": "M3 on/off; M2.x cannot disable"
+            "notes": "思考模式：M3 可开关，M2.x 无法关闭。"
           },
           "thinking.type": {
             "type": "string",
             "default": "adaptive",
-            "notes": "`disabled`"
+            "enum": [
+              "adaptive",
+              "disabled"
+            ],
+            "notes": "仅 M3 支持 `disabled`。"
           },
           "reasoning_split": {
             "type": "boolean",
-            "notes": "Output format only; does not toggle thinking"
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "仅影响输出格式（是否拆分推理与回复），不切换思考模式。"
           },
           "stream": {
             "type": "boolean",
-            "default": false
+            "default": false,
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "是否流式返回。"
           },
           "stream_options.include_usage": {
             "type": "boolean",
-            "default": false
+            "default": false,
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "流式最后一个 chunk 是否附带 usage。"
           },
           "max_completion_tokens": {
-            "type": "integer"
+            "type": "integer",
+            "notes": "最大补全 token 数。"
           },
           "max_tokens": {
             "type": "integer",
             "effective": "deprecated",
-            "notes": "Deprecated"
+            "notes": "已弃用，请使用 `max_completion_tokens`。"
           },
           "temperature": {
             "type": "number",
@@ -1780,26 +1936,31 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "Out-of-range → error"
+            "notes": "采样温度；超出范围会报错。"
           },
           "top_p": {
             "type": "number",
-            "default": "M3: `0.95`; M2.x: `0.9",
+            "default": "M3: `0.95`；M2.x: `0.9",
             "range": {
               "min": 0,
               "max": 1,
               "minInclusive": true,
               "maxInclusive": true
-            }
+            },
+            "notes": "核采样概率阈值。"
           },
           "tools": {
             "type": "array",
-            "notes": "Use `tools`, not `function_call`"
+            "notes": "使用 `tools` 声明工具，不要用 `function_call`。"
           },
           "service_tier": {
             "type": "string",
             "default": "standard",
-            "notes": "`priority`"
+            "enum": [
+              "standard",
+              "priority"
+            ],
+            "notes": "服务档位；Priority 价格为 Standard 的 1.5 倍。"
           }
         }
       },
@@ -1856,8 +2017,8 @@
             "notes": "M3 支持 text / image / video / tool / thinking；M2.x 仅 text / tool"
           },
           "system": {
-            "type": "string ",
-            "default": "no"
+            "type": "string | array",
+            "notes": "数组块支持 `cache_control`"
           },
           "max_tokens": {
             "type": "integer",
@@ -1872,6 +2033,10 @@
           "stream": {
             "type": "boolean",
             "default": false,
+            "enum": [
+              "true",
+              "false"
+            ],
             "notes": "SSE 流式"
           },
           "temperature": {
@@ -1903,11 +2068,14 @@
           "thinking.type": {
             "type": "string",
             "default": "disabled",
-            "notes": "`adaptive`"
+            "enum": [
+              "disabled",
+              "adaptive"
+            ]
           },
           "tools": {
             "type": "array",
-            "notes": "Anthropic 兼容 tool use"
+            "notes": "函数工具声明（Anthropic Messages 兼容）"
           },
           "tool_choice": {
             "type": "object",
@@ -1916,7 +2084,11 @@
           "service_tier": {
             "type": "string",
             "default": "standard",
-            "notes": "`priority`"
+            "enum": [
+              "standard",
+              "priority"
+            ],
+            "notes": "Priority 1.5× 价格"
           },
           "metadata": {
             "type": "object",
@@ -1981,16 +2153,20 @@
         "specs": {
           "model": {
             "type": "string",
-            "notes": "e.g. `MiniMax-M3`"
+            "notes": "如 `MiniMax-M3` 等模型名称"
           },
           "input": {
-            "type": "string ",
-            "notes": "array`"
+            "type": "string | array",
+            "notes": "简单文本或完整对话历史（`InputItem[]`）"
           },
           "service_tier": {
             "type": "string",
             "default": "standard",
-            "notes": "`priority`"
+            "enum": [
+              "standard",
+              "priority"
+            ],
+            "notes": "Priority 1.5× 价格"
           },
           "instructions": {
             "type": "string",
@@ -2020,11 +2196,15 @@
               "minInclusive": false,
               "maxInclusive": true
             },
-            "notes": "Nucleus sampling"
+            "notes": "核采样（Nucleus sampling）概率阈值"
           },
           "stream": {
             "type": "boolean",
             "default": false,
+            "enum": [
+              "true",
+              "false"
+            ],
             "notes": "SSE 流式"
           },
           "reasoning": {
@@ -2035,7 +2215,13 @@
           "reasoning.effort": {
             "type": "string",
             "default": "none",
-            "notes": "`minimal` \\"
+            "enum": [
+              "none",
+              "minimal",
+              "low",
+              "medium",
+              "high"
+            ]
           },
           "tools": {
             "type": "array",
@@ -2043,7 +2229,10 @@
           },
           "tool_choice": {
             "type": "string",
-            "notes": "`auto`"
+            "enum": [
+              "none",
+              "auto"
+            ]
           },
           "metadata": {
             "type": "object",
@@ -2063,10 +2252,18 @@
           },
           "parallel_tool_calls": {
             "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ],
             "notes": "是否支持并行 tool call"
           },
           "store": {
             "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ],
             "notes": "是否持久化响应"
           },
           "truncation": {
@@ -2082,8 +2279,8 @@
             "notes": "`type=message` 时：`user` / `assistant` / `system` / `developer` / `tool`"
           },
           "content": {
-            "type": "string ",
-            "notes": "array`"
+            "type": "string | array",
+            "notes": "`type=message` 时；可含多模态 `ContentPart`"
           },
           "call_id": {
             "type": "string",
@@ -2185,7 +2382,11 @@
           "messages[].role": {
             "type": "string",
             "default": "user",
-            "notes": "`user` \\"
+            "enum": [
+              "system",
+              "user",
+              "assistant"
+            ]
           },
           "messages[].content": {
             "type": "string",
@@ -2193,6 +2394,10 @@
           },
           "stream": {
             "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ],
             "notes": "SSE；以 `data: [DONE]` 结束"
           },
           "max_tokens": {
@@ -2201,6 +2406,10 @@
           },
           "enable_thinking": {
             "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ],
             "notes": "见下方支持模型列表"
           },
           "thinking_budget": {
@@ -2215,7 +2424,11 @@
           },
           "reasoning_effort": {
             "type": "string",
-            "notes": "`max`"
+            "enum": [
+              "high",
+              "max"
+            ],
+            "notes": "仅 `deepseek-ai/DeepSeek-V4-Flash`"
           },
           "min_p": {
             "type": "number",
@@ -2228,15 +2441,14 @@
             "notes": "仅 Qwen3"
           },
           "stop": {
-            "type": "string ",
-            "default": "no",
+            "type": "string | array",
             "range": {
               "min": null,
               "max": 4,
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "max 4"
+            "notes": "命中后不含 stop 序列"
           },
           "temperature": {
             "type": "number",
@@ -2250,7 +2462,7 @@
           "top_p": {
             "type": "number",
             "default": 0.7,
-            "notes": "Nucleus sampling"
+            "notes": "核采样（Nucleus sampling）概率阈值。"
           },
           "top_k": {
             "type": "number",
@@ -2277,7 +2489,7 @@
           },
           "response_format": {
             "type": "object",
-            "notes": "输出格式"
+            "notes": "输出格式：`text`、`json_object`、`json_schema`。"
           },
           "response_format.type": {
             "type": "string",
@@ -2316,7 +2528,11 @@
           "tools[].function.strict": {
             "type": "boolean",
             "default": false,
-            "notes": "Structured Outputs 子集"
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "严格 JSON Schema 结构化输出子集。"
           }
         }
       },
@@ -2376,15 +2592,19 @@
           "messages[].role": {
             "type": "string",
             "default": "user",
-            "notes": "`system` \\"
+            "enum": [
+              "user",
+              "system",
+              "assistant"
+            ]
           },
           "messages[].content": {
             "type": "string",
             "notes": "消息内容"
           },
           "system": {
-            "type": "string ",
-            "default": "no"
+            "type": "string | array",
+            "notes": "系统提示；数组项为 `RequestTextBlock`"
           },
           "max_tokens": {
             "type": "integer",
@@ -2392,6 +2612,10 @@
           },
           "stream": {
             "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ],
             "notes": "SSE；以 `data: [DONE]` 结束"
           },
           "temperature": {
@@ -2527,11 +2751,24 @@
           "stream": {
             "type": "boolean",
             "default": false,
+            "enum": [
+              "true",
+              "false"
+            ],
             "notes": "推荐 `true` 降低超时风险"
           },
           "stream_options": {
             "type": "object",
             "notes": "仅 `stream=true`；`include_usage` 默认 false"
+          },
+          "stream_options.include_usage": {
+            "type": "boolean",
+            "default": false,
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "仅 `stream=true`；最后一个数据块含 Token 消耗"
           },
           "modalities": {
             "type": "array",
@@ -2549,7 +2786,7 @@
           "max_tokens": {
             "type": "integer",
             "effective": "deprecated",
-            "notes": "Deprecated"
+            "notes": "已弃用，请使用 `max_completion_tokens`"
           },
           "n": {
             "type": "integer",
@@ -2568,8 +2805,8 @@
             "notes": "`text` / `json_object` / `json_schema`"
           },
           "stop": {
-            "type": "string ",
-            "default": "array"
+            "type": "string | array",
+            "notes": "停止词"
           },
           "temperature": {
             "type": "float",
@@ -2615,7 +2852,11 @@
           },
           "logprobs": {
             "type": "boolean",
-            "default": false
+            "default": false,
+            "enum": [
+              "true",
+              "false"
+            ]
           },
           "top_logprobs": {
             "type": "integer",
@@ -2631,20 +2872,28 @@
           "enable_thinking": {
             "type": "boolean",
             "default": "因模型",
+            "enum": [
+              "true",
+              "false"
+            ],
             "notes": "混合思考模型；SDK 放 `extra_body`"
           },
           "tools": {
             "type": "array",
-            "notes": "Function Calling"
+            "notes": "Function Calling 函数工具声明"
           },
           "tool_choice": {
-            "type": "string ",
-            "default": "object",
-            "notes": "`auto`"
+            "type": "string | object",
+            "default": "auto",
+            "notes": "`auto` / `none` / `required`"
           },
           "parallel_tool_calls": {
             "type": "boolean",
-            "default": false
+            "default": false,
+            "enum": [
+              "true",
+              "false"
+            ]
           }
         }
       },
@@ -2709,12 +2958,16 @@
             "notes": "最大输出 token"
           },
           "system": {
-            "type": "string ",
-            "notes": "array`"
+            "type": "string | array",
+            "notes": "系统提示，优先级高于 messages 内 system"
           },
           "stream": {
             "type": "boolean",
             "default": false,
+            "enum": [
+              "true",
+              "false"
+            ],
             "notes": "SSE 流式"
           },
           "stop_sequences": {
@@ -2723,7 +2976,7 @@
           },
           "thinking": {
             "type": "object",
-            "notes": "Extended Thinking：`enabled` / `disabled` / `adaptive` 等"
+            "notes": "扩展思考模式：`enabled` / `disabled` / `adaptive` 等"
           },
           "tools": {
             "type": "array",
@@ -2811,8 +3064,8 @@
             "notes": "推理点 ID（`ep-xxx`）"
           },
           "input": {
-            "type": "string ",
-            "notes": "array`"
+            "type": "string | array",
+            "notes": "输入"
           },
           "temperature": {
             "type": "number"
@@ -2824,7 +3077,11 @@
             "type": "integer"
           },
           "stream": {
-            "type": "boolean"
+            "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ]
           },
           "reasoning": {
             "type": "object",
@@ -2832,6 +3089,10 @@
           },
           "enable_thinking": {
             "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ],
             "notes": "思考模式"
           },
           "tools": {
@@ -3176,6 +3437,10 @@
           },
           "logprobs": {
             "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ],
             "notes": "Returns log probabilities for output tokens in `message.content` when supported."
           },
           "top_logprobs": {

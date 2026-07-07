@@ -1,0 +1,37 @@
+{
+  "case_id": "tools_choice_none",
+  "title": "Messages tool_choice none · 不应返回 tool_use",
+  "category": "tools",
+  "parameters": ["tools", "tool_choice"],
+  "requires_model_capability": "tools",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "max_tokens": 128,
+    "tool_choice": { "type": "none" },
+    "tools": [
+      {
+        "name": "get_weather",
+        "description": "Get weather for a city.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "location": { "type": "string" }
+          }
+        }
+      }
+    ],
+    "messages": [
+      {
+        "role": "user",
+        "content": "Do not call any tool. Explain what a weather tool would do."
+      }
+    ]
+  },
+  "expect": {
+    "axis": "choice_none",
+    "notes": "tool_choice type=none 时不应返回 tool_use。"
+  }
+}

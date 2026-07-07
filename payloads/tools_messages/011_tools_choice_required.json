@@ -1,0 +1,38 @@
+{
+  "case_id": "tools_choice_required",
+  "title": "Messages tool_choice any · 应返回 tool_use",
+  "category": "tools",
+  "parameters": ["tools", "tool_choice"],
+  "requires_model_capability": "tools",
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "max_tokens": 120,
+    "tool_choice": { "type": "any" },
+    "tools": [
+      {
+        "name": "get_weather",
+        "description": "Get weather for a city.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "location": { "type": "string" }
+          },
+          "required": ["location"]
+        }
+      }
+    ],
+    "messages": [
+      {
+        "role": "user",
+        "content": "Get the weather for Beijing."
+      }
+    ]
+  },
+  "expect": {
+    "axis": "invoke",
+    "allowed_finish_reasons": ["end_turn", "max_tokens", "stop_sequence", "tool_use", "pause_turn", "refusal"],
+    "notes": "tool_choice type=any 时应返回 tool_use；这是渠道是否真正支持工具调用的核心探针。"
+  }
+}

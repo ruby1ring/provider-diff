@@ -1,0 +1,25 @@
+{
+  "provider": "model_behaviors_deepseek",
+  "base_url": "https://api.deepseek.com",
+  "endpoint": "/chat/completions",
+  "method": "POST",
+  "source": "../../docs/api/deepseek.md",
+  "default_model": "deepseek-v4-flash",
+  "reasoning_model": "deepseek-v4-pro",
+  "vision_model": "",
+  "notes": [
+    "DeepSeek OEM 原厂参考 case：仅在 runV02 测评模型为 DeepSeek 时注入到对应分组子区。",
+    "跑批时对用户选择的每一个测评渠道（Baseline + Target）各执行一次，不限于 DeepSeek 官方。",
+    "payload 以 DeepSeek 官方字段编写；非官方渠道由前端按 THINKING_CHANNEL_DIALECTS 适配 thinking 开关。"
+  ],
+  "common_expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "choice_required_fields": ["index", "message", "finish_reason"],
+    "usage_required_fields": ["prompt_tokens", "completion_tokens", "total_tokens"]
+  },
+  "cases": [
+    "010_thinking_sampling_ignored.json"
+  ]
+}

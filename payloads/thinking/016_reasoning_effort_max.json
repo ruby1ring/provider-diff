@@ -1,0 +1,31 @@
+{
+  "case_id": "thinking_reasoning_effort_max",
+  "title": "reasoning_effort=max · 应出现 thinking 内容；usage tokens 应为高档位（配对比对）",
+  "category": "reasoning",
+  "parameters": ["reasoning_effort"],
+  "requires_model_capability": "reasoning",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use brief reasoning to compute 34 + 58, then give the final answer."
+      }
+    ],
+    "reasoning_effort": "max",
+    "max_completion_tokens": 1200,
+    "temperature": 0
+  },
+  "expect": {
+    "dialect": "reasoning_effort",
+    "axis": "intensity",
+    "enum_value": "max",
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "assistant_content_non_empty": true,
+    "notes": "max 枚举探针；与 high/xhigh 配对判断是否为独立档位或兼容别名。"
+  }
+}

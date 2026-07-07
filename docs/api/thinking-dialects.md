@@ -193,6 +193,30 @@ OpenAI-compatible 形态：
 - `thinking_budget` 只能在目标模型支持时发送。
 - thinking-only 模型不能通过通用参数强行关闭。
 
+#### 开关多方言等价探针
+
+百炼等不同地域/网关对 `enable_thinking` 与 `thinking` 的实际行为可能不一致（例如弗吉尼亚仅 `enable_thinking` 生效，新加坡两者均生效）。**探针不以 protocol-matrix 文档是否列出多个 Reasoning.Switch 字段为前提**——文档只作对照，实测以 case 结果为准，用于发现「文档未写」或「写了但不生效」的问题。
+
+`payloads/thinking/` 在 `080–082` 段提供等价对照 case；**所有接入 THINKING_CHANNEL_DIALECTS 的渠道在「协议 / 思考模式」分组中统一展示**：
+
+| 字段标签 | Case |
+|---|---|
+| `enable_thinking` | `thinking_enable_thinking_true` / `false` |
+| `thinking.type` | `thinking_switch_alt_thinking_enabled` / `disabled` |
+
+| Case | 作用 |
+|---|---|
+| `thinking_switch_alt_thinking_enabled` | 与 `enable_thinking=true` 同 prompt，传 `thinking.type=enabled` |
+| `thinking_switch_alt_thinking_disabled` | 与 `enable_thinking=false` 对照关闭 |
+| `thinking_switch_conflict_enable_off_thinking_on` | 可选；`enable_thinking=false` + `thinking.type=enabled` |
+| `thinking_switch_conflict_enable_on_thinking_off` | 可选；`enable_thinking=true` + `thinking.type=disabled` |
+
+判定逻辑（`scripts/lib/thinking-probe-analysis.mjs`）：
+
+1. 主方言开启有效 + 备选方言 HTTP 2xx 但无 thinking 证据 → 备选参数 `accepted_ineffective`。
+2. 主备均有效 → 两者均为 `effective`。
+3. 报告 **开关方言等价对照** 表横向展示；`thinking-observed.json` 的 `switch_equivalence` 供协议矩阵角标引用。
+
 ### SiliconFlow
 
 SiliconFlow 当前官方 Chat Completions 页面列出的 thinking 字段是：
@@ -365,6 +389,30 @@ thinking budget 需要 reasoning config / `thinking_token_budget` 等能力配�
 
 - vLLM 的“官方方言”不是云厂商统一 API，而是 server runtime + chat template + parser 的组合。
 - 探针必须记录 server 版本、served model、reasoning parser 和 chat template kwargs。
+
+## 测评 case 分组与渠道裁剪（Noctua V0.2「协议 / 思考模式」）
+
+V0.2 跑批的「协议 / 思考模式」分组不再把所有方言平铺，而是按**语义轴**分组、按**所选渠道官方文档方言**裁剪：
+
+- 语义轴（axis）：`switch`（开关，含 `switch_on` / `switch_off`）、`intensity`（强度 / 预算）、`output`（输出格式）。
+- 方言（dialect）：`qwen_enable_thinking`、`thinking_object`、`reasoning_effort`、`reasoning_object`、`reasoning_split`。
+
+case payload（`payloads/thinking/*.json`）在 `expect` 中携带 `dialect` / `axis` / `enum_value` 元数据；前端 `THINKING_CHANNEL_DIALECTS`（`web/main.js`）按渠道把每个轴映射到对应方言与字段，再用 `protocol-matrix.json` 的 per-channel 枚举对强度档（如 `reasoning_effort`）二次过滤。
+
+| 渠道 | 开关 axis | 强度 axis | 输出 axis |
+|---|---|---|---|
+| aliyun | `enable_thinking` = `true` / `false` | `thinking_budget`（数值档） | — |
+| siliconflow | `enable_thinking` = `true` / `false` | `thinking_budget`（数值档） | — |
+| streamlake | `enable_thinking` = `true` / `false` | — | — |
+| deepseek | `thinking.type` = `enabled` / `disabled` | `reasoning_effort` = `high` / `max` | — |
+| zhipu | `thinking.type` = `enabled` / `disabled` | `reasoning_effort` = `max`/`xhigh`/`high`/`medium`/`low`/`none` | — |
+| minimax | `thinking.type` = `adaptive` / `disabled` | — | `reasoning_split` = `true` / `false` |
+| openrouter | `reasoning`（`enabled` / `disabled`） | `reasoning.effort` = `medium` / `none` | — |
+| moonshot | 官方文档无 thinking 字段 → 不生成 case | — | — |
+
+强度档枚举随各渠道官方文档变化：例如 DeepSeek `reasoning_effort` 只展示 `high` / `max`，智谱展示全部档位；新增渠道枚举只需在对应 `docs/api/{provider}-chat.md` 的参数表里写明，矩阵与 case 裁剪会自动跟随。
+
+默认勾选规则：每渠道默认勾选 开启 + 关闭 + 一个非可选强度档（若该渠道有强度轴）。
 
 ## 对外 API 文档设计启示
 

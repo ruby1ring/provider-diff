@@ -89,7 +89,7 @@ function readConfig() {
 }
 
 const PROVIDER_CONFIG_KEYS = {
-  ali: ["aliyun-cn", "aliyun-us", "aliyun", "ali"],
+  ali: ["aliyun-cn", "aliyun-us", "aliyun-sg", "aliyun", "ali"],
   siliconflow: ["siliconflow-cn", "siliconflow-com", "siliconflow"],
   openrouter: ["openrouter"],
   deepseek: ["deepseek"],

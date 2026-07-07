@@ -109,6 +109,17 @@ window.NOCTUA_MODEL_LOOKUP = (() => {
       "deepseek-v4-pro": { apiModelId: "deepseek-v4-pro", aliases: ["DeepSeek-V4-Pro"] },
       "kimi-k2.7-coder": { apiModelId: "kimi-k2.7-coder", aliases: ["Kimi-K2.7-Coder"] },
       "kimi-k2.6": { apiModelId: "kimi-k2.6", aliases: ["Kimi-K2.6"] },
+      "glm-5.2": { apiModelId: "glm-5.2", aliases: ["GLM-5.2"] },
+      "glm-5.1": { apiModelId: "glm-5.1", aliases: ["GLM-5.1"] },
+      "glm-5": { apiModelId: "glm-5", aliases: ["GLM-5"] },
+      "MiniMax-M3": { apiModelId: "MiniMax-M3", aliases: ["minimax-m3"] }
+    },
+    "aliyun-sg": {
+      "deepseek-v4-flash": { apiModelId: "deepseek-v4-flash", aliases: ["DeepSeek-V4-Flash"] },
+      "deepseek-v4-pro": { apiModelId: "deepseek-v4-pro", aliases: ["DeepSeek-V4-Pro"] },
+      "kimi-k2.7-coder": { apiModelId: "kimi-k2.7-coder", aliases: ["Kimi-K2.7-Coder"] },
+      "kimi-k2.6": { apiModelId: "kimi-k2.6", aliases: ["Kimi-K2.6"] },
+      "glm-5.2": { apiModelId: "glm-5.2", aliases: ["GLM-5.2"] },
       "glm-5.1": { apiModelId: "glm-5.1", aliases: ["GLM-5.1"] },
       "glm-5": { apiModelId: "glm-5", aliases: ["GLM-5"] },
       "MiniMax-M3": { apiModelId: "MiniMax-M3", aliases: ["minimax-m3"] }
@@ -563,6 +574,7 @@ window.NOCTUA_MODEL_LOOKUP = (() => {
     openrouter: "openrouter",
     "aliyun-cn": "aliyun",
     "aliyun-us": "aliyun",
+    "aliyun-sg": "aliyun",
     "siliconflow-cn": "siliconflow",
     "siliconflow-com": "siliconflow",
     "sf-router-cn": "silinex_china",
@@ -598,6 +610,11 @@ window.NOCTUA_MODEL_LOOKUP = (() => {
       chat_completions: "https://dashscope-us.aliyuncs.com/compatible-mode/v1",
       anthropic_messages: "https://dashscope-us.aliyuncs.com/apps/anthropic/v1",
       responses_api: "https://dashscope-us.aliyuncs.com/compatible-mode/v1"
+    },
+    "aliyun-sg": {
+      chat_completions: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+      anthropic_messages: "https://dashscope-intl.aliyuncs.com/apps/anthropic/v1",
+      responses_api: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
     },
     "siliconflow-cn": {
       chat_completions: "https://api.siliconflow.cn/v1",

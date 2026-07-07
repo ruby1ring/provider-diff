@@ -1,6 +1,6 @@
 {
   "case_id": "thinking_reasoning_object_enabled",
-  "title": "reasoning.enabled=true opens thinking",
+  "title": "reasoning.enabled=true 开启思考 · 应出现 reasoning/thinking 内容；usage reasoning_tokens/thinking_tokens > 0",
   "category": "reasoning",
   "parameters": ["reasoning", "reasoning.enabled"],
   "requires_model_capability": "reasoning",
@@ -20,6 +20,9 @@
     "max_completion_tokens": 1200
   },
   "expect": {
+    "dialect": "reasoning_object",
+    "axis": "switch_on",
+    "enum_value": "enabled",
     "http_status": 200,
     "thinking_location_probe": true,
     "thinking_evidence_required": true,

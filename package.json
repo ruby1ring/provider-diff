@@ -7,7 +7,11 @@
     "dev": "node scripts/dev.js",
     "rebuild:docs": "node scripts/rebuild-docs.mjs --force",
     "build:protocol-matrix": "node scripts/inject-protocol-frontmatter.mjs && node scripts/build-protocol-matrix.mjs && node scripts/audit-protocol-types.mjs",
+    "build:thinking-observed": "node scripts/build-thinking-observed.mjs",
+    "build:model-limits": "node scripts/build-model-limits-observed.mjs",
     "build:error-code-catalog": "node scripts/build-error-code-catalog.mjs",
+    "test:channel-report-intent": "node web/lib/channel-report-intent.test.mjs",
+    "test:model-oem-behaviors": "node web/lib/model-oem-behaviors.test.mjs",
     "desktop:dev": "node scripts/build-dmg.js --skip-package && electron .",
     "build:evalscope-service": "node scripts/build-evalscope-service.js",
     "dist:dmg": "node scripts/build-dmg.js"

@@ -1,0 +1,45 @@
+{
+  "case_id": "tools_named_function",
+  "title": "tool_choice 指定函数名 · 必须调用 compatibility_status（不能只调别的工具）",
+  "category": "tools",
+  "parameters": ["tool_choice"],
+  "requires_model_capability": "tools",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Call compatibility_status for parameter response_format."
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "compatibility_status",
+          "description": "Return compatibility status for one parameter.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "parameter": { "type": "string" },
+              "status": { "type": "string", "enum": ["accepted", "rejected", "warning"] }
+            },
+            "required": ["parameter", "status"]
+          }
+        }
+      }
+    ],
+    "tool_choice": {
+      "type": "function",
+      "function": { "name": "compatibility_status" }
+    },
+    "max_completion_tokens": 120
+  },
+  "expect": {
+    "axis": "named_function",
+    "notes": "tool_choice 精确指定 compatibility_status 函数名（非 required/auto）；验证渠道按名称路由到正确工具。"
+  }
+}

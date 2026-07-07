@@ -31,27 +31,27 @@ notes: 对照 docs/api/moonshot-chat.md（2026-06-25）。temperature 范围 [0,
 
 | Parameter | Type | Notes |
 |---|---|---|
-| `model` | `string` | Required. e.g. `moonshot-v1-128k`, vision-preview variants, kimi-k2.x |
-| `messages` | `array<object>` | Required. Roles: `system`, `user`, `assistant`; multimodal content supported |
+| `model` | `string` | 必填。如 `moonshot-v1-128k`、vision-preview 系列、kimi-k2.x 等。 |
+| `messages` | `array<object>` | 必填。角色：`system`、`user`、`assistant`；支持多模态内容。 |
 
 ## Documented Request Parameters
 
 | Parameter | Type | Required | Default | Range | Notes |
 |---|---|---|---|---|---|
-| `temperature` | `float` | no | `0` | [0, 1] | Higher = more random |
-| `top_p` | `float` | no | `1` | [0, 1] | Nucleus sampling; adjust temperature or top_p, not both |
-| `n` | `integer` | no | `1` | 1–5 | Completions per input; near-zero temperature limits to 1 |
-| `presence_penalty` | `float` | no | `0` | [-2, 2] | |
-| `frequency_penalty` | `float` | no | `0` | [-2, 2] | |
-| `max_tokens` | `integer` | no | — | — | **Deprecated** — use `max_completion_tokens` |
-| `max_completion_tokens` | `integer` | no | ~1024 | — | Exceeding context window → error |
-| `stop` | `string \| array` | no | — | max 5 strings, ≤32 bytes each | |
-| `stream` | `boolean` | no | `false` | — | SSE streaming |
-| `stream_options.include_usage` | `boolean` | no | `false` | — | Final usage chunk before `[DONE]` |
-| `response_format` | `object` | no | `{"type":"text"}` | — | `text`, `json_object`, `json_schema` |
-| `tools` | `array` | no | — | max 128 | Function tools |
-| `prompt_cache_key` | `string` | no | — | — | Prompt caching / Kimi Code Plan |
-| `safety_identifier` | `string` | no | — | — | Hashed stable user id |
+| `temperature` | `float` | no | `0` | [0, 1] | 采样温度，值越高随机性越强。 |
+| `top_p` | `float` | no | `1` | [0, 1] | 核采样概率阈值；`temperature` 与 `top_p` 建议只设其一。 |
+| `n` | `integer` | no | `1` | 1–5 | 每个输入返回的候选回复数；`temperature` 接近 0 时只能为 1。 |
+| `presence_penalty` | `float` | no | `0` | [-2, 2] | 存在惩罚，正值降低重复提及已出现内容。 |
+| `frequency_penalty` | `float` | no | `0` | [-2, 2] | 频率惩罚，正值降低重复用词。 |
+| `max_tokens` | `integer` | no | — | — | **已弃用** — 请使用 `max_completion_tokens`。 |
+| `max_completion_tokens` | `integer` | no | ~1024 | — | 最大补全 token 数；超出上下文窗口会报错。 |
+| `stop` | `string \| array` | no | — | 最多 5 个字符串，每个 ≤32 字节 | 停止词，命中后终止生成。 |
+| `stream` | `boolean` | no | `false` | — | 是否 SSE 流式返回。 |
+| `stream_options.include_usage` | `boolean` | no | `false` | — | 在 `data: [DONE]` 前输出含 usage 的最终块。 |
+| `response_format` | `object` | no | `{"type":"text"}` | — | 输出格式：`text`、`json_object`、`json_schema`。 |
+| `tools` | `array` | no | — | 最多 128 个 | 函数工具声明列表。 |
+| `prompt_cache_key` | `string` | no | — | — | Prompt 缓存键；Kimi Code Plan 相关。 |
+| `safety_identifier` | `string` | no | — | — | 哈希后的稳定用户标识，用于安全与滥用追踪。 |
 
 ## Multimodal
 

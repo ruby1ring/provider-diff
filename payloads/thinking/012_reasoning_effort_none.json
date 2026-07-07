@@ -1,6 +1,6 @@
 {
   "case_id": "thinking_reasoning_effort_none",
-  "title": "reasoning_effort=none closes thinking",
+  "title": "reasoning_effort=none 关闭思考 · 不应出现 thinking 内容；usage 无正数 reasoning_tokens/thinking_tokens",
   "category": "reasoning",
   "parameters": ["reasoning_effort"],
   "optional": true,
@@ -18,6 +18,9 @@
     "max_completion_tokens": 256
   },
   "expect": {
+    "dialect": "reasoning_effort",
+    "axis": "intensity",
+    "enum_value": "none",
     "http_status": 200,
     "thinking_location_probe": true,
     "thinking_absent": true,

@@ -31,24 +31,24 @@ notes: 对照 docs/api/minimax-chat.md（2026-06-25）。 类型字段按该渠�
 
 | Parameter | Type | Notes |
 |---|---|---|
-| `model` | `string` | MiniMax-M3, M2.7, M2.5, M2.1, M2 variants |
-| `messages` | `array<object>` | Text / image / video / tool content |
+| `model` | `string` | MiniMax-M3、M2.7、M2.5、M2.1、M2 等模型名称。 |
+| `messages` | `array<object>` | 对话消息，支持文本 / 图片 / 视频 / 工具内容。 |
 
 ## Documented Request Parameters
 
 | Parameter | Type | Required | Default | Range | Notes |
 |---|---|---|---|---|---|
-| `thinking` | `object` | no | `{"type":"adaptive"}` | — | M3 on/off; M2.x cannot disable |
-| `thinking.type` | `string` | no | `adaptive` | `adaptive` \| `disabled` | M3 only for `disabled` |
-| `reasoning_split` | `boolean` | no | — | — | Output format only; does not toggle thinking |
-| `stream` | `boolean` | no | `false` | — | |
-| `stream_options.include_usage` | `boolean` | no | `false` | — | |
-| `max_completion_tokens` | `integer` | no | — | M3: rec 131072, max 524288; M2.x: rec 65536, max 204800 | |
-| `max_tokens` | `integer` | no | — | — | **Deprecated** |
-| `temperature` | `number` | no | `1` | [0, 2] | Out-of-range → error |
-| `top_p` | `number` | no | M3: `0.95`; M2.x: `0.9` | [0, 1] | |
-| `tools` | `array` | no | — | — | Use `tools`, not `function_call` |
-| `service_tier` | `string` | no | `standard` | `standard` \| `priority` | Priority 1.5× price |
+| `thinking` | `object` | no | `{"type":"adaptive"}` | — | 思考模式：M3 可开关，M2.x 无法关闭。 |
+| `thinking.type` | `string` | no | `adaptive` | `adaptive` \| `disabled` | 仅 M3 支持 `disabled`。 |
+| `reasoning_split` | `boolean` | no | — | — | 仅影响输出格式（是否拆分推理与回复），不切换思考模式。 |
+| `stream` | `boolean` | no | `false` | — | 是否流式返回。 |
+| `stream_options.include_usage` | `boolean` | no | `false` | — | 流式最后一个 chunk 是否附带 usage。 |
+| `max_completion_tokens` | `integer` | no | — | M3: 推荐 131072，最大 524288；M2.x: 推荐 65536，最大 204800 | 最大补全 token 数。 |
+| `max_tokens` | `integer` | no | — | — | **已弃用**，请使用 `max_completion_tokens`。 |
+| `temperature` | `number` | no | `1` | [0, 2] | 采样温度；超出范围会报错。 |
+| `top_p` | `number` | no | M3: `0.95`；M2.x: `0.9` | [0, 1] | 核采样概率阈值。 |
+| `tools` | `array` | no | — | — | 使用 `tools` 声明工具，不要用 `function_call`。 |
+| `service_tier` | `string` | no | `standard` | `standard` \| `priority` | 服务档位；Priority 价格为 Standard 的 1.5 倍。 |
 
 ### Ignored / unsupported (official SDK guide)
 

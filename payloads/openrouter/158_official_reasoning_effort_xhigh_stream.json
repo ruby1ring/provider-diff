@@ -1,0 +1,51 @@
+{
+  "case_id": "or_official_reasoning_effort_xhigh_stream",
+  "title": "official baseline case: reasoning effort xhigh",
+  "category": "official_reasoning",
+  "parameters": [
+    "stream",
+    "reasoning",
+    "reasoning.effort",
+    "temperature"
+  ],
+  "requires_model_capability": "reasoning",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "stream": true,
+    "temperature": 0,
+    "messages": [
+      {
+        "role": "user",
+        "content": "I'm benchmarking your reasoning_effort functionality by comparing reasoning lengths across different effort values. Please produce a normal, representative amount of reasoning for whichever reasoning_effort is currently configured — don't artificially shorten or pad your thinking.\n\nProblem: What are the prime factors of 360? Show your work."
+      }
+    ],
+    "reasoning": {
+      "effort": "xhigh"
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ],
+    "usage_required_fields": [
+      "prompt_tokens",
+      "completion_tokens",
+      "total_tokens"
+    ],
+    "thinking_evidence_required": true,
+    "assistant_content_non_empty": true,
+    "allowed_finish_reasons": [
+      "stop",
+      "length"
+    ],
+    "notes": "OpenRouter provider baseline reasoning-effort-xhigh task. length truncation is acceptable when still under max_tokens."
+  }
+}

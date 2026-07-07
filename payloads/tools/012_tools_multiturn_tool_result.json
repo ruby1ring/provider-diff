@@ -1,0 +1,46 @@
+{
+  "case_id": "tools_multiturn_tool_result",
+  "title": "多轮回放：messages 已含 assistant 的 tool_calls + role=tool 执行结果，接口应能继续生成",
+  "category": "tools",
+  "parameters": ["messages[].role=tool", "tool_call_id"],
+  "requires_model_capability": "tools",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is the weather in Shanghai?"
+      },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_provider_diff_weather",
+            "type": "function",
+            "function": {
+              "name": "get_current_weather",
+              "arguments": "{\"location\":\"Shanghai\",\"unit\":\"celsius\"}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_provider_diff_weather",
+        "content": "{\"temperature\":22,\"unit\":\"celsius\",\"condition\":\"cloudy\"}"
+      },
+      {
+        "role": "user",
+        "content": "Summarize the tool result in one sentence."
+      }
+    ],
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "axis": "multiturn",
+    "notes": "模拟 Agent 第 2 轮：messages 含 user → assistant tool_calls → role=tool 执行结果（tool_call_id）→ 请模型总结；验证渠道接受该历史并能继续回复。"
+  }
+}

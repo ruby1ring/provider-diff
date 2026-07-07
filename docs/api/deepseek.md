@@ -83,33 +83,33 @@ Content-Type: application/json
 
 | Field | Type | Notes |
 |---|---|---|
-| `model` | `string` | Required. Documented values: `deepseek-v4-flash`, `deepseek-v4-pro`. |
-| `messages` | `array<object>` | Required. At least one message. Roles: `system`, `user`, `assistant`, `tool`. |
+| `model` | `string` | 必填。文档取值：`deepseek-v4-flash`、`deepseek-v4-pro`。 |
+| `messages` | `array<object>` | 必填。至少一条消息。角色：`system`、`user`、`assistant`、`tool`。 |
 
 ## Documented Request Parameters
 
 | Parameter | Type | Notes |
 |---|---|---|
-| `model` | `string` | Required. |
-| `messages` | `array<object>` | Required. |
-| `thinking` | `object \| null` | `{"type":"enabled"}` or `{"type":"disabled"}`. Default `enabled`. Use `extra_body` in OpenAI SDK. |
-| `reasoning_effort` | `string` | `high`, `max`. Default `high` for ordinary requests; complex agent requests may auto-use `max`. `low`/`medium` → `high`, `xhigh` → `max`. |
-| `max_tokens` | `integer \| null` | Max completion tokens. Input + output limited by context window. |
-| `response_format` | `object \| null` | `{ "type": "text" }` (default) or `{ "type": "json_object" }`. JSON mode still needs prompt instructions. |
-| `stop` | `string \| array<string> \| null` | Up to 16 strings in array form. |
-| `stream` | `boolean \| null` | SSE stream; ends with `data: [DONE]`. |
-| `stream_options` | `object \| null` | Only when `stream=true`. |
-| `stream_options.include_usage` | `boolean` | Extra pre-`[DONE]` chunk with full `usage` and empty `choices`. |
-| `temperature` | `number \| null` | Default `1`, max `2`. In thinking mode accepted but no effect. |
-| `top_p` | `number \| null` | Default `1`, max `1`. In thinking mode accepted but no effect. |
-| `tools` | `array<object> \| null` | Function tools only; max 128 functions. |
-| `tool_choice` | `string \| object \| null` | `none`, `auto`, `required`, or named function. Default `none` without tools, `auto` with tools. |
-| `tools[].function.strict` | `boolean` | Default `false`. Beta strict JSON-schema mode. |
-| `logprobs` | `boolean \| null` | Return output token log probabilities. |
-| `top_logprobs` | `integer \| null` | `0`–`20`; requires `logprobs=true`. |
-| `user_id` | `string \| null` | `[a-zA-Z0-9\-_]`, max 512. Used for safety, KVCache isolation, scheduling. |
-| `frequency_penalty` | deprecated | No effect. |
-| `presence_penalty` | deprecated | No effect. |
+| `model` | `string` | 必填。 |
+| `messages` | `array<object>` | 必填。 |
+| `thinking` | `object \| null` | 思考模式开关：`{"type":"enabled"}` 或 `{"type":"disabled"}`，默认 `enabled`。OpenAI SDK 请通过 `extra_body` 传入。 |
+| `reasoning_effort` | `string` | 推理强度：`high`、`max`。普通请求默认 `high`；复杂 Agent 请求可能自动使用 `max`。`low`/`medium` 映射为 `high`，`xhigh` 映射为 `max`。 |
+| `max_tokens` | `integer \| null` | 最大补全 token 数。输入与输出合计受上下文窗口限制。 |
+| `response_format` | `object \| null` | 默认 `{ "type": "text" }` 或 `{ "type": "json_object" }`。JSON 模式仍需在提示词中说明格式要求。 |
+| `stop` | `string \| array<string> \| null` | 停止词，数组形式最多 16 个字符串。 |
+| `stream` | `boolean \| null` | SSE 流式输出；以 `data: [DONE]` 结束。 |
+| `stream_options` | `object \| null` | 仅当 `stream=true` 时生效。 |
+| `stream_options.include_usage` | `boolean` | 在 `[DONE]` 前额外返回一块含完整 `usage`、空 `choices` 的数据块。 |
+| `temperature` | `number \| null` | 默认 `1`，最大 `2`。思考模式下接受但无效果。 |
+| `top_p` | `number \| null` | 默认 `1`，最大 `1`。思考模式下接受但无效果。 |
+| `tools` | `array<object> \| null` | 仅支持函数工具；最多 128 个。 |
+| `tool_choice` | `string \| object \| null` | 取值 `none`、`auto`、`required` 或指定函数。无 tools 时默认 `none`，有 tools 时默认 `auto`。 |
+| `tools[].function.strict` | `boolean` | 默认 `false`。Beta 严格 JSON Schema 模式。 |
+| `logprobs` | `boolean \| null` | 是否返回输出 token 的对数概率。 |
+| `top_logprobs` | `integer \| null` | 范围 `0`–`20`；需 `logprobs=true`。 |
+| `user_id` | `string \| null` | 字符集 `[a-zA-Z0-9\-_]`，最长 512。用于安全、KVCache 隔离与调度。 |
+| `frequency_penalty` | deprecated | 无效果（已废弃）。 |
+| `presence_penalty` | deprecated | 无效果（已废弃）。 |
 
 ## Beta Message Fields
 
@@ -147,6 +147,8 @@ Thinking-mode notes:
 ## Streaming
 
 Chunks are `chat.completion.chunk`; stream ends with `data: [DONE]`. Supports `delta.content`, `delta.reasoning_content`, `delta.tool_calls`, and optional final `usage` chunk when `include_usage=true`.
+
+Official docs describe the OpenAI-compatible pattern: a separate pre-`[DONE]` chunk with `choices: []` and aggregate `usage`. **Probe note:** the DeepSeek official API (`api.deepseek.com`) has been observed to return `usage` in the same chunk as `finish_reason` (`merged_finish_reason` profile). Use case `deepseek_protocol_stream_usage_chunk_shape` to validate chunk placement; case `deepseek_protocol_stream_include_usage` only checks presence of usage fields.
 
 ## Test Groups
 

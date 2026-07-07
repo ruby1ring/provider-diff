@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -26,10 +27,124 @@ func TestLoadThinkingProviderCases(t *testing.T) {
 	if manifest.Provider != "thinking" {
 		t.Fatalf("expected thinking provider, got %q", manifest.Provider)
 	}
-	if len(cases) != 19 {
-		t.Fatalf("expected 19 thinking probe cases, got %d", len(cases))
+	if len(cases) != 34 {
+		t.Fatalf("expected 34 thinking probe cases, got %d", len(cases))
 	}
 	if cases[0].CaseID != "thinking_baseline_no_thinking" {
+		t.Fatalf("unexpected first case %q", cases[0].CaseID)
+	}
+}
+
+func TestLoadToolsProviderCases(t *testing.T) {
+	root, err := findProjectRoot()
+	if err != nil {
+		t.Fatalf("find project root: %v", err)
+	}
+	server := &Server{root: root}
+	manifest, cases, err := server.loadProvider("tools")
+	if err != nil {
+		t.Fatalf("load tools provider: %v", err)
+	}
+	if manifest.Provider != "tools" {
+		t.Fatalf("expected tools provider, got %q", manifest.Provider)
+	}
+	if len(cases) != 7 {
+		t.Fatalf("expected 7 tools probe cases, got %d", len(cases))
+	}
+	if cases[0].CaseID != "tools_auto" {
+		t.Fatalf("unexpected first case %q", cases[0].CaseID)
+	}
+}
+
+func TestLoadResponseFormatProvider(t *testing.T) {
+	root, err := findProjectRoot()
+	if err != nil {
+		t.Fatalf("find project root: %v", err)
+	}
+	server := &Server{root: root}
+	manifest, cases, err := server.loadProvider("response_format")
+	if err != nil {
+		t.Fatalf("load response_format provider: %v", err)
+	}
+	if manifest.Provider != "response_format" {
+		t.Fatalf("expected response_format provider, got %q", manifest.Provider)
+	}
+	if len(cases) != 3 {
+		t.Fatalf("expected 3 response_format probe cases, got %d", len(cases))
+	}
+	if cases[0].CaseID != "response_format_text" {
+		t.Fatalf("unexpected first case %q", cases[0].CaseID)
+	}
+}
+
+func TestLoadToolsMessagesProviderForEndpoint(t *testing.T) {
+	root, err := findProjectRoot()
+	if err != nil {
+		t.Fatalf("find project root: %v", err)
+	}
+	server := &Server{root: root}
+	manifest, cases, err := server.loadProviderForEndpoint("tools", "anthropic_messages")
+	if err != nil {
+		t.Fatalf("load tools_messages provider: %v", err)
+	}
+	if manifest.Provider != "tools_messages" {
+		t.Fatalf("expected tools_messages provider, got %q", manifest.Provider)
+	}
+	if manifest.Endpoint != "/v1/messages" {
+		t.Fatalf("expected /v1/messages endpoint, got %q", manifest.Endpoint)
+	}
+	if len(cases) != 5 {
+		t.Fatalf("expected 5 tools messages probe cases, got %d", len(cases))
+	}
+	if cases[0].CaseID != "tools_auto" {
+		t.Fatalf("unexpected first case %q", cases[0].CaseID)
+	}
+}
+
+func TestLoadThinkingMessagesProviderForEndpoint(t *testing.T) {
+	root, err := findProjectRoot()
+	if err != nil {
+		t.Fatalf("find project root: %v", err)
+	}
+	server := &Server{root: root}
+	manifest, cases, err := server.loadProviderForEndpoint("thinking", "anthropic_messages")
+	if err != nil {
+		t.Fatalf("load thinking_messages provider: %v", err)
+	}
+	if manifest.Provider != "thinking_messages" {
+		t.Fatalf("expected thinking_messages provider, got %q", manifest.Provider)
+	}
+	if manifest.Endpoint != "/messages" {
+		t.Fatalf("expected /messages endpoint, got %q", manifest.Endpoint)
+	}
+	if len(cases) != 7 {
+		t.Fatalf("expected 7 thinking messages probe cases, got %d", len(cases))
+	}
+	if cases[0].CaseID != "thinking_baseline_no_thinking" {
+		t.Fatalf("unexpected first case %q", cases[0].CaseID)
+	}
+}
+
+func TestLoadResponseFormatMessagesProviderForEndpoint(t *testing.T) {
+	root, err := findProjectRoot()
+	if err != nil {
+		t.Fatalf("find project root: %v", err)
+	}
+	server := &Server{root: root}
+	manifest, cases, err := server.loadProviderForEndpoint("response_format", "anthropic_messages")
+	if err != nil {
+		t.Fatalf("load response_format_messages provider: %v", err)
+	}
+	if manifest.Provider != "response_format_messages" {
+		t.Fatalf("expected response_format_messages provider, got %q", manifest.Provider)
+	}
+	if manifest.Endpoint != "/messages" {
+		t.Fatalf("expected /messages endpoint, got %q", manifest.Endpoint)
+	}
+	if len(cases) != 3 {
+		t.Fatalf("expected 3 response_format messages probe cases, got %d", len(cases))
+	}
+	if cases[0].CaseID != "response_format_text" {
 		t.Fatalf("unexpected first case %q", cases[0].CaseID)
 	}
 }
@@ -1128,6 +1243,403 @@ data: [DONE]`,
 	}
 }
 
+func TestStreamIncrementalAssertionFailsOnSingleContentChunk(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus: 200,
+		RawResponse: `data: {"id":"chunk","object":"chat.completion.chunk","created":1,"model":"glm-5","choices":[{"index":0,"delta":{"content":"你好，我是 GLM。"},"finish_reason":null}]}
+data: [DONE]`,
+		StreamMetrics: &StreamMetrics{
+			SSEChunkCount:     1,
+			ContentChunkCount: 1,
+			FirstChunkMS:      4200,
+			LastChunkMS:       4200,
+		},
+	}
+	assertions := evaluateAssertions(result, map[string]any{
+		"response_mode":      "sse",
+		"stream_incremental": true,
+	})
+	assertion, ok := findAssertion(assertions, "min_content_chunks")
+	if !ok {
+		t.Fatal("min_content_chunks assertion was not emitted")
+	}
+	if assertion.Pass {
+		t.Fatal("expected single content chunk to fail stream_incremental")
+	}
+	if !strings.Contains(assertion.Message, "伪流式") {
+		t.Fatalf("expected pseudo-stream message, got %q", assertion.Message)
+	}
+}
+
+func TestStreamIncrementalAssertionPassesOnMultipleContentChunks(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus: 200,
+		RawResponse: `data: {"id":"chunk","object":"chat.completion.chunk","created":1,"model":"glm-5","choices":[{"index":0,"delta":{"content":"你"},"finish_reason":null}]}
+data: {"id":"chunk","object":"chat.completion.chunk","created":1,"model":"glm-5","choices":[{"index":0,"delta":{"content":"好"},"finish_reason":null}]}
+data: [DONE]`,
+		StreamMetrics: &StreamMetrics{
+			SSEChunkCount:     2,
+			ContentChunkCount: 2,
+			FirstChunkMS:      120,
+			LastChunkMS:       180,
+			ChunkSpreadMS:     60,
+		},
+	}
+	assertions := evaluateAssertions(result, map[string]any{
+		"response_mode":      "sse",
+		"stream_incremental": true,
+	})
+	for _, name := range []string{"min_sse_chunks", "min_content_chunks"} {
+		assertion, ok := findAssertion(assertions, name)
+		if !ok {
+			t.Fatalf("%s assertion was not emitted", name)
+		}
+		if !assertion.Pass {
+			t.Fatalf("expected %s to pass, got %q", name, assertion.Message)
+		}
+	}
+}
+
+func TestReadProviderSSEStreamCollectsMetrics(t *testing.T) {
+	body := strings.NewReader(`data: {"choices":[{"delta":{"content":"A"}}]}
+data: {"choices":[{"delta":{"content":"B"}}]}
+data: [DONE]
+`)
+	started := time.Now().Add(-200 * time.Millisecond)
+	raw, metrics, err := readProviderSSEStream(body, started)
+	if err != nil {
+		t.Fatalf("readProviderSSEStream failed: %v", err)
+	}
+	if !strings.Contains(raw, "data:") {
+		t.Fatal("expected raw SSE body")
+	}
+	if metrics.SSEChunkCount != 2 {
+		t.Fatalf("expected 2 sse chunks, got %d", metrics.SSEChunkCount)
+	}
+	if metrics.ContentChunkCount != 2 {
+		t.Fatalf("expected 2 content chunks, got %d", metrics.ContentChunkCount)
+	}
+	if metrics.ChunkSpreadMS < 0 {
+		t.Fatalf("expected non-negative chunk spread, got %d", metrics.ChunkSpreadMS)
+	}
+}
+
+func TestStreamProbeAttemptsAssertionFailsWhenAnyAttemptIsPseudoStream(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus: 200,
+		RawResponse: `data: {"choices":[{"delta":{"content":"only once"}}]}
+data: [DONE]`,
+		StreamMetrics: &StreamMetrics{SSEChunkCount: 1, ContentChunkCount: 1},
+		StreamProbeAttempts: []StreamProbeAttempt{
+			{
+				Attempt:       1,
+				HTTPStatus:    200,
+				StreamMetrics: &StreamMetrics{SSEChunkCount: 3, ContentChunkCount: 3},
+			},
+			{
+				Attempt:       2,
+				HTTPStatus:    200,
+				StreamMetrics: &StreamMetrics{SSEChunkCount: 1, ContentChunkCount: 1},
+			},
+		},
+	}
+	assertions := evaluateAssertions(result, map[string]any{
+		"response_mode":         "sse",
+		"stream_incremental":    true,
+		"stream_probe_attempts": 3,
+	})
+	assertion, ok := findAssertion(assertions, "stream_probe_attempts")
+	if !ok {
+		t.Fatal("stream_probe_attempts assertion was not emitted")
+	}
+	if assertion.Pass {
+		t.Fatal("expected stream_probe_attempts to fail when one attempt is pseudo-stream")
+	}
+	if !strings.Contains(assertion.Message, "第 2/3 次") {
+		t.Fatalf("expected attempt index in message, got %q", assertion.Message)
+	}
+}
+
+func TestStreamUsageInSSEAssertionRequiredPassesWithUsage(t *testing.T) {
+	raw := `data: {"choices":[{"delta":{"content":"hi"}}]}
+data: {"choices":[],"usage":{"prompt_tokens":1,"completion_tokens":2,"total_tokens":3}}
+data: [DONE]`
+	assertion, ok := streamUsageInSSEAssertion(raw, "required")
+	if !ok {
+		t.Fatal("expected stream_usage_in_sse assertion")
+	}
+	if !assertion.Pass {
+		t.Fatalf("expected pass, got %q", assertion.Message)
+	}
+}
+
+func TestStreamUsageInSSEAssertionRequiredFailsWithoutUsage(t *testing.T) {
+	raw := `data: {"choices":[{"delta":{"content":"hi"}}]}
+data: [DONE]`
+	assertion, ok := streamUsageInSSEAssertion(raw, "required")
+	if !ok || assertion.Pass {
+		t.Fatal("expected required mode to fail without usage")
+	}
+}
+
+func TestStreamUsageInSSEAssertionForbiddenFailsWithUsage(t *testing.T) {
+	raw := `data: {"choices":[],"usage":{"prompt_tokens":1,"completion_tokens":2,"total_tokens":3}}
+data: [DONE]`
+	assertion, ok := streamUsageInSSEAssertion(raw, "forbidden")
+	if !ok || assertion.Pass {
+		t.Fatal("expected forbidden mode to fail when usage present")
+	}
+}
+
+func TestStreamUsageInSSEAssertionObservedAlwaysPasses(t *testing.T) {
+	for _, raw := range []string{
+		`data: {"choices":[{"delta":{"content":"hi"}}]}
+data: [DONE]`,
+		`data: {"choices":[],"usage":{"prompt_tokens":1,"completion_tokens":2,"total_tokens":3}}
+data: [DONE]`,
+	} {
+		assertion, ok := streamUsageInSSEAssertion(raw, "observed")
+		if !ok || !assertion.Pass {
+			t.Fatalf("expected observed mode to always pass for %q", raw)
+		}
+	}
+}
+
+func TestPopulateStreamUsagePresent(t *testing.T) {
+	present := true
+	result := RunCaseResult{
+		RequestBody: map[string]any{"stream": true},
+		RawResponse: `data: {"usage":{"prompt_tokens":1}}
+data: [DONE]`,
+	}
+	populateStreamUsagePresent(&result)
+	if result.StreamUsagePresent == nil || *result.StreamUsagePresent != present {
+		t.Fatalf("expected stream_usage_present=true, got %v", result.StreamUsagePresent)
+	}
+}
+
+func TestClassifyStreamUsageChunkProfileDedicated(t *testing.T) {
+	raw := `data: {"choices":[{"delta":{"content":"hi"},"finish_reason":null}],"usage":null}
+data: {"choices":[{"delta":{"content":""},"finish_reason":"stop"}],"usage":null}
+data: {"choices":[],"usage":{"prompt_tokens":1,"completion_tokens":2,"total_tokens":3}}
+data: [DONE]`
+	parsed := parseSSEChunks(raw)
+	profile := classifyStreamUsageChunkProfile(parsed.chunks)
+	if profile != "dedicated" {
+		t.Fatalf("expected dedicated profile, got %q", profile)
+	}
+}
+
+func TestClassifyStreamUsageChunkProfileMergedFinishReason(t *testing.T) {
+	raw := `data: {"choices":[{"delta":{"content":"hi"}}],"usage":null}
+data: {"choices":[{"delta":{"content":""},"finish_reason":"length"}],"usage":{"prompt_tokens":12,"completion_tokens":80,"total_tokens":92}}
+data: [DONE]`
+	parsed := parseSSEChunks(raw)
+	profile := classifyStreamUsageChunkProfile(parsed.chunks)
+	if profile != "merged_finish_reason" {
+		t.Fatalf("expected merged_finish_reason profile, got %q", profile)
+	}
+}
+
+func TestClassifyStreamUsageChunkProfileMissing(t *testing.T) {
+	raw := `data: {"choices":[{"delta":{"content":"hi"}}],"usage":null}
+data: {"choices":[{"delta":{"content":""},"finish_reason":"stop"}],"usage":null}
+data: [DONE]`
+	parsed := parseSSEChunks(raw)
+	profile := classifyStreamUsageChunkProfile(parsed.chunks)
+	if profile != "missing" {
+		t.Fatalf("expected missing profile, got %q", profile)
+	}
+}
+
+func TestParseSSEChunksIgnoresUsageNull(t *testing.T) {
+	raw := `data: {"choices":[{"delta":{"content":"hi"}}],"usage":null}
+data: [DONE]`
+	parsed := parseSSEChunks(raw)
+	if len(parsed.chunks) != 1 || parsed.chunks[0].hasRealUsage {
+		t.Fatal("expected usage:null chunk not to count as real usage")
+	}
+}
+
+func TestStreamUsageChunkShapeAssertionOpenAIDedicatedPasses(t *testing.T) {
+	raw := `data: {"choices":[{"delta":{"content":"hi"}}],"usage":null}
+data: {"choices":[{"delta":{"content":""},"finish_reason":"stop"}],"usage":null}
+data: {"choices":[],"usage":{"prompt_tokens":1,"completion_tokens":2,"total_tokens":3}}
+data: [DONE]`
+	assertion, ok := streamUsageChunkShapeAssertion(raw, "openai_dedicated")
+	if !ok || !assertion.Pass {
+		t.Fatalf("expected pass, got %q", assertion.Message)
+	}
+}
+
+func TestStreamUsageChunkShapeAssertionOpenAIDedicatedFailsOnMerged(t *testing.T) {
+	raw := `data: {"choices":[{"delta":{"content":"hi"}}],"usage":null}
+data: {"choices":[{"delta":{"content":""},"finish_reason":"length"}],"usage":{"prompt_tokens":12,"completion_tokens":80,"total_tokens":92}}
+data: [DONE]`
+	assertion, ok := streamUsageChunkShapeAssertion(raw, "openai_dedicated")
+	if !ok || assertion.Pass {
+		t.Fatal("expected merged usage chunk to fail openai_dedicated assertion")
+	}
+}
+
+func TestStreamUsageChunkShapeAssertionOpenAIDedicatedFailsWhenUsageNotLast(t *testing.T) {
+	raw := `data: {"choices":[],"usage":{"prompt_tokens":1,"completion_tokens":2,"total_tokens":3}}
+data: {"choices":[{"delta":{"content":""},"finish_reason":"stop"}],"usage":null}
+data: [DONE]`
+	assertion, ok := streamUsageChunkShapeAssertion(raw, "openai_dedicated")
+	if !ok || assertion.Pass {
+		t.Fatal("expected usage chunk before finish_reason to fail")
+	}
+}
+
+func TestStreamUsageChunkShapeAssertionObservedAlwaysPasses(t *testing.T) {
+	for _, raw := range []string{
+		`data: {"choices":[{"delta":{"content":"hi"}}]}
+data: [DONE]`,
+		`data: {"choices":[],"usage":{"prompt_tokens":1,"completion_tokens":2,"total_tokens":3}}
+data: [DONE]`,
+	} {
+		assertion, ok := streamUsageChunkShapeAssertion(raw, "observed")
+		if !ok || !assertion.Pass {
+			t.Fatalf("expected observed mode to always pass for %q", raw)
+		}
+	}
+}
+
+func TestPopulateStreamUsageChunkProfile(t *testing.T) {
+	result := RunCaseResult{
+		RequestBody: map[string]any{"stream": true},
+		RawResponse: `data: {"choices":[{"delta":{"content":""},"finish_reason":"stop"}],"usage":null}
+data: {"choices":[],"usage":{"prompt_tokens":1,"completion_tokens":2,"total_tokens":3}}
+data: [DONE]`,
+	}
+	populateStreamUsageChunkProfile(&result)
+	if result.StreamUsageChunkProfile == nil || *result.StreamUsageChunkProfile != "dedicated" {
+		t.Fatalf("expected dedicated profile, got %v", result.StreamUsageChunkProfile)
+	}
+	if result.StreamDoneMarkerPresent == nil || !*result.StreamDoneMarkerPresent {
+		t.Fatal("expected done marker present")
+	}
+}
+
+func TestEvaluateAssertionsStreamUsageChunkShape(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus:  200,
+		RequestBody: map[string]any{"stream": true, "stream_options": map[string]any{"include_usage": true}},
+		RawResponse: `data: {"choices":[{"delta":{"content":""},"finish_reason":"stop"}],"usage":null}
+data: {"choices":[],"usage":{"prompt_tokens":1,"completion_tokens":2,"total_tokens":3}}
+data: [DONE]`,
+	}
+	assertions := evaluateAssertions(result, map[string]any{
+		"response_mode":            "sse",
+		"stream_usage_chunk_shape": "openai_dedicated",
+	})
+	assertion, ok := findAssertion(assertions, "stream_usage_chunk_shape")
+	if !ok || !assertion.Pass {
+		t.Fatalf("expected stream_usage_chunk_shape to pass, got %v", assertion)
+	}
+}
+
+func TestClassifyOutputLengthCapPrecedenceMaxTokensWins(t *testing.T) {
+	request := map[string]any{"max_tokens": 64, "max_completion_tokens": 512}
+	response := map[string]any{
+		"choices": []any{map[string]any{"finish_reason": "length"}},
+		"usage":   map[string]any{"completion_tokens": 62},
+	}
+	profile := classifyOutputLengthCapPrecedence(200, request, response)
+	if profile != "max_tokens" {
+		t.Fatalf("expected max_tokens, got %q", profile)
+	}
+}
+
+func TestClassifyOutputLengthCapPrecedenceMaxCompletionWins(t *testing.T) {
+	request := map[string]any{"max_tokens": 512, "max_completion_tokens": 64}
+	response := map[string]any{
+		"choices": []any{map[string]any{"finish_reason": "length"}},
+		"usage":   map[string]any{"completion_tokens": 63},
+	}
+	profile := classifyOutputLengthCapPrecedence(200, request, response)
+	if profile != "max_completion_tokens" {
+		t.Fatalf("expected max_completion_tokens, got %q", profile)
+	}
+}
+
+func TestClassifyOutputLengthCapPrecedenceRejected(t *testing.T) {
+	request := map[string]any{"max_tokens": 64, "max_completion_tokens": 512}
+	profile := classifyOutputLengthCapPrecedence(400, request, nil)
+	if profile != "rejected" {
+		t.Fatalf("expected rejected, got %q", profile)
+	}
+}
+
+func TestClassifyOutputLengthCapPrecedenceSingleField(t *testing.T) {
+	request := map[string]any{"max_tokens": 64}
+	response := map[string]any{
+		"choices": []any{map[string]any{"finish_reason": "stop"}},
+		"usage":   map[string]any{"completion_tokens": 20},
+	}
+	profile := classifyOutputLengthCapPrecedence(200, request, response)
+	if profile != "single_field_only" {
+		t.Fatalf("expected single_field_only, got %q", profile)
+	}
+}
+
+func TestOutputLengthCapPrecedenceAssertionObservedAlwaysPasses(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus:  200,
+		RequestBody: map[string]any{"max_tokens": 64, "max_completion_tokens": 512},
+		ResponseBody: map[string]any{
+			"choices": []any{map[string]any{"finish_reason": "length"}},
+			"usage":   map[string]any{"completion_tokens": 64},
+		},
+	}
+	assertion, ok := outputLengthCapPrecedenceAssertion(result, "observed")
+	if !ok || !assertion.Pass {
+		t.Fatalf("expected observed to pass, got %v", assertion)
+	}
+}
+
+func TestPopulateOutputLengthMetrics(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus: 200,
+		RequestBody: map[string]any{
+			"max_tokens":            64,
+			"max_completion_tokens": 512,
+		},
+		ResponseBody: map[string]any{
+			"choices": []any{map[string]any{"finish_reason": "length"}},
+			"usage":   map[string]any{"completion_tokens": 60},
+		},
+	}
+	populateOutputLengthMetrics(&result)
+	if result.OutputLengthCapPrecedence == nil || *result.OutputLengthCapPrecedence != "max_tokens" {
+		t.Fatalf("expected max_tokens precedence, got %v", result.OutputLengthCapPrecedence)
+	}
+	if result.OutputCapEffective == nil || !*result.OutputCapEffective {
+		t.Fatalf("expected output cap effective, got %v", result.OutputCapEffective)
+	}
+}
+
+func TestEvaluateAssertionsStreamUsageObserved(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus:  200,
+		RequestBody: map[string]any{"stream": true},
+		RawResponse: `data: {"choices":[{"delta":{"content":"x"}}]}
+data: [DONE]`,
+	}
+	assertions := evaluateAssertions(result, map[string]any{
+		"response_mode":       "sse",
+		"stream_usage_in_sse": "observed",
+	})
+	assertion, ok := findAssertion(assertions, "stream_usage_in_sse")
+	if !ok || !assertion.Pass {
+		t.Fatal("expected observed stream_usage_in_sse to pass")
+	}
+	if !strings.Contains(assertion.Message, "不含") {
+		t.Fatalf("expected message about missing usage, got %q", assertion.Message)
+	}
+}
+
 func TestValidateFeishuDocumentURLAllowsWikiPage(t *testing.T) {
 	parsed, err := validateFeishuDocumentURL("https://bytedance.larkoffice.com/wiki/ILuTww7Xcimb6GkhH0mcK2f4nS7")
 	if err != nil {
@@ -1231,6 +1743,265 @@ func TestCapacityTotalContextSafetyMarginAppliesToEveryTier(t *testing.T) {
 	}
 }
 
+func TestCapacityMaxInputPayloadFixesOutput(t *testing.T) {
+	candidate := 128 * 1024
+	probe := capacityProbe{Kind: "max_input", ContextSafetyMarginRatio: 0.05}
+	payload, estimatedInputTokens, requestedOutputTokens, _, appliedMargin := capacityAttemptPayload(
+		Manifest{Provider: "siliconflow"}, probe, "test-model", candidate)
+	wantMargin := int(float64(candidate)*0.05 + 0.5)
+	if appliedMargin != wantMargin {
+		t.Fatalf("expected margin %d, got %d", wantMargin, appliedMargin)
+	}
+	if estimatedInputTokens != candidate-wantMargin {
+		t.Fatalf("expected input %d, got %d", candidate-wantMargin, estimatedInputTokens)
+	}
+	if requestedOutputTokens != 16 {
+		t.Fatalf("expected fixed output 16, got %d", requestedOutputTokens)
+	}
+	if got := payload["max_tokens"]; got != 16 {
+		t.Fatalf("expected max_tokens=16, got %#v", got)
+	}
+}
+
+func TestCapacityThinkingBudgetPayloadDialects(t *testing.T) {
+	cases := []struct {
+		field    string
+		enable   bool
+		provider string
+		check    func(t *testing.T, payload map[string]any)
+	}{
+		{
+			field: "thinking_budget", enable: true, provider: "siliconflow",
+			check: func(t *testing.T, payload map[string]any) {
+				if payload["thinking_budget"] != 4096 {
+					t.Fatalf("expected thinking_budget=4096, got %#v", payload["thinking_budget"])
+				}
+				if payload["enable_thinking"] != true {
+					t.Fatalf("expected enable_thinking=true, got %#v", payload["enable_thinking"])
+				}
+			},
+		},
+		{
+			field: "thinking.budget_tokens", provider: "deepseek",
+			check: func(t *testing.T, payload map[string]any) {
+				thinking, ok := payload["thinking"].(map[string]any)
+				if !ok || thinking["budget_tokens"] != 4096 {
+					t.Fatalf("expected thinking.budget_tokens=4096, got %#v", payload["thinking"])
+				}
+			},
+		},
+		{
+			field: "reasoning.max_tokens", provider: "openrouter",
+			check: func(t *testing.T, payload map[string]any) {
+				reasoning, ok := payload["reasoning"].(map[string]any)
+				if !ok || reasoning["max_tokens"] != 4096 {
+					t.Fatalf("expected reasoning.max_tokens=4096, got %#v", payload["reasoning"])
+				}
+			},
+		},
+	}
+	for _, tc := range cases {
+		probe := capacityProbe{Kind: "thinking_budget", ThinkingField: tc.field, EnableThinking: tc.enable}
+		payload, _, requestedOutputTokens, _, _ := capacityAttemptPayload(
+			Manifest{Provider: tc.provider}, probe, "test-model", 4096)
+		tc.check(t, payload)
+		if requestedOutputTokens != 4096+2048 {
+			t.Fatalf("provider %s expected output headroom, got %d", tc.provider, requestedOutputTokens)
+		}
+	}
+}
+
+func TestCapacityBalancedContextSplitRespectsCaps(t *testing.T) {
+	probe := capacityProbe{
+		Kind:                     "total_context",
+		ContextSafetyMarginRatio: 0.05,
+		BalancedMaxInputTokens:   96 * 1024,
+		BalancedMaxOutputTokens:  64 * 1024,
+	}
+	candidate := 128 * 1024
+	in, out, total, _ := capacityBalancedContextSplit(candidate, probe)
+	if in > probe.BalancedMaxInputTokens {
+		t.Fatalf("input %d exceeds cap %d", in, probe.BalancedMaxInputTokens)
+	}
+	if out > probe.BalancedMaxOutputTokens {
+		t.Fatalf("output %d exceeds cap %d", out, probe.BalancedMaxOutputTokens)
+	}
+	if in+out != total {
+		t.Fatalf("expected input+output==tested total, got %d+%d != %d", in, out, total)
+	}
+	// 128k context with a 96k input cap must still reach beyond the input cap.
+	if total <= probe.BalancedMaxInputTokens {
+		t.Fatalf("balanced total %d did not exceed input cap %d", total, probe.BalancedMaxInputTokens)
+	}
+}
+
+func TestEvaluateOutputCapEffective(t *testing.T) {
+	eff, _ := evaluateOutputCapEffective(capacityAttempt{Candidate: 512, FinishReason: "length", CompletionTokens: 510})
+	if !eff {
+		t.Fatal("expected length finish_reason to be effective")
+	}
+	ineff, _ := evaluateOutputCapEffective(capacityAttempt{Candidate: 512, FinishReason: "stop", CompletionTokens: 12})
+	if ineff {
+		t.Fatal("expected early stop to be ineffective")
+	}
+}
+
+func TestCapacitySummaryThinkingBudgetEffective(t *testing.T) {
+	probe := capacityProbe{Kind: "thinking_budget", ThinkingField: "thinking_budget", Candidates: []int{8192, 1024}}
+	attempts := []capacityAttempt{
+		{Candidate: 8192, Conclusion: "supported", ReasoningTokens: 4000},
+		{Candidate: 1024, Conclusion: "supported", ReasoningTokens: 900},
+	}
+	summary := capacitySummary(probe, attempts, false)
+	if summary["budget_accepted"] != true {
+		t.Fatalf("expected budget_accepted=true, got %#v", summary["budget_accepted"])
+	}
+	if summary["effective"] != true {
+		t.Fatalf("expected effective=true (reasoning scales with budget), got %#v", summary["effective"])
+	}
+	if summary["budget_max"] != 8192 {
+		t.Fatalf("expected budget_max=8192, got %#v", summary["budget_max"])
+	}
+}
+
+func TestReasoningTokensMinAssertionPasses(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus: 200,
+		ResponseBody: map[string]any{
+			"usage": map[string]any{
+				"completion_tokens_details": map[string]any{
+					"reasoning_tokens": float64(48),
+				},
+			},
+		},
+	}
+	assertions := evaluateAssertions(result, map[string]any{
+		"reasoning_tokens_min": float64(32),
+	})
+	assertion, ok := findAssertion(assertions, "reasoning_tokens_min")
+	if !ok {
+		t.Fatal("reasoning_tokens_min assertion was not emitted")
+	}
+	if !assertion.Pass {
+		t.Fatalf("expected reasoning_tokens_min to pass, got %q", assertion.Message)
+	}
+}
+
+func TestReasoningTokensMaxAssertionFails(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus: 200,
+		ResponseBody: map[string]any{
+			"usage": map[string]any{
+				"completion_tokens_details": map[string]any{
+					"reasoning_tokens": float64(96),
+				},
+			},
+		},
+	}
+	assertions := evaluateAssertions(result, map[string]any{
+		"reasoning_tokens_max": float64(64),
+	})
+	assertion, ok := findAssertion(assertions, "reasoning_tokens_max")
+	if !ok {
+		t.Fatal("reasoning_tokens_max assertion was not emitted")
+	}
+	if assertion.Pass {
+		t.Fatal("expected reasoning_tokens_max to fail when actual exceeds max")
+	}
+}
+
+func TestCompletionTokensMaxAssertionPasses(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus: 200,
+		ResponseBody: map[string]any{
+			"usage": map[string]any{
+				"completion_tokens": float64(500),
+				"completion_tokens_details": map[string]any{
+					"reasoning_tokens": float64(29),
+				},
+			},
+		},
+	}
+	assertions := evaluateAssertions(result, map[string]any{
+		"completion_tokens_max": float64(500),
+	})
+	assertion, ok := findAssertion(assertions, "completion_tokens_max")
+	if !ok {
+		t.Fatal("completion_tokens_max assertion was not emitted")
+	}
+	if !assertion.Pass {
+		t.Fatalf("expected completion_tokens_max to pass at cap, got %q", assertion.Message)
+	}
+}
+
+func TestCompletionTokensMaxAssertionFailsOffByOne(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus: 200,
+		ResponseBody: map[string]any{
+			"usage": map[string]any{
+				"completion_tokens": float64(501),
+				"completion_tokens_details": map[string]any{
+					"reasoning_tokens": float64(29),
+				},
+			},
+		},
+	}
+	assertions := evaluateAssertions(result, map[string]any{
+		"completion_tokens_max": float64(500),
+	})
+	assertion, ok := findAssertion(assertions, "completion_tokens_max")
+	if !ok {
+		t.Fatal("completion_tokens_max assertion was not emitted")
+	}
+	if assertion.Pass {
+		t.Fatal("expected completion_tokens_max to fail when completion_tokens exceeds cap by 1")
+	}
+}
+
+func TestCompletionTokensMaxInfersCapFromRequest(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus: 200,
+		RequestBody: map[string]any{
+			"max_tokens": float64(500),
+		},
+		ResponseBody: map[string]any{
+			"usage": map[string]any{
+				"completion_tokens": float64(480),
+			},
+		},
+	}
+	assertions := evaluateAssertions(result, map[string]any{
+		"completion_tokens_max": "request",
+	})
+	assertion, ok := findAssertion(assertions, "completion_tokens_max")
+	if !ok {
+		t.Fatal("completion_tokens_max assertion was not emitted")
+	}
+	if !assertion.Pass {
+		t.Fatalf("expected completion_tokens_max to pass with request-inferred cap, got %q", assertion.Message)
+	}
+}
+
+func TestPopulateThinkingTokenMetrics(t *testing.T) {
+	result := RunCaseResult{
+		ResponseBody: map[string]any{
+			"usage": map[string]any{
+				"completion_tokens_details": map[string]any{
+					"reasoning_tokens": float64(24),
+					"thinking_tokens":  float64(8),
+				},
+			},
+		},
+	}
+	populateThinkingTokenMetrics(&result)
+	if result.ReasoningTokens == nil || *result.ReasoningTokens != 24 {
+		t.Fatalf("expected reasoning_tokens=24, got %#v", result.ReasoningTokens)
+	}
+	if result.ThinkingTokens == nil || *result.ThinkingTokens != 8 {
+		t.Fatalf("expected thinking_tokens=8, got %#v", result.ThinkingTokens)
+	}
+}
+
 func findAssertion(assertions []CaseAssertion, name string) (CaseAssertion, bool) {
 	for _, assertion := range assertions {
 		if assertion.Name == name {
@@ -1238,4 +2009,226 @@ func findAssertion(assertions []CaseAssertion, name string) (CaseAssertion, bool
 		}
 	}
 	return CaseAssertion{}, false
+}
+
+func TestExtractCacheHitMetricsCachedTokens(t *testing.T) {
+	usage := map[string]any{
+		"prompt_tokens": float64(200),
+		"prompt_tokens_details": map[string]any{
+			"cached_tokens": float64(128),
+		},
+	}
+	hit, miss, prompt, field, hasField := extractCacheHitMetrics(usage)
+	if !hasField || field != "usage.prompt_tokens_details.cached_tokens" {
+		t.Fatalf("unexpected field detection: field=%q hasField=%v", field, hasField)
+	}
+	if hit != 128 || miss != 0 || prompt != 200 {
+		t.Fatalf("unexpected metrics: hit=%d miss=%d prompt=%d", hit, miss, prompt)
+	}
+	if rate := cacheHitRate(hit, miss, prompt); rate != 1.0 {
+		t.Fatalf("expected hit rate 1.0 when only cached_tokens reported, got %f", rate)
+	}
+}
+
+func TestExtractCacheHitMetricsDeepSeekFields(t *testing.T) {
+	usage := map[string]any{
+		"prompt_tokens":            float64(100),
+		"prompt_cache_hit_tokens":  float64(0),
+		"prompt_cache_miss_tokens": float64(100),
+	}
+	hit, miss, prompt, field, hasField := extractCacheHitMetrics(usage)
+	if !hasField || field != "usage.prompt_cache_hit_tokens" {
+		t.Fatalf("unexpected field detection: field=%q hasField=%v", field, hasField)
+	}
+	if hit != 0 || miss != 100 || prompt != 100 {
+		t.Fatalf("unexpected metrics: hit=%d miss=%d prompt=%d", hit, miss, prompt)
+	}
+}
+
+func TestCacheProbeConclusionHitSupported(t *testing.T) {
+	attempts := []cacheProbeAttempt{
+		{Attempt: 1, HTTPStatus: 200},
+		{
+			Attempt:   2,
+			HTTPStatus: 200,
+			Usage: map[string]any{
+				"prompt_tokens": float64(120),
+				"prompt_tokens_details": map[string]any{
+					"cached_tokens": float64(80),
+				},
+			},
+			HitTokens: 80,
+			HitRate:   80.0 / 120.0,
+			HitField:  "usage.prompt_tokens_details.cached_tokens",
+		},
+	}
+	conclusion, _, pass := cacheProbeConclusion(cacheProbe{}, attempts, attempts[1])
+	if conclusion != "supported" || !pass {
+		t.Fatalf("expected supported pass, got conclusion=%q pass=%v", conclusion, pass)
+	}
+}
+
+func TestCacheProbeConclusionZeroHitIgnored(t *testing.T) {
+	attempts := []cacheProbeAttempt{
+		{Attempt: 1, HTTPStatus: 200},
+		{
+			Attempt:   2,
+			HTTPStatus: 200,
+			Usage: map[string]any{
+				"prompt_tokens":            float64(100),
+				"prompt_cache_hit_tokens":  float64(0),
+				"prompt_cache_miss_tokens": float64(100),
+			},
+			HitTokens: 0,
+			HitField:  "usage.prompt_cache_hit_tokens",
+		},
+	}
+	conclusion, message, pass := cacheProbeConclusion(cacheProbe{}, attempts, attempts[1])
+	if conclusion != "ignored" || !pass {
+		t.Fatalf("expected ignored pass, got conclusion=%q pass=%v", conclusion, pass)
+	}
+	if !strings.Contains(message, "未观测到缓存命中") {
+		t.Fatalf("unexpected message: %q", message)
+	}
+}
+
+func TestCacheProbeConclusionMissingFieldsIgnored(t *testing.T) {
+	attempts := []cacheProbeAttempt{
+		{Attempt: 1, HTTPStatus: 200},
+		{
+			Attempt:    2,
+			HTTPStatus: 200,
+			Usage: map[string]any{
+				"prompt_tokens": float64(50),
+			},
+		},
+	}
+	conclusion, message, pass := cacheProbeConclusion(cacheProbe{}, attempts, attempts[1])
+	if conclusion != "ignored" || !pass {
+		t.Fatalf("expected ignored pass, got conclusion=%q pass=%v", conclusion, pass)
+	}
+	if !strings.Contains(message, "未暴露缓存统计") {
+		t.Fatalf("unexpected message: %q", message)
+	}
+}
+
+func TestCacheProbeSpecMinHitRate(t *testing.T) {
+	probe, ok := cacheProbeSpec(map[string]any{
+		"__cache_probe": map[string]any{
+			"kind":         "passive",
+			"min_hit_rate": 0.85,
+		},
+	})
+	if !ok || probe.MinHitRate != 0.85 {
+		t.Fatalf("unexpected probe: %#v ok=%v", probe, ok)
+	}
+}
+
+func TestCacheProbeConclusionThresholdMet(t *testing.T) {
+	probe := cacheProbe{MinHitRate: 0.85}
+	attempts := []cacheProbeAttempt{
+		{Attempt: 1, HTTPStatus: 200},
+		{
+			Attempt:    2,
+			HTTPStatus: 200,
+			Usage: map[string]any{
+				"prompt_tokens": float64(100),
+				"prompt_tokens_details": map[string]any{
+					"cached_tokens": float64(90),
+				},
+			},
+			HitTokens: 90,
+			HitRate:   0.9,
+			HitField:  "usage.prompt_tokens_details.cached_tokens",
+		},
+	}
+	conclusion, _, pass := cacheProbeConclusion(probe, attempts, attempts[1])
+	if conclusion != "supported" || !pass {
+		t.Fatalf("expected supported pass, got conclusion=%q pass=%v", conclusion, pass)
+	}
+}
+
+func TestCacheProbeConclusionThresholdBelow(t *testing.T) {
+	probe := cacheProbe{MinHitRate: 0.85}
+	attempts := []cacheProbeAttempt{
+		{Attempt: 1, HTTPStatus: 200},
+		{
+			Attempt:    2,
+			HTTPStatus: 200,
+			Usage: map[string]any{
+				"prompt_tokens":            float64(100),
+				"prompt_cache_hit_tokens":  float64(42),
+				"prompt_cache_miss_tokens": float64(58),
+			},
+			HitTokens: 42,
+			HitRate:   0.42,
+			HitField:  "usage.prompt_cache_hit_tokens",
+		},
+	}
+	conclusion, message, pass := cacheProbeConclusion(probe, attempts, attempts[1])
+	if conclusion != "schema_mismatch" || pass {
+		t.Fatalf("expected schema_mismatch fail, got conclusion=%q pass=%v message=%q", conclusion, pass, message)
+	}
+	if !strings.Contains(message, "低于阈值") {
+		t.Fatalf("unexpected message: %q", message)
+	}
+}
+
+func TestCacheProbeConclusionThresholdMissingFields(t *testing.T) {
+	probe := cacheProbe{MinHitRate: 0.85}
+	attempts := []cacheProbeAttempt{
+		{Attempt: 1, HTTPStatus: 200},
+		{
+			Attempt:    2,
+			HTTPStatus: 200,
+			Usage: map[string]any{
+				"prompt_tokens": float64(50),
+			},
+		},
+	}
+	conclusion, message, pass := cacheProbeConclusion(probe, attempts, attempts[1])
+	if conclusion != "schema_mismatch" || pass {
+		t.Fatalf("expected schema_mismatch fail, got conclusion=%q pass=%v", conclusion, pass)
+	}
+	if !strings.Contains(message, "无法判定是否达到") {
+		t.Fatalf("unexpected message: %q", message)
+	}
+}
+
+func TestCacheProbeSpec(t *testing.T) {
+	probe, ok := cacheProbeSpec(map[string]any{
+		"__cache_probe": map[string]any{
+			"kind": "passive",
+		},
+	})
+	if !ok || probe.Kind != "passive" || probe.WarmupDelayMS != 400 {
+		t.Fatalf("unexpected probe: %#v ok=%v", probe, ok)
+	}
+	if _, ok := cacheProbeSpec(map[string]any{"__cache_probe": "bad"}); ok {
+		t.Fatal("expected invalid spec to fail")
+	}
+}
+
+func TestCacheAttemptPayloadKinds(t *testing.T) {
+	manifest := Manifest{Provider: "openai", Endpoint: "/chat/completions"}
+	passive := cacheAttemptPayload(manifest, cacheProbe{Kind: "passive"}, "gpt-4o-mini")
+	if passive["prompt_cache_key"] != nil {
+		t.Fatal("passive payload should not include prompt_cache_key")
+	}
+	keyed := cacheAttemptPayload(manifest, cacheProbe{Kind: "prompt_cache_key"}, "gpt-4o-mini")
+	if keyed["prompt_cache_key"] != "provider-diff-cache-probe" {
+		t.Fatalf("expected prompt_cache_key, got %#v", keyed["prompt_cache_key"])
+	}
+	control := cacheAttemptPayload(manifest, cacheProbe{Kind: "cache_control"}, "gpt-4o-mini")
+	messages, ok := control["messages"].([]map[string]any)
+	if !ok || len(messages) == 0 {
+		t.Fatal("expected messages in cache_control payload")
+	}
+	content, ok := messages[0]["content"].([]map[string]any)
+	if !ok || len(content) == 0 {
+		t.Fatal("expected content array in cache_control payload")
+	}
+	if controlBlock, ok := content[0]["cache_control"].(map[string]any); !ok || controlBlock["type"] != "ephemeral" {
+		t.Fatalf("expected cache_control ephemeral, got %#v", content[0]["cache_control"])
+	}
 }

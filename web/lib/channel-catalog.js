@@ -260,6 +260,17 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
       models: modelRows(aliyunProtocols)
     },
     {
+      id: "aliyun-sg",
+      name: "阿里云百炼（新加坡）",
+      logo: "/assets/logos/aliyun.svg",
+      focus: true,
+      channel_id: "aliyun",
+      platformProtocols: aliyunPlatformProtocols,
+      protocolScopeNote:
+        "新加坡地域；推荐业务空间域名 https://{WorkspaceId}.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1，默认预填 legacy dashscope-intl 地址，可在 Base URL 中覆盖。",
+      models: modelRows(aliyunProtocols)
+    },
+    {
       id: "siliconflow-cn",
       name: "SiliconFlow CN",
       logo: "/assets/logos/siliconflow-mark.svg",
@@ -331,9 +342,15 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
     return window.NOCTUA_CUSTOM_EVAL_MODELS?.augmentPlatformModels?.(platforms, p) || platforms;
   }
 
+  /** OpenRouter 查不到 supported_parameters 时的 tools 能力回退表（内置测评模型默认支持）。 */
+  const evalModelToolCapableFallback = Object.fromEntries(
+    evalModelIds.map((modelId) => [modelId, true])
+  );
+
   return {
     protocolColumns,
     evalModelIds,
+    evalModelToolCapableFallback,
     getEvalModelIds: allEvalModelIds,
     evalModelVendorDefs,
     inferEvalModelVendorId,

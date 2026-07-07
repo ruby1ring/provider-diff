@@ -18,7 +18,6 @@
           <span class="nm">Noctua</span>
         </a>
         <nav class="app-nav" aria-label="Primary">
-          <a href="#performance" data-view-link="performance">性能</a>
           <details class="menu">
             <summary>集成 <span aria-hidden="true">⌄</span></summary>
             <div class="panel">
@@ -40,12 +39,14 @@
               <div class="sidebar-group-label">协议兼容性测评</div>
               <div class="sidebar-group-items">
                 <a href="#guide" data-view-link="guide">测评说明</a>
-                <a href="#channels" data-view-link="channels">测评渠道</a>
-                <a href="#protocols" data-view-link="protocols">测评协议</a>
-                <a href="#models" data-view-link="models">测评模型</a>
+                <a href="#channels" data-view-link="channels">已支持测评渠道</a>
+                <a href="#protocols" data-view-link="protocols">已支持测评协议</a>
+                <a href="#models" data-view-link="models">已支持测评模型</a>
+                <a href="#run-v02" data-view-link="run-v02">渠道参数测评工具</a>
+                <a href="#channel-reports" data-view-link="channel-reports">渠道测评报告</a>
                 <a class="is-active" href="#run-v01" data-view-link="run-v01">测评工具 V0.1</a>
-                <a href="#run-v02" data-view-link="run-v02">测评工具 V0.2</a>
-                <a href="#reports" data-view-link="reports">测评报告</a>
+                <a href="#performance" data-view-link="performance">性能工具V0.1</a>
+                <a href="#reports" data-view-link="reports">测评报告 V0.1</a>
               </div>
             </div>
             <div class="sidebar-group">
@@ -127,7 +128,7 @@
               <li>在<strong>测评工具</strong>中选择渠道与 endpoint，填写 API Key、Base URL、Model。</li>
               <li>勾选需要验证的参数 case 或组合 case，点击运行测试。</li>
               <li>查看每个 case 的支持结论、断言明细与结构 diff，必要时导出 JSON / Markdown。</li>
-              <li>在<strong>测评报告</strong>中汇总历史跑批，对比供应商兼容性与失败分布。</li>
+              <li>在<strong>测评报告 V0.1</strong>中汇总历史跑批，对比供应商兼容性与失败分布。</li>
             </ol>
           </section>
 
@@ -150,7 +151,7 @@
         <section id="channelsView" class="app-view is-hidden" data-view="channels">
           <div class="page-head">
             <div>
-              <h1>测评渠道</h1>
+              <h1>已支持测评渠道</h1>
               <p id="channelScopeNote">梳理各 API 平台已接入的文本协议（渠道名称旁标签），以及各测评模型在渠道上的协议覆盖（展开表格）。</p>
             </div>
           </div>
@@ -160,7 +161,7 @@
         <section id="protocolsView" class="app-view is-hidden" data-view="protocols">
           <div class="page-head">
             <div>
-              <h1>测评协议</h1>
+              <h1>已支持测评协议</h1>
               <p id="protocolScopeNote">在同一协议下横向对比各渠道官方 API 文档中的参数覆盖与扩展差异；矩阵数据来自 docs/*.md（2026-06-25 对照官方文档更新）。</p>
             </div>
           </div>
@@ -170,8 +171,8 @@
         <section id="modelsView" class="app-view is-hidden" data-view="models">
           <div class="page-head">
             <div>
-              <h1>测评模型</h1>
-              <p>按测评模型查询其在各渠道的 API 模型 ID 与<strong>模型级</strong>协议支持（与「测评渠道」中的渠道级协议标签相互独立）。支持模糊匹配：大小写、连字符与空格等差异。</p>
+              <h1>已支持测评模型</h1>
+              <p>按测评模型查询其在各渠道的 API 模型 ID 与<strong>模型级</strong>协议支持（与「已支持测评渠道」中的渠道级协议标签相互独立）。支持模糊匹配：大小写、连字符与空格等差异。</p>
             </div>
           </div>
           <div id="modelLookup"></div>
@@ -407,8 +408,8 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
         <section id="runViewV02" class="app-view is-hidden" data-view="run-v02">
           <div class="page-head">
             <div>
-              <h1>测评工具 V0.2</h1>
-              <p>选择测评模型、Baseline 渠道与待测评渠道，配置各渠道连接信息后执行 case 并对比响应结构差异。</p>
+              <h1>渠道参数测评工具</h1>
+              <p>选择测评模型与协议，再选 Baseline 与待测评渠道；配置连接信息后执行该协议下的 case 并对比响应结构差异。</p>
             </div>
             <button id="runV02Tests" class="btn btn-primary btn-lg" type="button" disabled>运行测试</button>
           </div>
@@ -449,16 +450,28 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
             </div>
           </section>
 
-          <section class="panel run-v02-step">
+          <section id="runV02ProtocolPanel" class="panel run-v02-step">
             <div class="sec-head">
               <div>
                 <p class="eyebrow">Step 2</p>
+                <h2>选择测评协议</h2>
+              </div>
+              <span id="runV02ProtocolHint" class="muted mono fs-xs">先选择模型</span>
+            </div>
+            <div id="runV02ProtocolPicker" class="run-v02-protocol-picker" role="tablist" aria-label="测评协议"></div>
+            <div id="runV02ProtocolMeta" class="run-v02-protocol-meta"></div>
+          </section>
+
+          <section id="runV02ChannelPanel" class="panel run-v02-step is-hidden">
+            <div class="sec-head">
+              <div>
+                <p class="eyebrow">Step 3</p>
                 <h2>选择 Baseline 与测评渠道</h2>
               </div>
-              <span id="runV02RouteHint" class="muted mono fs-xs">先选择模型</span>
+              <span id="runV02RouteHint" class="muted mono fs-xs">先选择协议</span>
             </div>
             <div class="fld run-v02-select-field">
-              <span class="lbl">Baseline 渠道与协议</span>
+              <span class="lbl">Baseline 渠道</span>
               <div id="runV02BaselineSelect" class="search-select">
                 <div id="runV02BaselineControl" class="search-select__control">
                   <input
@@ -481,7 +494,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
                   </span>
                 </div>
                 <div id="runV02BaselineMenu" class="search-select__menu is-hidden">
-                  <ul id="runV02BaselineOptions" class="search-select__options" role="listbox" aria-label="Baseline 渠道与协议"></ul>
+                  <ul id="runV02BaselineOptions" class="search-select__options" role="listbox" aria-label="Baseline 渠道"></ul>
                 </div>
               </div>
             </div>
@@ -519,7 +532,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
           <section id="runV02ConfigPanel" class="panel run-v02-step is-hidden">
             <div class="sec-head">
               <div>
-                <p class="eyebrow">Step 3</p>
+                <p class="eyebrow">Step 4</p>
                 <h2>渠道连接配置</h2>
               </div>
               <span id="runV02SelectedRoute" class="muted mono fs-xs"></span>
@@ -530,7 +543,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
           <section id="runV02CasePanel" class="panel run-v02-step is-hidden">
             <div class="sec-head">
               <div>
-                <p class="eyebrow">Step 4</p>
+                <p class="eyebrow">Step 5</p>
                 <h2>选择测评 case</h2>
               </div>
               <div class="row gap-2">
@@ -540,7 +553,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
             </div>
             <div class="case-summary">
               <span id="runV02SelectedCaseCount" class="mono">已选 0 个</span>
-              <span id="runV02CaseHint" class="muted">先选择测评分组：连通性 → 协议 / 流式 → 协议 / 采样 → 协议 / 思考模式 → 其他分组；再勾选该分组内的 case。</span>
+              <span id="runV02CaseHint" class="muted">先选择测评分组：连通性 → 流式/非流式 → 采样参数 → 思考模式 → 缓存命中率；再勾选该分组内的 case。</span>
             </div>
             <div id="runV02CaseGroupPicker" class="run-v02-case-group-picker" role="tablist" aria-label="测评 case 分组"></div>
             <div id="runV02CaseGroups" class="case-groups run-v02-case-list"></div>
@@ -562,15 +575,15 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
           <section id="runV02ResultsPanel" class="results is-hidden">
             <div class="stat-grid">
               <article class="stat-card">
-                <div class="st-top"><span class="marker" style="background: var(--status-success)"></span>符合预期</div>
+                <div class="st-top"><span class="marker" style="background: var(--status-success)"></span>断言达标</div>
                 <div class="st-val" id="runV02StatPassed">0</div>
               </article>
               <article class="stat-card">
-                <div class="st-top"><span class="marker" style="background: var(--status-warning)"></span>接受未证明 / 权限</div>
+                <div class="st-top"><span class="marker" style="background: var(--status-info)"></span>观测已记录</div>
                 <div class="st-val" id="runV02StatWarnings">0</div>
               </article>
               <article class="stat-card">
-                <div class="st-top"><span class="marker" style="background: var(--status-danger)"></span>预期外</div>
+                <div class="st-top"><span class="marker" style="background: var(--status-danger)"></span>断言未达标</div>
                 <div class="st-val" id="runV02StatFailed">0</div>
               </article>
               <article class="stat-card">
@@ -591,11 +604,11 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
                     <tr>
                       <th>Case / 参数</th>
                       <th>渠道</th>
-                      <th>分类</th>
+                      <th>评测类型</th>
                       <th>支持性</th>
-                      <th>预期</th>
+                      <th>结论</th>
                       <th>HTTP 状态</th>
-                      <th>结构差异</th>
+                      <th id="runV02ResultDiffHeader">结构差异</th>
                     </tr>
                   </thead>
                   <tbody id="runV02ResultRows"></tbody>
@@ -605,10 +618,43 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
           </section>
         </section>
 
+        <section id="channelReportsView" class="app-view is-hidden" data-view="channel-reports">
+          <div class="page-head">
+            <div>
+              <h1>渠道测评报告</h1>
+              <p>一次跑批生成一份报告：按 case × 渠道对比实测结果，区分断言型（有明确对错）与观测型（了解现状）。</p>
+            </div>
+            <div class="row gap-2">
+              <button id="clearChannelReports" class="btn btn-ghost" type="button">清空历史</button>
+            </div>
+          </div>
+
+          <section class="panel history-panel" aria-labelledby="channel-reports-title">
+            <div class="sec-head">
+              <div>
+                <p class="eyebrow">报告</p>
+                <h2 id="channel-reports-title">渠道测评汇总</h2>
+              </div>
+              <span id="channelReportsCount" class="muted mono fs-xs">0 条</span>
+            </div>
+            <div id="channelReportsSummary" class="rep-grid"></div>
+          </section>
+
+          <section class="panel" style="margin-top: var(--space-5)">
+            <div class="matrix-toolbar">
+              <div>
+                <p class="eyebrow">明细</p>
+                <h2 style="font-size: var(--text-lg); font-weight: 700">运行记录</h2>
+              </div>
+            </div>
+            <div id="channelReportsList"></div>
+          </section>
+        </section>
+
         <section id="reportsView" class="app-view is-hidden" data-view="reports">
           <div class="page-head">
             <div>
-              <h1>测评报告</h1>
+              <h1>测评报告 V0.1</h1>
               <p>汇总所有已保存测试，快速查看供应商兼容性、失败和结构差异分布。点击任意一行展开逐用例的请求、响应与断言明细。</p>
             </div>
             <div class="row gap-2">
@@ -677,7 +723,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
         <section id="performanceView" class="app-view is-hidden" data-view="performance">
           <div class="page-head">
             <div>
-              <h1>在线推理性能测试</h1>
+              <h1>性能工具V0.1</h1>
               <p>Go 版 vLLM serving benchmark：按 OpenAI-compatible SSE 流式接口统计 TTFT、TPOT、ITL、吞吐和 Goodput。</p>
             </div>
             <button id="runPerformanceBenchmark" class="btn btn-primary btn-lg" type="button">运行性能测试</button>
@@ -1000,24 +1046,36 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </div>
 
-    <script src="/web/lib/providerx-rules.js?v=noctua-param-meaning"></script>
+    <script src="/web/lib/providerx-rules.js?v=noctua-param-desc-clear"></script>
     <script src="/web/lib/channel-catalog.js?v=noctua-streamlake-logo"></script>
     <script src="/web/lib/custom-eval-models.js?v=noctua-nav42"></script>
-    <script src="/web/lib/protocol-matrix-runtime.js?v=noctua-protocol-matrix"></script>
+    <script src="/web/lib/protocol-matrix-runtime.js?v=noctua-protocol-enum"></script>
+    <script src="/web/lib/thinking-effort-analysis.js?v=noctua-thinking-effort"></script>
+    <script src="/web/lib/thinking-observed-runtime.js?v=noctua-thinking-observed"></script>
+    <script src="/web/lib/model-limits-observed-runtime.js?v=noctua-model-limits-observed"></script>
     <script src="/web/lib/error-code-catalog-runtime.js?v=noctua-error-catalog"></script>
     <script src="/web/lib/mock-data.js?v=noctua-oem-protocol"></script>
     <script src="/web/lib/model-lookup.js?v=noctua-streamlake"></script>
     <script src="/web/lib/openrouter-model-detail.js?v=noctua-model-intro"></script>
+    <script src="/web/lib/eval-model-capabilities.js?v=noctua-eval-model-capabilities"></script>
+    <script src="/web/lib/model-oem-behaviors.js?v=noctua-model-oem-behaviors-2"></script>
+    <script src="/web/lib/channel-report-intent.js?v=noctua-channel-report-intent"></script>
     <script>
       (function loadNoctuaDocs() {
         const matrixUrl = "/web/data/protocol-matrix.json";
         const errorUrl = "/web/data/error-code-catalog.json";
+        const thinkingObservedUrl = "/web/data/thinking-observed.json";
+        const modelLimitsObservedUrl = "/web/data/model-limits-observed.json";
         Promise.all([
           fetch(matrixUrl).then((r) => { if (!r.ok) throw new Error("missing " + matrixUrl); return r.json(); }),
-          fetch(errorUrl).then((r) => { if (!r.ok) throw new Error("missing " + errorUrl); return r.json(); })
-        ]).then(([matrixData, errorData]) => {
+          fetch(errorUrl).then((r) => { if (!r.ok) throw new Error("missing " + errorUrl); return r.json(); }),
+          fetch(thinkingObservedUrl).then((r) => (r.ok ? r.json() : { generatedAt: null, channels: {} })),
+          fetch(modelLimitsObservedUrl).then((r) => (r.ok ? r.json() : { generatedAt: null, channels: {}, models: {} }))
+        ]).then(([matrixData, errorData, thinkingObservedData, modelLimitsObservedData]) => {
           window.NOCTUA_PROTOCOL_MATRIX = window.NOCTUA_PROTOCOL_MATRIX_RUNTIME.createApi(matrixData);
           window.NOCTUA_ERROR_CODE_CATALOG = window.NOCTUA_ERROR_CODE_CATALOG_RUNTIME.createApi(errorData);
+          window.NOCTUA_THINKING_OBSERVED = window.NOCTUA_THINKING_OBSERVED_RUNTIME.createApi(thinkingObservedData);
+          window.NOCTUA_MODEL_LIMITS_OBSERVED = window.NOCTUA_MODEL_LIMITS_OBSERVED_RUNTIME.createApi(modelLimitsObservedData);
           window.NOCTUA_DOCS_READY = true;
           document.dispatchEvent(new Event("noctua-docs-ready"));
         }).catch((err) => {
@@ -1026,7 +1084,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
         });
       })();
     </script>
-    <script src="/web/main.js?v=noctua-protocol-thinking-combos"></script>
+    <script src="/web/main.js?v=noctua-run-v02-groups"></script>
     <script>
       if (new URLSearchParams(location.search).has("canvas-annotate")) {
         const s = document.createElement("script");

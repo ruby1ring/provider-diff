@@ -1,6 +1,6 @@
 {
   "case_id": "thinking_chat_template_kwargs_enable_true",
-  "title": "chat_template_kwargs.enable_thinking=true opens thinking",
+  "title": "chat_template_kwargs.enable_thinking=true 开启思考 · 应出现 thinking 内容；usage reasoning_tokens/thinking_tokens > 0",
   "category": "reasoning",
   "parameters": ["chat_template_kwargs.enable_thinking"],
   "requires_model_capability": "reasoning",

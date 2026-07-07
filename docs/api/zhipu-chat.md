@@ -34,29 +34,29 @@ notes: 对照 docs/api/zhipu-chat.md（2026-06-25）。temperature 范围 [0,1]�
 
 | Parameter | Type | Notes |
 |---|---|---|
-| `model` | `string` | Required. e.g. `glm-5.2`, `glm-4.7` |
-| `messages` | `array` | Required. min 1 item |
+| `model` | `string` | 必填。如 `glm-5.2`、`glm-4.7` 等。 |
+| `messages` | `array` | 必填。至少 1 条消息。 |
 
 ## Documented Request Parameters
 
 | Parameter | Type | Required | Default | Range | Notes |
 |---|---|---|---|---|---|
-| `stream` | `boolean` | no | `false` | — | SSE; ends with `data: [DONE]` |
-| `thinking` | `object` | no | — | — | GLM-4.5+ thinking control |
-| `thinking.type` | `string` | no | `enabled` | `enabled` \| `disabled` | |
-| `thinking.clear_thinking` | `boolean` | no | `true` | — | Strip historical `reasoning_content` |
-| `reasoning_effort` | `string` | no | `max` | GLM-5.2 | `max` \| `xhigh` \| `high` \| `medium` \| `low` \| `minimal` \| `none` |
-| `do_sample` | `boolean` | no | `true` | — | `false` ignores temperature/top_p |
-| `temperature` | `float` | no | `1` | [0, 1] | Model-family defaults vary |
-| `top_p` | `float` | no | `0.95` | [0.01, 1] | |
-| `max_tokens` | `integer` | no | — | 1–131072 | GLM-5.x/4.6 up to 128K |
-| `tool_stream` | `boolean` | no | `false` | — | GLM-5.x/4.6+ |
-| `tools` | `array` | no | — | max 128 | function / retrieval / web_search / mcp |
-| `tool_choice` | `string` | no | `auto` | — | Function tools: auto only |
-| `stop` | `array<string>` | no | — | max 4 | Currently single stop word |
-| `response_format` | `object` | no | `{"type":"text"}` | — | `text` \| `json_object` |
-| `request_id` | `string` | no | auto | 6–64 chars | |
-| `user_id` | `string` | no | — | 6–128 chars | End-user identifier |
+| `stream` | `boolean` | no | `false` | — | SSE 流式输出；以 `data: [DONE]` 结束。 |
+| `thinking` | `object` | no | — | — | GLM-4.5+ 思考模式控制对象。 |
+| `thinking.type` | `string` | no | `enabled` | `enabled` \| `disabled` | 思考模式开/关。 |
+| `thinking.clear_thinking` | `boolean` | no | `true` | — | 是否清除历史 `reasoning_content`。 |
+| `reasoning_effort` | `string` | no | `max` | GLM-5.2 | 推理强度：`max`、`xhigh`、`high`、`medium`、`low`、`minimal`、`none`（仅 GLM-5.2）。 |
+| `do_sample` | `boolean` | no | `true` | — | 为 `false` 时忽略 `temperature`/`top_p`。 |
+| `temperature` | `float` | no | `1` | [0, 1] | 采样温度；不同模型族默认值不同。 |
+| `top_p` | `float` | no | `0.95` | [0.01, 1] | 核采样概率阈值。 |
+| `max_tokens` | `integer` | no | — | 1–131072 | 最大输出 token；GLM-5.x/4.6 最高 128K。 |
+| `tool_stream` | `boolean` | no | `false` | — | 工具调用流式输出（GLM-5.x/4.6+）。 |
+| `tools` | `array` | no | — | 最多 128 个 | 工具类型：function / retrieval / web_search / mcp。 |
+| `tool_choice` | `string` | no | `auto` | — | 函数工具仅支持 `auto`。 |
+| `stop` | `array<string>` | no | — | 最多 4 个 | 停止词；当前仅支持单个停止词。 |
+| `response_format` | `object` | no | `{"type":"text"}` | — | 输出格式：`text` 或 `json_object`。 |
+| `request_id` | `string` | no | 自动生成 | 6–64 字符 | 请求追踪 ID。 |
+| `user_id` | `string` | no | — | 6–128 字符 | 终端用户标识。 |
 
 ## 实测：temperature 字面量
 

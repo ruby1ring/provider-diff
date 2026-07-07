@@ -53,7 +53,7 @@ notes: 对照 docs/api/ali-message.md（2026-06-25）。temperature 范围 [0,2)
 | `thinking` | `object` | no | — | — | `enabled` / `disabled` |
 | `thinking.budget_tokens` | `integer` | no | — | — | `type=enabled` 时生效 |
 | `reasoning_effort` | `string` | no | `max` | `high` \| `max` | DeepSeek-V4 系列；low/medium→high，xhigh→max |
-| `tools` | `array` | no | — | — | Function Call |
+| `tools` | `array` | no | — | — | 函数工具声明 |
 | `tool_choice` | `object` | no | `auto` | auto / any / none / tool | |
 | `output_config` | `object` | no | — | — | 结构化输出；deepseek/glm 严格 schema |
 

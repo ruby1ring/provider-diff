@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -39,6 +40,9 @@ type TestCase struct {
 	CaseID                  string            `json:"case_id"`
 	Title                   string            `json:"title"`
 	Category                string            `json:"category"`
+	CaseScope               string            `json:"case_scope,omitempty"`
+	OemVendor               string            `json:"oem_vendor,omitempty"`
+	TargetGroup             string            `json:"target_group,omitempty"`
 	Parameters              []string          `json:"parameters"`
 	RequiresModelCapability string            `json:"requires_model_capability,omitempty"`
 	Optional                bool              `json:"optional,omitempty"`
@@ -201,6 +205,31 @@ type RunCaseResult struct {
 	Assertions                []CaseAssertion `json:"assertions,omitempty"`
 	Error                     string          `json:"error,omitempty"`
 	SupportConclusion         string          `json:"support_conclusion"`
+	ReasoningTokens           *int                 `json:"reasoning_tokens,omitempty"`
+	ThinkingTokens            *int                 `json:"thinking_tokens,omitempty"`
+	StreamMetrics             *StreamMetrics       `json:"stream_metrics,omitempty"`
+	StreamProbeAttempts       []StreamProbeAttempt `json:"stream_probe_attempts,omitempty"`
+	StreamUsagePresent        *bool                `json:"stream_usage_present,omitempty"`
+	StreamUsageChunkProfile   *string              `json:"stream_usage_chunk_profile,omitempty"`
+	StreamDoneMarkerPresent   *bool                `json:"stream_done_marker_present,omitempty"`
+	OutputLengthCapPrecedence *string              `json:"output_length_cap_precedence,omitempty"`
+	OutputCapEffective        *bool                `json:"output_cap_effective,omitempty"`
+}
+
+type StreamMetrics struct {
+	SSEChunkCount     int   `json:"sse_chunk_count"`
+	ContentChunkCount int   `json:"content_chunk_count"`
+	FirstChunkMS      int64 `json:"first_chunk_ms"`
+	LastChunkMS       int64 `json:"last_chunk_ms"`
+	ChunkSpreadMS     int64 `json:"chunk_spread_ms"`
+}
+
+type StreamProbeAttempt struct {
+	Attempt       int            `json:"attempt"`
+	HTTPStatus    int            `json:"http_status"`
+	LatencyMS     int64          `json:"latency_ms"`
+	StreamMetrics *StreamMetrics `json:"stream_metrics,omitempty"`
+	Error         string         `json:"error,omitempty"`
 }
 
 type CaseAssertion struct {
@@ -1646,6 +1675,9 @@ func runProviderCase(ctx context.Context, client *http.Client, endpointURL, apiK
 	if probe, ok := capacityProbeSpec(requestBody); ok {
 		return runCapacityProbeCase(ctx, client, endpointURL, apiKey, manifest, tc, result, probe)
 	}
+	if probe, ok := cacheProbeSpec(requestBody); ok {
+		return runCacheProbeCase(ctx, client, endpointURL, apiKey, manifest, tc, result, probe)
+	}
 
 	bodyBytes, err := json.Marshal(requestBody)
 	if err != nil {
@@ -1654,6 +1686,15 @@ func runProviderCase(ctx context.Context, client *http.Client, endpointURL, apiK
 		return result
 	}
 
+	attempts := streamProbeAttemptsCount(tc.Expect)
+	if requestStreamEnabled(requestBody) && attempts > 1 {
+		return runStreamProbeCase(ctx, client, endpointURL, apiKey, manifest, tc, result, bodyBytes, attempts)
+	}
+	return executeProviderCase(ctx, client, endpointURL, apiKey, manifest, tc, result, bodyBytes)
+}
+
+func executeProviderCase(ctx context.Context, client *http.Client, endpointURL, apiKey string, manifest Manifest, tc TestCase, result RunCaseResult, bodyBytes []byte) RunCaseResult {
+	stream := requestStreamEnabled(result.RequestBody)
 	start := time.Now()
 	resp, err := doProviderRequest(ctx, client, endpointURL, apiKey, manifest, tc.Headers, bodyBytes, expectedHTTPStatus(tc.Expect))
 	result.LatencyMS = time.Since(start).Milliseconds()
@@ -1666,14 +1707,17 @@ func runProviderCase(ctx context.Context, client *http.Client, endpointURL, apiK
 
 	result.HTTPStatus = resp.StatusCode
 	result.ResponseHeaders = responseHeaders(resp.Header)
-	raw, readErr := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	raw, metrics, readErr := readProviderResponseBody(io.LimitReader(resp.Body, 4<<20), start, stream)
 	if readErr != nil {
 		result.Error = fmt.Sprintf("read response body: %v", readErr)
 		result.SupportConclusion = finalizeSupportConclusionForResult(result, readErr, tc.Expect)
 		return result
 	}
-	result.RawResponse = string(raw)
-	if parsed, ok := parseJSON(raw); ok {
+	result.RawResponse = raw
+	if metrics != nil {
+		result.StreamMetrics = metrics
+	}
+	if parsed, ok := parseJSON([]byte(raw)); ok {
 		result.ResponseBody = parsed
 	}
 	if result.HTTPStatus >= 400 {
@@ -1683,8 +1727,155 @@ func runProviderCase(ctx context.Context, client *http.Client, endpointURL, apiK
 		}
 	}
 	result.Assertions = evaluateAssertions(result, tc.Expect)
+	populateStreamUsagePresent(&result)
+	populateStreamUsageChunkProfile(&result)
+	populateOutputLengthMetrics(&result)
+	populateThinkingTokenMetrics(&result)
 	result.SupportConclusion = finalizeSupportConclusionForResult(result, nil, tc.Expect)
 	return result
+}
+
+func runStreamProbeCase(ctx context.Context, client *http.Client, endpointURL, apiKey string, manifest Manifest, tc TestCase, result RunCaseResult, bodyBytes []byte, attempts int) RunCaseResult {
+	probeAttempts := make([]StreamProbeAttempt, 0, attempts)
+	var totalLatency int64
+	lastResult := result
+
+	for i := 1; i <= attempts; i++ {
+		attemptResult := executeProviderCase(ctx, client, endpointURL, apiKey, manifest, tc, result, bodyBytes)
+		probeAttempts = append(probeAttempts, StreamProbeAttempt{
+			Attempt:       i,
+			HTTPStatus:    attemptResult.HTTPStatus,
+			LatencyMS:     attemptResult.LatencyMS,
+			StreamMetrics: attemptResult.StreamMetrics,
+			Error:         attemptResult.Error,
+		})
+		totalLatency += attemptResult.LatencyMS
+		lastResult = attemptResult
+		if attemptResult.Error != "" && attemptResult.HTTPStatus == 0 {
+			break
+		}
+	}
+
+	lastResult.StreamProbeAttempts = probeAttempts
+	lastResult.LatencyMS = totalLatency
+	lastResult.Assertions = evaluateAssertions(lastResult, tc.Expect)
+	populateStreamUsagePresent(&lastResult)
+	populateStreamUsageChunkProfile(&lastResult)
+	populateOutputLengthMetrics(&lastResult)
+	populateThinkingTokenMetrics(&lastResult)
+	lastResult.SupportConclusion = finalizeSupportConclusionForResult(lastResult, nil, tc.Expect)
+	return lastResult
+}
+
+func requestStreamEnabled(request map[string]any) bool {
+	enabled, ok := request["stream"].(bool)
+	return ok && enabled
+}
+
+func streamProbeAttemptsCount(expect map[string]any) int {
+	if expect == nil {
+		return 1
+	}
+	value, ok := intFromExpect(expect["stream_probe_attempts"])
+	if !ok || value <= 1 {
+		return 1
+	}
+	return value
+}
+
+func readProviderResponseBody(body io.Reader, started time.Time, stream bool) (string, *StreamMetrics, error) {
+	if !stream {
+		raw, err := io.ReadAll(body)
+		if err != nil {
+			return "", nil, err
+		}
+		return string(raw), nil, nil
+	}
+	raw, metrics, err := readProviderSSEStream(body, started)
+	if err != nil {
+		return raw, nil, err
+	}
+	return raw, &metrics, nil
+}
+
+func readProviderSSEStream(body io.Reader, started time.Time) (string, StreamMetrics, error) {
+	scanner := bufio.NewScanner(body)
+	scanner.Buffer(make([]byte, 0, 64*1024), 4<<20)
+	var builder strings.Builder
+	metrics := StreamMetrics{}
+	var firstContentAt time.Time
+	var lastContentAt time.Time
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		builder.WriteString(line)
+		builder.WriteByte('\n')
+
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, "data:") {
+			continue
+		}
+		dataLine := strings.TrimSpace(strings.TrimPrefix(trimmed, "data:"))
+		if dataLine == "" || dataLine == "[DONE]" {
+			continue
+		}
+		now := time.Now()
+		if metrics.SSEChunkCount == 0 {
+			metrics.FirstChunkMS = now.Sub(started).Milliseconds()
+		}
+		metrics.SSEChunkCount++
+
+		if content := sseChunkContent(dataLine); content != "" {
+			if metrics.ContentChunkCount == 0 {
+				firstContentAt = now
+			}
+			lastContentAt = now
+			metrics.ContentChunkCount++
+			metrics.LastChunkMS = now.Sub(started).Milliseconds()
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return builder.String(), metrics, err
+	}
+	if !firstContentAt.IsZero() && !lastContentAt.IsZero() {
+		metrics.ChunkSpreadMS = lastContentAt.Sub(firstContentAt).Milliseconds()
+	}
+	return builder.String(), metrics, nil
+}
+
+func sseChunkContent(dataLine string) string {
+	var chunk struct {
+		Choices []struct {
+			Text  string `json:"text"`
+			Delta struct {
+				Content any `json:"content"`
+			} `json:"delta"`
+		} `json:"choices"`
+	}
+	if err := json.Unmarshal([]byte(dataLine), &chunk); err != nil || len(chunk.Choices) == 0 {
+		return ""
+	}
+	if chunk.Choices[0].Text != "" {
+		return chunk.Choices[0].Text
+	}
+	switch value := chunk.Choices[0].Delta.Content.(type) {
+	case string:
+		return value
+	case []any:
+		var builder strings.Builder
+		for _, item := range value {
+			object, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			if text, ok := object["text"].(string); ok {
+				builder.WriteString(text)
+			}
+		}
+		return builder.String()
+	default:
+		return ""
+	}
 }
 
 type capacityProbe struct {
@@ -1692,6 +1883,17 @@ type capacityProbe struct {
 	Candidates               []int
 	ContextOutputTokens      int
 	ContextSafetyMarginRatio float64
+	// Exhaustive disables boundary early-stop so every candidate is tested.
+	// Used by effectiveness probes (max_output_effective, thinking_budget).
+	Exhaustive bool
+	// Balanced total_context: when both > 0, each context tier is split into
+	// input/output below the measured caps so the true context (which can
+	// exceed the input cap) is reached instead of being clipped by the input limit.
+	BalancedMaxInputTokens  int
+	BalancedMaxOutputTokens int
+	// thinking_budget: dialect field path and whether to also send enable_thinking.
+	ThinkingField  string
+	EnableThinking bool
 }
 
 type capacityAttempt struct {
@@ -1711,6 +1913,11 @@ type capacityAttempt struct {
 	EstimatedInputTokens      int            `json:"estimated_input_tokens,omitempty"`
 	RequestedMaxOutputTokens  int            `json:"requested_max_output_tokens,omitempty"`
 	EstimatedTotalContextToks int            `json:"estimated_total_context_tokens,omitempty"`
+	CompletionTokens          int            `json:"completion_tokens,omitempty"`
+	ReasoningTokens           int            `json:"reasoning_tokens,omitempty"`
+	RequestedThinkingBudget   int            `json:"requested_thinking_budget,omitempty"`
+	Effective                 *bool          `json:"effective,omitempty"`
+	EffectiveReason           string         `json:"effective_reason,omitempty"`
 }
 
 func capacityProbeSpec(payload map[string]any) (capacityProbe, bool) {
@@ -1724,12 +1931,12 @@ func capacityProbeSpec(payload map[string]any) (capacityProbe, bool) {
 	}
 	kind, _ := spec["kind"].(string)
 	kind = strings.TrimSpace(kind)
-	if kind != "max_output" && kind != "total_context" {
+	if !capacityKindSupported(kind) {
 		return capacityProbe{}, false
 	}
 	candidates := capacityIntSlice(spec["candidates"])
 	if len(candidates) == 0 {
-		candidates = []int{4194304, 2097152, 1048576, 524288, 262144, 131072, 65536, 32768, 16384, 8192, 4096, 2048, 1024}
+		candidates = defaultCapacityCandidates(kind)
 	}
 	sort.Sort(sort.Reverse(sort.IntSlice(candidates)))
 	outputTokens, _ := intValue(spec["context_output_tokens"])
@@ -1740,12 +1947,54 @@ func capacityProbeSpec(payload map[string]any) (capacityProbe, bool) {
 	if !ok || contextSafetyMarginRatio <= 0 || contextSafetyMarginRatio >= 1 {
 		contextSafetyMarginRatio = 0.05
 	}
-	return capacityProbe{
+	probe := capacityProbe{
 		Kind:                     kind,
 		Candidates:               candidates,
 		ContextOutputTokens:      outputTokens,
 		ContextSafetyMarginRatio: contextSafetyMarginRatio,
-	}, true
+		Exhaustive:               kind == "max_output_effective" || kind == "thinking_budget",
+	}
+	if v, ok := intValue(spec["balanced_max_input_tokens"]); ok && v > 0 {
+		probe.BalancedMaxInputTokens = v
+	}
+	if v, ok := intValue(spec["balanced_max_output_tokens"]); ok && v > 0 {
+		probe.BalancedMaxOutputTokens = v
+	}
+	if field, ok := spec["thinking_field"].(string); ok {
+		probe.ThinkingField = strings.TrimSpace(field)
+	}
+	if probe.Kind == "thinking_budget" && probe.ThinkingField == "" {
+		probe.ThinkingField = "thinking_budget"
+	}
+	if enable, ok := spec["enable_thinking"].(bool); ok {
+		probe.EnableThinking = enable
+	}
+	return probe, true
+}
+
+func capacityKindSupported(kind string) bool {
+	switch kind {
+	case "max_output", "total_context", "max_input", "max_output_effective", "thinking_budget":
+		return true
+	}
+	return false
+}
+
+var commonCapacityCandidates = []int{4194304, 2097152, 1048576, 524288, 262144, 131072, 65536, 32768, 16384, 8192, 4096, 2048, 1024}
+
+func defaultCapacityCandidates(kind string) []int {
+	switch kind {
+	case "max_output_effective":
+		return []int{512, 64}
+	case "thinking_budget":
+		return []int{32768, 16384, 8192, 4096, 2048, 1024, 512, 256, 128}
+	default:
+		return append([]int(nil), commonCapacityCandidates...)
+	}
+}
+
+func capacityIsEffectivenessKind(kind string) bool {
+	return kind == "max_output_effective" || kind == "thinking_budget"
 }
 
 func capacityIntSlice(value any) []int {
@@ -1804,6 +2053,9 @@ func runCapacityProbeCase(ctx context.Context, client *http.Client, endpointURL,
 			RequestedMaxOutputTokens:  requestedOutputTokens,
 			EstimatedTotalContextToks: estimatedInputTokens + requestedOutputTokens,
 		}
+		if probe.Kind == "thinking_budget" {
+			attempt.RequestedThinkingBudget = candidate
+		}
 		start := time.Now()
 		if err != nil {
 			attempt.LatencyMS = time.Since(start).Milliseconds()
@@ -1825,6 +2077,12 @@ func runCapacityProbeCase(ctx context.Context, client *http.Client, endpointURL,
 			if parsed, ok := parseJSON(raw); ok {
 				attempt.Usage = capacityUsageMap(parsed)
 				attempt.FinishReason = capacityFinishReason(parsed, isAnthropicMessagesEndpoint(manifest))
+				if ct, ok := capacityCompletionTokens(parsed); ok {
+					attempt.CompletionTokens = ct
+				}
+				if rt, ok := maxTokenFieldCount(parsed, "reasoning_tokens"); ok {
+					attempt.ReasoningTokens = rt
+				}
 			}
 			if readErr != nil {
 				attempt.Conclusion = "request_failed"
@@ -1841,17 +2099,24 @@ func runCapacityProbeCase(ctx context.Context, client *http.Client, endpointURL,
 			}
 			result.ResponseHeaders = responseHeaders(resp.Header)
 		}
+		if probe.Kind == "max_output_effective" && attempt.Conclusion == "supported" {
+			eff, reason := evaluateOutputCapEffective(attempt)
+			attempt.Effective = &eff
+			attempt.EffectiveReason = reason
+		}
 		attempts = append(attempts, attempt)
 
-		if attempt.Conclusion == "supported" && sawNonSupported {
-			stoppedByBoundary = true
-			break
-		}
-		if attempt.Conclusion == "supported" && !sawNonSupported {
-			break
-		}
-		if attempt.Conclusion != "supported" {
-			sawNonSupported = true
+		if !probe.Exhaustive {
+			if attempt.Conclusion == "supported" && sawNonSupported {
+				stoppedByBoundary = true
+				break
+			}
+			if attempt.Conclusion == "supported" && !sawNonSupported {
+				break
+			}
+			if attempt.Conclusion != "supported" {
+				sawNonSupported = true
+			}
 		}
 	}
 
@@ -1862,12 +2127,49 @@ func runCapacityProbeCase(ctx context.Context, client *http.Client, endpointURL,
 	if raw, err := json.Marshal(summary); err == nil {
 		result.RawResponse = string(raw)
 	}
+
+	label := capacityDisplayLabel(probe.Kind)
+	display, _ := summary["capacity_display"].(map[string]any)
+	displayText, _ := display[label].(string)
+
+	if probe.Kind == "max_output_effective" {
+		effective, _ := summary["effective"].(bool)
+		result.SupportConclusion = "supported"
+		if !effective {
+			result.SupportConclusion = "schema_mismatch"
+		}
+		result.Assertions = []CaseAssertion{{
+			Name:    "capacity_output_effective",
+			Pass:    effective,
+			Message: fmt.Sprintf("%s：%s", label, displayText),
+		}}
+		return result
+	}
+
+	if probe.Kind == "thinking_budget" {
+		accepted, _ := summary["budget_accepted"].(bool)
+		if accepted {
+			result.SupportConclusion = "supported"
+		} else {
+			result.SupportConclusion = "rejected_400"
+		}
+		result.Assertions = []CaseAssertion{{
+			Name:    "capacity_thinking_budget",
+			Pass:    accepted,
+			Message: fmt.Sprintf("%s：%s", label, displayText),
+		}}
+		if !accepted {
+			result.Error = "思考预算字段未被接受"
+		}
+		return result
+	}
+
 	if supportedMax, _ := intValue(summary["supported_max"]); supportedMax > 0 {
 		result.SupportConclusion = "supported"
 		result.Assertions = []CaseAssertion{{
 			Name:    "capacity_boundary",
 			Pass:    true,
-			Message: fmt.Sprintf("%s：%s", capacityDisplayLabel(probe.Kind), summary["supported_max_display"]),
+			Message: fmt.Sprintf("%s：%s", label, summary["supported_max_display"]),
 		}}
 		return result
 	}
@@ -1881,21 +2183,423 @@ func runCapacityProbeCase(ctx context.Context, client *http.Client, endpointURL,
 	return result
 }
 
+type cacheProbe struct {
+	Kind          string
+	WarmupDelayMS int
+	MinHitRate    float64
+}
+
+type cacheProbeAttempt struct {
+	Attempt      int            `json:"attempt"`
+	HTTPStatus   int            `json:"http_status"`
+	LatencyMS    int64          `json:"latency_ms"`
+	Usage        map[string]any `json:"usage,omitempty"`
+	HitTokens    int            `json:"hit_tokens,omitempty"`
+	MissTokens   int            `json:"miss_tokens,omitempty"`
+	PromptTokens int            `json:"prompt_tokens,omitempty"`
+	HitRate      float64        `json:"hit_rate,omitempty"`
+	HitField     string         `json:"hit_field,omitempty"`
+	Error        string         `json:"error,omitempty"`
+}
+
+func cacheProbeSpec(payload map[string]any) (cacheProbe, bool) {
+	raw, ok := payload["__cache_probe"]
+	if !ok {
+		return cacheProbe{}, false
+	}
+	spec, ok := raw.(map[string]any)
+	if !ok {
+		return cacheProbe{}, false
+	}
+	kind, _ := spec["kind"].(string)
+	kind = strings.TrimSpace(kind)
+	if !cacheKindSupported(kind) {
+		return cacheProbe{}, false
+	}
+	delayMS, _ := intValue(spec["warmup_delay_ms"])
+	if delayMS <= 0 {
+		delayMS = 400
+	}
+	minHitRate, ok := floatValue(spec["min_hit_rate"])
+	if !ok || minHitRate < 0 {
+		minHitRate = 0
+	}
+	if minHitRate > 1 {
+		minHitRate = 1
+	}
+	return cacheProbe{Kind: kind, WarmupDelayMS: delayMS, MinHitRate: minHitRate}, true
+}
+
+func cacheKindSupported(kind string) bool {
+	switch kind {
+	case "passive", "prompt_cache_key", "cache_control":
+		return true
+	default:
+		return false
+	}
+}
+
+func cacheProbeLongContext() string {
+	const block = "Provider-diff cache probe. Repeatable context block: compatibility testing records whether request fields are supported, ignored, or rejected. This sentence is repeated to exceed the passive cache threshold. "
+	return strings.Repeat(block, 12)
+}
+
+func cacheAttemptPayload(manifest Manifest, probe cacheProbe, model string) map[string]any {
+	contextText := cacheProbeLongContext()
+	userPrompt := "Reply with the word cached."
+	messagesEndpoint := isAnthropicMessagesEndpoint(manifest)
+
+	switch probe.Kind {
+	case "prompt_cache_key":
+		return map[string]any{
+			"model": model,
+			"messages": []map[string]any{
+				{"role": "system", "content": contextText},
+				{"role": "user", "content": userPrompt},
+			},
+			"prompt_cache_key": "provider-diff-cache-probe",
+			"max_completion_tokens": 20,
+		}
+	case "cache_control":
+		if messagesEndpoint {
+			return map[string]any{
+				"model": model,
+				"max_tokens": 64,
+				"system": []map[string]any{
+					{
+						"type": "text",
+						"text": contextText,
+						"cache_control": map[string]any{
+							"type": "ephemeral",
+						},
+					},
+				},
+				"messages": []map[string]any{
+					{"role": "user", "content": userPrompt},
+				},
+			}
+		}
+		return map[string]any{
+			"model": model,
+			"messages": []map[string]any{
+				{
+					"role": "user",
+					"content": []map[string]any{
+						{
+							"type": "text",
+							"text": contextText,
+							"cache_control": map[string]any{
+								"type": "ephemeral",
+							},
+						},
+						{
+							"type": "text",
+							"text": userPrompt,
+						},
+					},
+				},
+			},
+			"max_completion_tokens": 20,
+		}
+	default:
+		if messagesEndpoint {
+			return map[string]any{
+				"model":      model,
+				"max_tokens": 64,
+				"system":     contextText,
+				"messages": []map[string]any{
+					{"role": "user", "content": userPrompt},
+				},
+			}
+		}
+		return map[string]any{
+			"model": model,
+			"messages": []map[string]any{
+				{"role": "system", "content": contextText},
+				{"role": "user", "content": userPrompt},
+			},
+			"max_completion_tokens": 20,
+		}
+	}
+}
+
+func extractCacheHitMetrics(usage map[string]any) (hit, miss, prompt int, field string, hasField bool) {
+	if usage == nil {
+		return 0, 0, 0, "", false
+	}
+	if details, ok := usage["prompt_tokens_details"].(map[string]any); ok {
+		if _, exists := details["cached_tokens"]; exists {
+			hit, _ = intValue(details["cached_tokens"])
+			field = "usage.prompt_tokens_details.cached_tokens"
+			hasField = true
+		}
+	}
+	if _, exists := usage["prompt_cache_hit_tokens"]; exists {
+		if field == "" {
+			if v, ok := intValue(usage["prompt_cache_hit_tokens"]); ok {
+				hit = v
+			}
+			field = "usage.prompt_cache_hit_tokens"
+		}
+		hasField = true
+	}
+	if _, exists := usage["prompt_cache_miss_tokens"]; exists {
+		if v, ok := intValue(usage["prompt_cache_miss_tokens"]); ok {
+			miss = v
+		}
+		if field == "" {
+			field = "usage.prompt_cache_miss_tokens"
+		}
+		hasField = true
+	}
+	if v, ok := intValue(usage["prompt_tokens"]); ok {
+		prompt = v
+	} else if v, ok := intValue(usage["input_tokens"]); ok {
+		prompt = v
+	}
+	return hit, miss, prompt, field, hasField
+}
+
+func cacheHitRate(hit, miss, prompt int) float64 {
+	denom := 0
+	if hit > 0 || miss > 0 {
+		denom = hit + miss
+	} else if prompt > 0 {
+		denom = prompt
+	}
+	if denom <= 0 {
+		return 0
+	}
+	return float64(hit) / float64(denom)
+}
+
+func formatCacheHitRate(rate float64) string {
+	if rate <= 0 {
+		return "0%"
+	}
+	return fmt.Sprintf("%.1f%%", rate*100)
+}
+
+func cacheUsageMap(value any) map[string]any {
+	root, ok := value.(map[string]any)
+	if !ok {
+		return nil
+	}
+	usage, ok := root["usage"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	return usage
+}
+
+func runCacheProbeCase(ctx context.Context, client *http.Client, endpointURL, apiKey string, manifest Manifest, tc TestCase, result RunCaseResult, probe cacheProbe) RunCaseResult {
+	model, _ := result.RequestBody["model"].(string)
+	if strings.TrimSpace(model) == "" {
+		model = manifest.DefaultModel
+	}
+	attemptPayload := cacheAttemptPayload(manifest, probe, model)
+	result.RequestBody = map[string]any{
+		"model":         model,
+		"__cache_probe": result.RequestBody["__cache_probe"],
+	}
+
+	attempts := make([]cacheProbeAttempt, 0, 2)
+	var totalLatency int64
+	var measureAttempt cacheProbeAttempt
+	var lastHTTPStatus int
+
+	for i := 1; i <= 2; i++ {
+		if ctx.Err() != nil {
+			attempts = append(attempts, cacheProbeAttempt{
+				Attempt: i,
+				Error:   contextErrorMessage(ctx.Err()),
+			})
+			break
+		}
+		if i == 2 && probe.WarmupDelayMS > 0 {
+			if !providerRetrySleep(ctx, time.Duration(probe.WarmupDelayMS)*time.Millisecond) {
+				attempts = append(attempts, cacheProbeAttempt{
+					Attempt: 2,
+					Error:   contextErrorMessage(ctx.Err()),
+				})
+				break
+			}
+		}
+
+		bodyBytes, err := json.Marshal(attemptPayload)
+		attempt := cacheProbeAttempt{Attempt: i}
+		start := time.Now()
+		if err != nil {
+			attempt.LatencyMS = time.Since(start).Milliseconds()
+			attempt.Error = fmt.Sprintf("marshal request body: %v", err)
+			attempts = append(attempts, attempt)
+			break
+		}
+
+		attemptResult := executeProviderCase(ctx, client, endpointURL, apiKey, manifest, tc, result, bodyBytes)
+		attempt.LatencyMS = attemptResult.LatencyMS
+		attempt.HTTPStatus = attemptResult.HTTPStatus
+		attempt.Error = attemptResult.Error
+		lastHTTPStatus = attemptResult.HTTPStatus
+		totalLatency += attemptResult.LatencyMS
+
+		if usage := cacheUsageMap(attemptResult.ResponseBody); usage != nil {
+			attempt.Usage = usage
+			hit, miss, prompt, field, _ := extractCacheHitMetrics(usage)
+			attempt.HitTokens = hit
+			attempt.MissTokens = miss
+			attempt.PromptTokens = prompt
+			attempt.HitField = field
+			attempt.HitRate = cacheHitRate(hit, miss, prompt)
+		}
+
+		attempts = append(attempts, attempt)
+		if i == 2 {
+			measureAttempt = attempt
+		}
+		if attempt.Error != "" && attempt.HTTPStatus == 0 {
+			break
+		}
+	}
+
+	summary := cacheProbeSummary(probe, attempts, measureAttempt)
+	result.HTTPStatus = lastHTTPStatus
+	result.LatencyMS = totalLatency
+	result.ResponseBody = summary
+	if raw, err := json.Marshal(summary); err == nil {
+		result.RawResponse = string(raw)
+	}
+
+	conclusion, message, pass := cacheProbeConclusion(probe, attempts, measureAttempt)
+	result.SupportConclusion = conclusion
+	result.Assertions = []CaseAssertion{{
+		Name:    "cache_hit_rate",
+		Pass:    pass,
+		Message: message,
+	}}
+	if conclusion == "request_failed" && message != "" {
+		result.Error = message
+	}
+	return result
+}
+
+func cacheProbeSummary(probe cacheProbe, attempts []cacheProbeAttempt, measure cacheProbeAttempt) map[string]any {
+	display := map[string]any{
+		"缓存命中 tokens": fmt.Sprintf("%d", measure.HitTokens),
+		"缓存命中率":      formatCacheHitRate(measure.HitRate),
+	}
+	if measure.HitField != "" {
+		display["命中字段"] = measure.HitField
+	} else {
+		display["命中字段"] = "—"
+	}
+	if probe.MinHitRate > 0 {
+		display["命中率阈值"] = formatCacheHitRate(probe.MinHitRate)
+	}
+	return map[string]any{
+		"cache_probe": map[string]any{
+			"kind":     probe.Kind,
+			"attempts": attempts,
+		},
+		"cache_display": display,
+	}
+}
+
+func cacheProbeConclusion(probe cacheProbe, attempts []cacheProbeAttempt, measure cacheProbeAttempt) (conclusion, message string, pass bool) {
+	if len(attempts) < 2 {
+		if len(attempts) == 1 && attempts[0].Error != "" {
+			return "request_failed", attempts[0].Error, false
+		}
+		return "request_failed", "缓存探测未完成两次请求", false
+	}
+	warmup := attempts[0]
+	if warmup.HTTPStatus != 200 || warmup.Error != "" {
+		msg := warmup.Error
+		if msg == "" {
+			msg = fmt.Sprintf("预热请求 HTTP %d", warmup.HTTPStatus)
+		}
+		return "request_failed", msg, false
+	}
+	if measure.HTTPStatus != 200 || measure.Error != "" {
+		msg := measure.Error
+		if msg == "" {
+			msg = fmt.Sprintf("测量请求 HTTP %d", measure.HTTPStatus)
+		}
+		return "request_failed", msg, false
+	}
+	_, _, _, field, hasField := extractCacheHitMetrics(measure.Usage)
+	if probe.MinHitRate > 0 {
+		thresholdLabel := formatCacheHitRate(probe.MinHitRate)
+		if !hasField || field == "" {
+			return "schema_mismatch", fmt.Sprintf("未暴露缓存统计，无法判定是否达到 %s", thresholdLabel), false
+		}
+		if measure.HitRate < probe.MinHitRate {
+			return "schema_mismatch", fmt.Sprintf("命中率 %s 低于阈值 %s", formatCacheHitRate(measure.HitRate), thresholdLabel), false
+		}
+		return "supported", fmt.Sprintf("缓存命中 %d tokens（%s，达到阈值 %s）", measure.HitTokens, formatCacheHitRate(measure.HitRate), thresholdLabel), true
+	}
+	if !hasField || field == "" {
+		return "ignored", "未暴露缓存统计字段", true
+	}
+	if measure.HitTokens > 0 {
+		return "supported", fmt.Sprintf("缓存命中 %d tokens（%s）", measure.HitTokens, formatCacheHitRate(measure.HitRate)), true
+	}
+	return "ignored", "未观测到缓存命中（hit_tokens=0）", true
+}
+
 func capacityAttemptPayload(manifest Manifest, probe capacityProbe, model string, candidate int) (map[string]any, int, int, int, int) {
 	outputTokens := candidate
 	content := "Reply exactly: OK"
 	estimatedInputTokens := 0
 	testedTotalContextTokens := 0
 	appliedSafetyMarginTokens := 0
-	if probe.Kind == "total_context" {
-		outputTokens = probe.ContextOutputTokens
-		testedTotalContextTokens, appliedSafetyMarginTokens = capacityTestedTotalContextTokens(candidate, probe.ContextSafetyMarginRatio, outputTokens)
-		estimatedInputTokens = testedTotalContextTokens - outputTokens
-		if estimatedInputTokens < 1 {
-			estimatedInputTokens = 1
+
+	switch probe.Kind {
+	case "total_context":
+		if probe.BalancedMaxInputTokens > 0 && probe.BalancedMaxOutputTokens > 0 {
+			inputTokens, outTokens, testedTotal, margin := capacityBalancedContextSplit(candidate, probe)
+			outputTokens = outTokens
+			estimatedInputTokens = inputTokens
+			testedTotalContextTokens = testedTotal
+			appliedSafetyMarginTokens = margin
+			content = capacityLongPrompt(estimatedInputTokens)
+		} else {
+			outputTokens = probe.ContextOutputTokens
+			testedTotalContextTokens, appliedSafetyMarginTokens = capacityTestedTotalContextTokens(candidate, probe.ContextSafetyMarginRatio, outputTokens)
+			estimatedInputTokens = testedTotalContextTokens - outputTokens
+			if estimatedInputTokens < 1 {
+				estimatedInputTokens = 1
+			}
+			content = capacityLongPrompt(estimatedInputTokens)
 		}
-		content = capacityLongPrompt(estimatedInputTokens)
+	case "max_input":
+		outputTokens = 16
+		margin := int(float64(candidate)*probe.ContextSafetyMarginRatio + 0.5)
+		testedInput := candidate - margin
+		if testedInput < 1 {
+			testedInput = 1
+			margin = candidate - testedInput
+			if margin < 0 {
+				margin = 0
+			}
+		}
+		appliedSafetyMarginTokens = margin
+		estimatedInputTokens = testedInput
+		content = capacityLongPrompt(testedInput)
+	case "max_output_effective":
+		outputTokens = candidate
+		content = capacityForceLongPrompt()
+	case "thinking_budget":
+		outputTokens = candidate + 2048
+		if outputTokens > 65536 {
+			outputTokens = 65536
+		}
+		if outputTokens < 2048 {
+			outputTokens = 2048
+		}
+		content = capacityHardReasoningPrompt()
 	}
+
 	payload := map[string]any{
 		"model": model,
 		"messages": []map[string]any{
@@ -1903,7 +2607,116 @@ func capacityAttemptPayload(manifest Manifest, probe capacityProbe, model string
 		},
 		capacityOutputParameter(manifest.Provider): outputTokens,
 	}
+	if probe.Kind == "thinking_budget" {
+		applyThinkingBudget(payload, probe, candidate)
+	}
 	return payload, estimatedInputTokens, outputTokens, testedTotalContextTokens, appliedSafetyMarginTokens
+}
+
+// capacityBalancedContextSplit splits a total-context tier into input/output
+// budgets that each stay under the measured caps, so a context that exceeds the
+// input limit (e.g. 128K context with a 96K input cap) can still be reached.
+func capacityBalancedContextSplit(candidate int, probe capacityProbe) (int, int, int, int) {
+	ratio := probe.ContextSafetyMarginRatio
+	if ratio <= 0 || ratio >= 1 {
+		ratio = 0.05
+	}
+	margin := int(float64(candidate)*ratio + 0.5)
+	testedTotal := candidate - margin
+	if testedTotal < 2 {
+		testedTotal = 2
+		margin = candidate - testedTotal
+		if margin < 0 {
+			margin = 0
+		}
+	}
+	output := probe.BalancedMaxOutputTokens
+	if output > testedTotal-1 {
+		output = testedTotal - 1
+	}
+	if output < 1 {
+		output = 1
+	}
+	input := testedTotal - output
+	if input > probe.BalancedMaxInputTokens {
+		input = probe.BalancedMaxInputTokens
+		output = testedTotal - input
+		if output < 1 {
+			output = 1
+		}
+	}
+	if input < 1 {
+		input = 1
+	}
+	return input, output, testedTotal, margin
+}
+
+func applyThinkingBudget(payload map[string]any, probe capacityProbe, budget int) {
+	switch probe.ThinkingField {
+	case "thinking.budget_tokens":
+		payload["thinking"] = map[string]any{"type": "enabled", "budget_tokens": budget}
+	case "reasoning.max_tokens":
+		payload["reasoning"] = map[string]any{"max_tokens": budget, "enabled": true}
+	default:
+		payload["thinking_budget"] = budget
+		if probe.EnableThinking {
+			payload["enable_thinking"] = true
+		}
+	}
+}
+
+func capacityForceLongPrompt() string {
+	return "Write an extremely long and detailed essay about the history of computing, from the abacus to modern AI accelerators. Keep writing continuously with many sections and paragraphs, and do not stop, summarize, or conclude until you are cut off."
+}
+
+func capacityHardReasoningPrompt() string {
+	return "Think step by step in extensive detail before answering, and show all of your reasoning. " +
+		"Carefully work through every case and double-check each step: " +
+		"Three friends Alice, Bob, and Carol each pick a distinct integer from 1 to 9. " +
+		"The sum of Alice's and Bob's numbers equals twice Carol's number; Bob's number is a prime; " +
+		"Alice's number is even; and the product of all three numbers is divisible by 12. " +
+		"Enumerate the possibilities exhaustively, explain why each candidate works or fails, " +
+		"then state the final answer."
+}
+
+func capacityCompletionTokens(value any) (int, bool) {
+	root, ok := value.(map[string]any)
+	if !ok {
+		return 0, false
+	}
+	usage, ok := root["usage"].(map[string]any)
+	if !ok {
+		return 0, false
+	}
+	for _, key := range []string{"completion_tokens", "output_tokens"} {
+		if v, ok := intValue(usage[key]); ok {
+			return v, true
+		}
+	}
+	return 0, false
+}
+
+func finishReasonIsLength(reason string) bool {
+	switch strings.ToLower(strings.TrimSpace(reason)) {
+	case "length", "max_tokens", "max_output_tokens", "output_limit", "model_length":
+		return true
+	}
+	return false
+}
+
+func evaluateOutputCapEffective(attempt capacityAttempt) (bool, string) {
+	cap := attempt.Candidate
+	ct := attempt.CompletionTokens
+	if finishReasonIsLength(attempt.FinishReason) {
+		if ct > 0 {
+			return true, fmt.Sprintf("finish_reason=%s，completion_tokens=%d≈cap %d", attempt.FinishReason, ct, cap)
+		}
+		return true, fmt.Sprintf("finish_reason=%s（无 completion_tokens 计数）", attempt.FinishReason)
+	}
+	if ct > 0 && cap > 0 && ct >= cap-cap/5 && ct <= cap+cap/5 {
+		return true, fmt.Sprintf("completion_tokens=%d≈cap %d（finish_reason=%s）", ct, cap, attempt.FinishReason)
+	}
+	return false, fmt.Sprintf("未被截断：finish_reason=%s，completion_tokens=%d，cap=%d（疑似被忽略）", attempt.FinishReason, ct, cap)
 }
 
 func capacityTestedTotalContextTokens(candidate int, safetyMarginRatio float64, outputTokens int) (int, int) {
@@ -1995,7 +2808,57 @@ func capacitySummary(probe capacityProbe, attempts []capacityAttempt, stoppedByB
 	}
 	topSupported := len(attempts) > 0 && attempts[0].Candidate == topCandidate && attempts[0].Conclusion == "supported"
 	upperBoundFound := supportedMax > 0 && nearestHigher != nil
+
+	var effective bool
+	var effectiveDetail string
+	var budgetAccepted bool
+	budgetRespected := true
+	var thinkLowBudget, thinkHighBudget, thinkLowRT, thinkHighRT int
+	if probe.Kind == "max_output_effective" {
+		for _, a := range attempts {
+			if a.Effective != nil && *a.Effective {
+				effective = true
+				effectiveDetail = a.EffectiveReason
+				break
+			}
+		}
+		if !effective {
+			for _, a := range attempts {
+				if a.EffectiveReason != "" {
+					effectiveDetail = a.EffectiveReason
+					break
+				}
+			}
+		}
+	}
+	if probe.Kind == "thinking_budget" {
+		budgetAccepted = supportedMax > 0
+		for _, a := range attempts {
+			if a.Conclusion != "supported" {
+				continue
+			}
+			if thinkHighBudget == 0 || a.Candidate > thinkHighBudget {
+				thinkHighBudget = a.Candidate
+				thinkHighRT = a.ReasoningTokens
+			}
+			if thinkLowBudget == 0 || a.Candidate < thinkLowBudget {
+				thinkLowBudget = a.Candidate
+				thinkLowRT = a.ReasoningTokens
+			}
+			if a.ReasoningTokens > a.Candidate {
+				budgetRespected = false
+			}
+		}
+		effective = thinkHighBudget > thinkLowBudget && thinkHighRT > thinkLowRT
+	}
+
 	display := capacityDisplayConclusion(probe.Kind, supportedMax, supportedAttempt, nearestHigher, topSupported)
+	switch probe.Kind {
+	case "max_output_effective":
+		display = capacityOutputEffectiveDisplay(effective, effectiveDetail)
+	case "thinking_budget":
+		display = capacityThinkingBudgetDisplay(budgetAccepted, supportedMax, effective, budgetRespected)
+	}
 	summary := map[string]any{
 		"kind":                    probe.Kind,
 		"label":                   capacityDisplayLabel(probe.Kind),
@@ -2030,14 +2893,74 @@ func capacitySummary(probe capacityProbe, attempts []capacityAttempt, stoppedByB
 			"error":                        nearestHigher.Error,
 		}
 	}
+	if probe.Kind == "total_context" && probe.BalancedMaxInputTokens > 0 && probe.BalancedMaxOutputTokens > 0 {
+		summary["context_method"] = "balanced"
+		summary["balanced_max_input_tokens"] = probe.BalancedMaxInputTokens
+		summary["balanced_max_output_tokens"] = probe.BalancedMaxOutputTokens
+	} else if probe.Kind == "total_context" {
+		summary["context_method"] = "input_heavy"
+	}
+	if probe.Kind == "max_output_effective" {
+		summary["effective"] = effective
+		summary["effective_detail"] = effectiveDetail
+	}
+	if probe.Kind == "thinking_budget" {
+		summary["budget_accepted"] = budgetAccepted
+		summary["budget_max"] = supportedMax
+		summary["budget_max_display"] = capacityTierDisplay(supportedMax)
+		summary["effective"] = effective
+		summary["budget_respected"] = budgetRespected
+		summary["thinking_field"] = probe.ThinkingField
+		summary["thinking_low_budget"] = thinkLowBudget
+		summary["thinking_high_budget"] = thinkHighBudget
+		summary["thinking_low_reasoning_tokens"] = thinkLowRT
+		summary["thinking_high_reasoning_tokens"] = thinkHighRT
+	}
 	return summary
 }
 
 func capacityDisplayLabel(kind string) string {
-	if kind == "total_context" {
+	switch kind {
+	case "total_context":
 		return "最大Total Context"
+	case "max_input":
+		return "最大Input"
+	case "max_output_effective":
+		return "Max Output 生效"
+	case "thinking_budget":
+		return "最大Thinking Budget"
+	default:
+		return "最大Max Output"
 	}
-	return "最大Max Output"
+}
+
+func capacityOutputEffectiveDisplay(effective bool, detail string) string {
+	if effective {
+		if detail != "" {
+			return fmt.Sprintf("生效（%s）", detail)
+		}
+		return "生效"
+	}
+	if detail != "" {
+		return fmt.Sprintf("未生效（%s）", detail)
+	}
+	return "未生效（参数疑似被忽略）"
+}
+
+func capacityThinkingBudgetDisplay(accepted bool, supportedMax int, effective, respected bool) string {
+	if !accepted {
+		return "不支持该思考预算字段"
+	}
+	parts := []string{fmt.Sprintf("最大可传 %s", capacityTierDisplay(supportedMax))}
+	if effective {
+		parts = append(parts, "实测生效")
+	} else {
+		parts = append(parts, "接受但未观察到随预算变化")
+	}
+	if !respected {
+		parts = append(parts, "reasoning_tokens 曾超出预算")
+	}
+	return strings.Join(parts, "；")
 }
 
 func capacityDisplayConclusion(kind string, supportedMax int, supportedAttempt, nearestHigher *capacityAttempt, topSupported bool) string {
@@ -2537,6 +3460,17 @@ func evaluateAssertions(result RunCaseResult, expect map[string]any) []CaseAsser
 				Message: "stream=true 且 include_usage=true 时预期 SSE chunk 中包含 usage",
 			})
 		}
+		if mode, _ := expect["stream_usage_in_sse"].(string); strings.TrimSpace(mode) != "" {
+			if assertion, ok := streamUsageInSSEAssertion(result.RawResponse, mode); ok {
+				assertions = append(assertions, assertion)
+			}
+		}
+		if shape, _ := expect["stream_usage_chunk_shape"].(string); strings.TrimSpace(shape) != "" {
+			if assertion, ok := streamUsageChunkShapeAssertion(result.RawResponse, shape); ok {
+				assertions = append(assertions, assertion)
+			}
+		}
+		assertions = appendSSEStreamAssertions(assertions, result, expect)
 		return assertions
 	}
 	if fields := stringSlice(expect["required_response_fields"]); len(fields) > 0 {
@@ -2601,6 +3535,27 @@ func evaluateAssertions(result RunCaseResult, expect map[string]any) []CaseAsser
 	}
 	if absent, _ := expect["thinking_absent"].(bool); absent {
 		assertions = append(assertions, thinkingAbsentAssertion(result.ResponseBody, expect))
+	}
+	if min, ok := intFromExpect(expect["reasoning_tokens_min"]); ok {
+		assertions = append(assertions, reasoningTokensMinAssertion(result.ResponseBody, min))
+	}
+	if max, ok := intFromExpect(expect["reasoning_tokens_max"]); ok {
+		assertions = append(assertions, reasoningTokensMaxAssertion(result.ResponseBody, max))
+	}
+	if _, ok := expect["completion_tokens_max"]; ok {
+		if assertion, ok := completionTokensMaxAssertion(result, expect); ok {
+			assertions = append(assertions, assertion)
+		}
+	}
+	if mode, _ := expect["output_length_cap_precedence"].(string); strings.TrimSpace(mode) != "" {
+		if assertion, ok := outputLengthCapPrecedenceAssertion(result, mode); ok {
+			assertions = append(assertions, assertion)
+		}
+	}
+	if mode, _ := expect["output_cap_effective"].(string); strings.TrimSpace(mode) != "" {
+		if assertion, ok := outputCapEffectiveAssertion(result, mode); ok {
+			assertions = append(assertions, assertion)
+		}
 	}
 	assertions = append(assertions, inferredAssertions(result, expect)...)
 	return assertions
@@ -3034,6 +3989,317 @@ func thinkingTokenEvidence(value any) []string {
 	return evidence
 }
 
+func intFromExpect(value any) (int, bool) {
+	return intValue(value)
+}
+
+func maxTokenFieldCount(value any, field string) (int, bool) {
+	maxCount := 0
+	found := false
+	lowerField := strings.ToLower(field)
+	walkJSONPath(value, nil, func(path []string, key string, value any) {
+		if strings.ToLower(key) != lowerField {
+			return
+		}
+		count, ok := intValue(value)
+		if !ok {
+			return
+		}
+		found = true
+		if count > maxCount {
+			maxCount = count
+		}
+	})
+	return maxCount, found
+}
+
+func populateThinkingTokenMetrics(result *RunCaseResult) {
+	if result == nil || result.ResponseBody == nil {
+		return
+	}
+	if count, ok := maxTokenFieldCount(result.ResponseBody, "reasoning_tokens"); ok {
+		result.ReasoningTokens = &count
+	}
+	if count, ok := maxTokenFieldCount(result.ResponseBody, "thinking_tokens"); ok {
+		result.ThinkingTokens = &count
+	}
+}
+
+func populateStreamUsagePresent(result *RunCaseResult) {
+	if result == nil || !requestStreamEnabled(result.RequestBody) || !looksLikeSSE(result.RawResponse) {
+		return
+	}
+	present := sseHasUsage(result.RawResponse)
+	result.StreamUsagePresent = &present
+}
+
+type sseChunk struct {
+	hasRealUsage    bool
+	choicesEmpty    bool
+	hasFinishReason bool
+}
+
+type sseChunkParseResult struct {
+	chunks            []sseChunk
+	doneMarkerPresent bool
+}
+
+func parseSSEChunks(raw string) sseChunkParseResult {
+	result := sseChunkParseResult{chunks: make([]sseChunk, 0)}
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		line = strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if line == "" {
+			continue
+		}
+		if line == "[DONE]" {
+			result.doneMarkerPresent = true
+			continue
+		}
+		parsed, ok := parseJSON([]byte(line))
+		if !ok {
+			continue
+		}
+		chunk := sseChunk{}
+		if usage, ok := valueAt(parsed, []string{"usage"}); ok {
+			if _, ok := usage.(map[string]any); ok {
+				chunk.hasRealUsage = true
+			}
+		}
+		if choices, ok := valueAt(parsed, []string{"choices"}); ok {
+			if arr, ok := choices.([]any); ok {
+				chunk.choicesEmpty = len(arr) == 0
+				for _, item := range arr {
+					choice, ok := item.(map[string]any)
+					if !ok {
+						continue
+					}
+					if finishReason, ok := valueAt(choice, []string{"finish_reason"}); ok && finishReason != nil {
+						chunk.hasFinishReason = true
+						break
+					}
+				}
+			}
+		}
+		result.chunks = append(result.chunks, chunk)
+	}
+	return result
+}
+
+func classifyStreamUsageChunkProfile(chunks []sseChunk) string {
+	hasRealUsage := false
+	hasDedicatedUsage := false
+	hasMergedFinishReason := false
+	for _, chunk := range chunks {
+		if !chunk.hasRealUsage {
+			continue
+		}
+		hasRealUsage = true
+		if chunk.hasFinishReason {
+			hasMergedFinishReason = true
+			continue
+		}
+		if chunk.choicesEmpty {
+			hasDedicatedUsage = true
+		}
+	}
+	if !hasRealUsage {
+		return "missing"
+	}
+	if hasMergedFinishReason {
+		return "merged_finish_reason"
+	}
+	if hasDedicatedUsage {
+		return "dedicated"
+	}
+	return "other"
+}
+
+func dedicatedUsageChunkIsLastBeforeDone(chunks []sseChunk) bool {
+	lastUsageIndex := -1
+	for i, chunk := range chunks {
+		if chunk.hasRealUsage && chunk.choicesEmpty && !chunk.hasFinishReason {
+			lastUsageIndex = i
+		}
+	}
+	if lastUsageIndex < 0 {
+		return false
+	}
+	for i := lastUsageIndex + 1; i < len(chunks); i++ {
+		if chunks[i].hasRealUsage {
+			return false
+		}
+	}
+	return lastUsageIndex == len(chunks)-1
+}
+
+func streamUsageChunkProfileLabel(profile string) string {
+	switch profile {
+	case "dedicated":
+		return "独立 usage chunk（choices:[]）"
+	case "merged_finish_reason":
+		return "usage 与 finish_reason 合并"
+	case "missing":
+		return "无 usage 对象"
+	case "other":
+		return "其他 usage 分片形态"
+	default:
+		return profile
+	}
+}
+
+func populateStreamUsageChunkProfile(result *RunCaseResult) {
+	if result == nil || !requestStreamEnabled(result.RequestBody) || !looksLikeSSE(result.RawResponse) {
+		return
+	}
+	parsed := parseSSEChunks(result.RawResponse)
+	profile := classifyStreamUsageChunkProfile(parsed.chunks)
+	result.StreamUsageChunkProfile = &profile
+	doneMarker := parsed.doneMarkerPresent
+	result.StreamDoneMarkerPresent = &doneMarker
+}
+
+func streamUsageChunkShapeAssertion(raw string, mode string) (CaseAssertion, bool) {
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	if mode == "" {
+		return CaseAssertion{}, false
+	}
+	parsed := parseSSEChunks(raw)
+	profile := classifyStreamUsageChunkProfile(parsed.chunks)
+	label := streamUsageChunkProfileLabel(profile)
+	switch mode {
+	case "openai_dedicated":
+		if profile != "dedicated" {
+			return CaseAssertion{
+				Name:    "stream_usage_chunk_shape",
+				Pass:    false,
+				Message: fmt.Sprintf("预期 OpenAI 独立 usage chunk，实际为 %s", label),
+			}, true
+		}
+		if !dedicatedUsageChunkIsLastBeforeDone(parsed.chunks) {
+			return CaseAssertion{
+				Name:    "stream_usage_chunk_shape",
+				Pass:    false,
+				Message: "usage chunk 存在，但不是 [DONE] 前最后一个 data chunk",
+			}, true
+		}
+		if !parsed.doneMarkerPresent {
+			return CaseAssertion{
+				Name:    "stream_usage_chunk_shape",
+				Pass:    false,
+				Message: "预期流以 data: [DONE] 结束，但未找到 [DONE]",
+			}, true
+		}
+		return CaseAssertion{
+			Name:    "stream_usage_chunk_shape",
+			Pass:    true,
+			Message: "通过：独立 usage chunk 位于 [DONE] 前",
+		}, true
+	case "observed":
+		return CaseAssertion{
+			Name:    "stream_usage_chunk_shape",
+			Pass:    true,
+			Message: fmt.Sprintf("观测：%s", label),
+		}, true
+	default:
+		return CaseAssertion{}, false
+	}
+}
+
+func streamUsageInSSEAssertion(raw string, mode string) (CaseAssertion, bool) {
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	if mode == "" {
+		return CaseAssertion{}, false
+	}
+	hasUsage := sseHasUsage(raw)
+	switch mode {
+	case "required":
+		if hasUsage {
+			return CaseAssertion{Name: "stream_usage_in_sse", Pass: true, Message: "SSE 含 usage chunk"}, true
+		}
+		return CaseAssertion{Name: "stream_usage_in_sse", Pass: false, Message: "预期 SSE 含 usage chunk，但未找到"}, true
+	case "forbidden":
+		if hasUsage {
+			return CaseAssertion{Name: "stream_usage_in_sse", Pass: false, Message: "预期 SSE 不含 usage chunk，但找到了 usage"}, true
+		}
+		return CaseAssertion{Name: "stream_usage_in_sse", Pass: true, Message: "SSE 不含 usage chunk"}, true
+	case "observed":
+		message := "观测：SSE 不含 usage chunk"
+		if hasUsage {
+			message = "观测：SSE 含 usage chunk"
+		}
+		return CaseAssertion{Name: "stream_usage_in_sse", Pass: true, Message: message}, true
+	default:
+		return CaseAssertion{}, false
+	}
+}
+
+func reasoningTokensMinAssertion(value any, min int) CaseAssertion {
+	actual, ok := maxTokenFieldCount(value, "reasoning_tokens")
+	if !ok {
+		return CaseAssertion{Name: "reasoning_tokens_min", Pass: false, Message: fmt.Sprintf("响应 usage 中缺少 reasoning_tokens；预期 >= %d", min)}
+	}
+	return CaseAssertion{
+		Name:    "reasoning_tokens_min",
+		Pass:    actual >= min,
+		Message: fmt.Sprintf("预期 reasoning_tokens >= %d，实际 %d", min, actual),
+	}
+}
+
+func reasoningTokensMaxAssertion(value any, max int) CaseAssertion {
+	actual, ok := maxTokenFieldCount(value, "reasoning_tokens")
+	if !ok {
+		return CaseAssertion{Name: "reasoning_tokens_max", Pass: false, Message: fmt.Sprintf("响应 usage 中缺少 reasoning_tokens；预期 <= %d", max)}
+	}
+	return CaseAssertion{
+		Name:    "reasoning_tokens_max",
+		Pass:    actual <= max,
+		Message: fmt.Sprintf("预期 reasoning_tokens <= %d，实际 %d", max, actual),
+	}
+}
+
+func completionTokensMaxCap(result RunCaseResult, expect map[string]any) (int, bool) {
+	if cap, ok := intFromExpect(expect["completion_tokens_max"]); ok {
+		return cap, true
+	}
+	if mode, _ := expect["completion_tokens_max"].(string); strings.EqualFold(strings.TrimSpace(mode), "request") {
+		_, cap, ok := tokenLimit(result.RequestBody)
+		return cap, ok
+	}
+	return 0, false
+}
+
+func completionTokensMaxAssertion(result RunCaseResult, expect map[string]any) (CaseAssertion, bool) {
+	cap, ok := completionTokensMaxCap(result, expect)
+	if !ok {
+		return CaseAssertion{}, false
+	}
+	actual, ok := responseCompletionTokens(result.ResponseBody)
+	if !ok {
+		return CaseAssertion{
+			Name:    "completion_tokens_max",
+			Pass:    false,
+			Message: fmt.Sprintf("响应 usage 中缺少 completion_tokens；预期 <= %d", cap),
+		}, true
+	}
+	reasoning := 0
+	if rt, ok := maxTokenFieldCount(result.ResponseBody, "reasoning_tokens"); ok {
+		reasoning = rt
+	}
+	pass := actual <= cap
+	message := fmt.Sprintf("预期 completion_tokens <= %d，实际 %d", cap, actual)
+	if !pass {
+		message = fmt.Sprintf("Completion tokens exceeded max_tokens: completion_tokens=%d > cap=%d", actual, cap)
+	}
+	if reasoning > 0 {
+		message += fmt.Sprintf(" (reasoning_tokens=%d)", reasoning)
+	}
+	return CaseAssertion{Name: "completion_tokens_max", Pass: pass, Message: message}, true
+}
+
 func emptyJSONValue(value any) bool {
 	switch typed := value.(type) {
 	case nil:
@@ -3123,6 +4389,223 @@ func tokenLimitName(request map[string]any) string {
 		return ""
 	}
 	return name
+}
+
+func outputLengthLimits(request map[string]any) (maxTokens int, hasMaxTokens bool, maxCompletion int, hasMaxCompletion bool) {
+	if request == nil {
+		return 0, false, 0, false
+	}
+	if value, ok := intFromMap(request, "max_tokens"); ok && value >= 0 {
+		maxTokens, hasMaxTokens = value, true
+	}
+	if value, ok := intFromMap(request, "max_completion_tokens"); ok && value >= 0 {
+		maxCompletion, hasMaxCompletion = value, true
+	}
+	return maxTokens, hasMaxTokens, maxCompletion, hasMaxCompletion
+}
+
+func responseCompletionTokens(responseBody any) (int, bool) {
+	if responseBody == nil {
+		return 0, false
+	}
+	if isMessagesResponse(responseBody) {
+		return nestedInt(responseBody, []string{"usage", "output_tokens"})
+	}
+	return nestedInt(responseBody, []string{"usage", "completion_tokens"})
+}
+
+func responseFinishReason(responseBody any) string {
+	if responseBody == nil {
+		return ""
+	}
+	if actual, ok := firstStringAt(responseBody, []string{"choices", "finish_reason"}); ok {
+		return actual
+	}
+	if actual, ok := firstStringAt(responseBody, []string{"choices", "stop_reason"}); ok {
+		return actual
+	}
+	if isMessagesResponse(responseBody) {
+		if actual, ok := stringAt(responseBody, []string{"stop_reason"}); ok {
+			return actual
+		}
+	}
+	return ""
+}
+
+func completionTokensNearCap(completionTokens, cap int) bool {
+	if cap <= 0 || completionTokens <= 0 {
+		return false
+	}
+	lower := cap - cap/5
+	if lower < 1 {
+		lower = 1
+	}
+	upper := cap + cap/5
+	return completionTokens >= lower && completionTokens <= upper
+}
+
+func classifyOutputLengthCapPrecedence(httpStatus int, request map[string]any, responseBody any) string {
+	if httpStatus >= 400 {
+		return "rejected"
+	}
+	maxTokens, hasMaxTokens, maxCompletion, hasMaxCompletion := outputLengthLimits(request)
+	if hasMaxTokens && hasMaxCompletion {
+		completionTokens, hasCompletion := responseCompletionTokens(responseBody)
+		finishReason := responseFinishReason(responseBody)
+		if !hasCompletion {
+			return "inconclusive"
+		}
+		if maxTokens == maxCompletion {
+			if finishReasonIsLength(finishReason) && completionTokensNearCap(completionTokens, maxTokens) {
+				return "min_wins"
+			}
+			return "inconclusive"
+		}
+		minCap := maxTokens
+		if maxCompletion < minCap {
+			minCap = maxCompletion
+		}
+		if finishReasonIsLength(finishReason) || completionTokensNearCap(completionTokens, minCap) {
+			if completionTokensNearCap(completionTokens, maxTokens) && maxTokens <= maxCompletion {
+				return "max_tokens"
+			}
+			if completionTokensNearCap(completionTokens, maxCompletion) && maxCompletion <= maxTokens {
+				return "max_completion_tokens"
+			}
+			if completionTokensNearCap(completionTokens, minCap) {
+				return "min_wins"
+			}
+		}
+		return "inconclusive"
+	}
+	if hasMaxTokens || hasMaxCompletion {
+		return "single_field_only"
+	}
+	return "inconclusive"
+}
+
+func outputLengthCapPrecedenceLabel(profile string) string {
+	switch profile {
+	case "max_tokens":
+		return "max_tokens 生效"
+	case "max_completion_tokens":
+		return "max_completion_tokens 生效"
+	case "min_wins":
+		return "取较小上限"
+	case "rejected":
+		return "双参被拒绝"
+	case "single_field_only":
+		return "仅单字段"
+	case "inconclusive":
+		return "未能判定"
+	default:
+		return profile
+	}
+}
+
+func evaluateResultOutputCapEffective(result RunCaseResult) (bool, string) {
+	_, limit, ok := tokenLimit(result.RequestBody)
+	if !ok || limit <= 0 {
+		return false, "请求未设置输出上限参数"
+	}
+	completionTokens, hasCompletion := responseCompletionTokens(result.ResponseBody)
+	finishReason := responseFinishReason(result.ResponseBody)
+	attempt := capacityAttempt{
+		Candidate:         limit,
+		CompletionTokens:  completionTokens,
+		FinishReason:      finishReason,
+	}
+	if !hasCompletion {
+		attempt.CompletionTokens = 0
+	}
+	return evaluateOutputCapEffective(attempt)
+}
+
+func populateOutputLengthMetrics(result *RunCaseResult) {
+	if result == nil || result.RequestBody == nil {
+		return
+	}
+	_, hasMaxTokens, _, hasMaxCompletion := outputLengthLimits(result.RequestBody)
+	if !hasMaxTokens && !hasMaxCompletion {
+		return
+	}
+	if hasMaxTokens && hasMaxCompletion {
+		profile := classifyOutputLengthCapPrecedence(result.HTTPStatus, result.RequestBody, result.ResponseBody)
+		result.OutputLengthCapPrecedence = &profile
+	}
+	if _, limit, ok := tokenLimit(result.RequestBody); ok && limit > 0 {
+		effective, _ := evaluateResultOutputCapEffective(*result)
+		result.OutputCapEffective = &effective
+	}
+}
+
+func outputLengthCapPrecedenceAssertion(result RunCaseResult, mode string) (CaseAssertion, bool) {
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	if mode == "" {
+		return CaseAssertion{}, false
+	}
+	profile := classifyOutputLengthCapPrecedence(result.HTTPStatus, result.RequestBody, result.ResponseBody)
+	label := outputLengthCapPrecedenceLabel(profile)
+	switch mode {
+	case "observed":
+		return CaseAssertion{
+			Name:    "output_length_cap_precedence",
+			Pass:    true,
+			Message: fmt.Sprintf("观测：%s", label),
+		}, true
+	case "max_tokens":
+		pass := profile == "max_tokens"
+		if !pass && profile == "min_wins" {
+			mt, hm, mc, hmc := outputLengthLimits(result.RequestBody)
+			pass = hm && hmc && mt <= mc
+		}
+		return CaseAssertion{
+			Name:    "output_length_cap_precedence",
+			Pass:    pass,
+			Message: fmt.Sprintf("预期 max_tokens 生效，实际 %s", label),
+		}, true
+	case "max_completion_tokens":
+		pass := profile == "max_completion_tokens"
+		if !pass && profile == "min_wins" {
+			mt, hm, mc, hmc := outputLengthLimits(result.RequestBody)
+			pass = hm && hmc && mc <= mt
+		}
+		return CaseAssertion{
+			Name:    "output_length_cap_precedence",
+			Pass:    pass,
+			Message: fmt.Sprintf("预期 max_completion_tokens 生效，实际 %s", label),
+		}, true
+	default:
+		return CaseAssertion{}, false
+	}
+}
+
+func outputCapEffectiveAssertion(result RunCaseResult, mode string) (CaseAssertion, bool) {
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	if mode == "" {
+		return CaseAssertion{}, false
+	}
+	effective, detail := evaluateResultOutputCapEffective(result)
+	switch mode {
+	case "required":
+		return CaseAssertion{
+			Name:    "output_cap_effective",
+			Pass:    effective,
+			Message: detail,
+		}, true
+	case "observed":
+		message := fmt.Sprintf("观测：输出 cap 未生效（%s）", detail)
+		if effective {
+			message = fmt.Sprintf("观测：输出 cap 生效（%s）", detail)
+		}
+		return CaseAssertion{
+			Name:    "output_cap_effective",
+			Pass:    true,
+			Message: message,
+		}, true
+	default:
+		return CaseAssertion{}, false
+	}
 }
 
 func intFromMap(object map[string]any, key string) (int, bool) {
@@ -3603,6 +5086,142 @@ func stringSlice(value any) []string {
 
 func looksLikeSSE(raw string) bool {
 	return strings.Contains(raw, "data:")
+}
+
+func effectiveStreamIncrementalExpect(expect map[string]any) (minSSEChunks, minContentChunks int, maxFirstChunkMS, minChunkSpreadMS int64) {
+	if enabled, ok := expect["stream_incremental"].(bool); ok && enabled {
+		minSSEChunks = 2
+		minContentChunks = 2
+	}
+	if value, ok := intFromExpect(expect["min_sse_chunks"]); ok && value > 0 {
+		minSSEChunks = value
+	}
+	if value, ok := intFromExpect(expect["min_content_chunks"]); ok && value > 0 {
+		minContentChunks = value
+	}
+	if value, ok := intFromExpect(expect["max_first_chunk_latency_ms"]); ok && value > 0 {
+		maxFirstChunkMS = int64(value)
+	}
+	if value, ok := intFromExpect(expect["min_chunk_spread_ms"]); ok && value > 0 {
+		minChunkSpreadMS = int64(value)
+	}
+	return minSSEChunks, minContentChunks, maxFirstChunkMS, minChunkSpreadMS
+}
+
+func appendSSEStreamAssertions(assertions []CaseAssertion, result RunCaseResult, expect map[string]any) []CaseAssertion {
+	minSSEChunks, minContentChunks, maxFirstChunkMS, minChunkSpreadMS := effectiveStreamIncrementalExpect(expect)
+	if minSSEChunks == 0 && minContentChunks == 0 && maxFirstChunkMS == 0 && minChunkSpreadMS == 0 {
+		return assertions
+	}
+	if len(result.StreamProbeAttempts) > 0 {
+		assertions = append(assertions, streamProbeAttemptsAssertion(result.StreamProbeAttempts, expect))
+		return assertions
+	}
+	if result.StreamMetrics == nil {
+		return append(assertions, CaseAssertion{
+			Name:    "stream_metrics",
+			Pass:    false,
+			Message: "未收集到流式指标",
+		})
+	}
+	return append(assertions, streamMetricsAssertions(*result.StreamMetrics, expect)...)
+}
+
+func streamMetricsAssertions(metrics StreamMetrics, expect map[string]any) []CaseAssertion {
+	minSSEChunks, minContentChunks, maxFirstChunkMS, minChunkSpreadMS := effectiveStreamIncrementalExpect(expect)
+	assertions := make([]CaseAssertion, 0, 4)
+	if minSSEChunks > 0 {
+		assertions = append(assertions, CaseAssertion{
+			Name:    "min_sse_chunks",
+			Pass:    metrics.SSEChunkCount >= minSSEChunks,
+			Message: fmt.Sprintf("预期 >= %d 个 SSE chunk，实际 %d", minSSEChunks, metrics.SSEChunkCount),
+		})
+	}
+	if minContentChunks > 0 {
+		message := fmt.Sprintf("预期 >= %d 个含 content 的 chunk，实际 %d", minContentChunks, metrics.ContentChunkCount)
+		if metrics.ContentChunkCount == 1 {
+			message = fmt.Sprintf("仅收到 1 个 content chunk（疑似伪流式），预期 >= %d", minContentChunks)
+		}
+		assertions = append(assertions, CaseAssertion{
+			Name:    "min_content_chunks",
+			Pass:    metrics.ContentChunkCount >= minContentChunks,
+			Message: message,
+		})
+	}
+	if maxFirstChunkMS > 0 {
+		assertions = append(assertions, CaseAssertion{
+			Name:    "max_first_chunk_latency_ms",
+			Pass:    metrics.FirstChunkMS <= maxFirstChunkMS,
+			Message: fmt.Sprintf("预期首包 <= %dms，实际 %dms", maxFirstChunkMS, metrics.FirstChunkMS),
+		})
+	}
+	if minChunkSpreadMS > 0 {
+		assertions = append(assertions, CaseAssertion{
+			Name:    "min_chunk_spread_ms",
+			Pass:    metrics.ChunkSpreadMS >= minChunkSpreadMS,
+			Message: fmt.Sprintf("预期 content chunk 时间跨度 >= %dms，实际 %dms", minChunkSpreadMS, metrics.ChunkSpreadMS),
+		})
+	}
+	return assertions
+}
+
+func streamProbeAttemptsAssertion(attempts []StreamProbeAttempt, expect map[string]any) CaseAssertion {
+	minSSEChunks, minContentChunks, maxFirstChunkMS, minChunkSpreadMS := effectiveStreamIncrementalExpect(expect)
+	required := streamProbeAttemptsCount(expect)
+	for _, attempt := range attempts {
+		if attempt.Error != "" {
+			return CaseAssertion{
+				Name:    "stream_probe_attempts",
+				Pass:    false,
+				Message: fmt.Sprintf("第 %d/%d 次探测请求失败：%s", attempt.Attempt, required, attempt.Error),
+			}
+		}
+		if attempt.StreamMetrics == nil {
+			return CaseAssertion{
+				Name:    "stream_probe_attempts",
+				Pass:    false,
+				Message: fmt.Sprintf("第 %d/%d 次探测未收集到流式指标", attempt.Attempt, required),
+			}
+		}
+		metrics := *attempt.StreamMetrics
+		if minSSEChunks > 0 && metrics.SSEChunkCount < minSSEChunks {
+			return CaseAssertion{
+				Name:    "stream_probe_attempts",
+				Pass:    false,
+				Message: fmt.Sprintf("第 %d/%d 次探测 SSE chunk 不足（实际 %d，预期 >= %d）", attempt.Attempt, required, metrics.SSEChunkCount, minSSEChunks),
+			}
+		}
+		if minContentChunks > 0 && metrics.ContentChunkCount < minContentChunks {
+			message := fmt.Sprintf("第 %d/%d 次探测 content chunk 不足（实际 %d，预期 >= %d）", attempt.Attempt, required, metrics.ContentChunkCount, minContentChunks)
+			if metrics.ContentChunkCount == 1 {
+				message = fmt.Sprintf("第 %d/%d 次探测仅收到 1 个 content chunk（疑似伪流式），预期 >= %d", attempt.Attempt, required, minContentChunks)
+			}
+			return CaseAssertion{
+				Name:    "stream_probe_attempts",
+				Pass:    false,
+				Message: message,
+			}
+		}
+		if maxFirstChunkMS > 0 && metrics.FirstChunkMS > maxFirstChunkMS {
+			return CaseAssertion{
+				Name:    "stream_probe_attempts",
+				Pass:    false,
+				Message: fmt.Sprintf("第 %d/%d 次探测首包延迟过高（实际 %dms，预期 <= %dms）", attempt.Attempt, required, metrics.FirstChunkMS, maxFirstChunkMS),
+			}
+		}
+		if minChunkSpreadMS > 0 && metrics.ChunkSpreadMS < minChunkSpreadMS {
+			return CaseAssertion{
+				Name:    "stream_probe_attempts",
+				Pass:    false,
+				Message: fmt.Sprintf("第 %d/%d 次探测 content chunk 时间跨度过短（实际 %dms，预期 >= %dms）", attempt.Attempt, required, metrics.ChunkSpreadMS, minChunkSpreadMS),
+			}
+		}
+	}
+	return CaseAssertion{
+		Name:    "stream_probe_attempts",
+		Pass:    true,
+		Message: fmt.Sprintf("%d 次探测均满足增量流式要求", len(attempts)),
+	}
 }
 
 func firstSSEJSON(raw string) any {

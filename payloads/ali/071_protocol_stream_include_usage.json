@@ -27,6 +27,7 @@
     "http_status": 200,
     "support_conclusion": "supported",
     "response_mode": "sse",
+    "stream_usage_in_sse": "required",
     "required_chunk_fields": [
       "id",
       "object",

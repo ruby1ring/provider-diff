@@ -1,0 +1,31 @@
+{
+  "case_id": "thinking_reasoning_effort_high",
+  "title": "reasoning_effort=high · 应出现 thinking 内容；usage tokens 应高于 low 档（配对比对）",
+  "category": "reasoning",
+  "parameters": ["reasoning_effort"],
+  "requires_model_capability": "reasoning",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use brief reasoning to compute 34 + 58, then give the final answer."
+      }
+    ],
+    "reasoning_effort": "high",
+    "max_completion_tokens": 1200,
+    "temperature": 0
+  },
+  "expect": {
+    "dialect": "reasoning_effort",
+    "axis": "intensity",
+    "enum_value": "high",
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "assistant_content_non_empty": true,
+    "notes": "强度高档；与 reasoning_effort=low 配对比较 reasoning_tokens。"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "case_id": "response_format_json_object",
+  "title": "response_format=json_object · 渠道应接受并返回合法 JSON",
+  "category": "output",
+  "parameters": [
+    "response_format"
+  ],
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Return valid JSON only. No markdown."
+      },
+      {
+        "role": "user",
+        "content": "Return a JSON object with fields provider and status."
+      }
+    ],
+    "response_format": {
+      "type": "json_object"
+    },
+    "max_tokens": 80
+  },
+  "expect": {
+    "axis": "accept",
+    "content_should_parse_as_json": true,
+    "notes": "JSON mode 仍需在 prompt 中明确要求输出 JSON。"
+  }
+}

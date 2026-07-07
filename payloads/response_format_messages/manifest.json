@@ -1,0 +1,31 @@
+{
+  "provider": "response_format_messages",
+  "base_url": "https://api.anthropic.com/v1",
+  "endpoint": "/messages",
+  "method": "POST",
+  "default_model": "claude-sonnet-4-6",
+  "notes": [
+    "Anthropic Messages 专用 response_format 探针：仅用于 anthropic_messages 协议测评。",
+    "与 payloads/response_format（Chat Completions）相互独立。",
+    "验证 Messages 兼容层是否接受 text / json_object / json_schema 输出格式参数。"
+  ],
+  "common_expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "type",
+      "role",
+      "content",
+      "model"
+    ],
+    "content_required_fields": [
+      "type"
+    ]
+  },
+  "cases": [
+    "010_response_format_text.json",
+    "011_response_format_json_object.json",
+    "012_response_format_json_schema.json"
+  ]
+}

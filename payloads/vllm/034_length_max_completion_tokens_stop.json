@@ -1,0 +1,25 @@
+{
+  "case_id": "vllm_length_max_completion_tokens_stop",
+  "title": "max_completion_tokens and stop together",
+  "category": "length",
+  "parameters": ["max_completion_tokens", "stop"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "NousResearch/Meta-Llama-3-8B-Instruct",
+    "messages": [
+      {
+        "role": "user",
+        "content": "List three short steps as 1, 2, 3."
+      }
+    ],
+    "max_completion_tokens": 48,
+    "stop": "3"
+  },
+  "expect": {
+    "http_status": 200,
+    "optional_capability_mismatch": true,
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "vLLM 可能仅接受 max_tokens；本 case 探测 max_completion_tokens 与 stop 组合。"
+  }
+}

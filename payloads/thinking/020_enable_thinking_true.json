@@ -1,6 +1,6 @@
 {
   "case_id": "thinking_enable_thinking_true",
-  "title": "enable_thinking=true opens thinking",
+  "title": "enable_thinking=true 开启思考 · 应出现 reasoning/thinking 内容；usage 中 reasoning_tokens 或 thinking_tokens > 0",
   "category": "reasoning",
   "parameters": ["enable_thinking"],
   "requires_model_capability": "reasoning",
@@ -11,13 +11,17 @@
     "messages": [
       {
         "role": "user",
-        "content": "Use brief reasoning to compute 23 + 19, then give the final answer."
+        "content": "Compute 23 + 19. Reply with one short sentence."
       }
     ],
     "enable_thinking": true,
-    "max_completion_tokens": 512
+    "max_completion_tokens": 512,
+    "temperature": 0
   },
   "expect": {
+    "dialect": "qwen_enable_thinking",
+    "axis": "switch_on",
+    "enum_value": "true",
     "http_status": 200,
     "thinking_location_probe": true,
     "thinking_evidence_required": true,

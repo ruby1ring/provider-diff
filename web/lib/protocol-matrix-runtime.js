@@ -29,6 +29,26 @@ window.NOCTUA_PROTOCOL_MATRIX_RUNTIME = (() => {
     return `${left}${minStr}, ${maxStr}${right}`;
   }
 
+  function resolveEnumValues(spec) {
+    if (!spec) return null;
+    if (Array.isArray(spec.enum) && spec.enum.length) return spec.enum;
+    if (spec.type === "boolean") return ["true", "false"];
+    return null;
+  }
+
+  function formatEnum(spec, parameter) {
+    const values = resolveEnumValues(spec);
+    if (!values?.length) return "—";
+    const joined = values.join("/");
+    if (parameter?.includes(".")) {
+      const segments = parameter.split(".");
+      const leaf = segments.pop();
+      const parent = segments.join(".");
+      return `{"${parent}": {"${leaf}": "${joined}"}}`;
+    }
+    return values.join(" · ");
+  }
+
   function formatEffective(spec) {
     if (!spec?.effective || spec.effective === "supported") return "—";
     const labels = {
@@ -39,16 +59,23 @@ window.NOCTUA_PROTOCOL_MATRIX_RUNTIME = (() => {
     return labels[spec.effective] || spec.effective;
   }
 
-  function formatSpecShort(spec) {
+  function formatSpecShort(spec, parameter) {
     if (!spec) return "—";
     const parts = [formatType(spec)];
     const def = formatDefault(spec);
     if (def !== "—") parts.push(`default ${def}`);
+    const enumText = formatEnum(spec, parameter);
+    if (enumText !== "—") parts.push(enumText);
     const range = formatRange(spec);
     if (range !== "—") parts.push(range);
     const eff = formatEffective(spec);
     if (eff !== "—") parts.push(eff);
     return parts.join(" · ");
+  }
+
+  function normalizeEnumKey(spec) {
+    const values = resolveEnumValues(spec);
+    return values?.length ? values.join("|") : null;
   }
 
   function normalizeSpec(spec) {
@@ -65,17 +92,19 @@ window.NOCTUA_PROTOCOL_MATRIX_RUNTIME = (() => {
             maxInclusive: spec.range.maxInclusive !== false
           }
         : null,
-      effective: spec.effective && spec.effective !== "supported" ? spec.effective : null
+      effective: spec.effective && spec.effective !== "supported" ? spec.effective : null,
+      enum: normalizeEnumKey(spec)
     };
     return JSON.stringify(key);
   }
 
   function diffFields(specA, specB) {
     if (!specA && !specB) return [];
-    if (!specA || !specB) return ["type", "default", "range", "effective"];
+    if (!specA || !specB) return ["type", "default", "enum", "range", "effective"];
     const fields = [];
     if (formatType(specA) !== formatType(specB)) fields.push("type");
     if (formatDefault(specA) !== formatDefault(specB)) fields.push("default");
+    if (normalizeEnumKey(specA) !== normalizeEnumKey(specB)) fields.push("enum");
     if (formatRange(specA) !== formatRange(specB)) fields.push("range");
     if (formatEffective(specA) !== formatEffective(specB)) fields.push("effective");
     return fields;
@@ -136,6 +165,19 @@ window.NOCTUA_PROTOCOL_MATRIX_RUNTIME = (() => {
     };
   }
 
+  function isMessageScopedParameter(parameter) {
+    const name = String(parameter);
+    if (name === "messages") return true;
+    return name.startsWith("messages[]") || name.startsWith("messages.");
+  }
+
+  function resolveParamDisplayCategory(category, parameter) {
+    if (isMessageScopedParameter(parameter)) return "Core";
+    if (parameter === "session_id") return "Metadata";
+    if (parameter === "logprobs" || parameter === "top_logprobs") return "Debug";
+    return category;
+  }
+
   function resolveParamSubgroup(category, parameter) {
     const submatch = /^(Reasoning|Output)\.(\w+)$/i.exec(category || "");
     if (submatch) {
@@ -163,8 +205,9 @@ window.NOCTUA_PROTOCOL_MATRIX_RUNTIME = (() => {
 
   function normalizeFlatParameter(category, parameter, required) {
     const resolved = resolveParamSubgroup(category, parameter);
+    const displayCategory = resolveParamDisplayCategory(resolved.category, parameter);
     return {
-      category: resolved.category,
+      category: displayCategory,
       parameter,
       required,
       subgroup: resolved.subgroup
@@ -254,6 +297,7 @@ window.NOCTUA_PROTOCOL_MATRIX_RUNTIME = (() => {
       formatType,
       formatDefault,
       formatRange,
+      formatEnum,
       formatEffective,
       formatSpecShort,
       normalizeSpec,

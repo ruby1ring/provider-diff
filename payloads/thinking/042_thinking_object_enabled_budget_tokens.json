@@ -1,6 +1,6 @@
 {
   "case_id": "thinking_object_enabled_budget_tokens",
-  "title": "thinking.type=enabled with budget_tokens opens thinking",
+  "title": "thinking.type=enabled + budget_tokens · 应出现 thinking 内容；usage tokens 受 budget_tokens 约束",
   "category": "reasoning",
   "parameters": ["thinking", "thinking.budget_tokens"],
   "requires_model_capability": "thinking",
@@ -21,6 +21,9 @@
     "max_completion_tokens": 1400
   },
   "expect": {
+    "dialect": "thinking_object",
+    "axis": "intensity",
+    "enum_value": "1024",
     "http_status": 200,
     "thinking_location_probe": true,
     "thinking_evidence_required": true,

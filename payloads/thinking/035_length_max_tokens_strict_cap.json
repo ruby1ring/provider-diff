@@ -1,0 +1,44 @@
+{
+  "case_id": "thinking_length_max_tokens_strict_cap",
+  "title": "OpenRouter baseline: max_tokens 硬上限（completion_tokens ≤ cap，含 reasoning）",
+  "category": "length",
+  "parameters": [
+    "stream",
+    "stream_options.include_usage",
+    "max_tokens",
+    "enable_thinking",
+    "reasoning_effort"
+  ],
+  "requires_model_capability": "reasoning",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "stream": true,
+    "stream_options": {
+      "include_usage": true
+    },
+    "temperature": 1,
+    "top_p": 1,
+    "frequency_penalty": 0,
+    "enable_thinking": true,
+    "reasoning_effort": "high",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Tell me a 1000 word bedtime story"
+      }
+    ],
+    "max_tokens": 500
+  },
+  "expect": {
+    "http_status": 200,
+    "response_mode": "sse",
+    "usage_required_fields": [
+      "prompt_tokens",
+      "completion_tokens",
+      "total_tokens"
+    ],
+    "completion_tokens_max": 500,
+    "notes": "OpenRouter provider baseline 硬规则：completion_tokens（含 reasoning_tokens）必须 ≤ max_tokens，超 1 即失败。模拟 OR 注入的默认推理参数。"
+  }
+}

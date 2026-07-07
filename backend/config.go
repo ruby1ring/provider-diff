@@ -111,6 +111,7 @@ var platformConfigKeyAliases = map[string][]string{
 	"minimax":        {"minimax"},
 	"aliyun-cn":      {"aliyun-cn", "aliyun", "ali"},
 	"aliyun-us":      {"aliyun-us", "aliyun", "ali"},
+	"aliyun-sg":      {"aliyun-sg", "aliyun", "ali"},
 	"siliconflow-cn": {"siliconflow-cn", "sf-router-cn", "siliconflow"},
 	"siliconflow-com": {"siliconflow-com", "sf-router-com", "siliconflow"},
 	"openrouter":     {"openrouter"},

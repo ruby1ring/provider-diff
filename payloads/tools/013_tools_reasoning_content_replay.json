@@ -1,0 +1,69 @@
+{
+  "case_id": "tools_reasoning_content_replay",
+  "title": "思考模式 + 工具调用：messages 须原样回传 assistant 的 reasoning_content",
+  "category": "tools",
+  "parameters": ["messages[].reasoning_content", "tools", "tool_choice", "thinking"],
+  "requires_model_capability": "thinking",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "查询上海天气并总结。"
+      },
+      {
+        "role": "assistant",
+        "content": null,
+        "reasoning_content": "用户需要实时天气，需要调用 get_current_weather。",
+        "tool_calls": [
+          {
+            "id": "call_provider_diff_weather",
+            "type": "function",
+            "function": {
+              "name": "get_current_weather",
+              "arguments": "{\"location\":\"Shanghai\",\"unit\":\"celsius\"}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_provider_diff_weather",
+        "content": "{\"temperature\":22,\"unit\":\"celsius\",\"condition\":\"cloudy\"}"
+      },
+      {
+        "role": "user",
+        "content": "请继续给出一句中文总结。"
+      }
+    ],
+    "thinking": {
+      "type": "enabled"
+    },
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_current_weather",
+          "description": "Get current weather for a city.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": { "type": "string" },
+              "unit": { "type": "string", "enum": ["celsius", "fahrenheit"] }
+            },
+            "required": ["location"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto",
+    "max_completion_tokens": 128
+  },
+  "expect": {
+    "axis": "reasoning_content_replay",
+    "notes": "思考模式下 assistant 发起 tool_calls 后，后续请求必须在 messages 中完整保留该轮 assistant 的 reasoning_content；未回传时部分渠道会 400。本 case 验证正确回传时接口能否继续生成。"
+  }
+}

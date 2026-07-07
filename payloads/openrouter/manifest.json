@@ -38,6 +38,10 @@
     "021_sampling_combo_provider_dependent.json",
     "030_length_max_completion_tokens.json",
     "031_length_deprecated_max_tokens.json",
+    "032_length_both_fields_precedence.json",
+    "033_length_max_tokens_only_effective.json",
+    "033_length_max_completion_tokens_only_effective.json",
+    "034_length_max_completion_tokens_stop.json",
     "040_reasoning_object_effort.json",
     "041_reasoning_effort_alias_probe.json",
     "042_reasoning_include_reasoning_deprecated.json",
@@ -56,6 +60,7 @@
     "067_server_tool_web_search_optional.json",
     "070_stream_basic.json",
     "071_stream_with_usage_deprecated_option.json",
+    "071c_stream_usage_chunk_shape.json",
     "072_stream_false.json",
     "072_stream_debug_echo_upstream_body.json",
     "080_multiturn_basic.json",
@@ -98,6 +103,8 @@
     "153_official_reasoning_enabled_structured_output.json",
     "154_official_reasoning_enabled_json_object.json",
     "155_official_reasoning_disabled_structured_output.json",
-    "156_official_reasoning_disabled_json_object.json"
+    "156_official_reasoning_disabled_json_object.json",
+    "157_official_reasoning_effort_high_stream.json",
+    "158_official_reasoning_effort_xhigh_stream.json"
   ]
 }

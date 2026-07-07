@@ -10,15 +10,18 @@
     "messages": [
       {
         "role": "user",
-        "content": "Stream a short greeting."
+        "content": "Stream 3 to 5 short greeting sentences incrementally, not all at once."
       }
     ],
-    "stream": true
+    "stream": true,
+    "max_tokens": 128
   },
   "expect": {
     "http_status": 200,
     "response_mode": "sse",
+    "stream_incremental": true,
+    "stream_probe_attempts": 3,
     "required_chunk_fields": ["id", "object", "created", "model", "choices"],
-    "notes": "Validate streaming protocol/chunk structure instead of a final JSON body."
+    "notes": "Validate streaming protocol/chunk structure and incremental content chunks; probe 3 times, fail if any attempt is pseudo-streaming."
   }
 }

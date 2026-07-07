@@ -8,13 +8,16 @@
   "payload": {
     "model": "claude-sonnet-4-6",
     "messages": [
-      {"role": "user", "content": "流式返回一句简短的话。"}
+      {"role": "user", "content": "请用流式方式逐句输出 3 到 5 句简短中文问候，不要一次性全部给出。"}
     ],
     "stream": true,
-    "max_completion_tokens": 60
+    "max_completion_tokens": 128
   },
   "expect": {
     "response_mode": "sse",
-    "required_chunk_fields": ["id", "object", "created", "model", "choices"]
+    "stream_incremental": true,
+    "stream_probe_attempts": 3,
+    "required_chunk_fields": ["id", "object", "created", "model", "choices"],
+    "notes": "Probe 3 times; fail if any attempt returns pseudo-streaming (single content chunk after long delay)."
   }
 }

@@ -41,6 +41,9 @@
       "model",
       "choices"
     ],
-    "notes": "Imported from docs/api/openrouter.case.md. Uses the official spelling 'origial' from the exported prompt."
+    "thinking_absent": true,
+    "reasoning_tokens_max": 0,
+    "assistant_content_non_empty": true,
+    "notes": "Imported from docs/api/openrouter.case.md. Uses the official spelling 'origial' from the exported prompt. OpenRouter baseline requires reasoning_tokens = 0 when reasoning is disabled."
   }
 }

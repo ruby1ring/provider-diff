@@ -1,0 +1,23 @@
+{
+  "provider": "response_format",
+  "base_url": "https://api.openai.com/v1",
+  "endpoint": "/chat/completions",
+  "method": "POST",
+  "default_model": "gpt-4o-mini",
+  "notes": [
+    "通用 response_format 探针（仅 Chat Completions）：运行时请把 Base URL、Model 和 API Key 改成待测渠道。",
+    "Anthropic Messages 协议请使用 payloads/response_format_messages，不在本目录混用。",
+    "P0 case 覆盖 text / json_object / json_schema 三种输出格式。"
+  ],
+  "common_expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "choice_required_fields": ["index", "message", "finish_reason"]
+  },
+  "cases": [
+    "010_response_format_text.json",
+    "011_response_format_json_object.json",
+    "012_response_format_json_schema.json"
+  ]
+}

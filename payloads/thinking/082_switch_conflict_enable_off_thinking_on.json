@@ -1,0 +1,34 @@
+{
+  "case_id": "thinking_switch_conflict_enable_off_thinking_on",
+  "title": "冲突探针：enable_thinking=false 且 thinking.type=enabled · 观测谁生效（thinking 内容与 usage tokens）",
+  "category": "reasoning",
+  "parameters": ["enable_thinking", "thinking"],
+  "requires_model_capability": "reasoning",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Compute 23 + 19. Reply with one short sentence."
+      }
+    ],
+    "enable_thinking": false,
+    "thinking": {
+      "type": "enabled"
+    },
+    "max_completion_tokens": 512,
+    "temperature": 0
+  },
+  "expect": {
+    "dialect": "qwen_enable_thinking",
+    "axis": "switch_conflict",
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "assistant_content_non_empty": true,
+    "provider_extension": true,
+    "notes": "双参矛盾时观察渠道以 enable_thinking 还是 thinking 为准；仅记录行为，不要求 thinking 证据。"
+  }
+}

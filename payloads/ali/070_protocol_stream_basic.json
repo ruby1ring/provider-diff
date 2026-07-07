@@ -12,15 +12,18 @@
     "messages": [
       {
         "role": "user",
-        "content": "流式输出一句简短问候。"
+        "content": "请用流式方式逐句输出 3 到 5 句简短中文问候，不要一次性全部给出。"
       }
     ],
-    "stream": true
+    "stream": true,
+    "max_tokens": 128
   },
   "expect": {
     "http_status": 200,
     "support_conclusion": "supported",
     "response_mode": "sse",
+    "stream_incremental": true,
+    "stream_probe_attempts": 3,
     "required_chunk_fields": [
       "id",
       "object",
@@ -28,6 +31,6 @@
       "model",
       "choices"
     ],
-    "notes": "流式 case 验证 SSE/chunk 结构，不验证普通 JSON body。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+    "notes": "流式 case 验证 SSE/chunk 结构与增量分片（至少 2 个含 content 的 chunk）；同一 case 重复探测 3 次，任一次命中伪流式（单 chunk、长延迟后一次性返回）即 fail。Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
   }
 }

@@ -1,6 +1,6 @@
 {
   "case_id": "thinking_budget_only",
-  "title": "thinking_budget=1000 probe",
+  "title": "thinking_budget=1000 · 仅传预算；应产生 thinking 内容与 usage tokens（探测隐式开启）",
   "category": "reasoning",
   "parameters": ["thinking_budget"],
   "requires_model_capability": "reasoning",
@@ -18,6 +18,9 @@
     "max_completion_tokens": 1200
   },
   "expect": {
+    "dialect": "qwen_enable_thinking",
+    "axis": "intensity",
+    "enum_value": "1000",
     "http_status": 200,
     "thinking_location_probe": true,
     "thinking_evidence_required": true,

@@ -155,10 +155,12 @@ export const PROTOCOL_DOC_MANIFEST = {
     required_parameters: ["messages"],
     parameter_groups: {
       Core: ["model", "messages"],
-      Sampling: ["temperature", "top_p", "top_k", "frequency_penalty", "presence_penalty", "repetition_penalty", "min_p", "top_a", "logit_bias", "logprobs", "top_logprobs"],
+      Sampling: ["temperature", "top_p", "top_k", "frequency_penalty", "presence_penalty", "repetition_penalty", "min_p", "top_a", "logit_bias"],
+      Debug: ["logprobs", "top_logprobs"],
       "Reasoning.Switch": ["reasoning"],
       "Reasoning.Intensity": ["reasoning_effort"],
-      Routing: ["models", "provider", "plugins", "session_id"],
+      Routing: ["models", "provider", "plugins"],
+      Metadata: ["session_id"],
       Tools: ["parallel_tool_calls"]
     },
     notes: "对照 docs/api/openrouter-chat.md（2026-06-25）。矩阵仅收录文档摘要表参数；model 可选。"
@@ -177,7 +179,8 @@ export const PROTOCOL_DOC_MANIFEST = {
       "Reasoning.Switch": ["thinking"],
       Tools: ["tools", "tool_choice"],
       Protocol: ["stream"],
-      Routing: ["models", "fallbacks", "provider", "session_id", "route", "trace", "stop_server_tools_when"],
+      Routing: ["models", "fallbacks", "provider", "route", "trace", "stop_server_tools_when"],
+      Metadata: ["session_id"],
       Extra: ["output_config", "metadata", "user", "cache_control", "plugins", "service_tier", "context_management", "speed"]
     },
     notes: "对照 docs/api/openrouter-message.md（2026-06-25）。"

@@ -49,7 +49,7 @@ notes: 对照 docs/api/minimax-message.md（2026-06-25）。 类型字段按该�
 | `top_p` | `number` | no | M3: `0.95`; M2.x: `0.9` | [0, 1] | |
 | `thinking` | `object` | no | `{"type":"disabled"}` | — | M3：`disabled` / `adaptive`；省略时默认 disabled；M2.x 无法关闭 thinking |
 | `thinking.type` | `string` | no | `disabled` | `disabled` \| `adaptive` | |
-| `tools` | `array` | no | — | — | Anthropic 兼容 tool use |
+| `tools` | `array` | no | — | — | 函数工具声明（Anthropic Messages 兼容） |
 | `tool_choice` | `object` | no | — | — | auto / any / tool / none |
 | `service_tier` | `string` | no | `standard` | `standard` \| `priority` | Priority 1.5× 价格 |
 | `metadata` | `object` | no | — | — | 建议含 `user_id` |

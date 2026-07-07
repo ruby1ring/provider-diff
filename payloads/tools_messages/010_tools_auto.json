@@ -1,0 +1,37 @@
+{
+  "case_id": "tools_auto",
+  "title": "Messages tools + tool_choice auto · 渠道应接受 tools 参数",
+  "category": "tools",
+  "parameters": ["tools", "tool_choice"],
+  "requires_model_capability": "tools",
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "max_tokens": 128,
+    "tool_choice": { "type": "auto" },
+    "tools": [
+      {
+        "name": "get_weather",
+        "description": "Get weather for a city.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "location": { "type": "string" }
+          },
+          "required": ["location"]
+        }
+      }
+    ],
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is the weather in Shanghai? Use the tool if needed."
+      }
+    ]
+  },
+  "expect": {
+    "axis": "accept",
+    "notes": "Model may answer directly or return tool_use; only HTTP acceptance and response structure are asserted."
+  }
+}

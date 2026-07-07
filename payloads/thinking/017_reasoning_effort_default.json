@@ -1,0 +1,32 @@
+{
+  "case_id": "thinking_reasoning_effort_default",
+  "title": "开启思考 · 不传 reasoning_effort（默认强度）· 应有 thinking 内容与 tokens；对照显式档位推断默认 effort",
+  "category": "reasoning",
+  "parameters": ["thinking"],
+  "requires_model_capability": "reasoning",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use brief reasoning to compute 34 + 58, then give the final answer."
+      }
+    ],
+    "thinking": {
+      "type": "enabled"
+    },
+    "max_completion_tokens": 512,
+    "temperature": 0
+  },
+  "expect": {
+    "dialect": "reasoning_effort",
+    "axis": "intensity",
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "assistant_content_non_empty": true,
+    "notes": "显式 thinking.type=enabled，不传 reasoning_effort；与 medium/high/max 等显式档位对比，观测渠道默认 effort 与 thinking 证据。"
+  }
+}

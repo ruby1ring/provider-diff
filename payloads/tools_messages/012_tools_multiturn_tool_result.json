@@ -1,0 +1,49 @@
+{
+  "case_id": "tools_multiturn_tool_result",
+  "title": "多轮回放：messages 已含 assistant 的 tool_use + tool_result 块，接口应能继续生成",
+  "category": "tools",
+  "parameters": ["content[].type=tool_result", "content[].type=tool_use"],
+  "requires_model_capability": "tools",
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "max_tokens": 80,
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is the weather in Shanghai?"
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "tool_use",
+            "id": "toolu_provider_diff_weather",
+            "name": "get_weather",
+            "input": { "location": "Shanghai" }
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_provider_diff_weather",
+            "content": "{\"temperature\":22,\"unit\":\"celsius\",\"condition\":\"cloudy\"}"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": "Summarize the tool result in one sentence."
+      }
+    ]
+  },
+  "expect": {
+    "axis": "multiturn",
+    "allowed_finish_reasons": ["end_turn", "max_tokens", "stop_sequence", "tool_use", "pause_turn", "refusal"],
+    "notes": "模拟 Agent 第 2 轮：messages 含 user → assistant tool_use → user 侧 tool_result → 请模型总结；验证 Messages API 接受该历史并能继续回复。"
+  }
+}

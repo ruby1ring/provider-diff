@@ -1,0 +1,33 @@
+{
+  "case_id": "thinking_object_adaptive",
+  "title": "thinking.type=adaptive 开启思考 · 应出现 thinking 内容；usage reasoning_tokens/thinking_tokens > 0",
+  "category": "reasoning",
+  "parameters": ["thinking"],
+  "requires_model_capability": "thinking",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use brief reasoning to compute 41 + 17, then give the final answer."
+      }
+    ],
+    "thinking": {
+      "type": "adaptive"
+    },
+    "max_completion_tokens": 512
+  },
+  "expect": {
+    "dialect": "thinking_object",
+    "axis": "switch_on",
+    "enum_value": "adaptive",
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "assistant_content_non_empty": true,
+    "provider_extension": true,
+    "notes": "MiniMax-M3 风格 thinking.type=adaptive 开启形态；adaptive 对 M3 等价于 thinking on。"
+  }
+}

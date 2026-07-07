@@ -1,0 +1,33 @@
+{
+  "case_id": "deepseek_oem_thinking_sampling_ignored",
+  "title": "Thinking 模式下 temperature/top_p/presence_penalty/frequency_penalty 接受但无效果",
+  "category": "sampling",
+  "case_scope": "oem_reference",
+  "oem_vendor": "deepseek",
+  "target_group": "protocol_sampling",
+  "parameters": ["thinking", "temperature", "top_p", "presence_penalty", "frequency_penalty"],
+  "requires_model_capability": "thinking",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "user", "content": "用两步说明 12 + 30 的结果。"}
+    ],
+    "thinking": {"type": "enabled"},
+    "temperature": 0.2,
+    "top_p": 0.7,
+    "presence_penalty": 0.5,
+    "frequency_penalty": 0.5
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "evaluation_intent": "observe",
+    "case_scope": "oem_reference",
+    "target_group": "protocol_sampling",
+    "oem_source": "https://api-docs.deepseek.com/zh-cn/guides/thinking_mode",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
+    "notes": "DeepSeek OEM：Thinking 模式下四采样参数兼容接受但不生效。托管渠道应与 Baseline 对照是否一致。"
+  }
+}

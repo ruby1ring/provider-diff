@@ -1,0 +1,27 @@
+{
+  "case_id": "response_format_text",
+  "title": "response_format=text · 渠道应接受 text 输出格式",
+  "category": "output",
+  "parameters": [
+    "response_format"
+  ],
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with one plain text sentence."
+      }
+    ],
+    "response_format": {
+      "type": "text"
+    },
+    "max_tokens": 60
+  },
+  "expect": {
+    "axis": "accept",
+    "notes": "验证 response_format.type=text 是否被渠道接受。"
+  }
+}

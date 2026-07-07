@@ -54,7 +54,7 @@ notes: 对照 docs/api/siliconflow-chat.md（2026-06-16）。 类型字段按该
 | `min_p` | `number` | no | — | [0, 1] | **仅** Qwen3 |
 | `stop` | `string \| array` | no | — | max 4 | 命中后不含 stop 序列 |
 | `temperature` | `number` | no | — | ≤ 2 | |
-| `top_p` | `number` | no | `0.7` | — | Nucleus sampling |
+| `top_p` | `number` | no | `0.7` | — | 核采样（Nucleus sampling）概率阈值。 |
 | `top_k` | `number` | no | — | ≤ 100 | |
 | `frequency_penalty` | `number` | no | — | [-2, 2] | |
 | `n` | `integer` | no | `1` | — | 返回生成数量 |
@@ -65,7 +65,7 @@ notes: 对照 docs/api/siliconflow-chat.md（2026-06-16）。 类型字段按该
 | `tools[].function.name` | `string` | yes | — | max 64 | a-zA-Z0-9_- |
 | `tools[].function.description` | `string` | no | — | — | |
 | `tools[].function.parameters` | `object` | no | — | — | JSON Schema |
-| `tools[].function.strict` | `boolean` | no | `false` | — | Structured Outputs 子集 |
+| `tools[].function.strict` | `boolean` | no | `false` | — | 严格 JSON Schema 结构化输出子集。 |
 
 ### `enable_thinking` supported models
 

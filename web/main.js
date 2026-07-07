@@ -7,6 +7,46 @@ const {
   MOCK_RESPONSES
 } = window.LLM_ROSETTA_DATA;
 const PROVIDERX_RULES = window.PROVIDERX_RULES || {};
+const CHANNEL_REPORT_INTENT = window.NOCTUA_CHANNEL_REPORT_INTENT || {};
+
+function channelReportIntentDeps() {
+  return {
+    matchesExpectedResult,
+    expectedHTTPStatusForResult
+  };
+}
+
+function matchesExpectedForReport(result) {
+  if (CHANNEL_REPORT_INTENT.matchesExpectedForReport) {
+    return CHANNEL_REPORT_INTENT.matchesExpectedForReport(result, channelReportIntentDeps());
+  }
+  return matchesExpectedResult(result);
+}
+
+function resultReportIntent(result) {
+  if (CHANNEL_REPORT_INTENT.resultEvaluationIntent) {
+    return CHANNEL_REPORT_INTENT.resultEvaluationIntent(result);
+  }
+  return "assert";
+}
+
+function channelReportStatsForResults(results = []) {
+  if (CHANNEL_REPORT_INTENT.channelReportStats) {
+    return CHANNEL_REPORT_INTENT.channelReportStats(results, channelReportIntentDeps());
+  }
+  return historyStats(results);
+}
+
+const RUN_V02_GROUP_TITLES = {
+  connectivity: "连通性",
+  protocol: "流式/非流式",
+  protocol_sampling: "采样参数",
+  protocol_thinking: "思考模式",
+  protocol_tools: "工具调用",
+  protocol_response_format: "输出控制",
+  output_length: "输出长度",
+  cache_hit: "缓存命中率"
+};
 
 function getProtocolMatrix() {
   return window.NOCTUA_PROTOCOL_MATRIX || null;
@@ -69,6 +109,10 @@ const els = {
   historyList: document.querySelector("#historyList"),
   importHistoryFile: document.querySelector("#importHistoryFile"),
   clearHistory: document.querySelector("#clearHistory"),
+  channelReportsCount: document.querySelector("#channelReportsCount"),
+  channelReportsSummary: document.querySelector("#channelReportsSummary"),
+  channelReportsList: document.querySelector("#channelReportsList"),
+  clearChannelReports: document.querySelector("#clearChannelReports"),
   runPerformanceBenchmark: document.querySelector("#runPerformanceBenchmark"),
   fillPerformanceFromRun: document.querySelector("#fillPerformanceFromRun"),
   performanceBackend: document.querySelector("#performanceBackend"),
@@ -143,6 +187,11 @@ const els = {
   runV02TargetMenu: document.querySelector("#runV02TargetMenu"),
   runV02TargetOptions: document.querySelector("#runV02TargetOptions"),
   runV02RouteHint: document.querySelector("#runV02RouteHint"),
+  runV02ProtocolPanel: document.querySelector("#runV02ProtocolPanel"),
+  runV02ProtocolPicker: document.querySelector("#runV02ProtocolPicker"),
+  runV02ProtocolMeta: document.querySelector("#runV02ProtocolMeta"),
+  runV02ProtocolHint: document.querySelector("#runV02ProtocolHint"),
+  runV02ChannelPanel: document.querySelector("#runV02ChannelPanel"),
   runV02ConfigPanel: document.querySelector("#runV02ConfigPanel"),
   runV02ChannelConfigs: document.querySelector("#runV02ChannelConfigs"),
   runV02CasePanel: document.querySelector("#runV02CasePanel"),
@@ -209,6 +258,7 @@ const state = {
   protocolMatrices: {},
   protocolParamDrawerOpen: false,
   protocolParamCollapse: new Set(),
+  protocolParamTreeExpand: new Set(),
   errorCodeChannelTab: "deepseek",
   errorCodeCompareChannels: null,
   errorCodeMappingDrawerOpen: false,
@@ -235,6 +285,7 @@ const state = {
   selectedCaseIds: new Set(),
   expandedCaseId: null,
   expandedHistoryId: null,
+  expandedChannelReportId: null,
   lastRunProxy: null,
   lastReportRecord: null,
   lastPerformanceResult: null,
@@ -249,6 +300,10 @@ const state = {
   isRunning: false,
   runV02: {
     modelId: "",
+    protocolId: "",
+    modelCapabilities: {
+      tools: null
+    },
     routeOptions: [],
     baselineRouteKey: "",
     baselineRoute: null,
@@ -278,6 +333,7 @@ const RUN_V02_CONFIG_PLATFORM_ALIASES = {
   minimax: ["minimax"],
   "aliyun-cn": ["aliyun-cn", "aliyun", "ali"],
   "aliyun-us": ["aliyun-us", "aliyun", "ali"],
+  "aliyun-sg": ["aliyun-sg", "aliyun", "ali"],
   "siliconflow-cn": ["siliconflow-cn", "sf-router-cn", "siliconflow"],
   "siliconflow-com": ["siliconflow-com", "sf-router-com", "siliconflow"],
   openrouter: ["openrouter"],
@@ -291,6 +347,7 @@ const appQuery = new URLSearchParams(window.location.search);
 const API_BASE = appQuery.get("apiBase") || window.PROVIDER_DIFF_API_BASE || `${appProtocol}//${appHost}:8080`;
 const BACKEND_UNAVAILABLE_MESSAGE = `后端未连接：无法访问 ${API_BASE}。请先启动 Go 后端（默认 8080），再运行测试。`;
 const HISTORY_STORAGE_KEY = "noctua-history-v1";
+const CHANNEL_REPORTS_STORAGE_KEY = "noctua-channel-reports-v1";
 const FEISHU_CONFIG_STORAGE_KEY = "noctua-feishu-config-v1";
 const EVALSCOPE_URL_STORAGE_KEY = "noctua-evalscope-url-v1";
 const DEFAULT_EVALSCOPE_URL = appQuery.get("evalscopeUrl") || `${appProtocol}//${appHost}:9000/dashboard`;
@@ -412,6 +469,7 @@ const gatewayActionMeta = PROVIDERX_RULES.GATEWAY_ACTIONS || {
   manual_review: { label: "人工确认", copy: "结论不足，需要补充 baseline 或定向 case。" }
 };
 const requiredOpenAiFields = new Set(PROVIDERX_RULES.REQUIRED_BASELINE_FIELDS || ["id", "object", "choices", "usage", "model"]);
+const protocolCompareExcludedParameters = PROVIDERX_RULES.PROTOCOL_COMPARE_EXCLUDED_PARAMETERS || new Set();
 const foundationalCaseParameters = new Set(["model", "messages"]);
 const PINNED_BASELINE_IDS = {
   "deepseek:chat_completions": "report_original_deepseek_chat_completions_1780044160489",
@@ -426,6 +484,20 @@ const PINNED_BASELINE_IDS = {
 
 const CAPACITY_CANDIDATES = [4194304, 2097152, 1048576, 524288, 262144, 131072, 65536, 32768, 16384, 8192, 4096, 2048, 1024];
 const CONTEXT_CAPACITY_SAFETY_MARGIN_RATIO = 0.05;
+const OUTPUT_EFFECTIVE_CAPS = [512, 64];
+const THINKING_BUDGET_CANDIDATES = [32768, 16384, 8192, 4096, 2048, 1024, 512, 256, 128];
+
+// thinking-budget dialect per 测评渠道 platform id; null = no token-budget field.
+function thinkingBudgetFieldForProvider(providerId = "") {
+  const id = String(providerId || "").toLowerCase();
+  if (id.startsWith("minimax")) return null;
+  if (id.startsWith("openrouter")) return { field: "reasoning.max_tokens", enableThinking: false };
+  if (id.startsWith("deepseek")) return { field: "thinking.budget_tokens", enableThinking: false };
+  if (id.startsWith("zhipu")) return { field: "thinking.budget_tokens", enableThinking: false };
+  if (id.startsWith("claude")) return { field: "thinking.budget_tokens", enableThinking: false };
+  // Qwen / SiliconFlow / 阿里百炼 / Kimi / StreamLake / vLLM style.
+  return { field: "thinking_budget", enableThinking: true };
+}
 
 function formatCapacityTier(value) {
   const oneM = 1024 * 1024;
@@ -446,56 +518,331 @@ const RUN_V02_CONNECTIVITY_CASE_TOOLTIP =
 
 const RUN_V02_PROTOCOL_STREAM_BASIC_TITLE = "流式检查：开启流式（stream=true），确认能正常收到流式数据。";
 const RUN_V02_PROTOCOL_STREAM_FALSE_TITLE = "非流式检查：显式关闭流式（stream=false），确认返回普通 JSON。";
-const RUN_V02_PROTOCOL_STREAM_USAGE_TITLE = "流式用量：最后一包应返回 token 用量（usage）。";
+const RUN_V02_PROTOCOL_STREAM_USAGE_TITLE = "流式用量：include_usage=true 时最后一包应返回 usage。";
+const RUN_V02_PROTOCOL_STREAM_USAGE_OBSERVED_TITLE = "流式用量：不传 include_usage 时是否仍返回 usage。";
+const RUN_V02_PROTOCOL_STREAM_USAGE_CHUNK_SHAPE_TITLE = "流式用量 chunk 结构：usage 应在独立 chunk（choices:[]）中返回。";
 const RUN_V02_PROTOCOL_STREAM_BASIC_TOOLTIP =
-  "该 Case 在 stream=true 时验证是否返回 SSE 流式数据，chunk 结构是否符合预期（如 choices[].delta）。";
+  "该 Case 在 stream=true 时验证是否返回 SSE 流式数据，chunk 结构是否符合预期（如 choices[].delta），并检查至少 2 个含 content 的增量 chunk（防伪流式）；默认重复探测 3 次，任一次伪流式即失败。";
 const RUN_V02_PROTOCOL_STREAM_FALSE_TOOLTIP =
   "该 Case 在 stream=false 时验证响应为普通 JSON（非 SSE），结构含 choices / usage 等字段。";
 const RUN_V02_PROTOCOL_STREAM_USAGE_TOOLTIP =
-  "该 Case 在 stream_options.include_usage=true 时验证流式最后一包是否包含 usage 字段，便于计费与监控。";
+  "该 Case 在 stream_options.include_usage=true 时验证流式最后一包必须包含 usage 字段；用于与「不传 include_usage」观测 case 成对对比各渠道行为。";
+const RUN_V02_PROTOCOL_STREAM_USAGE_OBSERVED_TOOLTIP =
+  "该 Case 在 stream=true 且未传 stream_options.include_usage 时观测 SSE 是否含 usage（始终 pass，结果中查看「流式 usage：有/无」）；用于对比阿里等需显式开启的渠道与始终返回 usage 的渠道。";
+const RUN_V02_PROTOCOL_STREAM_USAGE_CHUNK_SHAPE_TOOLTIP =
+  "该 Case 在 stream_options.include_usage=true 时严格验证 usage 分片结构：规范实现应在 finish_reason chunk 之后、data: [DONE] 之前单独返回 choices:[] + usage 的 chunk；若 usage 与 finish_reason 合并在同一 chunk（如 DS 官方 API）则 fail。结果中可查看「流式 usage 分片」分类。";
 
 const RUN_V02_PROTOCOL_SAMPLING_TOOLTIP =
   "对照该渠道官方文档中 temperature 的类型与取值范围；JSON integer（1、2）与 float（1.0、2.0）是否等价由实测判定，不符请在 docs/api 对应文档「实测：temperature 字面量」表记录。";
 
 const RUN_V02_PROTOCOL_THINKING_TOOLTIP =
-  "对照该渠道官方思考模式参数字段：开关字段（如 enable_thinking、thinking.type）与强度/预算字段（如 thinking_budget、reasoning_effort）的组合是否被接受，以及开启/关闭时 thinking 证据是否符合预期。";
+  "对照思考开关字段是否被接受；开启 case 预期响应含 reasoning/thinking 内容且 usage 中 reasoning_tokens 或 thinking_tokens > 0；关闭 case 预期无 thinking 内容与正数 token 计量。";
+
+const RUN_V02_PROTOCOL_TOOLS_TOOLTIP =
+  "探测渠道是否接受 tools 参数并能真正发起工具调用。";
+
+const RUN_V02_TOOLS_AUTO_TITLE = "tools + tool_choice auto · 渠道应接受 tools 参数（模型可直接回答，不强制调用）";
+const RUN_V02_TOOLS_REQUIRED_TITLE = "tool_choice required/any · 必须返回 tool_calls 或 tool_use";
+const RUN_V02_TOOLS_MULTITURN_TITLE = "多轮回放：messages 已含 assistant 的 tool_calls + role=tool 执行结果，接口应能继续生成";
+const RUN_V02_TOOLS_CHOICE_NONE_TITLE = "tool_choice none · 传入 tools 但禁止调用，不应返回 tool_calls";
+const RUN_V02_TOOLS_NAMED_FUNCTION_TITLE = "tool_choice 指定函数名 · 必须调用 compatibility_status（不能只调别的工具）";
+const RUN_V02_TOOLS_PARALLEL_FALSE_TITLE = "parallel_tool_calls=false · 渠道应接受该参数";
+const RUN_V02_TOOLS_REASONING_CONTENT_REPLAY_TITLE = "思考模式 + 工具调用：messages 须原样回传 assistant 的 reasoning_content";
+
+const RUN_V02_TOOLS_AUTO_TOOLTIP =
+  "传入 tools 列表与 tool_choice=auto。只验证接口是否接受参数并返回 200；模型可以选择直接文字回答，也可以返回 tool_calls。";
+const RUN_V02_TOOLS_REQUIRED_TOOLTIP =
+  "tool_choice 设为 required（Chat）或 any（Messages），强制模型必须发起一次工具调用。通过与否看响应里是否出现 tool_calls / tool_use——这是「渠道是否真正支持工具调用」的核心探针。";
+const RUN_V02_TOOLS_MULTITURN_TOOLTIP =
+  "模拟 Agent 第 2 轮请求：messages 里已经写好完整工具调用历史——用户提问 → assistant 返回 tool_calls → 你用 role=tool 消息带回执行结果（含 tool_call_id）→ 再请模型总结。本 case 不发 tools 字段，只验证渠道是否接受这种多轮历史并能继续生成回复。";
+const RUN_V02_TOOLS_CHOICE_NONE_TOOLTIP =
+  "同时传 tools 与 tool_choice=none，要求模型不要调用工具。验证渠道是否支持「有工具声明但禁用调用」，且响应中不应出现 tool_calls。";
+const RUN_V02_TOOLS_NAMED_FUNCTION_TOOLTIP =
+  "tool_choice 不只写 required，而是精确指定函数名（Chat: {type:function, function:{name:...}}；Messages: {type:tool, name:...}）。验证渠道是否按名称路由到 compatibility_status，而不是随便调别的工具或直接文字回答。";
+const RUN_V02_TOOLS_PARALLEL_FALSE_TOOLTIP =
+  "在 tools 请求中额外传 parallel_tool_calls=false。验证渠道文档列出的该参数是否被接受。";
+const RUN_V02_TOOLS_REASONING_CONTENT_REPLAY_TOOLTIP =
+  "模拟思考模式下的 Agent 第 2 轮：上一轮 assistant 同时返回 reasoning_content 与 tool_calls，你在后续请求的 messages 里必须原样带回这段 reasoning_content（不能只留 tool_calls）。DeepSeek 等文档明确：缺了会 400；本 case 验证正确回传时接口能否继续生成。";
+
+const RUN_V02_RESPONSE_FORMAT_TEXT_TITLE = "response_format=text · 渠道应接受 text 输出格式";
+const RUN_V02_RESPONSE_FORMAT_JSON_OBJECT_TITLE = "response_format=json_object · 渠道应接受并返回合法 JSON";
+const RUN_V02_RESPONSE_FORMAT_JSON_SCHEMA_TITLE = "response_format=json_schema · 渠道应接受并按 schema 返回 JSON";
+
+const RUN_V02_RESPONSE_FORMAT_TEXT_TOOLTIP =
+  "传 response_format.type=text，验证接口是否接受该参数并正常返回 200。";
+const RUN_V02_RESPONSE_FORMAT_JSON_OBJECT_TOOLTIP =
+  "传 response_format.type=json_object，并在 prompt 中要求 JSON；验证接受性与 assistant content 是否为合法 JSON。";
+const RUN_V02_RESPONSE_FORMAT_JSON_SCHEMA_TOOLTIP =
+  "传 response_format.type=json_schema 与 strict schema；验证接受性、JSON 合法性及 required 字段是否齐全。";
+const RUN_V02_PROTOCOL_RESPONSE_FORMAT_TOOLTIP =
+  "探测各渠道对 response_format 的接受性与 JSON 输出质量；不含 structured_outputs 等其他输出控制参数。";
+
+const RUN_V02_OUTPUT_LENGTH_ACCEPT_MAX_TOKENS_TITLE = "接受性：传 max_tokens 限制输出，接口应正常返回。";
+const RUN_V02_OUTPUT_LENGTH_ACCEPT_MAX_COMPLETION_TITLE = "接受性：传 max_completion_tokens 限制输出，接口应正常返回。";
+const RUN_V02_OUTPUT_LENGTH_EFFECTIVE_MAX_TOKENS_TITLE = "生效性：仅 max_tokens=64 强制长输出，应被截断。";
+const RUN_V02_OUTPUT_LENGTH_EFFECTIVE_MAX_COMPLETION_TITLE = "生效性：仅 max_completion_tokens=64 强制长输出，应被截断。";
+const RUN_V02_OUTPUT_LENGTH_PRECEDENCE_TITLE = "双参优先级：max_tokens=64 vs max_completion_tokens=512，观测谁控制输出截断。";
+const RUN_V02_OUTPUT_LENGTH_STOP_MAX_TOKENS_TITLE = "组合：max_tokens 与 stop 同时传入是否可用。";
+const RUN_V02_OUTPUT_LENGTH_STOP_MAX_COMPLETION_TITLE = "组合：max_completion_tokens 与 stop 同时传入是否可用。";
+const RUN_V02_OUTPUT_LENGTH_EDGE_DEPRECATED_MAX_TOKENS_TITLE = "边缘：废弃字段 max_tokens 是否仍接受。";
+const RUN_V02_OUTPUT_LENGTH_EDGE_MAX_TOKENS_NULL_TITLE = "边缘：max_tokens=null 是否接受。";
+const RUN_V02_OUTPUT_LENGTH_EDGE_MAX_COMPLETION_COMPAT_TITLE = "边缘：max_completion_tokens 兼容别名是否接受。";
+const RUN_V02_OUTPUT_LENGTH_CAPACITY_INPUT_TITLE = "容量：探测最大可接受输入长度。";
+const RUN_V02_OUTPUT_LENGTH_CAPACITY_OUTPUT_TITLE = "容量：探测最大可接受输出上限（对照 Max completion）。";
+const RUN_V02_OUTPUT_LENGTH_CAPACITY_CONTEXT_TITLE = "容量：探测最大总上下文（对照 Context）。";
+const RUN_V02_OUTPUT_LENGTH_ACCEPT_MAX_TOKENS_TOOLTIP = "仅传 max_tokens，验证接口是否正常接受。";
+const RUN_V02_OUTPUT_LENGTH_ACCEPT_MAX_COMPLETION_TOOLTIP = "仅传 max_completion_tokens，验证接口是否正常接受。";
+const RUN_V02_OUTPUT_LENGTH_EFFECTIVE_MAX_TOKENS_TOOLTIP = "仅传 max_tokens=64 强制长输出，验证是否真限制输出（finish_reason=length）。";
+const RUN_V02_OUTPUT_LENGTH_EFFECTIVE_MAX_COMPLETION_TOOLTIP = "仅传 max_completion_tokens=64 强制长输出，验证是否真限制输出。";
+const RUN_V02_OUTPUT_LENGTH_PRECEDENCE_TOOLTIP = "双参同时传入并强制长输出，观测哪个字段控制输出截断（输出上限字段）。";
+const RUN_V02_OUTPUT_LENGTH_STOP_MAX_TOKENS_TOOLTIP = "同时传 max_tokens 与 stop，验证组合是否被接受。";
+const RUN_V02_OUTPUT_LENGTH_STOP_MAX_COMPLETION_TOOLTIP = "同时传 max_completion_tokens 与 stop，验证组合是否被接受。";
+const RUN_V02_OUTPUT_LENGTH_EDGE_DEPRECATED_TOOLTIP = "文档推荐 max_completion_tokens 的渠道，探测废弃字段 max_tokens 是否仍接受。";
+const RUN_V02_OUTPUT_LENGTH_EDGE_NULL_TOOLTIP = "传 max_tokens=null，验证空值处理。";
+const RUN_V02_OUTPUT_LENGTH_EDGE_COMPAT_TOOLTIP = "max_tokens 渠道探测 max_completion_tokens 是否作为兼容别名被接受。";
+const RUN_V02_OUTPUT_LENGTH_CAPACITY_TOOLTIP =
+  "按档位爬升探测输入/输出/总上下文上限，耗时较长；可与模型介绍 OpenRouter 基线对照。";
+
+const LENGTH_AXIS_ORDER = ["accept", "effective", "precedence", "stop_combo", "edge", "capacity"];
+const LENGTH_AXIS_LABELS = {
+  accept: "接受性",
+  effective: "生效性",
+  precedence: "双参优先级",
+  stop_combo: "与 stop 组合",
+  edge: "兼容 / 边缘",
+  capacity: "容量边界"
+};
+const LENGTH_AXIS_HINTS = {
+  accept: "各字段单独传参，验证接口是否接受（HTTP 200）",
+  effective: "小 cap + 强制长输出，验证参数是否真限制输出",
+  precedence: "两字段同时传入且取值冲突，观测谁控制截断",
+  stop_combo: "输出上限字段与 stop 同时传入是否可用",
+  edge: "废弃字段、空值、兼容别名等边缘行为",
+  capacity: "探测最大输入/输出/上下文，默认不勾选"
+};
+
+// Legacy aliases for caseTitleZh entries that still reference old constant names.
+const RUN_V02_OUTPUT_LENGTH_ACCEPTANCE_MAX_TOKENS_TITLE = RUN_V02_OUTPUT_LENGTH_ACCEPT_MAX_TOKENS_TITLE;
+const RUN_V02_OUTPUT_LENGTH_ACCEPTANCE_MAX_COMPLETION_TOKENS_TITLE = RUN_V02_OUTPUT_LENGTH_ACCEPT_MAX_COMPLETION_TITLE;
+const RUN_V02_OUTPUT_LENGTH_DEPRECATED_MAX_TOKENS_TITLE = RUN_V02_OUTPUT_LENGTH_EDGE_DEPRECATED_MAX_TOKENS_TITLE;
+const RUN_V02_OUTPUT_LENGTH_MAX_TOKENS_NULL_TITLE = RUN_V02_OUTPUT_LENGTH_EDGE_MAX_TOKENS_NULL_TITLE;
+const RUN_V02_OUTPUT_LENGTH_MAX_TOKENS_STOP_TITLE = RUN_V02_OUTPUT_LENGTH_STOP_MAX_TOKENS_TITLE;
+const RUN_V02_OUTPUT_LENGTH_MAX_COMPLETION_STOP_TITLE = RUN_V02_OUTPUT_LENGTH_STOP_MAX_COMPLETION_TITLE;
+const RUN_V02_OUTPUT_LENGTH_MAX_COMPLETION_COMPAT_TITLE = RUN_V02_OUTPUT_LENGTH_EDGE_MAX_COMPLETION_COMPAT_TITLE;
+const RUN_V02_OUTPUT_LENGTH_MAX_TOKENS_ONLY_EFFECTIVE_TITLE = RUN_V02_OUTPUT_LENGTH_EFFECTIVE_MAX_TOKENS_TITLE;
+const RUN_V02_OUTPUT_LENGTH_MAX_COMPLETION_ONLY_EFFECTIVE_TITLE = RUN_V02_OUTPUT_LENGTH_EFFECTIVE_MAX_COMPLETION_TITLE;
+
+const RUN_V02_CACHE_PASSIVE_TITLE = "被动缓存：长固定前缀重复请求 · 第二次相同请求 usage 中 cached_tokens 或 prompt_cache_hit_tokens > 0";
+const RUN_V02_CACHE_PROMPT_KEY_TITLE = "显式缓存：prompt_cache_key · 第二次相同键请求 usage 中 cached_tokens 或 prompt_cache_hit_tokens > 0";
+const RUN_V02_CACHE_CONTROL_TITLE = "显式缓存：cache_control ephemeral · 第二次相同请求 usage 中 cached_tokens 或 prompt_cache_hit_tokens > 0";
+const RUN_V02_CACHE_PASSIVE_TOOLTIP =
+  "发送相同的长固定前缀请求 2 次（间隔约 400ms）：第 1 次预热，第 2 次从 usage 读取 cached_tokens / prompt_cache_hit_tokens 并计算命中率；用于对比同一模型在不同渠道的被动缓存效果。";
+const RUN_V02_CACHE_PROMPT_KEY_TOOLTIP =
+  "在长前缀请求上附加稳定 prompt_cache_key，重复 2 次后测量命中率；适用于 OpenAI 等支持 prompt cache key 的渠道。";
+const RUN_V02_CACHE_CONTROL_TOOLTIP =
+  "在可缓存内容块上设置 cache_control.type=ephemeral，重复 2 次后测量命中率；适用于 Anthropic Messages 与 Chat Completions 显式缓存方言。";
+
+const RUN_V02_CACHE_PASSIVE_HIT_RATE_85_TITLE = "被动缓存：长固定前缀重复请求 · 第二次相同请求缓存命中率 ≥ 85%";
+const RUN_V02_CACHE_PROMPT_KEY_HIT_RATE_85_TITLE = "显式缓存：prompt_cache_key · 第二次相同键请求缓存命中率 ≥ 85%";
+const RUN_V02_CACHE_CONTROL_HIT_RATE_85_TITLE = "显式缓存：cache_control ephemeral · 第二次相同请求缓存命中率 ≥ 85%";
+const RUN_V02_CACHE_HIT_RATE_85_TOOLTIP =
+  "与对应观测 case 相同请求，但断言第二次请求的缓存命中率必须 ≥ 85%；未达标或无缓存统计字段判为预期外（fail），默认不勾选。";
+
+const CACHE_CASE_TITLES = {
+  cache_passive_long_prompt: RUN_V02_CACHE_PASSIVE_TITLE,
+  cache_prompt_cache_key: RUN_V02_CACHE_PROMPT_KEY_TITLE,
+  cache_control_ephemeral: RUN_V02_CACHE_CONTROL_TITLE,
+  cache_passive_hit_rate_85: RUN_V02_CACHE_PASSIVE_HIT_RATE_85_TITLE,
+  cache_prompt_cache_key_hit_rate_85: RUN_V02_CACHE_PROMPT_KEY_HIT_RATE_85_TITLE,
+  cache_control_ephemeral_hit_rate_85: RUN_V02_CACHE_CONTROL_HIT_RATE_85_TITLE
+};
 
 /** V0.2 协议/思考模式：跨渠道 canonical 组合探针（payloads/thinking）。 */
 const PROTOCOL_THINKING_CANONICAL_CASE_IDS = new Set([
   "thinking_enable_thinking_true",
   "thinking_enable_thinking_false",
+  "thinking_switch_alt_thinking_enabled",
+  "thinking_switch_alt_thinking_disabled",
+  "thinking_switch_conflict_enable_off_thinking_on",
+  "thinking_switch_conflict_enable_on_thinking_off",
   "thinking_budget_only",
-  "thinking_reasoning_effort_medium",
-  "thinking_reasoning_effort_none",
+  "thinking_thinking_budget_low",
+  "thinking_thinking_budget_high",
   "thinking_enable_thinking_with_budget",
   "thinking_enable_thinking_budget_effort",
   "thinking_object_enabled",
   "thinking_object_disabled",
-  "thinking_object_enabled_budget_tokens"
+  "thinking_object_adaptive",
+  "thinking_object_enabled_budget_tokens",
+  "thinking_reasoning_effort_medium",
+  "thinking_reasoning_effort_default",
+  "thinking_reasoning_effort_none",
+  "thinking_reasoning_effort_low",
+  "thinking_reasoning_effort_high",
+  "thinking_reasoning_effort_xhigh",
+  "thinking_reasoning_effort_max",
+  "thinking_reasoning_object_effort_summary",
+  "thinking_reasoning_object_effort_none",
+  "thinking_reasoning_object_enabled",
+  "thinking_reasoning_object_disabled",
+  "thinking_reasoning_split_true",
+  "thinking_reasoning_split_false"
 ]);
 
-const PROTOCOL_THINKING_DEFAULT_CASE_IDS = new Set([
-  "thinking_enable_thinking_true",
-  "thinking_enable_thinking_false",
-  "thinking_enable_thinking_with_budget",
-  "thinking_enable_thinking_budget_effort"
+/** V0.2 协议/工具调用：跨渠道 canonical 组合探针（payloads/tools）。 */
+const PROTOCOL_TOOLS_CANONICAL_CASE_IDS = new Set([
+  "tools_auto",
+  "tools_choice_required",
+  "tools_multiturn_tool_result",
+  "tools_choice_none",
+  "tools_named_function",
+  "tools_parallel_false",
+  "tools_reasoning_content_replay"
 ]);
 
-const PROTOCOL_THINKING_COMBO_ORDER = [
-  "enable_thinking",
-  "thinking_budget",
-  "reasoning_effort",
-  "enable_thinking + thinking_budget",
-  "enable_thinking + thinking_budget + reasoning_effort",
-  "thinking",
-  "thinking + thinking.budget_tokens"
-];
+/** V0.2 协议/输出控制：跨渠道 canonical response_format 探针（payloads/response_format）。 */
+const PROTOCOL_RESPONSE_FORMAT_CANONICAL_CASE_IDS = new Set([
+  "response_format_text",
+  "response_format_json_object",
+  "response_format_json_schema"
+]);
+
+/** 与 080/081 同语义、不同 prompt 的旧 case；协议分组统一用 080/081。 */
+const LEGACY_SWITCH_CASE_IDS = new Set([
+  "thinking_object_enabled",
+  "thinking_object_disabled"
+]);
+
+const UNIVERSAL_SWITCH_FIELD_ORDER = ["enable_thinking", "thinking.type"];
+
+/**
+ * 各测评渠道官方文档的思考模式方言：用于 UI 分区展示与报告标注。
+ * 不以文档矩阵裁剪 canonical case——含枚举值参数在内的探针全量展示，以跑批实测为准。
+ */
+const THINKING_CHANNEL_DIALECTS = {
+  aliyun: {
+    switchDialect: "qwen_enable_thinking", switchField: "enable_thinking", switchValues: ["true", "false"],
+    alternateSwitchDialects: [
+      { dialect: "thinking_object", field: "thinking.type", values: ["enabled", "disabled"] }
+    ],
+    intensityDialect: "qwen_enable_thinking", intensityField: "thinking_budget"
+  },
+  siliconflow: {
+    switchDialect: "qwen_enable_thinking", switchField: "enable_thinking", switchValues: ["true", "false"],
+    intensityDialect: "qwen_enable_thinking", intensityField: "thinking_budget"
+  },
+  streamlake: {
+    switchDialect: "qwen_enable_thinking", switchField: "enable_thinking", switchValues: ["true", "false"]
+  },
+  deepseek: {
+    switchDialect: "thinking_object", switchField: "thinking.type", switchValues: ["enabled", "disabled"],
+    intensityDialect: "reasoning_effort", intensityField: "reasoning_effort"
+  },
+  zhipu: {
+    switchDialect: "thinking_object", switchField: "thinking.type", switchValues: ["enabled", "disabled"],
+    intensityDialect: "reasoning_effort", intensityField: "reasoning_effort"
+  },
+  minimax: {
+    switchDialect: "thinking_object", switchField: "thinking.type", switchValues: ["adaptive", "disabled"],
+    outputDialect: "reasoning_split", outputField: "reasoning_split"
+  },
+  openrouter: {
+    switchDialect: "reasoning_object", switchField: "reasoning", switchValues: ["enabled", "disabled"],
+    intensityDialect: "reasoning_object", intensityField: "reasoning.effort"
+  }
+};
+
+function oemBehaviorsApi() {
+  return window.NOCTUA_MODEL_OEM_BEHAVIORS || {};
+}
+
+const THINKING_AXIS_ORDER = ["switch", "switch_equiv", "switch_conflict", "intensity", "output"];
+
+const THINKING_AXIS_LABELS = {
+  switch: "思考开关",
+  switch_equiv: "开关备选方言（等价对照）",
+  switch_conflict: "开关冲突探针",
+  intensity: "思考强度 / 预算",
+  output: "思考输出格式"
+};
+
+const THINKING_AXIS_HINTS = {
+  switch: "开启 / 关闭思考模式（开启应有 thinking 内容与 usage token 计量；关闭应无）",
+  switch_equiv: "与主方言同 prompt 对照，检测「接受但不生效」",
+  switch_conflict: "双参矛盾时观察渠道以哪个字段为准",
+  intensity: "控制思考档位或 token 预算（应有 thinking 内容与 usage tokens；低档/高档可配对比对）",
+  output: "控制 thinking 内容是否分离返回（reasoning_content/reasoning_details 等）"
+};
 
 const caseTitleZh = {
   ali_basic_minimal: RUN_V02_CONNECTIVITY_CASE_TITLE,
   ali_protocol_stream_basic: RUN_V02_PROTOCOL_STREAM_BASIC_TITLE,
   ali_protocol_stream_false: RUN_V02_PROTOCOL_STREAM_FALSE_TITLE,
   ali_protocol_stream_include_usage: RUN_V02_PROTOCOL_STREAM_USAGE_TITLE,
+  ali_protocol_stream_usage_without_include_usage: RUN_V02_PROTOCOL_STREAM_USAGE_OBSERVED_TITLE,
+  ali_protocol_stream_usage_chunk_shape: RUN_V02_PROTOCOL_STREAM_USAGE_CHUNK_SHAPE_TITLE,
+  ali_length_max_tokens: RUN_V02_OUTPUT_LENGTH_ACCEPTANCE_MAX_TOKENS_TITLE,
+  ali_length_max_completion_tokens: RUN_V02_OUTPUT_LENGTH_ACCEPTANCE_MAX_COMPLETION_TOKENS_TITLE,
+  ali_length_max_tokens_stop: RUN_V02_OUTPUT_LENGTH_MAX_TOKENS_STOP_TITLE,
+  ali_length_max_completion_tokens_stop: RUN_V02_OUTPUT_LENGTH_MAX_COMPLETION_STOP_TITLE,
+  ali_length_both_fields_precedence: RUN_V02_OUTPUT_LENGTH_PRECEDENCE_TITLE,
+  ali_length_max_tokens_only_effective: RUN_V02_OUTPUT_LENGTH_MAX_TOKENS_ONLY_EFFECTIVE_TITLE,
+  ali_length_max_completion_tokens_only_effective: RUN_V02_OUTPUT_LENGTH_MAX_COMPLETION_ONLY_EFFECTIVE_TITLE,
+  oa_length_max_completion_tokens: RUN_V02_OUTPUT_LENGTH_ACCEPTANCE_MAX_COMPLETION_TOKENS_TITLE,
+  oa_length_deprecated_max_tokens: RUN_V02_OUTPUT_LENGTH_DEPRECATED_MAX_TOKENS_TITLE,
+  oa_length_both_fields_precedence: RUN_V02_OUTPUT_LENGTH_PRECEDENCE_TITLE,
+  oa_length_max_tokens_only_effective: RUN_V02_OUTPUT_LENGTH_MAX_TOKENS_ONLY_EFFECTIVE_TITLE,
+  oa_length_max_completion_tokens_only_effective: RUN_V02_OUTPUT_LENGTH_MAX_COMPLETION_ONLY_EFFECTIVE_TITLE,
+  oa_length_max_completion_tokens_stop: RUN_V02_OUTPUT_LENGTH_MAX_COMPLETION_STOP_TITLE,
+  claude_length_max_completion_tokens: RUN_V02_OUTPUT_LENGTH_ACCEPTANCE_MAX_COMPLETION_TOKENS_TITLE,
+  claude_length_max_tokens: RUN_V02_OUTPUT_LENGTH_DEPRECATED_MAX_TOKENS_TITLE,
+  claude_length_both_fields_precedence: RUN_V02_OUTPUT_LENGTH_PRECEDENCE_TITLE,
+  claude_length_max_tokens_only_effective: RUN_V02_OUTPUT_LENGTH_MAX_TOKENS_ONLY_EFFECTIVE_TITLE,
+  claude_length_max_completion_tokens_only_effective: RUN_V02_OUTPUT_LENGTH_MAX_COMPLETION_ONLY_EFFECTIVE_TITLE,
+  claude_length_max_completion_tokens_stop: RUN_V02_OUTPUT_LENGTH_MAX_COMPLETION_STOP_TITLE,
+  minimax_length_max_completion_tokens: RUN_V02_OUTPUT_LENGTH_ACCEPTANCE_MAX_COMPLETION_TOKENS_TITLE,
+  minimax_length_legacy_max_tokens_probe: RUN_V02_OUTPUT_LENGTH_DEPRECATED_MAX_TOKENS_TITLE,
+  minimax_length_both_fields_precedence: RUN_V02_OUTPUT_LENGTH_PRECEDENCE_TITLE,
+  minimax_length_max_tokens_only_effective: RUN_V02_OUTPUT_LENGTH_MAX_TOKENS_ONLY_EFFECTIVE_TITLE,
+  minimax_length_max_completion_tokens_only_effective: RUN_V02_OUTPUT_LENGTH_MAX_COMPLETION_ONLY_EFFECTIVE_TITLE,
+  minimax_length_max_completion_tokens_stop: RUN_V02_OUTPUT_LENGTH_MAX_COMPLETION_STOP_TITLE,
+  or_length_max_completion_tokens: RUN_V02_OUTPUT_LENGTH_ACCEPTANCE_MAX_COMPLETION_TOKENS_TITLE,
+  or_length_deprecated_max_tokens: RUN_V02_OUTPUT_LENGTH_DEPRECATED_MAX_TOKENS_TITLE,
+  or_length_both_fields_precedence: RUN_V02_OUTPUT_LENGTH_PRECEDENCE_TITLE,
+  openrouter_length_max_tokens_only_effective: RUN_V02_OUTPUT_LENGTH_MAX_TOKENS_ONLY_EFFECTIVE_TITLE,
+  openrouter_length_max_completion_tokens_only_effective: RUN_V02_OUTPUT_LENGTH_MAX_COMPLETION_ONLY_EFFECTIVE_TITLE,
+  or_length_max_completion_tokens_stop: RUN_V02_OUTPUT_LENGTH_MAX_COMPLETION_STOP_TITLE,
+  deepseek_length_max_tokens: RUN_V02_OUTPUT_LENGTH_ACCEPTANCE_MAX_TOKENS_TITLE,
+  deepseek_length_max_completion_tokens: RUN_V02_OUTPUT_LENGTH_ACCEPTANCE_MAX_COMPLETION_TOKENS_TITLE,
+  deepseek_length_max_tokens_null: RUN_V02_OUTPUT_LENGTH_MAX_TOKENS_NULL_TITLE,
+  deepseek_length_max_tokens_only_effective: RUN_V02_OUTPUT_LENGTH_MAX_TOKENS_ONLY_EFFECTIVE_TITLE,
+  deepseek_length_max_completion_tokens_only_effective: RUN_V02_OUTPUT_LENGTH_MAX_COMPLETION_ONLY_EFFECTIVE_TITLE,
+  deepseek_length_max_completion_tokens_stop: RUN_V02_OUTPUT_LENGTH_MAX_COMPLETION_STOP_TITLE,
+  sf_length_max_tokens: RUN_V02_OUTPUT_LENGTH_ACCEPTANCE_MAX_TOKENS_TITLE,
+  sf_length_max_completion_tokens: RUN_V02_OUTPUT_LENGTH_ACCEPTANCE_MAX_COMPLETION_TOKENS_TITLE,
+  sf_length_max_tokens_stop: RUN_V02_OUTPUT_LENGTH_MAX_TOKENS_STOP_TITLE,
+  sf_length_max_completion_tokens_stop: RUN_V02_OUTPUT_LENGTH_MAX_COMPLETION_STOP_TITLE,
+  sf_length_max_tokens_only_effective: RUN_V02_OUTPUT_LENGTH_MAX_TOKENS_ONLY_EFFECTIVE_TITLE,
+  sf_length_max_completion_tokens_only_effective: RUN_V02_OUTPUT_LENGTH_MAX_COMPLETION_ONLY_EFFECTIVE_TITLE,
+  vllm_length_max_tokens: RUN_V02_OUTPUT_LENGTH_ACCEPTANCE_MAX_TOKENS_TITLE,
+  vllm_length_max_completion_tokens: RUN_V02_OUTPUT_LENGTH_MAX_COMPLETION_COMPAT_TITLE,
+  vllm_length_both_fields_precedence: RUN_V02_OUTPUT_LENGTH_PRECEDENCE_TITLE,
+  vllm_length_max_tokens_only_effective: RUN_V02_OUTPUT_LENGTH_MAX_TOKENS_ONLY_EFFECTIVE_TITLE,
+  vllm_length_max_completion_tokens_only_effective: RUN_V02_OUTPUT_LENGTH_MAX_COMPLETION_ONLY_EFFECTIVE_TITLE,
+  vllm_length_max_completion_tokens_stop: RUN_V02_OUTPUT_LENGTH_MAX_COMPLETION_STOP_TITLE,
+  capacity_max_input_boundary: RUN_V02_OUTPUT_LENGTH_CAPACITY_INPUT_TITLE,
+  capacity_max_output_boundary: RUN_V02_OUTPUT_LENGTH_CAPACITY_OUTPUT_TITLE,
+  capacity_total_context_boundary: RUN_V02_OUTPUT_LENGTH_CAPACITY_CONTEXT_TITLE,
+  tools_auto: RUN_V02_TOOLS_AUTO_TITLE,
+  tools_choice_required: RUN_V02_TOOLS_REQUIRED_TITLE,
+  tools_multiturn_tool_result: RUN_V02_TOOLS_MULTITURN_TITLE,
+  tools_choice_none: RUN_V02_TOOLS_CHOICE_NONE_TITLE,
+  tools_named_function: RUN_V02_TOOLS_NAMED_FUNCTION_TITLE,
+  tools_parallel_false: RUN_V02_TOOLS_PARALLEL_FALSE_TITLE,
+  tools_reasoning_content_replay: RUN_V02_TOOLS_REASONING_CONTENT_REPLAY_TITLE,
+  response_format_text: RUN_V02_RESPONSE_FORMAT_TEXT_TITLE,
+  response_format_json_object: RUN_V02_RESPONSE_FORMAT_JSON_OBJECT_TITLE,
+  response_format_json_schema: RUN_V02_RESPONSE_FORMAT_JSON_SCHEMA_TITLE,
   sf_basic_minimal: RUN_V02_CONNECTIVITY_CASE_TITLE,
   sf_basic_system_user: "system 和 user 消息",
   sf_basic_multimessage_context: "多条历史消息作为上下文",
@@ -511,8 +858,6 @@ const caseTitleZh = {
   sf_sampling_combo_temperature_top_p: "temperature 与 top_p 组合",
   sf_sampling_combo_top_p_top_k_min_p: "top_p、top_k、min_p 组合",
   sf_sampling_combo_penalty_stop: "frequency_penalty 与 stop 组合",
-  sf_length_max_tokens: "max_tokens 限制生成长度",
-  sf_length_max_tokens_stop: "max_tokens 与 stop 组合",
   sf_reasoning_enable_thinking: "enable_thinking 推理开关",
   sf_reasoning_thinking_budget: "enable_thinking 与 thinking_budget",
   sf_reasoning_effort_medium: "reasoning_effort=medium",
@@ -529,6 +874,7 @@ const caseTitleZh = {
   sf_stream_with_max_tokens: "stream 与 max_tokens 组合",
   sf_stream_with_tools_auto: "stream 与 tools 组合",
   sf_stream_include_usage: RUN_V02_PROTOCOL_STREAM_USAGE_TITLE,
+  sf_stream_usage_chunk_shape: RUN_V02_PROTOCOL_STREAM_USAGE_CHUNK_SHAPE_TITLE,
   sf_multiturn_basic: "基础多轮对话",
   sf_multiturn_with_system_policy: "带 system 约束的多轮对话",
   sf_multiturn_json_object: "多轮对话与 json_object",
@@ -542,14 +888,14 @@ const caseTitleZh = {
   am_basic_minimal: RUN_V02_CONNECTIVITY_CASE_TITLE,
   am_protocol_stream: RUN_V02_PROTOCOL_STREAM_BASIC_TITLE,
   am_protocol_stream_false: RUN_V02_PROTOCOL_STREAM_FALSE_TITLE,
-  ali_protocol_sampling_temperature_1: "temperature=1（JSON integer）",
-  ali_protocol_sampling_temperature_2: "temperature=2（JSON integer）",
-  ali_protocol_sampling_temperature_1_0: "temperature=1.0（JSON float）",
-  ali_protocol_sampling_temperature_2_0: "temperature=2.0（JSON float）",
-  am_protocol_sampling_temperature_1: "temperature=1（JSON integer）",
-  am_protocol_sampling_temperature_2: "temperature=2（JSON integer）",
-  am_protocol_sampling_temperature_1_0: "temperature=1.0（JSON float）",
-  am_protocol_sampling_temperature_2_0: "temperature=2.0（JSON float）",
+  ali_protocol_sampling_temperature_1: "temperature=1（JSON integer），是否能请求成功",
+  ali_protocol_sampling_temperature_2: "temperature=2（JSON integer），是否能请求成功",
+  ali_protocol_sampling_temperature_1_0: "temperature=1.0（JSON float），是否能请求成功",
+  ali_protocol_sampling_temperature_2_0: "temperature=2.0（JSON float），是否能请求成功",
+  am_protocol_sampling_temperature_1: "temperature=1（JSON integer），是否能请求成功",
+  am_protocol_sampling_temperature_2: "temperature=2（JSON integer），是否能请求成功",
+  am_protocol_sampling_temperature_1_0: "temperature=1.0（JSON float），是否能请求成功",
+  am_protocol_sampling_temperature_2_0: "temperature=2.0（JSON float），是否能请求成功",
   am_sampling_temperature: "Messages 接口接受 temperature",
   am_sampling_top_p: "Messages 接口接受 top_p",
   am_sampling_top_k: "Messages 接口接受 top_k 扩展参数",
@@ -593,13 +939,13 @@ const groupLabelZh = {
   Reasoning: "思考模式",
   Output: "输出控制",
   Tools: "工具调用",
-  Protocol: "协议",
+  Protocol: "输出方式",
   Debug: "输出概率",
   Multimodal: "多模态",
   Metadata: "元数据",
   Extra: "扩展",
   Search: "搜索",
-  Routing: "路由",
+  Routing: "路由策略",
   Plugins: "插件",
   Observability: "可观测性",
   "Compatibility Probe": "兼容性探针",
@@ -616,7 +962,7 @@ const groupHintZh = {
   Reasoning: "控制是否思考、思考深度，以及思考内容如何返回；各渠道使用的参数字段不同",
   Output: "规定返回格式、结构化约束，以及音频/图像等非文本输出模态",
   Tools: "声明模型可调用的外部函数，以及调用方式",
-  Protocol: "流式返回、流式选项等传输层行为",
+  Protocol: "流式与非流式返回方式，以及 stream_options 等流式选项",
   Multimodal: "图片、音频等非纯文本输入相关字段",
   Search: "是否联网搜索及检索相关选项",
   Metadata: "用户标识、会话元数据、存储策略等旁路信息",
@@ -1285,7 +1631,16 @@ function canonicalResultFromRaw(result = {}, fallback = {}) {
     expectation_result: result.expectation_result || "",
     evidence_level: result.evidence_level || "",
     gateway_action: result.gateway_action || "",
-    error: result.error || ""
+    error: result.error || "",
+    reasoning_tokens: result.reasoning_tokens ?? null,
+    thinking_tokens: result.thinking_tokens ?? null,
+    stream_metrics: result.stream_metrics || null,
+    stream_probe_attempts: result.stream_probe_attempts || null,
+    stream_usage_present: result.stream_usage_present ?? null,
+    stream_usage_chunk_profile: result.stream_usage_chunk_profile ?? null,
+    stream_done_marker_present: result.stream_done_marker_present ?? null,
+    output_length_cap_precedence: result.output_length_cap_precedence ?? null,
+    output_cap_effective: result.output_cap_effective ?? null
   };
 }
 
@@ -1447,13 +1802,90 @@ function inferMockConclusion(result) {
   return "supported";
 }
 
+function formatStreamMetricsSummary(metrics) {
+  if (!metrics || typeof metrics !== "object") return "";
+  const parts = [
+    `SSE ${metrics.sse_chunk_count ?? "—"} 包`,
+    `content ${metrics.content_chunk_count ?? "—"} 包`,
+    `首包 ${metrics.first_chunk_ms ?? "—"}ms`
+  ];
+  if (metrics.chunk_spread_ms != null) {
+    parts.push(`跨度 ${metrics.chunk_spread_ms}ms`);
+  }
+  return parts.join(" · ");
+}
+
+function formatStreamUsagePresent(result) {
+  if (result?.stream_usage_present == null) return "";
+  return result.stream_usage_present ? "有" : "无";
+}
+
+function formatStreamUsageChunkProfile(result) {
+  const profile = result?.stream_usage_chunk_profile;
+  if (!profile) return "";
+  const labels = {
+    dedicated: "独立",
+    merged_finish_reason: "合并 finish_reason",
+    missing: "缺失",
+    other: "其他"
+  };
+  return labels[profile] || profile;
+}
+
+function formatOutputLengthCapPrecedence(result) {
+  const profile = result?.output_length_cap_precedence;
+  if (!profile) return "";
+  const labels = {
+    max_tokens: "max_tokens",
+    max_completion_tokens: "max_completion_tokens",
+    min_wins: "取较小上限",
+    rejected: "双参被拒绝",
+    single_field_only: "仅单字段",
+    inconclusive: "未能判定"
+  };
+  return labels[profile] || profile;
+}
+
+function formatOutputCapEffective(result) {
+  if (result?.output_cap_effective == null) return "";
+  return result.output_cap_effective ? "是" : "否";
+}
+
+function renderStreamMetricsBlock(result) {
+  const metrics = result.stream_metrics;
+  const attempts = result.stream_probe_attempts;
+  const usageLine = formatStreamUsagePresent(result);
+  const usageProfileLine = formatStreamUsageChunkProfile(result);
+  const outputPrecedenceLine = formatOutputLengthCapPrecedence(result);
+  const outputEffectiveLine = formatOutputCapEffective(result);
+  if (!metrics && !attempts?.length && !usageLine && !usageProfileLine && !outputPrecedenceLine && !outputEffectiveLine) return "";
+  const attemptRows = (attempts || []).map((attempt) => {
+    const summary = formatStreamMetricsSummary(attempt.stream_metrics);
+    const status = attempt.error
+      ? `失败：${attempt.error}`
+      : summary || "—";
+    return `<li>第 ${attempt.attempt} 次 · HTTP ${attempt.http_status || "—"} · ${attempt.latency_ms || 0}ms · ${escapeHtml(status)}</li>`;
+  }).join("");
+  return `
+    <p class="detail-title">流式指标</p>
+    <div class="stream-metrics-block">
+      ${metrics ? `<p class="muted fs-sm">汇总：${escapeHtml(formatStreamMetricsSummary(metrics))}</p>` : ""}
+      ${usageLine ? `<p class="muted fs-sm">流式 usage：${escapeHtml(usageLine)}</p>` : ""}
+      ${usageProfileLine ? `<p class="muted fs-sm">流式 usage 分片：${escapeHtml(usageProfileLine)}</p>` : ""}
+      ${outputPrecedenceLine ? `<p class="muted fs-sm">输出上限字段：${escapeHtml(outputPrecedenceLine)}</p>` : ""}
+      ${outputEffectiveLine ? `<p class="muted fs-sm">输出 cap 生效：${escapeHtml(outputEffectiveLine)}</p>` : ""}
+      ${attemptRows ? `<ul class="stream-metrics-attempts">${attemptRows}</ul>` : ""}
+    </div>
+  `;
+}
+
 function assertionSummary(assertions = []) {
   if (!assertions.length) return "未配置额外断言。";
   const passed = assertions.filter((assertion) => assertion.pass).length;
   return `断言 ${passed} / ${assertions.length} 通过。`;
 }
 
-function thinkingProbeAnalysisLines(results = []) {
+function thinkingProbeAnalysisLines(results = [], options = {}) {
   const probeResults = results.filter((result) => String(result.case_id || "").startsWith("thinking_"));
   if (!probeResults.length) return [];
 
@@ -1473,8 +1905,7 @@ function thinkingProbeAnalysisLines(results = []) {
     .filter((item) => item.result && ["rejected_400", "request_failed", "permission_limited"].includes(item.result.support_conclusion));
   const locations = uniqueStrings(probeResults.flatMap(thinkingLocationsForResult));
   const tokenEvidence = uniqueStrings(probeResults.flatMap(thinkingTokenEvidenceForResult));
-  const baseline = byCase.get("thinking_baseline_no_thinking");
-  const typoProbe = byCase.get("thinking_reasnoing_effort_typo_probe");
+  const baseline = byCase.get("thinking_baseline_fixed_prompt") || byCase.get("thinking_baseline_no_thinking");
   const baselineHasEvidence = thinkingResultHasEvidence(baseline);
   const confirmedFamilies = familyAnalyses.filter((family) => family.status === "confirmed");
   const observableDefaultFamilies = familyAnalyses.filter((family) => family.status === "default_already_on");
@@ -1500,18 +1931,48 @@ function thinkingProbeAnalysisLines(results = []) {
     `- thinking 内容落点：${locations.length ? locations.join("；") : "未发现显式 thinking 内容字段"}`,
     `- token 证据：${tokenEvidence.length ? tokenEvidence.join("；") : "未发现 reasoning_tokens/thinking_tokens > 0"}`,
     `- 默认不传 thinking 参数：${baseline ? thinkingDefaultSummary(baseline) : "未运行 baseline case"}`,
-    `- 错拼 reasnoing_effort：${typoProbe ? thinkingCaseShortSummary(typoProbe) : "未运行错拼探针"}`,
     ""
   ];
 
   lines.push("### Thinking 能力矩阵");
   lines.push("");
-  lines.push("| 类型 | 判定 | 打开方式 | 关闭方式 | 级别/预算 | 证据 |");
-  lines.push("|---|---|---|---|---|---|");
+  lines.push("| 类型 | 判定 | 开关实测 | 打开方式 | 关闭方式 | 级别/预算 | 证据 |");
+  lines.push("|---|---|---|---|---|---|---|");
   lines.push(...familyAnalyses.map((family) =>
-    `| ${escapeMarkdownCell(family.name)} | ${escapeMarkdownCell(thinkingFamilyStatusLabel(family.status))} | ${escapeMarkdownCell(thinkingFamilyOpenSummary(family))} | ${escapeMarkdownCell(thinkingFamilyCloseSummary(family))} | ${escapeMarkdownCell(thinkingFamilyLevelSummary(family))} | ${escapeMarkdownCell(thinkingFamilyEvidenceSummary(family))} |`
+    `| ${escapeMarkdownCell(family.name)} | ${escapeMarkdownCell(thinkingFamilyStatusLabel(family.status))} | ${escapeMarkdownCell(thinkingEffectivenessLabel(family.thinking_effectiveness))} | ${escapeMarkdownCell(thinkingFamilyOpenSummary(family))} | ${escapeMarkdownCell(thinkingFamilyCloseSummary(family))} | ${escapeMarkdownCell(thinkingFamilyLevelSummary(family))} | ${escapeMarkdownCell(thinkingFamilyEvidenceSummary(family))} |`
   ));
   lines.push("");
+
+  const intensityRows = familyAnalyses.flatMap((family) =>
+    (family.intensityResults || []).map((item) => ({ family, item }))
+  );
+  if (intensityRows.length) {
+    lines.push("### Thinking 强度配对");
+    lines.push("");
+    lines.push("| 类型 | 参数 | 低档 | 高档 | 强度实测 | 说明 |");
+    lines.push("|---|---|---|---|---|---|");
+    lines.push(...intensityRows.map(({ family, item }) =>
+      `| ${escapeMarkdownCell(family.name)} | ${escapeMarkdownCell(item.parameter || "")} | \`${item.lowCaseId}\` | \`${item.highCaseId}\` | ${escapeMarkdownCell(thinkingEffectivenessLabel(item.thinking_effectiveness))} | ${escapeMarkdownCell(item.notes || "")} |`
+    ));
+    lines.push("");
+  }
+
+  const effortAnalyses = analyzeThinkingEffortProbes(byCase);
+  if (effortAnalyses.length) {
+    lines.push(...formatThinkingEffortAnalysisMarkdown(effortAnalyses));
+  }
+
+  const channelId = options.channelId
+    || options.channel_id
+    || runV02ProtocolEvalChannelId(state.runV02?.baselineRoute)
+    || getSelectedChannel()?.channel_id
+    || getSelectedChannel()?.id
+    || currentProviderId();
+  const protocolId = options.protocolId || options.endpoint_id || state.selectedEndpointId || "chat_completions";
+  const switchEquiv = thinkingDialectEquivalenceAnalysis(byCase, channelId, protocolId);
+  if (switchEquiv) {
+    lines.push(...formatSwitchEquivalenceMarkdown(switchEquiv));
+  }
 
   if (observableDefaultFamilies.length) {
     lines.push("### 默认已暴露但开关未隔离");
@@ -1572,22 +2033,40 @@ function thinkingProbeAnalysisLines(results = []) {
   return lines;
 }
 
+function analyzeThinkingEffortProbes(byCase) {
+  return window.NOCTUA_THINKING_EFFORT_ANALYSIS?.analyzeEffortProbes(byCase) || [];
+}
+
+function formatThinkingEffortAnalysisMarkdown(analyses) {
+  return window.NOCTUA_THINKING_EFFORT_ANALYSIS?.formatEffortAnalysisMarkdown(analyses) || [];
+}
+
 function thinkingProbeFamilies() {
   return [
     {
       name: "OpenAI reasoning_effort",
+      parameters: ["reasoning_effort"],
       openCases: [{ caseId: "thinking_reasoning_effort_medium", label: "reasoning_effort = medium" }],
       closeCases: [{ caseId: "thinking_reasoning_effort_none", label: "reasoning_effort = none", openCaseId: "thinking_reasoning_effort_medium" }],
-      levelCases: [{ caseId: "thinking_reasoning_effort_medium", label: "reasoning_effort 级别" }]
+      levelCases: [{ caseId: "thinking_reasoning_effort_medium", label: "reasoning_effort 级别" }],
+      intensityPairs: [{
+        parameter: "reasoning_effort",
+        lowCaseId: "thinking_reasoning_effort_low",
+        highCaseId: "thinking_reasoning_effort_high",
+        label: "reasoning_effort low vs high"
+      }]
     },
     {
       name: "Qwen/SiliconFlow enable_thinking",
+      parameters: ["enable_thinking"],
       openCases: [{ caseId: "thinking_enable_thinking_true", label: "enable_thinking = true" }],
       closeCases: [{ caseId: "thinking_enable_thinking_false", label: "enable_thinking = false", openCaseId: "thinking_enable_thinking_true" }],
-      levelCases: [{ caseId: "thinking_enable_thinking_with_budget", label: "enable_thinking + thinking_budget 预算" }]
+      levelCases: [{ caseId: "thinking_enable_thinking_with_budget", label: "enable_thinking + thinking_budget 预算" }],
+      intensityPairs: []
     },
     {
       name: "Qwen thinking_budget",
+      parameters: ["thinking_budget"],
       openCases: [
         { caseId: "thinking_budget_only", label: "thinking_budget = 1000" },
         { caseId: "thinking_enable_thinking_with_budget", label: "enable_thinking = true + thinking_budget = 1000" }
@@ -1596,19 +2075,28 @@ function thinkingProbeFamilies() {
       levelCases: [
         { caseId: "thinking_budget_only", label: "thinking_budget 预算" },
         { caseId: "thinking_enable_thinking_with_budget", label: "enable_thinking + thinking_budget 预算" }
-      ]
+      ],
+      intensityPairs: [{
+        parameter: "thinking_budget",
+        lowCaseId: "thinking_thinking_budget_low",
+        highCaseId: "thinking_thinking_budget_high",
+        label: "thinking_budget 128 vs 4096"
+      }]
     },
     {
       name: "DeepSeek/Claude thinking object",
+      parameters: ["thinking"],
       openCases: [
         { caseId: "thinking_object_enabled", label: "thinking.type = enabled" },
         { caseId: "thinking_object_enabled_budget_tokens", label: "thinking.type = enabled + budget_tokens" }
       ],
       closeCases: [{ caseId: "thinking_object_disabled", label: "thinking.type = disabled", openCaseId: "thinking_object_enabled" }],
-      levelCases: [{ caseId: "thinking_object_enabled_budget_tokens", label: "thinking.budget_tokens 预算" }]
+      levelCases: [{ caseId: "thinking_object_enabled_budget_tokens", label: "thinking.budget_tokens 预算" }],
+      intensityPairs: []
     },
     {
       name: "OpenRouter reasoning object",
+      parameters: ["reasoning"],
       openCases: [
         { caseId: "thinking_reasoning_object_effort_summary", label: "reasoning.effort = medium + reasoning.summary = auto" },
         { caseId: "thinking_reasoning_object_enabled", label: "reasoning.enabled = true" }
@@ -1617,24 +2105,334 @@ function thinkingProbeFamilies() {
         { caseId: "thinking_reasoning_object_effort_none", label: "reasoning.effort = none", openCaseId: "thinking_reasoning_object_effort_summary" },
         { caseId: "thinking_reasoning_object_disabled", label: "reasoning.enabled = false", openCaseId: "thinking_reasoning_object_enabled" }
       ],
-      levelCases: [{ caseId: "thinking_reasoning_object_effort_summary", label: "reasoning.effort 级别/summary" }]
+      levelCases: [{ caseId: "thinking_reasoning_object_effort_summary", label: "reasoning.effort 级别/summary" }],
+      intensityPairs: []
     },
     {
       name: "vLLM chat_template_kwargs",
+      parameters: ["chat_template_kwargs"],
       openCases: [{ caseId: "thinking_chat_template_kwargs_enable_true", label: "chat_template_kwargs.enable_thinking = true" }],
       closeCases: [{ caseId: "thinking_chat_template_kwargs_enable_false", label: "chat_template_kwargs.enable_thinking = false", openCaseId: "thinking_chat_template_kwargs_enable_true" }],
-      levelCases: []
+      levelCases: [],
+      intensityPairs: []
     },
     {
       name: "MiniMax reasoning_split",
+      parameters: ["reasoning_split"],
       openCases: [{ caseId: "thinking_reasoning_split_true", label: "reasoning_split = true" }],
       closeCases: [
         { caseId: "thinking_object_disabled", label: "thinking.type = disabled", openCaseId: "thinking_reasoning_split_true" },
         { caseId: "thinking_reasoning_split_false", label: "reasoning_split = false", openCaseId: "thinking_reasoning_split_true" }
       ],
-      levelCases: []
+      levelCases: [],
+      intensityPairs: []
     }
   ];
+}
+
+function reasoningTokenCountForResult(result) {
+  if (!result) return null;
+  const direct = Number(result.reasoning_tokens);
+  if (Number.isFinite(direct)) return direct;
+  const body = result.response_body;
+  if (!body || typeof body !== "object") return null;
+  let max = 0;
+  let found = false;
+  walkJsonForTokenField(body, "reasoning_tokens", (count) => {
+    found = true;
+    if (count > max) max = count;
+  });
+  return found ? max : null;
+}
+
+function thinkingTokenCountForResult(result) {
+  if (!result) return null;
+  const direct = Number(result.thinking_tokens);
+  if (Number.isFinite(direct)) return direct;
+  const body = result.response_body;
+  if (!body || typeof body !== "object") return null;
+  let max = 0;
+  let found = false;
+  walkJsonForTokenField(body, "thinking_tokens", (count) => {
+    found = true;
+    if (count > max) max = count;
+  });
+  return found ? max : null;
+}
+
+function walkJsonForTokenField(value, field, onCount) {
+  if (!value || typeof value !== "object") return;
+  if (Array.isArray(value)) {
+    value.forEach((item) => walkJsonForTokenField(item, field, onCount));
+    return;
+  }
+  for (const [key, child] of Object.entries(value)) {
+    if (key.toLowerCase() === field.toLowerCase()) {
+      const count = Number(child);
+      if (Number.isFinite(count)) onCount(count);
+    }
+    walkJsonForTokenField(child, field, onCount);
+  }
+}
+
+function visibleThinkingLengthForResult(result) {
+  if (!result?.response_body) return 0;
+  const body = result.response_body;
+  let total = 0;
+  const reasoningContent = body?.choices?.[0]?.message?.reasoning_content;
+  if (typeof reasoningContent === "string") total += reasoningContent.length;
+  const reasoning = body?.choices?.[0]?.message?.reasoning;
+  if (reasoning && typeof reasoning === "object") {
+    total += JSON.stringify(reasoning).length;
+  }
+  const details = body?.choices?.[0]?.message?.reasoning_details;
+  if (Array.isArray(details)) total += JSON.stringify(details).length;
+  const content = body?.choices?.[0]?.message?.content;
+  if (typeof content === "string" && content.includes("<think>")) {
+    total += content.length;
+  }
+  if (Array.isArray(body?.content)) {
+    for (const block of body.content) {
+      if (block?.type === "thinking" && typeof block.thinking === "string") {
+        total += block.thinking.length;
+      }
+    }
+  }
+  return total;
+}
+
+function thinkingEvidenceScore(result) {
+  if (!result) return 0;
+  const reasoningTokens = reasoningTokenCountForResult(result);
+  const thinkingTokens = thinkingTokenCountForResult(result);
+  const tokenScore = Math.max(reasoningTokens ?? 0, thinkingTokens ?? 0);
+  const visibleScore = visibleThinkingLengthForResult(result);
+  return tokenScore > 0 ? tokenScore : visibleScore;
+}
+
+function thinkingIntensityPairAnalysis(pair, byCase) {
+  const low = byCase.get(pair.lowCaseId);
+  const high = byCase.get(pair.highCaseId);
+  const lowAccepted = thinkingRequestAccepted(low);
+  const highAccepted = thinkingRequestAccepted(high);
+  let thinking_effectiveness = "unproven";
+  let notes = "";
+  if (!low || !high) {
+    return { ...pair, low, high, thinking_effectiveness: "unproven", notes: "强度配对 case 未完整运行" };
+  }
+  if (!lowAccepted || !highAccepted) {
+    thinking_effectiveness = thinkingRequestRejected(low) || thinkingRequestRejected(high) ? "rejected" : "unproven";
+    notes = "强度配对未同时被接受";
+    return { ...pair, low, high, thinking_effectiveness, notes, lowTokens: reasoningTokenCountForResult(low), highTokens: reasoningTokenCountForResult(high) };
+  }
+  const lowTokens = reasoningTokenCountForResult(low);
+  const highTokens = reasoningTokenCountForResult(high);
+  const lowVisible = visibleThinkingLengthForResult(low);
+  const highVisible = visibleThinkingLengthForResult(high);
+  const tokenDelta = lowTokens != null && highTokens != null && highTokens > lowTokens;
+  const visibleDelta = highVisible > lowVisible;
+  if (tokenDelta || visibleDelta) {
+    thinking_effectiveness = "effective";
+    notes = tokenDelta
+      ? `reasoning_tokens ${lowTokens} → ${highTokens}`
+      : `可见 thinking 长度 ${lowVisible} → ${highVisible}`;
+  } else {
+    thinking_effectiveness = "accepted_ineffective";
+    notes = lowTokens != null && highTokens != null
+      ? `reasoning_tokens 无差异（${lowTokens} vs ${highTokens}）`
+      : "请求接受但高强度未产生更多 thinking 证据";
+  }
+  return { ...pair, low, high, thinking_effectiveness, notes, lowTokens, highTokens, lowVisible, highVisible };
+}
+
+function thinkingSwitchEffectiveness(family, baseline) {
+  const bestOpen = family.openResults.find((item) => thinkingOpeningWorks(item.result)) || null;
+  const pairedClose = family.closeResults.find((item) => thinkingClosingWorks(item.result) && thinkingOpeningWorks(item.openResult)) || null;
+  const baselineScore = thinkingEvidenceScore(baseline);
+  const openScore = thinkingEvidenceScore(bestOpen?.result);
+  if (family.status === "confirmed" && bestOpen && pairedClose && openScore > baselineScore) {
+    return "effective";
+  }
+  if (family.status === "default_already_on") return "default_on";
+  if (family.status === "rejected") return "rejected";
+  if (family.status === "accepted_no_evidence") return "accepted_ineffective";
+  if (family.status === "confirmed") return "effective";
+  return "unproven";
+}
+
+const SWITCH_EQUIVALENCE_SPECS = [
+  {
+    group: "reasoning_switch_open",
+    referenceCaseId: "thinking_enable_thinking_true",
+    alternateCaseId: "thinking_switch_alt_thinking_enabled",
+    primaryParam: "enable_thinking",
+    alternateParam: "thinking",
+    mode: "open"
+  },
+  {
+    group: "reasoning_switch_close",
+    referenceCaseId: "thinking_enable_thinking_false",
+    alternateCaseId: "thinking_switch_alt_thinking_disabled",
+    primaryParam: "enable_thinking",
+    alternateParam: "thinking",
+    mode: "close"
+  }
+];
+
+function formatSwitchEvidenceDelta(reference, alternate) {
+  const refScore = thinkingEvidenceScore(reference);
+  const altScore = thinkingEvidenceScore(alternate);
+  const refTokens = reasoningTokenCountForResult(reference);
+  const altTokens = reasoningTokenCountForResult(alternate);
+  if (refTokens != null || altTokens != null) {
+    return `主方言 reasoning_tokens=${refTokens ?? 0}，备选 ${altTokens ?? 0}`;
+  }
+  return `主方言证据分 ${refScore}，备选 ${altScore}`;
+}
+
+function analyzeSwitchConflictProbe(byCase) {
+  const specs = [
+    {
+      caseId: "thinking_switch_conflict_enable_off_thinking_on",
+      label: "enable_thinking=false 且 thinking.type=enabled",
+      openWinner: "thinking",
+      closeWinner: "enable_thinking",
+      openNote: "冲突时 thinking.type=enabled 生效（忽略 enable_thinking=false）",
+      closeNote: "冲突时 enable_thinking=false 生效（thinking 未产生证据）"
+    },
+    {
+      caseId: "thinking_switch_conflict_enable_on_thinking_off",
+      label: "enable_thinking=true 且 thinking.type=disabled",
+      openWinner: "enable_thinking",
+      closeWinner: "thinking",
+      openNote: "冲突时 enable_thinking=true 生效（忽略 thinking.type=disabled）",
+      closeNote: "冲突时 thinking.type=disabled 生效（无 thinking 证据）"
+    }
+  ];
+  const conflicts = specs.map((spec) => {
+    const result = byCase.get(spec.caseId);
+    if (!result) return null;
+    const hasEvidence = thinkingResultHasEvidence(result);
+    const winner = hasEvidence ? spec.openWinner : spec.closeWinner;
+    return {
+      case_id: spec.caseId,
+      label: spec.label,
+      winner,
+      notes: hasEvidence ? spec.openNote : spec.closeNote
+    };
+  }).filter(Boolean);
+  if (!conflicts.length) return null;
+  return conflicts;
+}
+
+function thinkingDialectEquivalenceAnalysis(byCase, channelId, protocolId = "chat_completions") {
+  void channelId;
+  void protocolId;
+
+  const baseline = byCase.get("thinking_baseline_fixed_prompt") || byCase.get("thinking_baseline_no_thinking");
+  const baselineScore = thinkingEvidenceScore(baseline);
+  const rows = [];
+
+  for (const spec of SWITCH_EQUIVALENCE_SPECS) {
+    const reference = byCase.get(spec.referenceCaseId);
+    const alternate = byCase.get(spec.alternateCaseId);
+    if (!reference && !alternate) continue;
+
+    let primaryEffectiveness = "unproven";
+    let alternateEffectiveness = "unproven";
+    let notes = "";
+
+    if (spec.mode === "open") {
+      const primaryWorks = thinkingOpeningWorks(reference);
+      const altWorks = thinkingOpeningWorks(alternate);
+      const altAccepted = thinkingRequestAccepted(alternate);
+      const primaryScore = thinkingEvidenceScore(reference);
+      const altScore = thinkingEvidenceScore(alternate);
+
+      if (primaryWorks && primaryScore > baselineScore) primaryEffectiveness = "effective";
+      else if (reference && thinkingRequestRejected(reference)) primaryEffectiveness = "rejected";
+      else if (reference && thinkingRequestAccepted(reference)) primaryEffectiveness = "accepted_ineffective";
+
+      if (altWorks && altScore > baselineScore) alternateEffectiveness = "effective";
+      else if (alternate && altAccepted && !altWorks) alternateEffectiveness = "accepted_ineffective";
+      else if (alternate && thinkingRequestRejected(alternate)) alternateEffectiveness = "rejected";
+
+      if (primaryEffectiveness === "effective" && alternateEffectiveness === "accepted_ineffective") {
+        notes = "主方言开启有效，备选方言 HTTP 接受但无 thinking 证据";
+      } else if (primaryEffectiveness === "effective" && alternateEffectiveness === "effective") {
+        notes = "主方言与备选方言均可开启 thinking";
+      } else if (!reference || !alternate) {
+        notes = "等价对照 case 未完整运行";
+      }
+    } else {
+      const primaryWorks = thinkingClosingWorks(reference);
+      const altWorks = thinkingClosingWorks(alternate);
+      const altAccepted = thinkingRequestAccepted(alternate);
+
+      if (primaryWorks) primaryEffectiveness = "effective";
+      else if (reference && thinkingRequestRejected(reference)) primaryEffectiveness = "rejected";
+      else if (reference && thinkingRequestAccepted(reference)) primaryEffectiveness = "accepted_ineffective";
+
+      if (altWorks) alternateEffectiveness = "effective";
+      else if (alternate && altAccepted && !altWorks) alternateEffectiveness = "accepted_ineffective";
+      else if (alternate && thinkingRequestRejected(alternate)) alternateEffectiveness = "rejected";
+
+      if (primaryEffectiveness === "effective" && alternateEffectiveness === "accepted_ineffective") {
+        notes = "主方言关闭有效，备选方言 HTTP 接受但未关闭 thinking";
+      } else if (primaryEffectiveness === "effective" && alternateEffectiveness === "effective") {
+        notes = "主方言与备选方言均可关闭 thinking";
+      }
+    }
+
+    rows.push({
+      group: spec.group,
+      mode: spec.mode,
+      primary_param: spec.primaryParam,
+      alternate_param: spec.alternateParam,
+      reference_case_id: spec.referenceCaseId,
+      alternate_case_id: spec.alternateCaseId,
+      primary_effectiveness: primaryEffectiveness,
+      alternate_effectiveness: alternateEffectiveness,
+      evidence_delta: reference && alternate ? formatSwitchEvidenceDelta(reference, alternate) : "",
+      notes
+    });
+  }
+
+  const conflicts = analyzeSwitchConflictProbe(byCase);
+  if (!rows.length && !conflicts?.length) return null;
+  return { rows, conflicts };
+}
+
+function formatSwitchEquivalenceMarkdown(equiv) {
+  if (!equiv?.rows?.length && !equiv?.conflicts?.length) return [];
+  const lines = ["### 开关方言等价对照", ""];
+  if (equiv.rows.length) {
+    lines.push("| 语义 | 主方言参数 | 主方言实测 | 备选参数 | 备选实测 | 证据对比 | 说明 |");
+    lines.push("|---|---|---|---|---|---|---|");
+    for (const row of equiv.rows) {
+      const label = row.mode === "open" ? "开启" : "关闭";
+      lines.push(
+        `| ${label} | \`${row.primary_param}\` | ${escapeMarkdownCell(thinkingEffectivenessLabel(row.primary_effectiveness))} | \`${row.alternate_param}\` | ${escapeMarkdownCell(thinkingEffectivenessLabel(row.alternate_effectiveness))} | ${escapeMarkdownCell(row.evidence_delta || "—")} | ${escapeMarkdownCell(row.notes || "—")} |`
+      );
+    }
+    lines.push("");
+  }
+  for (const conflict of equiv.conflicts || []) {
+    lines.push(`- 冲突探针（${conflict.label}）：以 **${conflict.winner}** 为准；${conflict.notes}`);
+  }
+  if (equiv.conflicts?.length) lines.push("");
+  return lines;
+}
+
+function thinkingEffectivenessLabel(value) {
+  return {
+    effective: "实测有效",
+    accepted_ineffective: "接受无效",
+    rejected: "被拒绝",
+    unproven: "未证明",
+    default_on: "默认开启",
+    doc_gap: "文档未列但有效"
+  }[value] || value || "—";
 }
 
 function thinkingFamilyAnalysis(family, byCase) {
@@ -1645,7 +2443,8 @@ function thinkingFamilyAnalysis(family, byCase) {
     return { ...item, result: byCase.get(item.caseId), openResult: thinkingOpeningWorks(explicitOpen) ? explicitOpen : fallbackOpen || explicitOpen };
   });
   const levelResults = family.levelCases.map((item) => ({ ...item, result: byCase.get(item.caseId) }));
-  const baseline = byCase.get("thinking_baseline_no_thinking");
+  const intensityResults = (family.intensityPairs || []).map((pair) => thinkingIntensityPairAnalysis(pair, byCase));
+  const baseline = byCase.get("thinking_baseline_fixed_prompt") || byCase.get("thinking_baseline_no_thinking");
   const baselineHasEvidence = thinkingResultHasEvidence(baseline);
   const bestOpen = openResults.find((item) => thinkingOpeningWorks(item.result)) || null;
   const pairedClose = closeResults.find((item) => thinkingClosingWorks(item.result) && thinkingOpeningWorks(item.openResult)) || null;
@@ -1662,7 +2461,9 @@ function thinkingFamilyAnalysis(family, byCase) {
   } else if (rejected) {
     status = "rejected";
   }
-  return { ...family, openResults, closeResults, levelResults, status, bestOpen, pairedClose };
+  const partial = { ...family, openResults, closeResults, levelResults, intensityResults, status, bestOpen, pairedClose, baseline };
+  const thinking_effectiveness = thinkingSwitchEffectiveness(partial, baseline);
+  return { ...partial, thinking_effectiveness };
 }
 
 function thinkingFamilyStatusLabel(status) {
@@ -1821,12 +2622,19 @@ function thinkingLocationsForResult(result) {
 }
 
 function thinkingTokenEvidenceForResult(result) {
-  return thinkingEvidenceSummary(result)
+  const fromAssertion = thinkingEvidenceSummary(result)
     .split("；")
     .filter((part) => part.startsWith("token 证据: "))
     .flatMap((part) => part.replace("token 证据: ", "").split(", "))
     .map((item) => item.trim())
     .filter(Boolean);
+  if (fromAssertion.length) return fromAssertion;
+  const tokens = [];
+  const reasoning = reasoningTokenCountForResult(result);
+  const thinking = thinkingTokenCountForResult(result);
+  if (reasoning != null && reasoning > 0) tokens.push(`reasoning_tokens=${reasoning}`);
+  if (thinking != null && thinking > 0) tokens.push(`thinking_tokens=${thinking}`);
+  return tokens;
 }
 
 function thinkingDefaultSummary(result) {
@@ -1873,6 +2681,11 @@ function matchesExpectedResult(result) {
   const expected = expectedSupportConclusionForResult(result);
   const expectedStatus = expectedHTTPStatusForResult(result);
   const statusMatches = !expectedStatus || Number(result.http_status || 0) === expectedStatus;
+  if (isCacheHitCase(result.source_case || { case_id: result.case_id, category: result.category })) {
+    if (!statusMatches) return false;
+    if (result.support_conclusion === "request_failed") return false;
+    return failedAssertionsForResult(result).every((assertion) => assertion.pass);
+  }
   const conclusionMatches = (result.support_conclusion || "unknown") === expected;
   if (!statusMatches || !conclusionMatches) return false;
   if (expected === "rejected_400" || expected === "permission_limited") return true;
@@ -1921,7 +2734,8 @@ function categoryLabel(category) {
     headers: "请求头",
     skill: "技能",
     beta: "Beta",
-    capacity: "容量"
+    capacity: "容量",
+    cache: "缓存"
   };
   return labels[category] || category;
 }
@@ -1963,19 +2777,233 @@ function isProtocolStreamCaseP0NonStream(testCase) {
   return /_protocol_stream_false$/.test(caseId) || caseId === "am_protocol_stream_false";
 }
 
-function isProtocolStreamCaseP1(testCase) {
+function isProtocolStreamUsageObservedCase(testCase) {
   if (testCase?.category !== "protocol") return false;
-  if (isProtocolStreamCaseP0(testCase) || isProtocolStreamCaseP0NonStream(testCase)) return false;
+  const caseId = String(testCase?.case_id || "");
+  return /_stream_usage_without_include_usage$/.test(caseId);
+}
+
+function isProtocolStreamUsageChunkShapeCase(testCase) {
+  if (testCase?.category !== "protocol") return false;
+  const caseId = String(testCase?.case_id || "");
+  return /_(protocol_stream_usage_chunk_shape|stream_usage_chunk_shape)$/.test(caseId);
+}
+
+function isProtocolStreamCaseP1IncludeUsage(testCase) {
+  if (testCase?.category !== "protocol") return false;
+  if (isProtocolStreamCaseP0(testCase) || isProtocolStreamCaseP0NonStream(testCase) || isProtocolStreamUsageObservedCase(testCase) || isProtocolStreamUsageChunkShapeCase(testCase)) {
+    return false;
+  }
   const caseId = String(testCase?.case_id || "");
   return /_(protocol_stream_include_usage|stream_include_usage)$/.test(caseId)
     || caseId === "oa_stream_with_usage"
     || caseId === "or_stream_with_usage_deprecated_option";
 }
 
+function isProtocolStreamCaseP1(testCase) {
+  return isProtocolStreamUsageObservedCase(testCase) || isProtocolStreamCaseP1IncludeUsage(testCase);
+}
+
 function isProtocolStreamCase(testCase) {
   return isProtocolStreamCaseP0(testCase)
     || isProtocolStreamCaseP0NonStream(testCase)
-    || isProtocolStreamCaseP1(testCase);
+    || isProtocolStreamCaseP1(testCase)
+    || isProtocolStreamUsageChunkShapeCase(testCase);
+}
+
+function isLengthPrecedenceCase(testCase) {
+  const caseId = String(testCase?.case_id || "");
+  if (testCase?.category !== "length") return false;
+  return /_length_both_fields_precedence$/.test(caseId);
+}
+
+function isLengthStopComboCase(testCase) {
+  const caseId = String(testCase?.case_id || "");
+  if (testCase?.category !== "length") return false;
+  return caseId.endsWith("_length_max_tokens_stop") || caseId.endsWith("_length_max_completion_tokens_stop");
+}
+
+function isLengthEdgeCase(testCase) {
+  const caseId = String(testCase?.case_id || "");
+  if (testCase?.category !== "length") return false;
+  if (isLengthPrecedenceCase(testCase) || isLengthStopComboCase(testCase)) return false;
+  if (caseId === "vllm_length_max_completion_tokens") return true;
+  if (caseId === "or_length_deprecated_max_tokens") return true;
+  if (caseId === "oa_length_deprecated_max_tokens") return true;
+  if (caseId.endsWith("_length_max_tokens_null")) return true;
+  if (caseId.endsWith("_length_legacy_max_tokens_probe")) return true;
+  if (caseId === "claude_length_max_tokens") return true;
+  return false;
+}
+
+function isLengthLegacyCase(testCase) {
+  return isLengthEdgeCase(testCase) || isLengthStopComboCase(testCase);
+}
+
+function lengthCaseAxisGroup(testCase) {
+  if (isOutputLengthCapacityCase(testCase)) return "capacity";
+  if (isLengthPrecedenceCase(testCase)) return "precedence";
+  if (isLengthFieldEffectiveCase(testCase)) return "effective";
+  if (isLengthAcceptanceCase(testCase)) return "accept";
+  if (isLengthStopComboCase(testCase)) return "stop_combo";
+  if (isLengthEdgeCase(testCase)) return "edge";
+  return "";
+}
+
+function lengthCaseFieldRank(testCase) {
+  const caseId = String(testCase?.case_id || "");
+  if (caseId.includes("max_completion_tokens")) return 1;
+  if (caseId.includes("max_tokens")) return 0;
+  return 2;
+}
+
+function sortOutputLengthCases(cases = []) {
+  return [...cases].sort((left, right) => {
+    const axisLeft = LENGTH_AXIS_ORDER.indexOf(lengthCaseAxisGroup(left));
+    const axisRight = LENGTH_AXIS_ORDER.indexOf(lengthCaseAxisGroup(right));
+    if (axisLeft !== axisRight) return axisLeft - axisRight;
+    const fieldLeft = lengthCaseFieldRank(left);
+    const fieldRight = lengthCaseFieldRank(right);
+    if (fieldLeft !== fieldRight) return fieldLeft - fieldRight;
+    return String(left.case_id || "").localeCompare(String(right.case_id || ""));
+  });
+}
+
+function partitionOutputLengthForDisplay(cases = []) {
+  const buckets = new Map(LENGTH_AXIS_ORDER.map((axis) => [axis, []]));
+  for (const testCase of cases) {
+    const axis = lengthCaseAxisGroup(testCase);
+    if (!axis || !buckets.has(axis)) continue;
+    buckets.get(axis).push(testCase);
+  }
+  return LENGTH_AXIS_ORDER
+    .filter((axis) => buckets.get(axis)?.length)
+    .map((axis) => [axis, sortOutputLengthCases(buckets.get(axis))]);
+}
+
+function defaultOutputLengthCaseIds(cases = []) {
+  return cases
+    .filter((testCase) => {
+      const axis = lengthCaseAxisGroup(testCase);
+      return axis === "accept" || axis === "effective" || axis === "precedence";
+    })
+    .map((testCase) => testCase.case_id);
+}
+
+function isLengthFieldEffectiveCase(testCase) {
+  if (testCase?.category !== "length") return false;
+  const caseId = String(testCase.case_id || "");
+  return /_length_max_(tokens|completion_tokens)_only_effective$/.test(caseId);
+}
+
+function isLengthAcceptanceCase(testCase) {
+  if (testCase?.category !== "length") return false;
+  if (isLengthEdgeCase(testCase) || isLengthStopComboCase(testCase) || isLengthPrecedenceCase(testCase) || isLengthFieldEffectiveCase(testCase)) return false;
+  const caseId = String(testCase.case_id || "");
+  return /_length_max_(completion_)?tokens$/.test(caseId);
+}
+
+function isOutputLengthCapacityCase(testCase) {
+  if (!isCapacityCase(testCase)) return false;
+  const probeKind = testCase?.payload?.__capacity_probe?.kind;
+  if (["max_input", "max_output", "total_context"].includes(probeKind)) {
+    return true;
+  }
+  return [
+    "capacity_max_input_boundary",
+    "capacity_max_output_boundary",
+    "capacity_total_context_boundary"
+  ].includes(String(testCase?.case_id || ""));
+}
+
+function isOutputLengthCase(testCase) {
+  return isLengthAcceptanceCase(testCase)
+    || isLengthLegacyCase(testCase)
+    || isLengthPrecedenceCase(testCase)
+    || isLengthFieldEffectiveCase(testCase)
+    || isOutputLengthCapacityCase(testCase);
+}
+
+function outputLengthCaseTitle(testCase) {
+  if (!testCase) return "";
+  const caseId = String(testCase.case_id || "");
+  const params = testCase.parameters || [];
+
+  if (caseId.endsWith("_length_deprecated_max_tokens") || caseId.endsWith("_length_legacy_max_tokens_probe") || caseId === "claude_length_max_tokens") {
+    return RUN_V02_OUTPUT_LENGTH_EDGE_DEPRECATED_MAX_TOKENS_TITLE;
+  }
+  if (caseId.endsWith("_length_max_tokens_null")) {
+    return RUN_V02_OUTPUT_LENGTH_EDGE_MAX_TOKENS_NULL_TITLE;
+  }
+  if (caseId.endsWith("_length_max_tokens_stop")) {
+    return RUN_V02_OUTPUT_LENGTH_STOP_MAX_TOKENS_TITLE;
+  }
+  if (caseId.endsWith("_length_max_completion_tokens_stop")) {
+    return RUN_V02_OUTPUT_LENGTH_STOP_MAX_COMPLETION_TITLE;
+  }
+  if (caseId === "vllm_length_max_completion_tokens") {
+    return RUN_V02_OUTPUT_LENGTH_EDGE_MAX_COMPLETION_COMPAT_TITLE;
+  }
+  if (caseId.endsWith("_length_both_fields_precedence")) {
+    return RUN_V02_OUTPUT_LENGTH_PRECEDENCE_TITLE;
+  }
+  if (caseId.endsWith("_length_max_tokens_only_effective")) {
+    return RUN_V02_OUTPUT_LENGTH_EFFECTIVE_MAX_TOKENS_TITLE;
+  }
+  if (caseId.endsWith("_length_max_completion_tokens_only_effective")) {
+    return RUN_V02_OUTPUT_LENGTH_EFFECTIVE_MAX_COMPLETION_TITLE;
+  }
+  if (caseId === "capacity_max_input_boundary") {
+    return RUN_V02_OUTPUT_LENGTH_CAPACITY_INPUT_TITLE;
+  }
+  if (caseId === "capacity_max_output_boundary") {
+    return RUN_V02_OUTPUT_LENGTH_CAPACITY_OUTPUT_TITLE;
+  }
+  if (caseId === "capacity_total_context_boundary") {
+    return RUN_V02_OUTPUT_LENGTH_CAPACITY_CONTEXT_TITLE;
+  }
+  if (isLengthAcceptanceCase(testCase)) {
+    if (params.includes("max_completion_tokens") && !params.includes("max_tokens")) {
+      return RUN_V02_OUTPUT_LENGTH_ACCEPT_MAX_COMPLETION_TITLE;
+    }
+    if (params.includes("max_tokens")) {
+      return RUN_V02_OUTPUT_LENGTH_ACCEPT_MAX_TOKENS_TITLE;
+    }
+    if (testCase.payload?.max_completion_tokens != null) {
+      return RUN_V02_OUTPUT_LENGTH_ACCEPT_MAX_COMPLETION_TITLE;
+    }
+    return RUN_V02_OUTPUT_LENGTH_ACCEPT_MAX_TOKENS_TITLE;
+  }
+  return "";
+}
+
+function outputLengthCaseTooltip(testCase) {
+  if (!testCase) return "";
+  const caseId = String(testCase.case_id || "");
+  if (isOutputLengthCapacityCase(testCase)) return RUN_V02_OUTPUT_LENGTH_CAPACITY_TOOLTIP;
+  if (caseId.endsWith("_length_deprecated_max_tokens") || caseId.endsWith("_length_legacy_max_tokens_probe") || caseId === "claude_length_max_tokens") {
+    return RUN_V02_OUTPUT_LENGTH_EDGE_DEPRECATED_TOOLTIP;
+  }
+  if (caseId.endsWith("_length_max_tokens_null")) return RUN_V02_OUTPUT_LENGTH_EDGE_NULL_TOOLTIP;
+  if (caseId.endsWith("_length_max_tokens_stop")) return RUN_V02_OUTPUT_LENGTH_STOP_MAX_TOKENS_TOOLTIP;
+  if (caseId.endsWith("_length_max_completion_tokens_stop")) return RUN_V02_OUTPUT_LENGTH_STOP_MAX_COMPLETION_TOOLTIP;
+  if (caseId === "vllm_length_max_completion_tokens") return RUN_V02_OUTPUT_LENGTH_EDGE_COMPAT_TOOLTIP;
+  if (caseId.endsWith("_length_both_fields_precedence")) return RUN_V02_OUTPUT_LENGTH_PRECEDENCE_TOOLTIP;
+  if (caseId.endsWith("_length_max_tokens_only_effective")) return RUN_V02_OUTPUT_LENGTH_EFFECTIVE_MAX_TOKENS_TOOLTIP;
+  if (caseId.endsWith("_length_max_completion_tokens_only_effective")) {
+    return RUN_V02_OUTPUT_LENGTH_EFFECTIVE_MAX_COMPLETION_TOOLTIP;
+  }
+  if (isLengthAcceptanceCase(testCase)) {
+    const params = testCase.parameters || [];
+    if (params.includes("max_completion_tokens") && !params.includes("max_tokens")) {
+      return RUN_V02_OUTPUT_LENGTH_ACCEPT_MAX_COMPLETION_TOOLTIP;
+    }
+    if (testCase.payload?.max_completion_tokens != null && testCase.payload?.max_tokens == null) {
+      return RUN_V02_OUTPUT_LENGTH_ACCEPT_MAX_COMPLETION_TOOLTIP;
+    }
+    return RUN_V02_OUTPUT_LENGTH_ACCEPT_MAX_TOKENS_TOOLTIP;
+  }
+  return "";
 }
 
 function isProtocolSamplingCase(testCase) {
@@ -2006,33 +3034,211 @@ function isProtocolThinkingCase(testCase) {
   return PROTOCOL_THINKING_CANONICAL_CASE_IDS.has(caseId);
 }
 
-function protocolThinkingComboKey(testCase) {
-  const params = (testCase.parameters || [])
-    .map((param) => String(param))
-    .filter((param) => protocolThinkingParameters.has(param)
-      || param.startsWith("thinking")
-      || param.startsWith("reasoning"))
-    .sort();
-  return params.join(" + ") || "other";
+function isProtocolToolsCase(testCase) {
+  if (!testCase) return false;
+  return PROTOCOL_TOOLS_CANONICAL_CASE_IDS.has(String(testCase.case_id || ""));
 }
 
-function partitionProtocolThinkingCombos(cases = []) {
-  const byCombo = new Map();
-  for (const testCase of cases) {
-    const key = protocolThinkingComboKey(testCase);
-    if (!byCombo.has(key)) byCombo.set(key, []);
-    byCombo.get(key).push(testCase);
+function isProtocolResponseFormatCase(testCase) {
+  if (!testCase) return false;
+  return PROTOCOL_RESPONSE_FORMAT_CANONICAL_CASE_IDS.has(String(testCase.case_id || ""));
+}
+
+function isCacheHitCase(testCase) {
+  if (!testCase) return false;
+  const caseId = String(testCase.case_id || "");
+  return testCase.category === "cache" || testCase.cache_case === true || caseId.startsWith("cache_");
+}
+
+function thinkingCaseMeta(testCase) {
+  return testCase?.expect || {};
+}
+
+function thinkingCaseAxisGroup(axis) {
+  if (axis === "switch_on" || axis === "switch_off") return "switch";
+  if (axis === "switch_equiv_on" || axis === "switch_equiv_off") return "switch_equiv";
+  if (axis === "switch_conflict") return "switch_conflict";
+  return axis || "";
+}
+
+function thinkingChannelFieldForGroup(cfg, group) {
+  if (!cfg) return "";
+  if (group === "switch") return cfg.switchField || "";
+  if (group === "switch_equiv") {
+    const alts = cfg.alternateSwitchDialects || [];
+    return alts.map((item) => item.field).filter(Boolean).join(" / ") || "thinking.type";
   }
-  const rank = (key) => {
-    const index = PROTOCOL_THINKING_COMBO_ORDER.indexOf(key);
-    return index === -1 ? 100 + key.length : index;
-  };
-  return [...byCombo.entries()]
-    .sort(([left], [right]) => {
-      const byRank = rank(left) - rank(right);
-      if (byRank !== 0) return byRank;
-      return left.localeCompare(right);
-    });
+  if (group === "switch_conflict") {
+    return [cfg.switchField, ...(cfg.alternateSwitchDialects || []).map((item) => item.field)].filter(Boolean).join(" + ");
+  }
+  if (group === "intensity") return cfg.intensityField || "";
+  if (group === "output") return cfg.outputField || "";
+  return "";
+}
+
+/** canonical thinking case 不以渠道文档裁剪；仅排除废弃的 legacy 开关 case。 */
+function thinkingCasesForChannel(cases = []) {
+  return cases.filter((testCase) => !LEGACY_SWITCH_CASE_IDS.has(testCase.case_id));
+}
+
+function thinkingCaseSortKey(testCase) {
+  const meta = thinkingCaseMeta(testCase);
+  const group = thinkingCaseAxisGroup(meta.axis);
+  const groupRank = THINKING_AXIS_ORDER.indexOf(group);
+  const within = meta.axis === "switch_off" || meta.axis === "switch_equiv_off" ? 1 : 0;
+  const optional = testCase.optional ? 1 : 0;
+  return (groupRank < 0 ? 99 : groupRank) * 100 + within * 10 + optional;
+}
+
+function partitionProtocolThinkingByAxis(cases = []) {
+  const byAxis = new Map();
+  for (const testCase of cases) {
+    const group = thinkingCaseAxisGroup(thinkingCaseMeta(testCase).axis);
+    if (!THINKING_AXIS_ORDER.includes(group)) continue;
+    if (!byAxis.has(group)) byAxis.set(group, []);
+    byAxis.get(group).push(testCase);
+  }
+  for (const list of byAxis.values()) {
+    list.sort((a, b) => thinkingCaseSortKey(a) - thinkingCaseSortKey(b));
+  }
+  return THINKING_AXIS_ORDER.filter((group) => byAxis.has(group)).map((group) => [group, byAxis.get(group)]);
+}
+
+/** 将 switch + switch_equiv 合并为同一「思考开关」展示分区。 */
+function partitionProtocolThinkingForDisplay(cases = []) {
+  const axes = partitionProtocolThinkingByAxis(cases);
+  const switchCases = [];
+  const otherAxes = [];
+  for (const [group, groupCases] of axes) {
+    if (group === "switch" || group === "switch_equiv") {
+      switchCases.push(...groupCases);
+    } else {
+      otherAxes.push([group, groupCases]);
+    }
+  }
+  const merged = [];
+  if (switchCases.length) {
+    switchCases.sort((a, b) => thinkingCaseSortKey(a) - thinkingCaseSortKey(b));
+    merged.push(["switch", switchCases]);
+  }
+  merged.push(...otherAxes);
+  return merged;
+}
+
+function thinkingCaseSwitchFieldTag(testCase) {
+  const caseId = testCase.case_id;
+  if (caseId === "thinking_enable_thinking_true" || caseId === "thinking_enable_thinking_false") {
+    return "enable_thinking";
+  }
+  if (caseId === "thinking_switch_alt_thinking_enabled" || caseId === "thinking_switch_alt_thinking_disabled") {
+    return "thinking.type";
+  }
+  if (caseId === "thinking_switch_conflict_enable_off_thinking_on"
+    || caseId === "thinking_switch_conflict_enable_on_thinking_off") {
+    return "enable_thinking + thinking.type";
+  }
+  const meta = thinkingCaseMeta(testCase);
+  if (meta.dialect === "qwen_enable_thinking") return "enable_thinking";
+  if (meta.dialect === "thinking_object") return "thinking.type";
+  return "";
+}
+
+function thinkingSwitchFieldTags() {
+  return [...UNIVERSAL_SWITCH_FIELD_ORDER];
+}
+
+function groupThinkingCasesBySwitchField(cases) {
+  const buckets = new Map(UNIVERSAL_SWITCH_FIELD_ORDER.map((field) => [field, []]));
+  for (const testCase of cases) {
+    const field = thinkingCaseSwitchFieldTag(testCase);
+    if (!field || field.includes(" + ")) continue;
+    if (!buckets.has(field)) buckets.set(field, []);
+    buckets.get(field).push(testCase);
+  }
+  return UNIVERSAL_SWITCH_FIELD_ORDER
+    .filter((field) => buckets.get(field)?.length)
+    .map((field) => ({ field, cases: buckets.get(field) }));
+}
+
+function defaultThinkingCaseIds(cases = []) {
+  const ids = [];
+  const on = cases.find((testCase) => testCase.case_id === "thinking_enable_thinking_true");
+  const off = cases.find((testCase) => testCase.case_id === "thinking_enable_thinking_false");
+  const altOn = cases.find((testCase) => testCase.case_id === "thinking_switch_alt_thinking_enabled");
+  const altOff = cases.find((testCase) => testCase.case_id === "thinking_switch_alt_thinking_disabled");
+  const intensity = cases.find((testCase) =>
+    thinkingCaseAxisGroup(thinkingCaseMeta(testCase).axis) === "intensity" && !testCase.optional);
+  for (const testCase of [on, off, altOn, altOff, intensity]) {
+    if (testCase) ids.push(testCase.case_id);
+  }
+  return ids;
+}
+
+/** canonical tools case 全量展示，不以 protocol-matrix 是否列出 parallel_tool_calls 裁剪。 */
+function toolsCasesForChannel(cases = []) {
+  return cases;
+}
+
+function defaultToolsCaseIds(cases = []) {
+  const ids = [];
+  for (const caseId of ["tools_auto", "tools_choice_required", "tools_multiturn_tool_result"]) {
+    const testCase = cases.find((item) => item.case_id === caseId);
+    if (testCase) ids.push(testCase.case_id);
+  }
+  return ids;
+}
+
+/** canonical response_format case 全量展示 P0 三件套，不以渠道文档是否列出参数或枚举值裁剪。 */
+function responseFormatCasesForChannel(cases = []) {
+  return cases;
+}
+
+function defaultResponseFormatCaseIds(cases = []) {
+  return cases
+    .filter((testCase) => PROTOCOL_RESPONSE_FORMAT_CANONICAL_CASE_IDS.has(testCase.case_id))
+    .map((testCase) => testCase.case_id);
+}
+
+function protocolResponseFormatCaseTooltip(testCase) {
+  const caseId = String(testCase?.case_id || "");
+  if (caseId === "response_format_text") return RUN_V02_RESPONSE_FORMAT_TEXT_TOOLTIP;
+  if (caseId === "response_format_json_object") return RUN_V02_RESPONSE_FORMAT_JSON_OBJECT_TOOLTIP;
+  if (caseId === "response_format_json_schema") return RUN_V02_RESPONSE_FORMAT_JSON_SCHEMA_TOOLTIP;
+  return RUN_V02_PROTOCOL_RESPONSE_FORMAT_TOOLTIP;
+}
+
+function protocolToolsCaseTooltip(testCase) {
+  const caseId = String(testCase?.case_id || "");
+  if (caseId === "tools_auto") return RUN_V02_TOOLS_AUTO_TOOLTIP;
+  if (caseId === "tools_choice_required") return RUN_V02_TOOLS_REQUIRED_TOOLTIP;
+  if (caseId === "tools_multiturn_tool_result") return RUN_V02_TOOLS_MULTITURN_TOOLTIP;
+  if (caseId === "tools_choice_none") return RUN_V02_TOOLS_CHOICE_NONE_TOOLTIP;
+  if (caseId === "tools_named_function") return RUN_V02_TOOLS_NAMED_FUNCTION_TOOLTIP;
+  if (caseId === "tools_parallel_false") return RUN_V02_TOOLS_PARALLEL_FALSE_TOOLTIP;
+  if (caseId === "tools_reasoning_content_replay") return RUN_V02_TOOLS_REASONING_CONTENT_REPLAY_TOOLTIP;
+  return RUN_V02_PROTOCOL_TOOLS_TOOLTIP;
+}
+
+function runV02ModelSupportsTools() {
+  return state.runV02.modelCapabilities?.tools?.supported === true;
+}
+
+async function refreshRunV02ModelToolsCapability() {
+  const modelId = ensureRunV02ModelId();
+  if (!modelId) {
+    state.runV02.modelCapabilities.tools = { supported: false, source: "empty" };
+    return state.runV02.modelCapabilities.tools;
+  }
+  state.runV02.modelCapabilities.tools = { supported: false, source: "loading" };
+  const api = window.NOCTUA_EVAL_MODEL_CAPABILITIES;
+  if (!api?.evalModelSupportsTools) {
+    state.runV02.modelCapabilities.tools = { supported: false, source: "missing_api" };
+    return state.runV02.modelCapabilities.tools;
+  }
+  const result = await api.evalModelSupportsTools(modelId);
+  if (state.runV02.modelId !== modelId) return state.runV02.modelCapabilities.tools;
+  state.runV02.modelCapabilities.tools = result;
+  return result;
 }
 
 function protocolSamplingCaseTitle(testCase) {
@@ -2045,7 +3251,7 @@ function runV02ProtocolEvalChannelId(route) {
   const candidates = [route.runtimeChannelId, route.platformId, route.channelId].filter(Boolean);
   for (const id of candidates) {
     if (sources?.isProtocolEvalChannel?.(id)) return id;
-    if (id === "aliyun-cn" || id === "aliyun-us") return "aliyun";
+    if (id === "aliyun-cn" || id === "aliyun-us" || id === "aliyun-sg") return "aliyun";
   }
   return null;
 }
@@ -2066,13 +3272,36 @@ function runV02CaseGroupHint(group) {
     return `当前分组：${group.title}。发一句 Hello，验证该协议能否成功请求当前模型。`;
   }
   if (group.key === "protocol") {
-    return `当前分组：${group.title}。验证流式与非流式传输：stream=true 应返回 SSE；stream=false 应返回普通 JSON；可选验证流式末包 usage。`;
+    return `当前分组：${group.title}。验证流式与非流式：stream=true 应增量返回多个 content chunk（默认重复探测 3 次）；不传 include_usage 时观测各渠道是否仍返回 usage；传 include_usage=true 时必须有 usage；stream=false 返回普通 JSON。`;
   }
   if (group.key === "protocol_sampling") {
-    return `当前分组：${group.title}。验证 temperature 在 JSON integer（1、2）与 float（1.0、2.0）字面量下是否与各渠道协议文档一致；不一致请在 docs/api 对应渠道文档「实测：temperature 字面量」表记录。`;
+    const oemCount = group.cases.filter((testCase) => oemBehaviorsApi().isOemReferenceCase?.(testCase)).length;
+    const oemNote = oemCount
+      ? ` 下方「原厂参考」子区含 ${oemCount} 个按测评模型 OEM 文档补充的 case，对所有已选渠道各跑一遍。`
+      : "";
+    return `当前分组：${group.title}。验证 temperature 在 JSON integer（1、2）与 float（1.0、2.0）字面量下是否与各渠道协议文档一致；不一致请在 docs/api 对应渠道文档「实测：temperature 字面量」表记录。${oemNote}`;
   }
   if (group.key === "protocol_thinking") {
-    return `当前分组：${group.title}。按参数组合验证思考模式字段（如 enable_thinking、thinking_budget、reasoning_effort 及其组合）；对照各渠道官方文档与响应中的 thinking 证据。`;
+    return `当前分组：${group.title}。全渠道展示 canonical 思考模式探针（含各枚举档位与多方言字段），不以 protocol-matrix 文档裁剪；以跑批实测发现文档未写或与文档不一致的行为。`;
+  }
+  if (group.key === "protocol_tools") {
+    const cap = state.runV02.modelCapabilities?.tools;
+    if (cap?.source === "loading") {
+      return `当前分组：${group.title}。正在从 OpenRouter 解析模型是否支持 tools…`;
+    }
+    if (!runV02ModelSupportsTools()) {
+      return `当前测评模型未标注 tools 支持（来源：${cap?.source || "unknown"}），不展示工具调用 case。`;
+    }
+    return `当前分组：${group.title}。对支持 tools 的测评模型，验证各渠道是否接受 tools 参数、能否真正发起工具调用，以及多轮 tool 消息是否可用。`;
+  }
+  if (group.key === "protocol_response_format") {
+    return `当前分组：${group.title}。仅测 response_format（text / json_object / json_schema），不含 structured_outputs 等其他输出控制参数；全量展示三件套，以跑批实测为准。`;
+  }
+  if (group.key === "cache_hit") {
+    return `当前分组：${group.title}。每个 case 对同一模型发 2 次相同请求（预热 + 测量），对比各渠道 usage 中的缓存命中 tokens 与命中率；0% 命中记为 warning，不因未命中判 fail。`;
+  }
+  if (group.key === "output_length") {
+    return `当前分组：${group.title}。核心三轴：接受性（各字段能否传）→ 生效性（是否真截断）→ 双参优先级（同时传谁说了算）；对比两字段单参结果可判断含义是否一致。组合/边缘/容量 case 默认不勾选。`;
   }
   return `当前分组：${group.title}。仅运行本分组内已勾选的 case。`;
 }
@@ -2136,6 +3365,33 @@ function capacityCaseDisplay(testCase) {
       relation: "最大Total Context",
       meta: "逐档测试",
       chips: [range, `按档位减 ${trimNumber(ratio * 100, 1)}% 探测`, `保留输出 ${probe.context_output_tokens || 8} tokens`]
+    };
+  }
+  if (probe.kind === "max_input") {
+    return {
+      kind: "max_input",
+      title: "最大Input",
+      relation: "最大Input",
+      meta: "逐档测试",
+      chips: [range, "固定输出 16 tokens", "找最大输入档位"]
+    };
+  }
+  if (probe.kind === "max_output_effective") {
+    return {
+      kind: "max_output_effective",
+      title: "Max Output 生效",
+      relation: "Max Output 生效",
+      meta: "强制长输出",
+      chips: [range, "小 cap 强制长输出", "检查 finish_reason=length"]
+    };
+  }
+  if (probe.kind === "thinking_budget") {
+    return {
+      kind: "thinking_budget",
+      title: "最大Thinking Budget",
+      relation: "最大Thinking Budget",
+      meta: "逐档测试",
+      chips: [range, probe.thinking_field || "thinking_budget", "接受 / 生效 / 上限"]
     };
   }
   return {
@@ -2212,7 +3468,15 @@ function reportGroupForResult(result = {}) {
       key: "protocol_thinking",
       order: 35,
       title: "协议 / 思考模式",
-      description: "验证思考模式相关参数是否被接受，以及开启/关闭时响应中的 thinking 内容与 token 证据是否符合预期。"
+      description: "按当前渠道官方方言（开关 / 强度 / 输出）验证思考模式字段是否被接受，以及开启、关闭、不同强度档下响应中的 thinking 内容与 token 证据是否符合预期。"
+    };
+  }
+  if (sourceCase && isProtocolResponseFormatCase(sourceCase)) {
+    return {
+      key: "protocol_response_format",
+      order: 36,
+      title: "协议 / 输出控制",
+      description: "验证 response_format 参数（text / json_object / json_schema）是否被接受，以及 JSON 模式下的输出是否合法。"
     };
   }
   if (sourceCase && isOptionalExtensionCase(sourceCase)) {
@@ -2329,17 +3593,47 @@ function groupReportResults(results = []) {
       results: [result]
     });
   });
-  return Array.from(groups.values()).sort((left, right) =>
+  const built = Array.from(groups.values());
+  for (const group of built) {
+    if (group.key === "protocol_thinking") {
+      group.results.sort((left, right) =>
+        thinkingCaseSortKey(left.source_case || {}) - thinkingCaseSortKey(right.source_case || {}));
+    }
+  }
+  return built.sort((left, right) =>
     left.order - right.order || left.firstIndex - right.firstIndex || left.title.localeCompare(right.title)
   );
 }
 
-function capacityCasesForProvider(providerId = currentProviderId()) {
+function capacityCasesForProvider(providerId = currentProviderId(), modelOverride = undefined) {
   if (!providerId || state.selectedEndpointId !== "chat_completions") return [];
   if (providerId === "thinking") return [];
-  const model = els.modelName?.value.trim() || "";
+  const model = modelOverride !== undefined ? String(modelOverride || "").trim() : (els.modelName?.value.trim() || "");
   const candidateText = CAPACITY_CANDIDATES.map(formatCapacityTier).join("、");
-  return [
+  const budgetText = THINKING_BUDGET_CANDIDATES.map(formatCapacityTier).join("、");
+  const capsText = OUTPUT_EFFECTIVE_CAPS.map(formatCapacityTier).join("、");
+  const thinkingMapping = thinkingBudgetFieldForProvider(providerId);
+  const cases = [
+    {
+      case_id: "capacity_max_input_boundary",
+      title: "最大Input",
+      category: "capacity",
+      parameters: ["最大Input"],
+      method: "POST",
+      path: "/chat/completions",
+      custom: true,
+      capacity_case: true,
+      payload: {
+        model,
+        __capacity_probe: {
+          kind: "max_input",
+          candidates: CAPACITY_CANDIDATES,
+          context_safety_margin_ratio: CONTEXT_CAPACITY_SAFETY_MARGIN_RATIO
+        }
+      },
+      expect: { http_status: 200, support_conclusion: "supported" },
+      notes: [`按常见输入档位从高到低测试：${candidateText}；输出固定 16 tokens，定位最大可接受输入长度。`]
+    },
     {
       case_id: "capacity_max_output_boundary",
       title: "最大Max Output",
@@ -2358,6 +3652,25 @@ function capacityCasesForProvider(providerId = currentProviderId()) {
       },
       expect: { http_status: 200, support_conclusion: "supported" },
       notes: [`按常见档位从高到低测试：${candidateText}`]
+    },
+    {
+      case_id: "capacity_max_output_effective",
+      title: "Max Output 生效",
+      category: "capacity",
+      parameters: ["Max Output 生效"],
+      method: "POST",
+      path: "/chat/completions",
+      custom: true,
+      capacity_case: true,
+      payload: {
+        model,
+        __capacity_probe: {
+          kind: "max_output_effective",
+          candidates: OUTPUT_EFFECTIVE_CAPS
+        }
+      },
+      expect: { http_status: 200, support_conclusion: "supported" },
+      notes: [`在小 cap（${capsText}）下强制长输出，检查是否被截断（finish_reason=length 且 completion_tokens≈cap），判断 max_tokens 是否真生效。`]
     },
     {
       case_id: "capacity_total_context_boundary",
@@ -2381,6 +3694,117 @@ function capacityCasesForProvider(providerId = currentProviderId()) {
       notes: [`按常见总上下文档位从高到低测试：${candidateText}；实际请求按每档减 ${trimNumber(CONTEXT_CAPACITY_SAFETY_MARGIN_RATIO * 100, 1)}% 构造，避免 tokenizer 临界误差。`]
     }
   ];
+  if (thinkingMapping) {
+    cases.push({
+      case_id: "capacity_thinking_budget_boundary",
+      title: "最大Thinking Budget",
+      category: "capacity",
+      parameters: ["最大Thinking Budget"],
+      method: "POST",
+      path: "/chat/completions",
+      custom: true,
+      capacity_case: true,
+      requires_model_capability: "reasoning",
+      payload: {
+        model,
+        __capacity_probe: {
+          kind: "thinking_budget",
+          candidates: THINKING_BUDGET_CANDIDATES,
+          thinking_field: thinkingMapping.field,
+          enable_thinking: thinkingMapping.enableThinking
+        }
+      },
+      expect: { http_status: 200, support_conclusion: "supported" },
+      notes: [`仅推理模型有效。用 ${thinkingMapping.field} 按档位（${budgetText}）测试是否被接受、最大可传值，以及 reasoning_tokens 是否随预算变化（生效）。`]
+    });
+  }
+  return cases;
+}
+
+function outputLengthCapacityCasesForRunV02(protocolId, modelId = "") {
+  if (protocolId !== "chat_completions") return [];
+  const providerId = runV02CaseProviderId(state.runV02.baselineRoute);
+  if (!providerId || providerId === "thinking") return [];
+  return capacityCasesForProvider(providerId, modelId).filter((testCase) => (
+    testCase.case_id !== "capacity_thinking_budget_boundary"
+    && testCase.case_id !== "capacity_max_output_effective"
+  ));
+}
+
+function cacheCasesForRunV02(protocolId, modelId = "") {
+  if (!protocolId || !modelId) return [];
+  const model = String(modelId).trim();
+  if (!model) return [];
+  const baseProbe = { warmup_delay_ms: 400 };
+  const defs = [
+    {
+      case_id: "cache_passive_long_prompt",
+      title: RUN_V02_CACHE_PASSIVE_TITLE,
+      kind: "passive",
+      protocols: new Set(["chat_completions", "anthropic_messages"]),
+      optional: false
+    },
+    {
+      case_id: "cache_prompt_cache_key",
+      title: RUN_V02_CACHE_PROMPT_KEY_TITLE,
+      kind: "prompt_cache_key",
+      protocols: new Set(["chat_completions"]),
+      optional: false
+    },
+    {
+      case_id: "cache_control_ephemeral",
+      title: RUN_V02_CACHE_CONTROL_TITLE,
+      kind: "cache_control",
+      protocols: new Set(["chat_completions", "anthropic_messages"]),
+      optional: true
+    },
+    {
+      case_id: "cache_passive_hit_rate_85",
+      title: RUN_V02_CACHE_PASSIVE_HIT_RATE_85_TITLE,
+      kind: "passive",
+      protocols: new Set(["chat_completions", "anthropic_messages"]),
+      optional: true,
+      min_hit_rate: 0.85
+    },
+    {
+      case_id: "cache_prompt_cache_key_hit_rate_85",
+      title: RUN_V02_CACHE_PROMPT_KEY_HIT_RATE_85_TITLE,
+      kind: "prompt_cache_key",
+      protocols: new Set(["chat_completions"]),
+      optional: true,
+      min_hit_rate: 0.85
+    },
+    {
+      case_id: "cache_control_ephemeral_hit_rate_85",
+      title: RUN_V02_CACHE_CONTROL_HIT_RATE_85_TITLE,
+      kind: "cache_control",
+      protocols: new Set(["chat_completions", "anthropic_messages"]),
+      optional: true,
+      min_hit_rate: 0.85
+    }
+  ];
+  return defs
+    .filter((def) => def.protocols.has(protocolId))
+    .map((def) => ({
+      case_id: def.case_id,
+      title: def.title,
+      category: "cache",
+      parameters: ["缓存命中率"],
+      custom: true,
+      cache_case: true,
+      optional: def.optional,
+      method: "POST",
+      path: protocolId === "anthropic_messages" ? "/v1/messages" : "/chat/completions",
+      payload: {
+        model,
+        __cache_probe: {
+          ...baseProbe,
+          kind: def.kind,
+          ...(def.min_hit_rate ? { min_hit_rate: def.min_hit_rate } : {})
+        }
+      },
+      expect: { http_status: 200, support_conclusion: "supported" }
+    }));
 }
 
 function allProviderCases(providerId = currentProviderId()) {
@@ -2479,8 +3903,12 @@ function caseTitle(testCase) {
   if (isConnectivityCase(testCase)) return RUN_V02_CONNECTIVITY_CASE_TITLE;
   if (isProtocolStreamCaseP0(testCase)) return RUN_V02_PROTOCOL_STREAM_BASIC_TITLE;
   if (isProtocolStreamCaseP0NonStream(testCase)) return RUN_V02_PROTOCOL_STREAM_FALSE_TITLE;
-  if (isProtocolStreamCaseP1(testCase)) return RUN_V02_PROTOCOL_STREAM_USAGE_TITLE;
+  if (isProtocolStreamUsageObservedCase(testCase)) return RUN_V02_PROTOCOL_STREAM_USAGE_OBSERVED_TITLE;
+  if (isProtocolStreamCaseP1IncludeUsage(testCase)) return RUN_V02_PROTOCOL_STREAM_USAGE_TITLE;
+  if (isProtocolStreamUsageChunkShapeCase(testCase)) return RUN_V02_PROTOCOL_STREAM_USAGE_CHUNK_SHAPE_TITLE;
+  if (isOutputLengthCase(testCase)) return outputLengthCaseTitle(testCase) || testCase.title || testCase.case_id;
   if (isProtocolSamplingCase(testCase)) return protocolSamplingCaseTitle(testCase);
+  if (isCacheHitCase(testCase)) return CACHE_CASE_TITLES[testCase.case_id] || testCase.title || testCase.case_id;
   return caseTitleZh[testCase.case_id] || testCase.title || testCase.case_id;
 }
 
@@ -2508,8 +3936,10 @@ function contextualCaseTitle(title, context = {}) {
 }
 
 const caseIntentZh = {
+  capacity_max_input_boundary: "从常见档位降档请求，定位该模型可接受的 最大Input 长度。",
   capacity_max_output_boundary: "从常见档位降档请求，定位该模型可用的 最大Max Output。",
   capacity_total_context_boundary: "从常见档位降档请求，定位该模型可用的 最大Total Context。",
+  capacity_thinking_budget_boundary: "按档位测试思考预算字段是否被接受、最大可传值，以及 reasoning_tokens 是否随预算变化。",
   sf_reasoning_enable_thinking: "开启后应返回 reasoning_content 或 reasoning tokens。",
   sf_reasoning_disable_thinking_no_output: "关闭后不应返回 thinking 内容或 reasoning tokens。",
   sf_reasoning_thinking_budget: "验证 thinking_budget 是否能约束推理预算。",
@@ -2530,6 +3960,15 @@ function capacityIntentText(capacityDisplay) {
   const [range, margin, outputBudget] = capacityDisplay.chips || [];
   if (capacityDisplay.kind === "total_context") {
     return `按 ${range || "常见档位"} 递进探测，${margin || "按档位预留安全余量"}，${outputBudget || "保留少量输出"}。`;
+  }
+  if (capacityDisplay.kind === "max_input") {
+    return `按 ${range || "常见档位"} 递进探测输入长度，输出固定为少量 token，定位 最大Input。`;
+  }
+  if (capacityDisplay.kind === "max_output_effective") {
+    return `在小 cap（${range || "如 512、64"}）下强制长输出，检查是否被截断以判断 max_tokens 是否真生效。`;
+  }
+  if (capacityDisplay.kind === "thinking_budget") {
+    return `用 ${margin || "思考预算字段"} 按 ${range || "常见档位"} 测试是否被接受、最大可传值，以及 reasoning_tokens 是否随预算变化。`;
   }
   return `按 ${range || "常见档位"} 递进探测，记录可用 最大Max Output。`;
 }
@@ -2581,22 +4020,6 @@ function thinkingSubgroupHint(subgroup) {
   return PROVIDERX_RULES.THINKING_SUBGROUP_HINTS?.[subgroup] || "";
 }
 
-function thinkingParamRole(parameter) {
-  const roles = PROVIDERX_RULES.THINKING_PARAM_ROLES || {};
-  if (roles[parameter]) return roles[parameter];
-  const subgroups = PROVIDERX_RULES.THINKING_PARAM_SUBGROUPS || {};
-  const subgroup = subgroups[parameter];
-  if (!subgroup) return null;
-  return subgroup;
-}
-
-function renderThinkingRoleBadge(parameter) {
-  const role = thinkingParamRole(parameter);
-  if (!role) return "";
-  const label = PROVIDERX_RULES.THINKING_ROLE_LABELS?.[role] || role;
-  return `<span class="protocol-thinking-role protocol-thinking-role--${escapeHtml(role)}" title="参数语义角色">${escapeHtml(label)}</span>`;
-}
-
 function renderProtocolParamSubgroupHeading(category, subgroup) {
   const label = paramSubgroupLabel(category, subgroup);
   const hint = paramSubgroupHint(category, subgroup);
@@ -2633,7 +4056,7 @@ function renderThinkingDialectSummary(channels, protocolId) {
   return `
     <tr class="protocol-thinking-dialect-row ${collapsedClass}" data-protocol-section-category="Reasoning" data-protocol-section-subgroup="">
       <td colspan="100">
-        <details class="protocol-thinking-dialect" open>
+        <details class="protocol-thinking-dialect">
           <summary>各渠道思考模式字段对照（开关 × 强度）</summary>
           <p class="protocol-thinking-dialect-note">同一请求通常只应使用当前渠道文档列出的一组字段；下表汇总各测评渠道官方文档中的主路径。</p>
           <table class="protocol-thinking-dialect-table">
@@ -2671,6 +4094,60 @@ function groupHint(group) {
 function getProtocolParamCollapseSet() {
   if (!state.protocolParamCollapse) state.protocolParamCollapse = new Set();
   return state.protocolParamCollapse;
+}
+
+const PROTOCOL_UI_STORAGE_PREFIX = "noctua:protocol-ui:";
+let protocolUiPersistTimer = null;
+
+function protocolUiStorageKey(protocolId) {
+  return `${PROTOCOL_UI_STORAGE_PREFIX}${protocolId}`;
+}
+
+function protocolIdFromUiKey(key) {
+  return String(key || "").split("::")[0] || "";
+}
+
+function loadProtocolUiState(protocolId) {
+  if (!protocolId) return;
+  try {
+    const raw = sessionStorage.getItem(protocolUiStorageKey(protocolId));
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    const collapse = getProtocolParamCollapseSet();
+    const expand = getProtocolParamTreeExpandSet();
+    const prefix = `${protocolId}::`;
+    const treePrefix = `${protocolId}::tree::`;
+    for (const key of [...collapse]) {
+      if (key.startsWith(prefix)) collapse.delete(key);
+    }
+    for (const key of [...expand]) {
+      if (key.startsWith(treePrefix)) expand.delete(key);
+    }
+    for (const key of data.collapsed || []) collapse.add(key);
+    for (const key of data.treeExpanded || []) expand.add(key);
+  } catch (_) {
+    /* ignore corrupt session snapshot */
+  }
+}
+
+function persistProtocolUiState(protocolId) {
+  if (!protocolId) return;
+  clearTimeout(protocolUiPersistTimer);
+  protocolUiPersistTimer = setTimeout(() => {
+    try {
+      const prefix = `${protocolId}::`;
+      const treePrefix = `${protocolId}::tree::`;
+      const collapsed = [...getProtocolParamCollapseSet()].filter((key) => key.startsWith(prefix));
+      const treeExpanded = [...getProtocolParamTreeExpandSet()].filter((key) => key.startsWith(treePrefix));
+      sessionStorage.setItem(protocolUiStorageKey(protocolId), JSON.stringify({ collapsed, treeExpanded }));
+    } catch (_) {
+      /* ignore quota / private mode */
+    }
+  }, 120);
+}
+
+function persistProtocolUiStateForKey(sectionOrTreeKey) {
+  persistProtocolUiState(protocolIdFromUiKey(sectionOrTreeKey));
 }
 
 function protocolParamCategorySectionKey(protocolId, category) {
@@ -2750,14 +4227,203 @@ function syncProtocolParamSectionVisibility(panel) {
     button.setAttribute("aria-expanded", collapsed ? "false" : "true");
     button.querySelector(".protocol-param-section-chevron")?.classList.toggle("is-collapsed", collapsed);
   });
+  syncProtocolParamTreeVisibility(panel);
 }
 
 function toggleProtocolParamSection(sectionKey) {
   const set = getProtocolParamCollapseSet();
   if (set.has(sectionKey)) set.delete(sectionKey);
   else set.add(sectionKey);
-  const panel = els.protocolCatalog?.querySelector(`[data-protocol-panel="${state.protocolCatalogTab}"]`);
+  persistProtocolUiStateForKey(sectionKey);
+  const protocolId = protocolIdFromUiKey(sectionKey);
+  const panel = els.protocolCatalog?.querySelector(`[data-protocol-panel="${protocolId}"]`);
   syncProtocolParamSectionVisibility(panel);
+}
+
+function getProtocolParamTreeExpandSet() {
+  if (!state.protocolParamTreeExpand) state.protocolParamTreeExpand = new Set();
+  return state.protocolParamTreeExpand;
+}
+
+function protocolParamTreeSectionKey(protocolId, parameter) {
+  return `${protocolId}::tree::${parameter}`;
+}
+
+function isProtocolParameterTreeExpanded(protocolId, parameter) {
+  return getProtocolParamTreeExpandSet().has(protocolParamTreeSectionKey(protocolId, parameter));
+}
+
+function isProtocolParameterDescendant(child, parent) {
+  if (!child || !parent || child === parent) return false;
+  if (child.startsWith(`${parent}.`)) return true;
+  const arrayPrefix = parent.endsWith("[]") ? parent : `${parent}[]`;
+  return child.startsWith(`${arrayPrefix}.`) || child.startsWith(`${arrayPrefix}[`);
+}
+
+function buildProtocolParameterParentsSet(parameterNames) {
+  const parents = new Set();
+  for (const parent of parameterNames) {
+    for (const child of parameterNames) {
+      if (isProtocolParameterDescendant(child, parent)) {
+        parents.add(parent);
+        break;
+      }
+    }
+  }
+  return parents;
+}
+
+function buildProtocolParameterAncestorsMap(parameterNames) {
+  const map = new Map();
+  for (const name of parameterNames) {
+    map.set(name, parameterNames.filter((candidate) => isProtocolParameterDescendant(name, candidate)));
+  }
+  return map;
+}
+
+function isProtocolParameterDirectChild(child, parent, parameterNames) {
+  if (!isProtocolParameterDescendant(child, parent)) return false;
+  return !parameterNames.some((mid) =>
+    mid !== parent
+    && mid !== child
+    && isProtocolParameterDescendant(mid, parent)
+    && isProtocolParameterDescendant(child, mid)
+  );
+}
+
+function buildProtocolParameterDirectChildrenMap(parameterNames) {
+  const map = new Map();
+  for (const parent of parameterNames) {
+    map.set(parent, parameterNames.filter((child) => isProtocolParameterDirectChild(child, parent, parameterNames)));
+  }
+  return map;
+}
+
+function expandAllProtocolParameterTrees(protocolId, parentParameters) {
+  const set = getProtocolParamTreeExpandSet();
+  for (const parameter of parentParameters) {
+    set.add(protocolParamTreeSectionKey(protocolId, parameter));
+  }
+  persistProtocolUiState(protocolId);
+  const panel = els.protocolCatalog?.querySelector(`[data-protocol-panel="${protocolId}"]`);
+  syncProtocolParamTreeVisibility(panel);
+}
+
+function collapseAllProtocolParameterTrees(protocolId) {
+  const set = getProtocolParamTreeExpandSet();
+  const prefix = `${protocolId}::tree::`;
+  for (const key of [...set]) {
+    if (key.startsWith(prefix)) set.delete(key);
+  }
+  persistProtocolUiState(protocolId);
+  const panel = els.protocolCatalog?.querySelector(`[data-protocol-panel="${protocolId}"]`);
+  syncProtocolParamTreeVisibility(panel);
+}
+
+function toggleAllProtocolParamSections(protocolId, categories) {
+  const set = getProtocolParamCollapseSet();
+  const keys = categories.map((category) => protocolParamCategorySectionKey(protocolId, category));
+  const allCollapsed = keys.length > 0 && keys.every((key) => set.has(key));
+  for (const key of keys) {
+    if (allCollapsed) set.delete(key);
+    else set.add(key);
+  }
+  persistProtocolUiState(protocolId);
+  const panel = els.protocolCatalog?.querySelector(`[data-protocol-panel="${protocolId}"]`);
+  syncProtocolParamSectionVisibility(panel);
+}
+
+function renderProtocolParamMatrixToolbar(protocolId, matrix) {
+  const categories = [...new Set(matrix.parameters.map((item) => item.category))];
+  const parentCount = matrix.parameters.filter((item) =>
+    matrix.parameters.some((other) => isProtocolParameterDescendant(other.parameter, item.parameter))
+  ).length;
+  if (!parentCount && !categories.length) return "";
+  return `
+    <div class="protocol-param-toolbar" data-protocol-param-toolbar data-protocol-id="${escapeHtml(protocolId)}">
+      ${parentCount ? `
+        <button type="button" class="btn btn-ghost btn-xs" data-protocol-matrix-action="expand-trees">展开子字段</button>
+        <button type="button" class="btn btn-ghost btn-xs" data-protocol-matrix-action="collapse-trees">收起子字段</button>
+      ` : ""}
+      ${categories.length ? `
+        <button type="button" class="btn btn-ghost btn-xs" data-protocol-matrix-action="toggle-sections">展开/收起全部分组</button>
+      ` : ""}
+    </div>
+  `;
+}
+
+function bindProtocolParamMatrixToolbar() {
+  if (!els.protocolCatalog) return;
+  els.protocolCatalog.querySelectorAll("[data-protocol-param-toolbar]").forEach((toolbar) => {
+    const protocolId = toolbar.dataset.protocolId;
+    if (!protocolId) return;
+    const matrix = state.protocolMatrices?.[protocolId];
+    if (!matrix) return;
+    const parentParameters = matrix.parameters
+      .map((item) => item.parameter)
+      .filter((parameter, _, list) => list.some((other) => isProtocolParameterDescendant(other, parameter)));
+    const categories = [...new Set(matrix.parameters.map((item) => item.category))];
+
+    toolbar.querySelectorAll("[data-protocol-matrix-action]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const action = button.dataset.protocolMatrixAction;
+        if (action === "expand-trees") expandAllProtocolParameterTrees(protocolId, parentParameters);
+        else if (action === "collapse-trees") collapseAllProtocolParameterTrees(protocolId);
+        else if (action === "toggle-sections") toggleAllProtocolParamSections(protocolId, categories);
+      });
+    });
+  });
+}
+
+function syncProtocolParamTreeVisibility(panel) {
+  if (!panel) return;
+  const protocolId = panel.dataset.protocolPanel;
+  if (!protocolId) return;
+
+  panel.querySelectorAll("[data-protocol-param-row]").forEach((row) => {
+    const ancestors = (row.dataset.protocolTreeAncestors || "").split(",").filter(Boolean);
+    const category = row.dataset.protocolSectionCategory;
+    const subgroup = row.dataset.protocolSectionSubgroup || "";
+    const categoryCollapsed = isProtocolParamSectionCollapsed(protocolParamCategorySectionKey(protocolId, category));
+    const subgroupCollapsed = subgroup
+      && isProtocolParamSectionCollapsed(protocolParamSubgroupSectionKey(protocolId, category, subgroup));
+    const treeCollapsed = ancestors.some((ancestor) => !isProtocolParameterTreeExpanded(protocolId, ancestor));
+    row.classList.toggle("is-tree-collapsed", !categoryCollapsed && !subgroupCollapsed && treeCollapsed);
+  });
+
+  panel.querySelectorAll("[data-protocol-param-tree-toggle]").forEach((button) => {
+    const parameter = button.dataset.parameter;
+    if (!parameter) return;
+    const expanded = isProtocolParameterTreeExpanded(protocolId, parameter);
+    button.setAttribute("aria-expanded", expanded ? "true" : "false");
+    button.querySelector(".protocol-param-tree-chevron")?.classList.toggle("is-collapsed", !expanded);
+  });
+}
+
+function toggleProtocolParameterTree(protocolId, parameter) {
+  const key = protocolParamTreeSectionKey(protocolId, parameter);
+  const set = getProtocolParamTreeExpandSet();
+  if (set.has(key)) set.delete(key);
+  else set.add(key);
+  persistProtocolUiState(protocolId);
+  const panel = els.protocolCatalog?.querySelector(`[data-protocol-panel="${protocolId}"]`);
+  syncProtocolParamTreeVisibility(panel);
+}
+
+function bindProtocolParamTreeToggles() {
+  if (!els.protocolCatalog) return;
+  els.protocolCatalog.querySelectorAll("[data-protocol-param-tree-toggle]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const protocolId = button.dataset.protocolId;
+      const parameter = button.dataset.parameter;
+      if (protocolId && parameter) toggleProtocolParameterTree(protocolId, parameter);
+    });
+  });
+  els.protocolCatalog.querySelectorAll("[data-protocol-panel]").forEach((panel) => {
+    syncProtocolParamTreeVisibility(panel);
+  });
 }
 
 function bindProtocolParamSectionToggles() {
@@ -3034,7 +4700,7 @@ function renderParameterCatalog(channel, data = null) {
   const capacityHtml = capacityCases.length ? `
     <div class="parameter-group parameter-group--capacity">
       <div class="parameter-group__name">
-        <span>最大Max Output / 最大Total Context</span>
+        <span>模型限制实测（输入 / 输出 / 上下文 / 思考预算）</span>
         ${renderBulkSelect(capacityIds, "本组", "suite-bulk-select")}
       </div>
       <div class="coverage-grid">
@@ -3093,9 +4759,9 @@ async function loadCaseSelectorForChannel() {
     const optionalCount = (data.cases || []).filter(isOptionalExtensionCase).length;
     const optionalText = optionalCount ? ` · 扩展 ${optionalCount} 个可选 case` : "";
     const capacityCount = capacityCasesForProvider(providerId).length;
-    const capacityText = capacityCount ? ` · 最大Max Output / 最大Total Context 测试 ${capacityCount} 个可选 case` : "";
+    const capacityText = capacityCount ? ` · 模型限制实测（输入/输出/上下文/思考预算） ${capacityCount} 个可选 case` : "";
     els.suiteTitle.textContent = `测试套件：${channel.name} / ${getSelectedEndpointTemplate().label}（${flattenParameters(channel).length} 个重点参数 · ${data.cases.length} 个 case${optionalText}${vlmText}${capacityText}）`;
-    els.caseSelectorHint.textContent = "默认勾选常规 case，扩展、VLM 和 最大Max Output / 最大Total Context 测试按需开启。";
+    els.caseSelectorHint.textContent = "默认勾选常规 case，扩展、VLM 和 模型限制实测（输入/输出/上下文/思考预算）按需开启。";
     state.isCaseLoading = false;
     renderParameterCatalog(channel, data);
     renderCaseSelector(data);
@@ -3163,8 +4829,8 @@ function renderVlmCaseSection(cases) {
 function renderCapacityCaseSection(cases) {
   if (!cases.length) return "";
   return renderCaseSection(
-    "最大Max Output / 最大Total Context 测试（可选）",
-    "分别探测 最大Max Output 和 最大Total Context；同一模型内逐档串行，不同 target 可并发。默认不选，避免额外消耗额度。",
+    "模型限制实测（输入/输出/上下文/思考预算）（可选）",
+    "分别探测 最大Input、最大Max Output（含是否真生效）、最大Total Context、最大Thinking Budget；同一模型内逐档串行，不同 target 可并发。默认不选，避免额外消耗额度。",
     cases
   );
 }
@@ -3199,7 +4865,7 @@ function renderCaseOverview(data, partition) {
     <div class="case-overview">
       <div>
         <strong>先选参数，再微调用例</strong>
-        <p>单参数 ${singleCount} 个，组合 ${partition.combos.length} 个，基础场景 ${partition.scenarios.length} 个${vlmText}；默认勾选常规 case，VLM 和 最大Max Output / 最大Total Context 测试按需开启。</p>
+        <p>单参数 ${singleCount} 个，组合 ${partition.combos.length} 个，基础场景 ${partition.scenarios.length} 个${vlmText}；默认勾选常规 case，VLM 和 模型限制实测（输入/输出/上下文/思考预算）按需开启。</p>
       </div>
       <span class="mono">${focusParamCount} 个重点参数有对应 case</span>
     </div>
@@ -3951,7 +5617,10 @@ function historyRecordMarkdown(record) {
     `总计：${stats.total}；符合预期：${stats.expectedPass}；预期外：${stats.unexpected}；支持：${stats.supported}；接受未证明：${stats.ignored}；400：${stats.rejected}；请求失败：${stats.requestFailed}；断言失败：${stats.schemaMismatch || 0}；结构差异：${stats.diffs}`,
     "",
     ...capacitySummaryMarkdownLines(record.results || []),
-    ...thinkingProbeAnalysisLines(record.results || []),
+    ...thinkingProbeAnalysisLines(record.results || [], {
+      channelId: record.channel_id || record.provider,
+      protocolId: record.endpoint_id || record.protocol_id
+    }),
     ...thinkingCloseAnalysisLines(record.results || []),
     "| Case | 参数 | 分类 | 测试结果 | 实际结论 | HTTP 状态 | 结构差异 |",
     "|---|---|---|---|---|---|---|",
@@ -3996,7 +5665,10 @@ function currentRunMarkdown(record) {
     `- 结构差异：${stats.diffs || 0}`,
     "",
     ...capacitySummaryMarkdownLines(record.results || []),
-    ...thinkingProbeAnalysisLines(record.results || []),
+    ...thinkingProbeAnalysisLines(record.results || [], {
+      channelId: record.channel_id || record.provider,
+      protocolId: record.endpoint_id || record.protocol_id
+    }),
     ...thinkingCloseAnalysisLines(record.results || []),
     "## 预期外明细",
     ""
@@ -4047,6 +5719,37 @@ function escapeMarkdownCell(value) {
   return String(value || "—").replace(/\|/g, "\\|").replace(/\n/g, " ").slice(0, 180);
 }
 
+function channelReportMarkdown(record) {
+  const stats = record.stats || channelReportStatsForResults(record.results || []);
+  const matrix = ensureChannelReportMatrix(record);
+  const lines = [
+    "## 渠道测评报告",
+    "",
+    `- 模型：${record.model_id || "—"}`,
+    `- 协议：${record.protocol_id || "—"}`,
+    `- Baseline：${record.baseline_label || "—"}`,
+    `- 测评渠道：${(record.target_labels || []).join("、") || "—"}`,
+    `- 生成时间：${formatDateTime(record.generated_at)}`,
+    `- 断言达标：${stats.assertPass || 0}/${stats.assertTotal || 0}`,
+    `- 观测记录：${stats.observeRecorded || 0}/${stats.observeTotal || 0}`,
+    `- 结构差异：${stats.structureDiffs || 0}`,
+    ""
+  ];
+  for (const row of matrix) {
+    lines.push(`### ${row.title || row.case_id}（${CHANNEL_REPORT_INTENT.intentLabel?.(row.intent) || row.intent}）`);
+    for (const [channelKey, summary] of Object.entries(row.by_channel || {})) {
+      if (!summary) continue;
+      const status = row.intent === "observe"
+        ? (summary.report_status === "observe_issue" ? "请求异常" : "已记录")
+        : (summary.report_status === "pass" ? "达标" : "未达标");
+      lines.push(`- ${summary.channel_name || channelKey}：${status} · ${summary.support_label || summary.support_conclusion} · HTTP ${summary.http_status}${summary.diff_count ? ` · diff ${summary.diff_count}` : ""}${summary.cache_hit_summary ? ` · ${summary.cache_hit_summary}` : ""}`);
+    }
+    lines.push("");
+  }
+  lines.push(...originalChannelReportMarkdown(record));
+  return lines;
+}
+
 function originalChannelReportMarkdown(record) {
   const lines = [
     "## 原始渠道测试报告",
@@ -4069,6 +5772,29 @@ function originalChannelReportMarkdown(record) {
     lines.push(`- 实际结论：${meta.label}`);
     lines.push(`- HTTP：${result.http_status || meta.httpStatus || "—"}`);
     lines.push(`- 延迟：${result.latency_ms ? `${result.latency_ms}ms` : "—"}`);
+    const streamSummary = formatStreamMetricsSummary(result.stream_metrics);
+    if (streamSummary) {
+      lines.push(`- 流式指标：${streamSummary}`);
+    }
+    const streamUsage = formatStreamUsagePresent(result);
+    if (streamUsage) {
+      lines.push(`- 流式 usage：${streamUsage}`);
+    }
+    const streamUsageProfile = formatStreamUsageChunkProfile(result);
+    if (streamUsageProfile) {
+      lines.push(`- 流式 usage 分片：${streamUsageProfile}`);
+    }
+    const outputPrecedence = formatOutputLengthCapPrecedence(result);
+    if (outputPrecedence) {
+      lines.push(`- 输出上限字段：${outputPrecedence}`);
+    }
+    const outputEffective = formatOutputCapEffective(result);
+    if (outputEffective) {
+      lines.push(`- 输出 cap 生效：${outputEffective}`);
+    }
+    if (result.stream_probe_attempts?.length) {
+      lines.push(`- 流式探测：${result.stream_probe_attempts.length} 次`);
+    }
     lines.push(`- 消息：${result.message || result.error || "—"}`);
     lines.push("");
     lines.push("#### 请求 Body");
@@ -4362,12 +6088,16 @@ function renderHistoryRawCase(result, record) {
         <section class="pane">
           <div class="pt">真实断言结果</div>
           ${assertions.length ? `
-            <div class="assert-list">
+            <div class="assertion-list">
               ${assertions.map((assertion) => `
-                <span class="assert-item ${assertion.pass ? "pass" : "fail"}">${assertion.pass ? "✓" : "✗"} ${escapeHtml(assertion.name)} — ${escapeHtml(assertion.message || (assertion.pass ? "通过" : "未通过"))}</span>
+                <span class="assertion-item ${assertion.pass ? "pass" : "fail"}">
+                  <strong>${assertion.pass ? "✓" : "✗"} ${escapeHtml(assertion.name)}</strong>
+                  <span>${escapeHtml(assertion.message || (assertion.pass ? "通过" : "未通过"))}</span>
+                </span>
               `).join("")}
             </div>
           ` : `<pre class="code-block">[]</pre>`}
+          ${renderStreamMetricsBlock(result)}
           <div class="pt">运行消息</div>
           <pre class="code-block">${escapeHtml(result.message || result.error || "—")}</pre>
         </section>
@@ -4484,6 +6214,566 @@ function renderHistory() {
   `;
 }
 
+function readChannelReports() {
+  try {
+    const parsed = JSON.parse(readStorageItem(CHANNEL_REPORTS_STORAGE_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeChannelReports(items) {
+  const deduped = [];
+  const seen = new Set();
+  for (const item of items) {
+    if (!item?.id || seen.has(item.id)) continue;
+    seen.add(item.id);
+    deduped.push(item);
+  }
+  const candidates = deduped.slice(0, MAX_HISTORY_ITEMS);
+  const attempts = [
+    { items: candidates, compacted: false },
+    { items: candidates.map(compactHistoryRecord), compacted: true },
+    { items: candidates.slice(0, 60).map(compactHistoryRecord), compacted: true },
+    { items: candidates.slice(0, 30).map(compactHistoryRecord), compacted: true },
+    { items: candidates.slice(0, 10).map(compactHistoryRecord), compacted: true },
+    { items: candidates.slice(0, 1).map(compactHistoryRecord), compacted: true }
+  ];
+
+  let lastError = null;
+  for (const attempt of attempts) {
+    try {
+      localStorage.setItem(CHANNEL_REPORTS_STORAGE_KEY, JSON.stringify(attempt.items));
+      return {
+        saved: true,
+        compacted: attempt.compacted,
+        savedCount: attempt.items.length,
+        droppedCount: Math.max(0, candidates.length - attempt.items.length)
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  return {
+    saved: false,
+    compacted: true,
+    savedCount: 0,
+    droppedCount: candidates.length,
+    error: lastError
+  };
+}
+
+function channelRouteDescriptors(baseline, targets = []) {
+  const channels = [];
+  if (baseline) {
+    channels.push({
+      key: baseline.key,
+      platformName: baseline.platformName,
+      protocolLabel: baseline.protocolLabel,
+      apiModelId: baseline.apiModelId,
+      role: "baseline"
+    });
+  }
+  for (const route of targets) {
+    channels.push({
+      key: route.key,
+      platformName: route.platformName,
+      protocolLabel: route.protocolLabel,
+      apiModelId: route.apiModelId,
+      role: "target"
+    });
+  }
+  return channels;
+}
+
+function inferChannelsFromResults(results = []) {
+  const channels = [];
+  const seen = new Set();
+  for (const result of results) {
+    const key = result.channel_route_key || `${result.channel_name}:${result.is_baseline ? "baseline" : "target"}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    channels.push({
+      key,
+      platformName: result.channel_name || key,
+      protocolLabel: result.endpoint_label || "",
+      apiModelId: result.model || "",
+      role: result.is_baseline ? "baseline" : "target"
+    });
+  }
+  return channels.sort((left, right) => {
+    if (left.role === right.role) return left.platformName.localeCompare(right.platformName);
+    return left.role === "baseline" ? -1 : 1;
+  });
+}
+
+function summarizeResultForMatrix(result) {
+  const intent = resultReportIntent(result);
+  const healthy = matchesExpectedForReport(result);
+  const meta = conclusionMeta(result);
+  return {
+    channel_route_key: result.channel_route_key || "",
+    channel_name: result.channel_name || "",
+    is_baseline: Boolean(result.is_baseline),
+    support_conclusion: result.support_conclusion || "",
+    support_label: meta.label,
+    http_status: result.http_status || meta.httpStatus || 0,
+    matches_expected: healthy,
+    intent,
+    report_status: intent === "observe"
+      ? (healthy ? "recorded" : "observe_issue")
+      : (healthy ? "pass" : "fail"),
+    diff_count: Number(result.diff_count || 0),
+    cache_hit_summary: result.cache_hit_summary || "",
+    latency_ms: result.latency_ms || 0,
+    result_uid: result.result_uid || ""
+  };
+}
+
+function buildChannelReportMatrix(results = [], channels = [], selection = []) {
+  const caseOrder = [];
+  const caseMeta = new Map();
+
+  for (const entry of selection) {
+    for (const caseId of entry.case_ids) {
+      if (caseMeta.has(caseId)) continue;
+      caseMeta.set(caseId, {
+        case_id: caseId,
+        group_key: entry.group_key,
+        group_title: entry.group_title
+      });
+      caseOrder.push(caseId);
+    }
+  }
+
+  for (const result of results) {
+    if (caseMeta.has(result.case_id)) continue;
+    const groupKey = result.case_group_key
+      || CHANNEL_REPORT_INTENT.inferGroupKey?.(result.source_case || { case_id: result.case_id, category: result.category })
+      || "";
+    caseMeta.set(result.case_id, {
+      case_id: result.case_id,
+      group_key: groupKey,
+      group_title: result.case_group_title || RUN_V02_GROUP_TITLES[groupKey] || groupKey
+    });
+    caseOrder.push(result.case_id);
+  }
+
+  const byCaseChannel = new Map();
+  for (const result of results) {
+    const channelKey = result.channel_route_key || `${result.channel_name}:${result.is_baseline ? "baseline" : "target"}`;
+    if (!byCaseChannel.has(result.case_id)) byCaseChannel.set(result.case_id, new Map());
+    byCaseChannel.get(result.case_id).set(channelKey, result);
+  }
+
+  return caseOrder.map((caseId) => {
+    const meta = caseMeta.get(caseId);
+    const channelResults = byCaseChannel.get(caseId) || new Map();
+    const sample = channelResults.values().next().value || {};
+    const sourceCase = sample.source_case || { case_id: caseId, category: sample.category };
+    const intent = CHANNEL_REPORT_INTENT.caseEvaluationIntent?.(sourceCase, meta.group_key) || "assert";
+    const by_channel = {};
+    let title = sample.title || caseTitle(sourceCase) || caseId;
+
+    for (const channel of channels) {
+      const result = channelResults.get(channel.key)
+        || [...channelResults.values()].find((item) => (
+          item.channel_name === channel.platformName
+          && Boolean(item.is_baseline) === (channel.role === "baseline")
+        ));
+      if (result) {
+        by_channel[channel.key] = summarizeResultForMatrix(result);
+        title = result.title || title;
+      }
+    }
+
+    return {
+      case_id: caseId,
+      title,
+      group_key: meta.group_key,
+      group_title: meta.group_title || RUN_V02_GROUP_TITLES[meta.group_key] || meta.group_key,
+      intent,
+      parameters: sample.parameters || sourceCase.parameters || [],
+      by_channel
+    };
+  });
+}
+
+function ensureChannelReportMatrix(record) {
+  if (Array.isArray(record?.case_matrix) && record.case_matrix.length) {
+    return record.case_matrix;
+  }
+  const channels = record.channels?.length ? record.channels : inferChannelsFromResults(record.results || []);
+  const selection = record.selection?.length
+    ? record.selection
+    : groupReportResults(record.results || []).map((group) => ({
+      group_key: group.key,
+      group_title: group.title,
+      case_ids: group.results.map((result) => result.case_id)
+    }));
+  return buildChannelReportMatrix(record.results || [], channels, selection);
+}
+
+function ensureChannelReportChannels(record) {
+  if (Array.isArray(record?.channels) && record.channels.length) return record.channels;
+  if (record.baseline || record.targets?.length) {
+    return channelRouteDescriptors(record.baseline, record.targets || []);
+  }
+  return inferChannelsFromResults(record.results || []);
+}
+
+function createChannelReportRecord(sourceResults = state.runV02.completedResults) {
+  const results = sourceResults.map((rawResult) => canonicalResultFromRaw(enrichResultAxes(rawResult)));
+  const baseline = state.runV02.baselineRoute;
+  const targets = runV02TargetRoutes();
+  const selection = runV02SelectionSnapshot();
+  const channels = channelRouteDescriptors(baseline, targets);
+  const stats = channelReportStatsForResults(results);
+  const case_matrix = buildChannelReportMatrix(results, channels, selection);
+  const groupTitles = selection.map((entry) => entry.group_title).join(" · ");
+  return {
+    id: `channel_report_${Date.now()}`,
+    generated_at: new Date().toISOString(),
+    tool: "v0.2",
+    report_version: 2,
+    protocol_id: runV02ActiveProtocolId() || baseline?.protocolId || "",
+    model_id: state.runV02.modelId,
+    model: state.runV02.modelId,
+    case_group_key: selection.length === 1 ? selection[0].group_key : "multi",
+    case_group_title: groupTitles || "",
+    baseline_label: baseline ? `${baseline.platformName} / ${baseline.protocolLabel}` : "",
+    target_labels: targets.map((route) => `${route.platformName} / ${route.protocolLabel}`),
+    baseline: baseline ? {
+      key: baseline.key,
+      platformName: baseline.platformName,
+      protocolLabel: baseline.protocolLabel,
+      apiModelId: baseline.apiModelId
+    } : null,
+    targets: targets.map((route) => ({
+      key: route.key,
+      platformName: route.platformName,
+      protocolLabel: route.protocolLabel,
+      apiModelId: route.apiModelId
+    })),
+    selection,
+    channels,
+    stats,
+    case_matrix,
+    results
+  };
+}
+
+function saveChannelReportRecord(sourceResults = state.runV02.completedResults) {
+  if (!sourceResults.length) return null;
+  const record = createChannelReportRecord(sourceResults);
+  const writeResult = writeChannelReports([record, ...readChannelReports()]);
+  if (state.activeView === "channel-reports") renderChannelReports();
+  if (!writeResult.saved) {
+    showToast("本次渠道测评结果已展示，但报告写入失败：浏览器本地存储空间不足。");
+  } else if (writeResult.compacted || writeResult.droppedCount > 0) {
+    showToast(writeResult.droppedCount > 0
+      ? `渠道测评报告已保存；本地空间不足，已保留最近 ${writeResult.savedCount} 条。`
+      : "渠道测评报告已保存；较大的响应内容已压缩。");
+  }
+  return record;
+}
+
+function aggregateChannelReports(items = []) {
+  const aggregate = createEmptyAggregateStats();
+  aggregate.reports = items.length;
+  aggregate.assertPass = 0;
+  aggregate.assertFail = 0;
+  aggregate.observeRecorded = 0;
+  aggregate.observeIssue = 0;
+  for (const record of items) {
+    const stats = record.stats || channelReportStatsForResults(record.results || []);
+    aggregate.total += stats.total || 0;
+    aggregate.assertPass += stats.assertPass || 0;
+    aggregate.assertFail += stats.assertFail || 0;
+    aggregate.observeRecorded += stats.observeRecorded || 0;
+    aggregate.observeIssue += stats.observeIssue || 0;
+    aggregate.expectedPass += stats.expectedPass ?? ((stats.assertPass || 0) + (stats.observeRecorded || 0));
+    aggregate.unexpected += stats.unexpected ?? ((stats.assertFail || 0) + (stats.observeIssue || 0));
+    aggregate.diffs += stats.structureDiffs || stats.diffs || 0;
+    if (record.model_id) aggregate.models.add(record.model_id);
+    if (record.generated_at && (!aggregate.latestAt || record.generated_at > aggregate.latestAt)) {
+      aggregate.latestAt = record.generated_at;
+    }
+  }
+  return aggregate;
+}
+
+function renderChannelReportSummary(items) {
+  if (!els.channelReportsSummary) return;
+  const aggregate = aggregateChannelReports(items);
+  const latestText = aggregate.latestAt ? formatDateTime(aggregate.latestAt) : "—";
+  els.channelReportsSummary.innerHTML = `
+      <article class="rep-card">
+        <span class="lbl">测评报告</span>
+        <span class="num">${items.length}</span>
+        <span class="sub">一次跑批一份报告 · 最近 ${escapeHtml(latestText)}</span>
+      </article>
+      <article class="rep-card pass">
+        <span class="lbl"><span class="mk" style="background:var(--status-success)"></span>断言达标</span>
+        <span class="num">${aggregate.assertPass || 0}</span>
+        <span class="sub">${percentText(aggregate.assertPass || 0, (aggregate.assertPass || 0) + (aggregate.assertFail || 0))}</span>
+      </article>
+      <article class="rep-card fail">
+        <span class="lbl"><span class="mk" style="background:var(--status-danger)"></span>断言未达标</span>
+        <span class="num">${aggregate.assertFail || 0}</span>
+        <span class="sub">有明确对错的 case</span>
+      </article>
+      <article class="rep-card">
+        <span class="lbl"><span class="mk" style="background:var(--status-info)"></span>观测已记录</span>
+        <span class="num">${aggregate.observeRecorded || 0}</span>
+        <span class="sub">了解现状 · 异常 ${aggregate.observeIssue || 0}</span>
+      </article>
+      <article class="rep-card">
+        <span class="lbl"><span class="mk" style="background:var(--status-warning)"></span>结构差异</span>
+        <span class="num">${aggregate.diffs || 0}</span>
+        <span class="sub">相对 Baseline 的 JSON 差异条目</span>
+      </article>
+  `;
+}
+
+function renderChannelReportMatrixCell(summary, intent) {
+  if (!summary) return `<span class="channel-matrix-cell channel-matrix-cell--empty">—</span>`;
+  const conclusion = escapeHtml(summary.support_label || summary.support_conclusion || "—");
+  const http = summary.http_status || "—";
+  if (intent === "observe") {
+    const tone = summary.report_status === "observe_issue" ? "issue" : "observe";
+    const label = tone === "issue" ? "请求异常" : "已记录";
+    const extra = summary.cache_hit_summary ? `<span class="channel-matrix-cell__extra">${escapeHtml(summary.cache_hit_summary)}</span>` : "";
+    return `
+      <div class="channel-matrix-cell channel-matrix-cell--${tone}">
+        <span class="channel-matrix-badge channel-matrix-badge--${tone}">${label}</span>
+        <span class="channel-matrix-cell__meta">${conclusion} · HTTP ${http}</span>
+        ${extra}
+      </div>`;
+  }
+  const tone = summary.report_status === "pass" ? "pass" : "fail";
+  const label = tone === "pass" ? "达标" : "未达标";
+  return `
+    <div class="channel-matrix-cell channel-matrix-cell--${tone}">
+      <span class="channel-matrix-badge channel-matrix-badge--${tone}">${label}</span>
+      <span class="channel-matrix-cell__meta">${conclusion} · HTTP ${http}</span>
+    </div>`;
+}
+
+function renderChannelReportMatrixSection(record, groupKey, rows, channels) {
+  if (!rows.length) return "";
+  const assertCount = rows.filter((row) => row.intent === "assert").length;
+  const observeCount = rows.filter((row) => row.intent === "observe").length;
+  const intentText = assertCount && observeCount
+    ? `断言型 ${assertCount} · 观测型 ${observeCount}`
+    : `${CHANNEL_REPORT_INTENT.intentLabel?.(assertCount ? "assert" : "observe") || (observeCount ? "观测型" : "断言型")} · ${rows.length} 项`;
+  const baselineChannel = channels.find((channel) => channel.role === "baseline");
+  const targetChannels = channels.filter((channel) => channel.role !== "baseline");
+  return `
+    <section class="channel-report-matrix-section">
+      <header class="channel-report-matrix-section__head">
+        <div>
+          <strong>${escapeHtml(rows[0].group_title || RUN_V02_GROUP_TITLES[groupKey] || groupKey)}</strong>
+          <span class="muted fs-xs">${escapeHtml(intentText)} · ${rows.length} 项</span>
+        </div>
+      </header>
+      <div class="table-wrap">
+        <table class="rtable channel-report-matrix">
+          <thead>
+            <tr>
+              <th>Case</th>
+              <th>类型</th>
+              ${baselineChannel ? `<th>${escapeHtml(baselineChannel.platformName)}<span class="muted fs-xs"> Baseline</span></th>` : ""}
+              ${targetChannels.map((channel) => `<th>${escapeHtml(channel.platformName)}</th>`).join("")}
+              <th>结构差异</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((row) => {
+              const resultsByChannel = new Map((record.results || []).filter((result) => result.case_id === row.case_id).map((result) => [
+                result.channel_route_key || `${result.channel_name}:${result.is_baseline ? "baseline" : "target"}`,
+                result
+              ]));
+              const diffParts = targetChannels.map((channel) => {
+                const summary = row.by_channel?.[channel.key];
+                if (!summary || summary.diff_count <= 0) return `${channel.platformName} —`;
+                return `${channel.platformName} ${summary.diff_count}`;
+              }).filter((text) => !text.endsWith(" —"));
+              return `
+                <tr class="channel-report-matrix-row">
+                  <td class="pcell">${escapeHtml(row.title || row.case_id)}</td>
+                  <td><span class="channel-intent-tag channel-intent-tag--${row.intent}">${escapeHtml(CHANNEL_REPORT_INTENT.intentLabel?.(row.intent) || row.intent)}</span></td>
+                  ${baselineChannel ? `<td>${renderChannelReportMatrixCell(row.by_channel?.[baselineChannel.key], row.intent)}</td>` : ""}
+                  ${targetChannels.map((channel) => `<td>${renderChannelReportMatrixCell(row.by_channel?.[channel.key], row.intent)}</td>`).join("")}
+                  <td class="mono fs-xs">${escapeHtml(diffParts.length ? diffParts.join(" · ") : "—")}</td>
+                </tr>
+                <tr class="channel-report-matrix-detail-row">
+                  <td colspan="${(baselineChannel ? 1 : 0) + 3 + targetChannels.length}">
+                    <details class="hcase">
+                      <summary class="muted fs-xs">展开请求 / 响应明细</summary>
+                      <div class="channel-report-matrix-detail-list">
+                        ${channels.map((channel) => {
+                          const result = resultsByChannel.get(channel.key)
+                            || (record.results || []).find((item) => item.case_id === row.case_id && item.channel_name === channel.platformName && Boolean(item.is_baseline) === (channel.role === "baseline"));
+                          if (!result) return "";
+                          return renderHistoryRawCase(result, record);
+                        }).join("")}
+                      </div>
+                    </details>
+                  </td>
+                </tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+    </section>`;
+}
+
+function renderChannelReportDetail(record) {
+  const stats = record.stats || channelReportStatsForResults(record.results || []);
+  const channels = ensureChannelReportChannels(record);
+  const matrix = ensureChannelReportMatrix(record);
+  const selectionText = (record.selection || [])
+    .map((entry) => `${entry.group_title}(${entry.case_ids.length})`)
+    .join(" · ") || record.case_group_title || "—";
+  const protocolLabel = record.protocol_id === "anthropic_messages"
+    ? "Anthropic Messages"
+    : record.protocol_id === "chat_completions"
+      ? "Chat Completions"
+      : (record.protocol_id || "—");
+  const grouped = new Map();
+  for (const row of matrix) {
+    const key = row.group_key || "other";
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(row);
+  }
+  const groupOrder = Object.keys(RUN_V02_GROUP_TITLES);
+  const sections = groupOrder
+    .filter((key) => grouped.has(key))
+    .map((key) => renderChannelReportMatrixSection(record, key, grouped.get(key), channels))
+    .join("");
+  const extraSections = [...grouped.keys()]
+    .filter((key) => !groupOrder.includes(key))
+    .map((key) => renderChannelReportMatrixSection(record, key, grouped.get(key), channels))
+    .join("");
+
+  return `
+    <tr class="hdetail-row channel-report-detail-row" data-channel-report-detail="${escapeHtml(record.id)}">
+      <td class="hdetail-cell" colspan="8">
+        <div class="hdetail channel-report-detail">
+          <div class="channel-report-detail__head">
+            <div>
+              <p class="eyebrow">测评报告</p>
+              <h3 class="channel-report-detail__title">${escapeHtml(record.model_id || "—")} · ${escapeHtml(protocolLabel)}</h3>
+              <p class="muted fs-sm">Baseline：${escapeHtml(record.baseline_label || "—")} · 测评：${escapeHtml((record.target_labels || []).join("、")) || "—"}</p>
+              <p class="muted fs-xs">勾选分组：${escapeHtml(selectionText)}</p>
+            </div>
+            <div class="channel-report-detail__stats">
+              <span class="hpill">断言 ${stats.assertPass || 0}/${stats.assertTotal || 0}</span>
+              <span class="hpill">观测 ${stats.observeRecorded || 0}/${stats.observeTotal || 0}</span>
+              <span class="hpill ${stats.structureDiffs ? "warn" : "neutral"}">结构差异 ${stats.structureDiffs || 0}</span>
+              <button class="btn btn-secondary btn-sm" type="button" data-channel-report-action="copy" data-channel-report-id="${escapeHtml(record.id)}">复制报告</button>
+            </div>
+          </div>
+          <div class="channel-report-matrix-wrap">
+            ${sections}${extraSections}
+          </div>
+        </div>
+      </td>
+    </tr>`;
+}
+
+function renderChannelReports() {
+  if (!els.channelReportsList) return;
+  const items = readChannelReports();
+  if (state.expandedChannelReportId && !items.some((record) => record.id === state.expandedChannelReportId)) {
+    state.expandedChannelReportId = null;
+  }
+  if (els.channelReportsCount) els.channelReportsCount.textContent = `${items.length} 条`;
+  if (els.clearChannelReports) els.clearChannelReports.disabled = items.length === 0;
+  renderChannelReportSummary(items);
+  if (!items.length) {
+    els.channelReportsList.innerHTML = `
+      <div class="empty-state">
+        <strong>暂无渠道测评报告</strong>
+        <span>在「渠道参数测评工具」中完成跑批后会自动保存在这里。</span>
+      </div>
+    `;
+    return;
+  }
+
+  els.channelReportsList.innerHTML = `
+    <div class="htable-wrap">
+      <table class="htable">
+        <colgroup>
+          <col class="history-col-id" />
+          <col class="history-col-provider" />
+          <col class="history-col-endpoint" />
+          <col class="history-col-cases" />
+          <col class="history-col-expected" />
+          <col class="history-col-behavior" />
+          <col class="history-col-created" />
+          <col class="history-col-actions" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>报告编号</th>
+            <th>模型与渠道</th>
+            <th>分组 / Case</th>
+            <th>断言达标</th>
+            <th>观测记录</th>
+            <th>结构差异</th>
+            <th>生成时间</th>
+            <th style="text-align:right">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map((record) => {
+            const stats = record.stats || channelReportStatsForResults(record.results || []);
+            const isOpen = state.expandedChannelReportId === record.id;
+            const targetText = (record.target_labels || []).join("、") || "—";
+            const caseCount = record.case_matrix?.length
+              || new Set((record.results || []).map((result) => result.case_id)).size;
+            const groupCount = record.selection?.length || (record.case_group_key === "multi" ? "多" : 1);
+            const passSummary = `${stats.assertPass || 0}/${stats.assertTotal || 0}`;
+            return `
+              <tr class="hrow ${isOpen ? "open" : ""}" data-channel-report-id="${escapeHtml(record.id)}">
+                <td class="rep-id">${escapeHtml(record.id.replace(/^channel_report_/, "run/"))}</td>
+                <td>
+                  <div class="hprovider">
+                    <strong class="mono">${escapeHtml(record.model_id || "—")}</strong>
+                    <span class="meta">${escapeHtml(record.protocol_id || "—")}</span>
+                    <span class="meta">Baseline：${escapeHtml(record.baseline_label || "—")}</span>
+                    <span class="meta">测评：${escapeHtml(targetText)}</span>
+                  </div>
+                </td>
+                <td>${escapeHtml(String(groupCount))} 组 · ${caseCount} case</td>
+                <td>
+                  <span class="hpill ${stats.assertFail ? "warn" : "neutral"}">${escapeHtml(passSummary)}</span>
+                </td>
+                <td>
+                  <span class="hpill">${escapeHtml(`${stats.observeRecorded || 0}/${stats.observeTotal || 0}`)}</span>
+                  ${stats.observeIssue ? `<span class="meta">异常 ${stats.observeIssue}</span>` : ""}
+                </td>
+                <td>${escapeHtml(historyDiffSummaryText({ diffs: stats.structureDiffs || stats.diffs || 0 }))}</td>
+                <td class="mono">${escapeHtml(formatDateTime(record.generated_at))}</td>
+                <td>
+                  <div class="hactions">
+                    <button class="hicon" type="button" data-channel-report-action="toggle" data-channel-report-id="${escapeHtml(record.id)}" title="查看对比矩阵" aria-label="查看对比矩阵">⌄</button>
+                    <button class="hicon danger" type="button" data-channel-report-action="delete" data-channel-report-id="${escapeHtml(record.id)}" title="删除报告" aria-label="删除报告">⌫</button>
+                  </div>
+                </td>
+              </tr>
+              ${state.expandedChannelReportId === record.id ? renderChannelReportDetail(record) : ""}
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
 function resetRunUi() {
   state.completedResults = [];
   state.batchRunRecords = [];
@@ -4587,7 +6877,7 @@ async function runProviderTests() {
     const runConcurrency = batchConcurrency();
     const capacitySelected = selectedCases.filter(isCapacityCase);
     if (capacitySelected.length) {
-      appendRunText(`→ 含 最大Max Output / 最大Total Context 测试 ${capacitySelected.length} 个：会逐档发真实请求，可能需要数分钟；已完成 case 会实时显示。`);
+      appendRunText(`→ 含 模型限制实测（输入/输出/上下文/思考预算） ${capacitySelected.length} 个：会逐档发真实请求，可能需要数分钟；已完成 case 会实时显示。`);
     }
     if (batchTextPresent) {
       const selectedBuiltInCaseIds = selectedCases.filter((testCase) => !testCase.custom).map((testCase) => testCase.case_id);
@@ -4876,7 +7166,14 @@ function mapRunResult(result, context = runContextForTarget(), index = 0) {
     assertions: result.assertions || [],
     expected_http_status: result.expected_http_status,
     expected_support_conclusion: result.expected_support_conclusion,
-    error: result.error || ""
+    error: result.error || "",
+    stream_metrics: result.stream_metrics || null,
+    stream_probe_attempts: result.stream_probe_attempts || null,
+    stream_usage_present: result.stream_usage_present ?? null,
+    stream_usage_chunk_profile: result.stream_usage_chunk_profile ?? null,
+    stream_done_marker_present: result.stream_done_marker_present ?? null,
+    output_length_cap_precedence: result.output_length_cap_precedence ?? null,
+    output_cap_effective: result.output_cap_effective ?? null
   });
 }
 
@@ -5006,11 +7303,17 @@ function renderTabs() {
   }).join("");
 }
 
+const CAPACITY_KINDS = ["max_input", "max_output", "max_output_effective", "total_context", "thinking_budget"];
+
 function capacityKindFromResult(result = {}) {
   const bodyKind = result.response_body?.kind;
-  if (bodyKind === "max_output" || bodyKind === "total_context") return bodyKind;
-  if (String(result.case_id || "").includes("capacity_max_output")) return "max_output";
-  if (String(result.case_id || "").includes("capacity_total_context")) return "total_context";
+  if (CAPACITY_KINDS.includes(bodyKind)) return bodyKind;
+  const caseId = String(result.case_id || "");
+  if (caseId.includes("capacity_max_output_effective")) return "max_output_effective";
+  if (caseId.includes("capacity_max_input")) return "max_input";
+  if (caseId.includes("capacity_thinking_budget")) return "thinking_budget";
+  if (caseId.includes("capacity_max_output")) return "max_output";
+  if (caseId.includes("capacity_total_context")) return "total_context";
   return "";
 }
 
@@ -5040,12 +7343,28 @@ function capacityTargetLabel(result = {}) {
   return host ? `${model} · ${host}` : model;
 }
 
+const CAPACITY_KIND_NAMES = {
+  max_input: "最大Input",
+  max_output: "最大Max Output",
+  max_output_effective: "Max Output 生效",
+  total_context: "最大Total Context",
+  thinking_budget: "最大Thinking Budget"
+};
+
 function capacityDisplayName(kind) {
-  return kind === "total_context" ? "最大Total Context" : "最大Max Output";
+  return CAPACITY_KIND_NAMES[kind] || "最大Max Output";
 }
 
 function capacityResultValue(result = {}, kind = capacityKindFromResult(result)) {
   const body = result.response_body || {};
+  if (kind === "max_output_effective") {
+    return body.effective ? "生效" : "未生效";
+  }
+  if (kind === "thinking_budget") {
+    if (!body.budget_accepted) return "不支持";
+    const max = body.budget_max_display || formatCapacityTier(Number(body.budget_max || 0));
+    return body.effective ? `${max} · 生效` : `${max} · 接受`;
+  }
   const supported = Number(body.supported_max || 0);
   if (supported > 0 && body.supported_max_display) {
     return body.top_candidate_supported ? `≥ ${body.supported_max_display}` : body.supported_max_display;
@@ -5056,15 +7375,25 @@ function capacityResultValue(result = {}, kind = capacityKindFromResult(result))
   return "未测到";
 }
 
-function capacityResultLevel(result = {}) {
+function capacityResultLevel(result = {}, kind = capacityKindFromResult(result)) {
   const body = result.response_body || {};
+  if (kind === "max_output_effective") return body.effective ? "pass" : "fail";
+  if (kind === "thinking_budget") {
+    if (!body.budget_accepted) return "fail";
+    return body.effective ? "pass" : "warn";
+  }
   if (Number(body.supported_max || 0) <= 0) return "fail";
   if (body.upper_bound_found) return "pass";
   return "warn";
 }
 
-function capacityResultStatus(result = {}) {
+function capacityResultStatus(result = {}, kind = capacityKindFromResult(result)) {
   const body = result.response_body || {};
+  if (kind === "max_output_effective") return body.effective ? "实测生效" : "未生效";
+  if (kind === "thinking_budget") {
+    if (!body.budget_accepted) return "不支持该字段";
+    return body.effective ? "接受并生效" : "接受未生效";
+  }
   if (Number(body.supported_max || 0) <= 0) {
     return result.error ? "请求失败" : "未测到支持项";
   }
@@ -5075,6 +7404,20 @@ function capacityResultStatus(result = {}) {
 
 function capacityResultDetail(result = {}, kind = capacityKindFromResult(result)) {
   const body = result.response_body || {};
+  if (kind === "max_output_effective") {
+    return body.effective_detail || (body.effective ? "max_tokens 实测可截断输出。" : "未观察到截断，参数疑似被忽略。");
+  }
+  if (kind === "thinking_budget") {
+    if (!body.budget_accepted) return body.skip_reason || `${body.thinking_field || "thinking budget"} 字段未被接受。`;
+    const parts = [`最大可传 ${body.budget_max_display || formatCapacityTier(Number(body.budget_max || 0))}`];
+    if (body.effective) {
+      parts.push(`reasoning_tokens ${body.thinking_low_reasoning_tokens || 0}→${body.thinking_high_reasoning_tokens || 0} 随预算增大`);
+    } else {
+      parts.push("接受但 reasoning_tokens 未随预算变化");
+    }
+    if (body.budget_respected === false) parts.push("曾超出预算");
+    return parts.join("；") + "。";
+  }
   const supported = Number(body.supported_max || 0);
   const nearest = body.nearest_higher_non_supported;
   if (supported > 0 && nearest?.candidate_display) {
@@ -5126,8 +7469,9 @@ function capacitySummaryMarkdownLines(results = []) {
     "| Target | 指标 | 可用上限 | 结论 | 探测 | 说明 |",
     "|---|---|---|---|---|---|"
   ];
+  const kinds = capacityKindsPresent(groups);
   for (const group of groups) {
-    for (const kind of ["max_output", "total_context"]) {
+    for (const kind of kinds) {
       const result = group.results[kind];
       if (!result) {
         lines.push(`| ${escapeMarkdownCell(group.label)} | ${capacityDisplayName(kind)} | — | 未测试 | — | — |`);
@@ -5136,17 +7480,23 @@ function capacitySummaryMarkdownLines(results = []) {
       const attempts = Array.isArray(result.response_body?.attempts) ? result.response_body.attempts.length : 0;
       const latency = formatCapacityLatency(result.latency_ms);
       const probeText = [attempts ? `${attempts} 次` : "", latency].filter(Boolean).join(" / ") || "—";
-      lines.push(`| ${escapeMarkdownCell(group.label)} | ${capacityDisplayName(kind)} | ${capacityResultValue(result, kind)} | ${capacityResultStatus(result)} | ${probeText} | ${escapeMarkdownCell(capacityResultDetail(result, kind))} |`);
+      lines.push(`| ${escapeMarkdownCell(group.label)} | ${capacityDisplayName(kind)} | ${capacityResultValue(result, kind)} | ${capacityResultStatus(result, kind)} | ${probeText} | ${escapeMarkdownCell(capacityResultDetail(result, kind))} |`);
     }
   }
   lines.push("");
   return lines;
 }
 
+function capacityKindsPresent(groups = []) {
+  const present = CAPACITY_KINDS.filter((kind) => groups.some((group) => group.results[kind]));
+  return present.length ? present : ["max_output", "total_context"];
+}
+
 function capacitySummaryHtml(results = [], scopeLabel = "") {
   const groups = capacitySummaryGroups(results);
   if (!groups.length) return "";
-  const cards = groups.flatMap((group) => ["max_output", "total_context"].map((kind) => {
+  const kinds = capacityKindsPresent(groups);
+  const cards = groups.flatMap((group) => kinds.map((kind) => {
     const result = group.results[kind];
     if (!result) {
       return `
@@ -5163,7 +7513,7 @@ function capacitySummaryHtml(results = [], scopeLabel = "") {
         </article>
       `;
     }
-    const level = capacityResultLevel(result);
+    const level = capacityResultLevel(result, kind);
     const attempts = Array.isArray(result.response_body?.attempts) ? result.response_body.attempts.length : 0;
     const latency = formatCapacityLatency(result.latency_ms);
     return `
@@ -5175,7 +7525,7 @@ function capacitySummaryHtml(results = [], scopeLabel = "") {
         <strong>${escapeHtml(capacityResultValue(result, kind))}</strong>
         <p>${escapeHtml(capacityResultDetail(result, kind))}</p>
         <div class="capacity-metric-card__meta">
-          <span class="capacity-status ${level}">${escapeHtml(capacityResultStatus(result))}</span>
+          <span class="capacity-status ${level}">${escapeHtml(capacityResultStatus(result, kind))}</span>
           <span>${attempts ? `探测 ${attempts} 次` : "无探测明细"}</span>
           ${latency ? `<span>${escapeHtml(latency)}</span>` : ""}
         </div>
@@ -5340,6 +7690,8 @@ function renderDetailRow(result) {
               `).join("")}
             </div>
           ` : ""}
+
+          ${renderStreamMetricsBlock(result)}
 
           <div class="response-grid">
             <div class="response-pane">
@@ -5819,16 +8171,13 @@ const PROTOCOL_CHANNEL_ORDER = [
 // 协议参数分组展示顺序：常用调参靠前，冷门/平台特有靠后
 const PROTOCOL_PARAM_CATEGORY_ORDER = [
   "Core",
-  "Sampling",
-  "Length",
   "Reasoning",
-  "Output",
-  "Tools",
+  "Sampling",
   "Protocol",
-  "Multimodal",
-  "Search",
-  "Metadata",
+  "Length",
+  "Output",
   "Debug",
+  "Tools",
   "Extra",
   "Beta",
   "Template",
@@ -5844,6 +8193,124 @@ const PROTOCOL_PARAM_CATEGORY_ORDER = [
 function protocolParamCategoryRank(category) {
   const index = PROTOCOL_PARAM_CATEGORY_ORDER.indexOf(category);
   return index === -1 ? 400 : index;
+}
+
+function isProtocolCompareExcludedParameter(parameter) {
+  if (protocolCompareExcludedParameters instanceof Set) {
+    return protocolCompareExcludedParameters.has(parameter);
+  }
+  return Array.isArray(protocolCompareExcludedParameters)
+    && protocolCompareExcludedParameters.includes(parameter);
+}
+
+const PROTOCOL_CORE_PARAM_ORDER = ["model", "messages", "input", "system", "max_tokens", "models"];
+
+// 采样参数：按常见使用率排序；相近控制项相邻（核采样 → 惩罚 → 确定性/多结果 → 停止词 → 扩展）
+const PROTOCOL_SAMPLING_PARAM_ORDER = [
+  "temperature",
+  "top_p",
+  "top_k",
+  "min_p",
+  "top_a",
+  "presence_penalty",
+  "frequency_penalty",
+  "repetition_penalty",
+  "seed",
+  "n",
+  "stop",
+  "stop_sequences",
+  "stop_token_ids",
+  "include_stop_str_in_output",
+  "min_tokens",
+  "logit_bias",
+  "do_sample"
+];
+
+function protocolParamBaseName(parameter) {
+  const first = String(parameter).split(".")[0];
+  return first.replace(/\[\]$/, "");
+}
+
+function protocolParamNameRank(category, parameter) {
+  if (category === "Core") {
+    const index = PROTOCOL_CORE_PARAM_ORDER.indexOf(protocolParamBaseName(parameter));
+    return index === -1 ? 500 : index;
+  }
+  if (category === "Sampling") {
+    const index = PROTOCOL_SAMPLING_PARAM_ORDER.indexOf(parameter);
+    return index === -1 ? 500 : index;
+  }
+  return 1000;
+}
+
+function protocolParamGroupKey(item) {
+  return `${item.category}\0${item.subgroup || ""}`;
+}
+
+function sortProtocolParametersByTree(items, category) {
+  if (!items.length) return items;
+  const names = items.map((item) => item.parameter);
+  const itemByName = new Map(items.map((item) => [item.parameter, item]));
+
+  const roots = names.filter((name) => {
+    const parent = protocolParameterParent(name);
+    if (!parent) return true;
+    return !names.includes(parent);
+  });
+
+  roots.sort((a, b) => {
+    const rankDiff = protocolParamNameRank(category, a) - protocolParamNameRank(category, b);
+    if (rankDiff !== 0) return rankDiff;
+    return a.localeCompare(b, "en");
+  });
+
+  const ordered = [];
+  const visited = new Set();
+
+  function visit(param) {
+    if (visited.has(param)) return;
+    visited.add(param);
+    const item = itemByName.get(param);
+    if (item) ordered.push(item);
+    const children = names
+      .filter((name) => isProtocolParameterDirectChild(name, param, names))
+      .sort((a, b) => a.localeCompare(b, "en"));
+    for (const child of children) visit(child);
+  }
+
+  for (const root of roots) visit(root);
+  for (const item of items) {
+    if (!visited.has(item.parameter)) ordered.push(item);
+  }
+  return ordered;
+}
+
+function sortProtocolParameterMetaList(items) {
+  const groups = new Map();
+  for (const item of items) {
+    const key = protocolParamGroupKey(item);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(item);
+  }
+
+  const keys = [...groups.keys()].sort((keyA, keyB) => {
+    const [catA, subA] = keyA.split("\0");
+    const [catB, subB] = keyB.split("\0");
+    const categoryOrder = protocolParamCategoryRank(catA) - protocolParamCategoryRank(catB);
+    if (categoryOrder !== 0) return categoryOrder;
+    if (subA && subB) {
+      const subgroupOrder = paramSubgroupRank(catA, subA) - paramSubgroupRank(catB, subB);
+      if (subgroupOrder !== 0) return subgroupOrder;
+    }
+    return 0;
+  });
+
+  const ordered = [];
+  for (const key of keys) {
+    const [category] = key.split("\0");
+    ordered.push(...sortProtocolParametersByTree(groups.get(key), category));
+  }
+  return ordered;
 }
 
 const RESPONSES_PROTOCOL_CHANNEL_IDS = ["aliyun", "openrouter", "streamlake"];
@@ -5892,6 +8359,7 @@ function buildProtocolParameterMatrix(channels, protocolId) {
   const paramMeta = new Map();
   for (const row of channelRows) {
     for (const item of row.flat) {
+      if (isProtocolCompareExcludedParameter(item.parameter)) continue;
       const paramKey = `${item.category}::${item.subgroup || ""}::${item.parameter}`;
       if (!paramMeta.has(paramKey)) {
         paramMeta.set(paramKey, {
@@ -5908,17 +8376,14 @@ function buildProtocolParameterMatrix(channels, protocolId) {
     }
   }
 
-  const parameters = [...paramMeta.values()].sort((a, b) => {
-    const categoryOrder = protocolParamCategoryRank(a.category) - protocolParamCategoryRank(b.category);
-    if (categoryOrder !== 0) return categoryOrder;
-    if (a.category === b.category && a.subgroup && b.subgroup) {
-      const subgroupOrder = paramSubgroupRank(a.category, a.subgroup) - paramSubgroupRank(b.category, b.subgroup);
-      if (subgroupOrder !== 0) return subgroupOrder;
-    }
-    return a.parameter.localeCompare(b.parameter);
-  });
+  const parameters = sortProtocolParameterMetaList([...paramMeta.values()]);
 
   const channelCount = channels.length;
+  const universalCount = parameters.filter((item) => item.channels.size === channelCount).length;
+  const commonCount = parameters.filter((item) => {
+    const coverage = item.channels.size;
+    return coverage > channelCount / 2 && coverage < channelCount;
+  }).length;
   const partialCount = parameters.filter((item) => item.channels.size > 0 && item.channels.size < channelCount).length;
   const uniqueCount = parameters.filter((item) => item.channels.size === 1).length;
   const missingDocChannels = channelRows.filter((row) => row.docMeta?.docStatus === "missing");
@@ -5930,6 +8395,8 @@ function buildProtocolParameterMatrix(channels, protocolId) {
     parameters,
     channelCount,
     parameterCount: parameters.length,
+    universalCount,
+    commonCount,
     partialCount,
     uniqueCount,
     missingDocChannels,
@@ -5999,22 +8466,152 @@ function renderProtocolParamDrawerCell(value, isDiff) {
   return `<td class="protocol-spec-drawer-cell${diffClass}">${value}</td>`;
 }
 
-function renderProtocolParamDrawerTable(protocolId, parameter, matrix, paramItem) {
+function renderMessagesRoleGuide() {
+  return `
+    <section class="protocol-messages-guide" aria-labelledby="protocol-messages-guide-title">
+      <h3 id="protocol-messages-guide-title" class="protocol-messages-guide__title">四大消息类型详解</h3>
+      <p class="protocol-messages-guide__lead">
+        System、User、Assistant、Tool 是 OpenAI、Claude、通义千问、DeepSeek 等接口统一的
+        <code>messages</code> 标准成员，各司其职构成完整上下文。
+      </p>
+
+      <article class="protocol-messages-guide__card">
+        <h4 class="protocol-messages-guide__role">1. System · 系统消息</h4>
+        <p class="protocol-messages-guide__tagline">给模型的全局前置指令，优先级最高</p>
+        <ul class="protocol-messages-guide__list">
+          <li>定义身份、回答风格、格式要求、任务边界与禁止事项，全程约束模型行为</li>
+          <li>通常放在消息列表最开头；用户看不到，是后台给模型的底层命令</li>
+        </ul>
+        <pre class="protocol-messages-guide__code"><code>{
+  "role": "system",
+  "content": "你是专业数据分析助手，回答必须精简，结果用JSON格式输出，不要多余解释"
+}</code></pre>
+      </article>
+
+      <article class="protocol-messages-guide__card">
+        <h4 class="protocol-messages-guide__role">2. User · 用户消息</h4>
+        <p class="protocol-messages-guide__tagline">人类用户提出的问题、需求与输入</p>
+        <ul class="protocol-messages-guide__list">
+          <li>向模型发起提问、下达任务或补充素材</li>
+          <li>一般紧跟在系统消息或历史回复之后</li>
+        </ul>
+        <pre class="protocol-messages-guide__code"><code>{
+  "role": "user",
+  "content": "帮我计算25*36，并输出JSON结果"
+}</code></pre>
+      </article>
+
+      <article class="protocol-messages-guide__card">
+        <h4 class="protocol-messages-guide__role">3. Assistant · 助手消息</h4>
+        <p class="protocol-messages-guide__tagline">模型生成的回答，或历史回复回填上下文</p>
+        <ul class="protocol-messages-guide__list">
+          <li><strong>普通对话</strong>：直接输出文字回答</li>
+          <li><strong>工具调用</strong>：携带 <code>tool_calls</code>，告知客户端要调用哪个函数及参数</li>
+        </ul>
+        <p class="protocol-messages-guide__subhead">普通回复</p>
+        <pre class="protocol-messages-guide__code"><code>{
+  "role": "assistant",
+  "content": "25乘以36的结果是900"
+}</code></pre>
+        <p class="protocol-messages-guide__subhead">工具调用（无 content，带 tool_calls）</p>
+        <pre class="protocol-messages-guide__code"><code>{
+  "role": "assistant",
+  "content": null,
+  "tool_calls": [{
+    "id": "xxx",
+    "type": "function",
+    "function": {
+      "name": "calc",
+      "arguments": "{\\"a\\":25,\\"b\\":36}"
+    }
+  }]
+}</code></pre>
+      </article>
+
+      <article class="protocol-messages-guide__card">
+        <h4 class="protocol-messages-guide__role">4. Tool · 工具消息</h4>
+        <p class="protocol-messages-guide__tagline">客户端执行工具后，把运行结果回传给模型</p>
+        <ul class="protocol-messages-guide__list">
+          <li>前提：上一条 Assistant 消息已发起 <code>tool_calls</code></li>
+          <li><code>tool_call_id</code> 必须与对应 <code>tool_calls[].id</code> 一一匹配</li>
+          <li>模型据此结合外部数据整理最终答案</li>
+        </ul>
+        <pre class="protocol-messages-guide__code"><code>{
+  "role": "tool",
+  "tool_call_id": "xxx",
+  "content": "计算结果：900"
+}</code></pre>
+      </article>
+
+      <div class="protocol-messages-guide__flow">
+        <h4 class="protocol-messages-guide__subhead">一轮完整工具调用顺序</h4>
+        <ol class="protocol-messages-guide__steps">
+          <li><strong>System</strong> → 设定助手规则</li>
+          <li><strong>User</strong> → 用户提问</li>
+          <li><strong>Assistant</strong> → 模型判断需调用工具，下发调用指令</li>
+          <li><strong>Tool</strong> → 程序执行工具，把结果回传</li>
+          <li><strong>Assistant</strong> → 模型结合工具数据，输出最终答案</li>
+        </ol>
+      </div>
+
+      <dl class="protocol-messages-guide__mnemonic">
+        <div><dt>System</dt><dd>定规矩、定人设的后台指令</dd></div>
+        <div><dt>User</dt><dd>人说话、提需求</dd></div>
+        <div><dt>Assistant</dt><dd>AI 说话 / AI 说要调用工具</dd></div>
+        <div><dt>Tool</dt><dd>工具跑完，把结果还给 AI</dd></div>
+      </dl>
+
+      <details class="protocol-messages-guide__example">
+        <summary>查看完整 JSON 样例（含一轮工具调用）</summary>
+        <pre class="protocol-messages-guide__code"><code>{
+  "model": "gpt-4o",
+  "messages": [
+    { "role": "system", "content": "你是计算助手，结果用 JSON 返回" },
+    { "role": "user", "content": "帮我计算 25*36" },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [{
+        "id": "call_1",
+        "type": "function",
+        "function": { "name": "calc", "arguments": "{\\"a\\":25,\\"b\\":36}" }
+      }]
+    },
+    { "role": "tool", "tool_call_id": "call_1", "content": "900" },
+    { "role": "assistant", "content": "{\\"result\\":900}" }
+  ],
+  "tools": [{
+    "type": "function",
+    "function": {
+      "name": "calc",
+      "description": "两数相乘",
+      "parameters": {
+        "type": "object",
+        "properties": { "a": { "type": "number" }, "b": { "type": "number" } },
+        "required": ["a", "b"]
+      }
+    }
+  }]
+}</code></pre>
+      </details>
+    </section>
+  `;
+}
+
+function protocolParamDrawerSupplement(parameter) {
+  if (parameter === "messages") return renderMessagesRoleGuide();
+  return "";
+}
+
+function buildProtocolParamDrawerData(protocolId, parameter, matrix, paramItem) {
   const specsApi = getProtocolMatrix();
-  if (!specsApi) {
-    return `<p class="guide-copy">约束数据模块未加载。</p>`;
-  }
+  if (!specsApi) return null;
 
   const entries = matrix.channels.map((channel) => {
     const listed = paramItem.channels.has(channel.channel_id);
     const required = paramItem.requiredByChannel.get(channel.channel_id);
     const spec = listed ? specsApi.getSpec(channel.channel_id, protocolId, parameter) : null;
-    return {
-      channel,
-      listed,
-      required,
-      spec
-    };
+    return { channel, listed, required, spec };
   });
 
   const consensus = specsApi.buildSpecConsensus(
@@ -6026,39 +8623,74 @@ function renderProtocolParamDrawerTable(protocolId, parameter, matrix, paramItem
 
   const baseline = specsApi.getOpenAiBaseline(protocolId, parameter);
   const meaning = parameterDescription(parameter, protocolId);
-  const consensusLine = consensus.consensus
-    ? `${consensus.consensusCount}/${consensus.documentedCount} 渠道约束一致 · ${consensus.consensus}`
+  const consensusDetail = consensus.consensusSpec
+    ? specsApi.formatSpecShort(consensus.consensusSpec, parameter)
+    : null;
+  const consensusLine = consensusDetail && consensus.consensusCount
+    ? `${consensus.consensusCount}/${consensus.documentedCount} 渠道约束一致 · ${consensusDetail}`
     : consensus.documentedCount
       ? `${consensus.documentedCount} 个渠道已整理，约束尚未形成多数共识`
       : "约束详情待补充";
-
-  const baselineLine = baseline
-    ? specsApi.formatSpecShort(baseline)
-    : null;
-
+  const baselineLine = baseline ? specsApi.formatSpecShort(baseline, parameter) : null;
   const outlierByChannel = new Map(
     (consensus.outliers || []).map((item) => [item.channelId, item.diffFields])
   );
 
+  return {
+    specsApi,
+    entries,
+    consensus,
+    meaning,
+    consensusLine,
+    baselineLine,
+    outlierByChannel
+  };
+}
+
+function renderProtocolParamDrawerSummary(drawerData) {
+  if (!drawerData) {
+    return `<p class="guide-copy">约束数据模块未加载。</p>`;
+  }
+  const { meaning, consensusLine, baselineLine, consensus } = drawerData;
+  const outlierCount = consensus?.outliers?.length || 0;
+  return `
+    <div class="protocol-spec-drawer-meta">
+      ${meaning ? `<p class="protocol-spec-drawer-meaning">${escapeHtml(meaning)}</p>` : ""}
+      <p class="protocol-spec-drawer-consensus">
+        <span class="protocol-spec-consensus-badge">共识</span>
+        ${escapeHtml(consensusLine)}
+      </p>
+      ${outlierCount ? `<p class="protocol-spec-drawer-outlier-note">${outlierCount} 个渠道与多数约束不一致</p>` : ""}
+      ${baselineLine ? `<p class="protocol-spec-drawer-baseline"><span class="muted">OpenAI 参考</span> · ${escapeHtml(baselineLine)}</p>` : ""}
+    </div>
+  `;
+}
+
+function renderProtocolParamDrawerTableBody(protocolId, parameter, drawerData) {
+  if (!drawerData) return "";
+  const { specsApi, entries, outlierByChannel } = drawerData;
   const rows = entries.map(({ channel, listed, required, spec }) => {
     const diffFields = outlierByChannel.get(channel.channel_id) || [];
+    const isOutlier = diffFields.length > 0;
     const typeText = !listed
       ? "—"
       : spec
         ? escapeHtml(specsApi.formatType(spec))
         : '<span class="protocol-spec-pending">文档未整理</span>';
-    const defaultText = !listed || !spec
+    const defaultText = !listed || !spec ? "—" : escapeHtml(specsApi.formatDefault(spec));
+    const rangeText = !listed || !spec ? "—" : escapeHtml(specsApi.formatRange(spec));
+    const enumText = !listed || !spec
       ? "—"
-      : escapeHtml(specsApi.formatDefault(spec));
-    const rangeText = !listed || !spec
-      ? "—"
-      : escapeHtml(specsApi.formatRange(spec));
+      : (() => {
+          const formatted = specsApi.formatEnum(spec, parameter);
+          return formatted === "—" ? "—" : `<code class="protocol-spec-enum">${escapeHtml(formatted)}</code>`;
+        })();
     const statusText = escapeHtml(renderProtocolParamRequiredLabel(listed, required));
     const effectiveText = spec ? escapeHtml(specsApi.formatEffective(spec)) : "—";
     const notesText = spec?.notes ? escapeHtml(spec.notes) : "—";
 
     return `
-      <tr>
+      <tr class="${isOutlier ? "protocol-spec-drawer-row--outlier" : ""}">
         <th scope="row" class="protocol-spec-drawer-channel">
           <span class="protocol-spec-drawer-channel-inner">
             <img src="${escapeHtml(channel.logo)}" alt="" width="16" height="16" />
@@ -6067,6 +8699,7 @@ function renderProtocolParamDrawerTable(protocolId, parameter, matrix, paramItem
         </th>
         ${renderProtocolParamDrawerCell(typeText, diffFields.includes("type"))}
         ${renderProtocolParamDrawerCell(defaultText, diffFields.includes("default"))}
+        ${renderProtocolParamDrawerCell(enumText, diffFields.includes("enum"))}
         ${renderProtocolParamDrawerCell(rangeText, diffFields.includes("range"))}
         ${renderProtocolParamDrawerCell(statusText, false)}
         ${renderProtocolParamDrawerCell(effectiveText, diffFields.includes("effective"))}
@@ -6076,14 +8709,6 @@ function renderProtocolParamDrawerTable(protocolId, parameter, matrix, paramItem
   }).join("");
 
   return `
-    <div class="protocol-spec-drawer-meta">
-      ${meaning ? `<p class="protocol-spec-drawer-meaning">${escapeHtml(meaning)}</p>` : ""}
-      <p class="protocol-spec-drawer-consensus">
-        <span class="protocol-spec-consensus-badge">共识</span>
-        ${escapeHtml(consensusLine)}
-      </p>
-      ${baselineLine ? `<p class="protocol-spec-drawer-baseline"><span class="muted">OpenAI 参考</span> · ${escapeHtml(baselineLine)}</p>` : ""}
-    </div>
     <div class="protocol-spec-drawer-table-wrap">
       <table class="protocol-spec-drawer-table">
         <thead>
@@ -6091,6 +8716,7 @@ function renderProtocolParamDrawerTable(protocolId, parameter, matrix, paramItem
             <th scope="col">渠道</th>
             <th scope="col">类型</th>
             <th scope="col">默认</th>
+            <th scope="col">枚举值</th>
             <th scope="col">边界</th>
             <th scope="col">状态</th>
             <th scope="col">生效</th>
@@ -6100,22 +8726,34 @@ function renderProtocolParamDrawerTable(protocolId, parameter, matrix, paramItem
         <tbody>${rows}</tbody>
       </table>
     </div>
+    ${protocolParamDrawerSupplement(parameter)}
   `;
 }
 
-function openProtocolParamDrawer(protocolId, parameter) {
+function renderProtocolParamDrawerTable(protocolId, parameter, matrix, paramItem) {
+  const drawerData = buildProtocolParamDrawerData(protocolId, parameter, matrix, paramItem);
+  return `${renderProtocolParamDrawerSummary(drawerData)}${renderProtocolParamDrawerTableBody(protocolId, parameter, drawerData)}`;
+}
+
+function openProtocolParamDrawer(protocolId, parameter, category = "") {
   if (!els.protocolParamDrawer) return;
   const matrix = state.protocolMatrices?.[protocolId];
   if (!matrix) return;
-  const paramItem = matrix.parameters.find((item) => item.parameter === parameter);
+  const paramItem = matrix.parameters.find((item) =>
+    item.parameter === parameter && (!category || item.category === category)
+  );
   if (!paramItem) return;
 
+  const drawerData = buildProtocolParamDrawerData(protocolId, parameter, matrix, paramItem);
   state.protocolParamDrawerOpen = true;
   if (els.protocolParamDrawerTitle) {
     els.protocolParamDrawerTitle.textContent = parameter;
   }
+  if (els.protocolParamDrawerSummary) {
+    els.protocolParamDrawerSummary.innerHTML = renderProtocolParamDrawerSummary(drawerData);
+  }
   if (els.protocolParamDrawerBody) {
-    els.protocolParamDrawerBody.innerHTML = renderProtocolParamDrawerTable(protocolId, parameter, matrix, paramItem);
+    els.protocolParamDrawerBody.innerHTML = renderProtocolParamDrawerTableBody(protocolId, parameter, drawerData);
   }
   els.protocolParamDrawer.classList.remove("is-hidden");
   els.protocolParamDrawer.setAttribute("aria-hidden", "false");
@@ -6127,6 +8765,8 @@ function closeProtocolParamDrawer() {
   state.protocolParamDrawerOpen = false;
   els.protocolParamDrawer.classList.add("is-hidden");
   els.protocolParamDrawer.setAttribute("aria-hidden", "true");
+  if (els.protocolParamDrawerSummary) els.protocolParamDrawerSummary.innerHTML = "";
+  if (els.protocolParamDrawerBody) els.protocolParamDrawerBody.innerHTML = "";
   document.body.classList.remove("protocol-drawer-open");
 }
 
@@ -6144,30 +8784,93 @@ function bindProtocolParamDrawer() {
 
 function bindProtocolParamDrawerRows() {
   if (!els.protocolCatalog) return;
-  els.protocolCatalog.querySelectorAll("[data-protocol-param-row]").forEach((row) => {
-    row.addEventListener("click", () => {
-      const protocolId = row.dataset.protocolId;
-      const parameter = row.dataset.parameter;
-      if (protocolId && parameter) openProtocolParamDrawer(protocolId, parameter);
+  const openFromCell = (cell) => {
+    const row = cell.closest("[data-protocol-param-row]");
+    if (!row) return;
+    const protocolId = row.dataset.protocolId;
+    const parameter = row.dataset.parameter;
+    const category = row.dataset.protocolSectionCategory;
+    if (protocolId && parameter) openProtocolParamDrawer(protocolId, parameter, category);
+  };
+  els.protocolCatalog.querySelectorAll("[data-protocol-param-open]").forEach((cell) => {
+    cell.addEventListener("click", (event) => {
+      if (event.target.closest("[data-protocol-param-tree-toggle]")) return;
+      openFromCell(cell);
     });
-    row.addEventListener("keydown", (event) => {
+    cell.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
-      const protocolId = row.dataset.protocolId;
-      const parameter = row.dataset.parameter;
-      if (protocolId && parameter) openProtocolParamDrawer(protocolId, parameter);
+      openFromCell(cell);
     });
   });
 }
 
-function renderProtocolParameterCoverageCell(supported, required, { unique = false, partial = false } = {}) {
+function renderProtocolParameterCoverageCell(supported, required, { channelId = "", protocolId = "chat_completions", parameter = "" } = {}) {
   if (!supported) {
+    const observedOnly = observedThinkingEffectiveness(channelId, protocolId, parameter);
+    if (observedOnly === "doc_gap" || observedOnly === "effective") {
+      const observedBadge = renderProtocolObservedBadge(observedOnly, { channelId, protocolId, parameter });
+      return `<td class="channel-protocol-cell protocol-param-cell protocol-param-cell--observed-only">${observedBadge}</td>`;
+    }
     return `<td class="channel-protocol-cell protocol-param-cell protocol-param-cell--missing"><span class="protocol-dash" aria-hidden="true">—</span></td>`;
   }
-  const modifier = unique ? " protocol-param-cell--unique" : partial ? " protocol-param-cell--partial" : "";
+  const modifier = "";
   const reqLabel = required ? "必填" : "选填";
   const reqClass = required ? "protocol-param-req--required" : "protocol-param-req--optional";
-  return `<td class="channel-protocol-cell protocol-param-cell protocol-param-cell--present${modifier}"><span class="protocol-param-req ${reqClass}" title="官方文档：${reqLabel}">${reqLabel}</span></td>`;
+  const observed = observedThinkingEffectiveness(channelId, protocolId, parameter);
+  const observedBadge = observed ? renderProtocolObservedBadge(observed, { channelId, protocolId, parameter }) : "";
+  return `<td class="channel-protocol-cell protocol-param-cell protocol-param-cell--present${modifier}"><span class="protocol-param-cell-stack"><span class="protocol-param-req ${reqClass}" title="官方文档：${reqLabel}">${reqLabel}</span>${observedBadge}</span></td>`;
+}
+
+function observedThinkingApi() {
+  return window.NOCTUA_THINKING_OBSERVED || null;
+}
+
+function observedThinkingEffectiveness(channelId, protocolId, parameter) {
+  const api = observedThinkingApi();
+  if (!api || !channelId || !parameter) return null;
+  return api.getEffectiveness(channelId, protocolId, parameter);
+}
+
+function thinkingEffectivenessShortLabel(value) {
+  return {
+    effective: "实测有效",
+    accepted_ineffective: "接受无效",
+    rejected: "拒绝",
+    unproven: "未证明",
+    default_on: "默认开",
+    doc_gap: "文档缺口"
+  }[value] || "";
+}
+
+function renderProtocolObservedBadge(value, { channelId = "", protocolId = "chat_completions", parameter = "" } = {}) {
+  const label = thinkingEffectivenessShortLabel(value) || thinkingEffectivenessLabel(value);
+  if (!label) return "";
+  const effort = observedThinkingApi()?.getEffortProfile(channelId, protocolId, parameter);
+  let title = `实测：${thinkingEffectivenessLabel(value)}`;
+  if (effort?.default_effort?.value) {
+    title += `；默认 effort=${effort.default_effort.value}`;
+  }
+  if (effort?.mappings?.length) {
+    title += `；映射 ${effort.mappings.map((m) => `${m.from}→${m.to}`).join(", ")}`;
+  }
+  return `<span class="protocol-param-observed protocol-param-observed--${escapeHtml(value)}" title="${escapeHtml(title)}">${escapeHtml(label)}</span>`;
+}
+
+function protocolParamCoverageTier(coverage, channelCount) {
+  if (channelCount <= 0 || coverage <= 0) return "none";
+  if (coverage === channelCount) return "universal";
+  if (coverage === 1) return "unique";
+  if (coverage > channelCount / 2) return "common";
+  return "sparse";
+}
+
+function protocolParamRowCoverageClass(coverage, channelCount) {
+  const tier = protocolParamCoverageTier(coverage, channelCount);
+  if (tier === "universal") return "protocol-param-row protocol-param-row--universal";
+  if (tier === "common") return "protocol-param-row protocol-param-row--common";
+  if (tier === "unique" || tier === "sparse") return "protocol-param-row protocol-param-row--rare";
+  return "protocol-param-row";
 }
 
 function protocolParameterSegments(parameter) {
@@ -6189,24 +8892,66 @@ function protocolParameterLeaf(parameter) {
   return segments[segments.length - 1] || parameter;
 }
 
-function renderProtocolParameterNameCell(parameter) {
+function protocolParameterNestedDisplayName(parameter) {
+  const segments = protocolParameterSegments(parameter);
+  if (segments.length <= 1) return segments[0] || parameter;
+  const leaf = segments[segments.length - 1];
+  if (segments.length === 2) return leaf;
+  const parentSeg = segments[segments.length - 2];
+  if (leaf.includes("=") || parentSeg.endsWith("[]")) {
+    return leaf;
+  }
+  const parent = parentSeg.replace(/\[\]$/, "");
+  return `${parent}.${leaf}`;
+}
+
+function renderProtocolParamTreeChevron(parameter, { hasChildren = false, treeExpanded = false, protocolId = "" } = {}) {
+  if (!hasChildren) {
+    return '<span class="protocol-param-tree-spacer" aria-hidden="true"></span>';
+  }
+  return `
+    <button
+      type="button"
+      class="protocol-param-tree-toggle"
+      data-protocol-param-tree-toggle
+      data-protocol-id="${escapeHtml(protocolId)}"
+      data-parameter="${escapeHtml(parameter)}"
+      aria-expanded="${treeExpanded ? "true" : "false"}"
+      aria-label="${treeExpanded ? "收起" : "展开"} ${escapeHtml(parameter)} 子字段"
+    >
+      <span class="protocol-param-tree-chevron protocol-param-section-chevron${treeExpanded ? "" : " is-collapsed"}" aria-hidden="true">›</span>
+    </button>
+  `;
+}
+
+function renderProtocolParameterChildCountBadge(count) {
+  if (!count) return "";
+  return `<span class="protocol-param-child-count" title="直接子字段 ${count} 个">· ${count}</span>`;
+}
+
+function renderProtocolParameterNameCell(parameter, {
+  hasChildren = false,
+  treeExpanded = false,
+  protocolId = "",
+  directChildCount = 0
+} = {}) {
   const depth = protocolParameterDepth(parameter);
-  const chevron = '<span class="protocol-param-row-chevron" aria-hidden="true">›</span>';
+  const chevron = renderProtocolParamTreeChevron(parameter, { hasChildren, treeExpanded, protocolId });
+  const childBadge = hasChildren ? renderProtocolParameterChildCountBadge(directChildCount) : "";
 
   if (depth === 0) {
     return `
-      <span class="protocol-param-row-label">
+      <span class="protocol-param-row-label${hasChildren ? " protocol-param-row-label--branch" : ""}">
         ${chevron}
-        ${escapeHtml(parameter)}
+        <span class="protocol-param-fullpath mono">${escapeHtml(parameter)}</span>${childBadge}
       </span>
     `;
   }
 
-  const leaf = protocolParameterLeaf(parameter);
-  const parent = protocolParameterParent(parameter);
+  const displayName = protocolParameterNestedDisplayName(parameter);
   return `
     <span
-      class="protocol-param-row-label protocol-param-row-label--nested"
+      class="protocol-param-row-label protocol-param-row-label--nested${hasChildren ? " protocol-param-row-label--branch" : ""}"
       data-depth="${depth}"
       title="${escapeHtml(parameter)}"
     >
@@ -6216,9 +8961,7 @@ function renderProtocolParameterNameCell(parameter) {
         `).join("")}
       </span>
       ${chevron}
-      <span class="protocol-param-leaf">
-        <span class="protocol-param-leaf-parent mono">${escapeHtml(parent)}.</span><span class="mono">${escapeHtml(leaf)}</span>
-      </span>
+      <span class="protocol-param-leaf mono">${escapeHtml(displayName)}</span>${childBadge}
     </span>
   `;
 }
@@ -6252,13 +8995,14 @@ function renderProtocolParameterMatrix(matrix, protocolDef) {
   let currentCategory = "";
   let currentSubgroup = "";
   let dialectRendered = false;
+  const parameterNames = matrix.parameters.map((item) => item.parameter);
+  const parameterParents = buildProtocolParameterParentsSet(parameterNames);
+  const parameterAncestors = buildProtocolParameterAncestorsMap(parameterNames);
+  const parameterDirectChildren = buildProtocolParameterDirectChildrenMap(parameterNames);
   const bodyRows = matrix.parameters.map((item) => {
     const origin = MOCK_PARAMETER_ORIGINS[item.parameter] || "provider-private";
     const coverage = item.channels.size;
-    const isUniversal = coverage === matrix.channelCount;
-    const isUnique = coverage === 1;
-    const isPartial = !isUniversal && !isUnique;
-    const rowClass = isUnique ? "protocol-param-row protocol-param-row--unique" : isPartial ? "protocol-param-row protocol-param-row--partial" : "protocol-param-row";
+    const rowClass = protocolParamRowCoverageClass(coverage, matrix.channelCount);
 
     let categoryRow = "";
     if (item.category !== currentCategory) {
@@ -6307,7 +9051,10 @@ function renderProtocolParameterMatrix(matrix, protocolDef) {
     const meaning = parameterDescription(item.parameter, protocolDef.id);
     const depth = protocolParameterDepth(item.parameter);
     const nestedClass = depth > 0 ? " protocol-param-row--nested" : "";
-    const roleBadge = item.category === "Reasoning" ? renderThinkingRoleBadge(item.parameter) : "";
+    const hasChildren = parameterParents.has(item.parameter);
+    const directChildCount = (parameterDirectChildren.get(item.parameter) || []).length;
+    const treeExpanded = isProtocolParameterTreeExpanded(protocolDef.id, item.parameter);
+    const treeAncestors = (parameterAncestors.get(item.parameter) || []).join(",");
     const sectionCollapsedClass = protocolParamSectionCollapsedClass(
       protocolDef.id,
       item.category,
@@ -6317,27 +9064,46 @@ function renderProtocolParameterMatrix(matrix, protocolDef) {
       ${categoryRow}
       ${subgroupRow}
       <tr
-        class="${rowClass} protocol-param-row--clickable${nestedClass} ${sectionCollapsedClass}"
+        class="${rowClass} protocol-param-row--openable${nestedClass} ${sectionCollapsedClass}"
         data-protocol-param-row
         data-protocol-id="${escapeHtml(protocolDef.id)}"
         data-protocol-section-category="${escapeHtml(item.category)}"
         data-protocol-section-subgroup="${escapeHtml(item.subgroup || "")}"
         data-parameter="${escapeHtml(item.parameter)}"
         data-depth="${depth}"
-        tabindex="0"
-        role="button"
-        aria-label="查看 ${escapeHtml(item.parameter)} 约束对比"
+        data-protocol-tree-ancestors="${escapeHtml(treeAncestors)}"
       >
-        <th scope="row" class="protocol-param-name mono">
-          ${renderProtocolParameterNameCell(item.parameter)}
-          ${roleBadge}
+        <th
+          scope="row"
+          class="protocol-param-name protocol-param-sticky-col protocol-param-sticky-col--1 mono protocol-param-name--openable"
+          data-protocol-param-open
+          tabindex="0"
+          role="button"
+          aria-label="查看 ${escapeHtml(item.parameter)} 约束对比"
+        >
+          ${renderProtocolParameterNameCell(item.parameter, {
+            hasChildren,
+            treeExpanded,
+            protocolId: protocolDef.id,
+            directChildCount
+          })}
         </th>
-        <td class="protocol-param-meaning">${meaning ? escapeHtml(meaning) : '<span class="protocol-dash" aria-hidden="true">—</span>'}</td>
+        <td
+          class="protocol-param-meaning protocol-param-sticky-col protocol-param-sticky-col--2 protocol-param-meaning--openable"
+          data-protocol-param-open
+          tabindex="0"
+          role="button"
+          aria-label="查看 ${escapeHtml(item.parameter)} 约束对比"
+        >${meaning ? escapeHtml(meaning) : '<span class="protocol-dash" aria-hidden="true">—</span>'}</td>
         <td class="protocol-param-origin">${escapeHtml(originLabel(origin))}</td>
         ${matrix.channels.map((channel) => renderProtocolParameterCoverageCell(
           item.channels.has(channel.channel_id),
           item.requiredByChannel.get(channel.channel_id),
-          { unique: isUnique && item.channels.has(channel.channel_id), partial: isPartial && item.channels.has(channel.channel_id) }
+          {
+            channelId: channel.channel_id,
+            protocolId: protocolDef.id,
+            parameter: item.parameter
+          }
         )).join("")}
       </tr>
     `;
@@ -6348,15 +9114,23 @@ function renderProtocolParameterMatrix(matrix, protocolDef) {
     <div class="protocol-param-summary">
       <span><strong>${matrix.parameterCount}</strong> 个参数</span>
       <span><strong>${matrix.channelCount}</strong> 个渠道</span>
-      <span><strong>${matrix.partialCount}</strong> 个部分渠道支持</span>
-      <span><strong>${matrix.uniqueCount}</strong> 个渠道独有</span>
+      <span class="protocol-param-summary-focus"><strong>${matrix.universalCount}</strong> 个全渠道支持</span>
+      <span class="protocol-param-summary-focus"><strong>${matrix.commonCount}</strong> 个多数渠道支持</span>
+      <span class="protocol-param-summary-muted"><strong>${matrix.uniqueCount}</strong> 个单渠道独有</span>
+      ${renderProtocolParamMatrixToolbar(protocolDef.id, matrix)}
     </div>
     <div class="protocol-param-matrix-wrap">
       <table class="protocol-param-matrix">
+        <colgroup>
+          <col class="protocol-param-col protocol-param-col--name" />
+          <col class="protocol-param-col protocol-param-col--meaning" />
+          <col class="protocol-param-col protocol-param-col--origin" />
+          ${matrix.channels.map(() => '<col class="protocol-param-col protocol-param-col--channel" />').join("")}
+        </colgroup>
         <thead>
           <tr>
-            <th scope="col">参数</th>
-            <th scope="col">含义</th>
+            <th scope="col" class="protocol-param-sticky-col protocol-param-sticky-col--1">参数</th>
+            <th scope="col" class="protocol-param-sticky-col protocol-param-sticky-col--2">含义</th>
             <th scope="col">来源</th>
             ${headerCells}
           </tr>
@@ -6364,15 +9138,20 @@ function renderProtocolParameterMatrix(matrix, protocolDef) {
         <tbody>${bodyRows}</tbody>
       </table>
     </div>
-    <p class="channel-catalog-legend protocol-param-legend">
-      <span><span class="protocol-param-req protocol-param-req--required">必填</span> 官方文档标注为必填</span>
-      <span><span class="protocol-param-req protocol-param-req--optional">选填</span> 官方文档已列入、非必填</span>
-      <span><span class="protocol-dash">—</span> 该渠道文档未列入</span>
-      <span class="protocol-param-legend-diff">高亮行 = 仅部分渠道文档化；深色格 = 单渠道独有</span>
-      <span class="protocol-param-legend-diff">思考模式参数带角色标签：开关 Switch / 强度 Intensity / 开关+强度 Switch+Intensity / 对象字段 Object</span>
-      <span class="protocol-param-legend-diff">点击分组标题可单独收起 / 展开各模块</span>
-      <span class="protocol-param-legend-diff">点击参数行查看类型 / 默认 / 边界约束对比</span>
-    </p>
+    <details class="channel-catalog-legend protocol-param-legend">
+      <summary><span class="protocol-param-req protocol-param-req--required">必填</span> / <span class="protocol-param-req protocol-param-req--optional">选填</span> / <span class="protocol-dash">—</span> 未列入 · 图例与操作说明</summary>
+      <div class="protocol-param-legend-inner">
+        <span><span class="protocol-param-req protocol-param-req--required">必填</span> 官方文档标注为必填</span>
+        <span><span class="protocol-param-req protocol-param-req--optional">选填</span> 官方文档已列入、非必填</span>
+        <span><span class="protocol-dash">—</span> 该渠道文档未列入</span>
+        <span class="protocol-param-legend-diff">绿色行 = 全部对比渠道文档化；浅绿行 = 过半数渠道文档化</span>
+        <span class="protocol-param-legend-diff">淡化行 = 仅少数或单渠道文档化（扩展/私有参数）</span>
+        <span class="protocol-param-legend-diff">角标为 thinking 实测结论：实测有效 / 接受无效 / 文档缺口（来自 thinking-observed.json）</span>
+        <span class="protocol-param-legend-diff">有子字段的参数默认收起，点击行首 › 可展开 / 收起</span>
+        <span class="protocol-param-legend-diff">点击分组标题可单独收起 / 展开各模块</span>
+        <span class="protocol-param-legend-diff">点击参数名或含义列查看类型 / 默认 / 边界约束对比</span>
+      </div>
+    </details>
   `;
 }
 
@@ -6862,8 +9641,11 @@ function renderProtocolCatalog() {
   bindProtocolCatalogTabs();
   bindProtocolCompareChannelPicker();
   bindProtocolOpenToolButtons();
+  PROTOCOL_CATALOG_DEFS.forEach((def) => loadProtocolUiState(def.id));
   bindProtocolParamDrawerRows();
   bindProtocolParamSectionToggles();
+  bindProtocolParamTreeToggles();
+  bindProtocolParamMatrixToolbar();
 }
 
 function renderModelLookupProtocolCells(protocols, protocolColumns) {
@@ -7024,6 +9806,7 @@ function renderModelIntroDrawerBody(model, evalModelId) {
           ${reasoningBits.length ? `<div><dt>Reasoning</dt><dd>${escapeHtml(reasoningBits.join(" · "))}</dd></div>` : ""}
         </dl>
       </section>
+      ${renderModelLimitsObservedSection(model, evalModelId)}
       ${priceRows.length ? `
       <section class="model-intro-section">
         <h3 class="model-intro-section__title">定价（OpenRouter）</h3>
@@ -7051,6 +9834,75 @@ function renderModelIntroDrawerBody(model, evalModelId) {
       <p class="guide-copy muted model-intro-source">数据来源：<a href="https://openrouter.ai/docs/api/api-reference/models/get-models" target="_blank" rel="noopener noreferrer">OpenRouter GET /api/v1/models</a></p>
     </div>
   `;
+}
+
+function modelLimitMetricText(kind, metric) {
+  if (!metric) return "—";
+  if (kind === "max_output_effective") return metric.effective ? "生效" : "未生效";
+  if (kind === "thinking_budget") {
+    if (metric.skipped || !metric.accepted) return "不支持";
+    const max = metric.max_display || (metric.max ? String(metric.max) : "?");
+    return metric.effective ? `${max}·生效` : `${max}·接受`;
+  }
+  if (metric.display) return metric.top_candidate_supported ? `≥ ${metric.display}` : metric.display;
+  if (metric.value) return String(metric.value);
+  return "未测到";
+}
+
+function renderModelLimitsObservedSection(model, evalModelId) {
+  const api = window.NOCTUA_MODEL_LIMITS_OBSERVED;
+  if (!api?.entriesForModel) return "";
+  const queries = [evalModelId, model?.id, model?.canonical_slug].filter(Boolean);
+  const seen = new Set();
+  const entries = [];
+  for (const query of queries) {
+    for (const entry of api.entriesForModel(query)) {
+      const key = `${entry.channelId}::${entry.model}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      entries.push(entry);
+    }
+  }
+  if (!entries.length) return "";
+
+  const detailApi = window.NOCTUA_OPENROUTER_MODEL_DETAIL;
+  const docContext = detailApi?.formatContext?.(model?.context_length) || (model?.context_length ? String(model.context_length) : "—");
+  const topProvider = model?.top_provider || {};
+  const docMaxCompletion = topProvider.max_completion_tokens
+    ? (detailApi?.formatContext?.(topProvider.max_completion_tokens) || String(topProvider.max_completion_tokens))
+    : "—";
+
+  const rows = entries.map((entry) => {
+    const m = entry.metrics || {};
+    return `
+      <tr>
+        <td class="mono">${escapeHtml(entry.channelId)}</td>
+        <td class="mono">${escapeHtml(entry.model)}</td>
+        <td>${escapeHtml(modelLimitMetricText("max_input", m.max_input))}</td>
+        <td>${escapeHtml(modelLimitMetricText("max_output", m.max_output))}</td>
+        <td>${escapeHtml(modelLimitMetricText("max_output_effective", m.max_output_effective))}</td>
+        <td>${escapeHtml(modelLimitMetricText("total_context", m.total_context))}</td>
+        <td>${escapeHtml(modelLimitMetricText("thinking_budget", m.thinking_budget))}</td>
+      </tr>
+    `;
+  }).join("");
+
+  return `
+      <section class="model-intro-section">
+        <h3 class="model-intro-section__title">各渠道实测限制（Noctua）</h3>
+        <p class="guide-copy muted">文档基线（OpenRouter）：Context ${escapeHtml(docContext)} · Max completion ${escapeHtml(docMaxCompletion)}。下表为容量探针实测，可与文档对照。</p>
+        <div class="model-intro-table-wrap">
+          <table class="model-intro-table">
+            <thead>
+              <tr>
+                <th>渠道</th><th>模型</th><th>最大Input</th><th>最大Output</th><th>Output 生效</th><th>Total Context</th><th>Thinking Budget</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <p class="guide-copy muted model-intro-source">实测来源：scripts/probe-capacity.js → web/data/model-limits-observed.json（运行 npm run build:model-limits 刷新）</p>
+      </section>`;
 }
 
 async function openModelIntroDrawer(evalModelId, hintId = "") {
@@ -7800,7 +10652,7 @@ function openRunV02ModelMenu() {
 }
 
 function runV02RouteOptionLabel(option) {
-  return `${option.platformName} · ${option.categoryLabel} · ${option.protocolLabel}`;
+  return `${option.platformName} · ${option.categoryLabel}`;
 }
 
 function applyRunV02Model(modelId) {
@@ -7810,22 +10662,25 @@ function applyRunV02Model(modelId) {
     return;
   }
   state.runV02.modelId = modelId;
-  state.runV02.baselineRouteKey = "";
-  state.runV02.baselineRoute = null;
-  state.runV02.targetRouteKeys = new Set();
-  state.runV02.channelConfigs = {};
-  state.runV02.baselineResults = {};
-  state.runV02.cases = [];
-  state.runV02.activeCaseGroupKey = "";
-  state.runV02.selectedCaseIdsByGroup = {};
-  if (els.runV02ConfigPanel) els.runV02ConfigPanel.classList.add("is-hidden");
-  if (els.runV02CasePanel) els.runV02CasePanel.classList.add("is-hidden");
+  state.runV02.protocolId = "";
+  state.runV02.modelCapabilities.tools = null;
+  resetRunV02DownstreamFromProtocol();
+  if (els.runV02ChannelPanel) els.runV02ChannelPanel.classList.add("is-hidden");
   closeRunV02ModelMenu();
   closeRunV02BaselineMenu();
   closeRunV02TargetMenu();
   renderRunV02ModelSelect();
-  renderRunV02BaselineSelect({ autoSelect: true });
+  renderRunV02ProtocolPicker();
+  renderRunV02BaselineSelect();
   renderRunV02TargetSelect();
+  refreshRunV02ModelToolsCapability().then(() => {
+    const protocols = listRunV02ProtocolOptions(modelId);
+    if (protocols.length === 1) {
+      applyRunV02Protocol(protocols[0].id, { autoSelectBaseline: true });
+    } else if (state.runV02.protocolId) {
+      loadRunV02Cases();
+    }
+  });
 }
 
 function renderRunV02ModelSelect() {
@@ -7854,9 +10709,199 @@ function runV02SupportedProtocol(protocolId) {
   return protocolId === "chat_completions" || protocolId === "anthropic_messages";
 }
 
-/** V0.2 渠道列表：按模型协议覆盖展示，不依赖 payloads 跑批 provider。 */
+function runV02ProtocolCatalogDefs() {
+  return (typeof PROTOCOL_CATALOG_DEFS !== "undefined" ? PROTOCOL_CATALOG_DEFS : []);
+}
+
+function runV02ProtocolDef(protocolId) {
+  return runV02ProtocolCatalogDefs().find((def) => def.id === protocolId) || null;
+}
+
+function runV02ProtocolIsRunnable(def) {
+  return Boolean(def) && def.evalStatus !== "planned" && runV02SupportedProtocol(def.id);
+}
+
+/** 当前模型可跑批的协议（Chat / Anthropic）。 */
+function listRunV02ProtocolOptions(modelId = ensureRunV02ModelId()) {
+  const lookupApi = window.NOCTUA_MODEL_LOOKUP;
+  const options = lookupApi?.listModelRouteOptions?.(modelId) || [];
+  const seen = new Set();
+  const result = [];
+  for (const option of options) {
+    if (!runV02SupportedProtocol(option.protocolId) || !option.runnable) continue;
+    if (seen.has(option.protocolId)) continue;
+    seen.add(option.protocolId);
+    const def = runV02ProtocolDef(option.protocolId);
+    if (def && runV02ProtocolIsRunnable(def)) result.push(def);
+  }
+  return result;
+}
+
+/** Step 2 展示项：可跑批协议 + 规划中协议（如 Responses，仅展示不可选）。 */
+function listRunV02ProtocolPickerItems(modelId = ensureRunV02ModelId()) {
+  const runnable = listRunV02ProtocolOptions(modelId);
+  const runnableIds = new Set(runnable.map((def) => def.id));
+  const planned = runV02ProtocolCatalogDefs().filter(
+    (def) => def.evalStatus === "planned" && !runnableIds.has(def.id)
+  );
+  return [...runnable, ...planned];
+}
+
+function runV02ActiveProtocolId() {
+  const protocolId = state.runV02.protocolId;
+  if (!protocolId || !runV02SupportedProtocol(protocolId)) return "";
+  return protocolId;
+}
+
+/** 当前所选协议下的渠道协议组合（不含其他协议）。 */
+function runV02ChannelsForProtocol() {
+  const protocolId = runV02ActiveProtocolId();
+  if (!protocolId) return [];
+  return (state.runV02.routeOptions || []).filter((item) => (
+    runV02SupportedProtocol(item.protocolId)
+    && item.protocolId === protocolId
+    && item.runnable !== false
+  ));
+}
+
+/** @deprecated 使用 runV02ChannelsForProtocol */
 function runV02ChannelOptions() {
-  return (state.runV02.routeOptions || []).filter((item) => runV02SupportedProtocol(item.protocolId));
+  return runV02ChannelsForProtocol();
+}
+
+function caseProtocolIdFromTestCase(testCase) {
+  if (!testCase) return "";
+  const path = String(testCase.path || testCase.payload?.path || "");
+  if (path.includes("/messages")) return "anthropic_messages";
+  if (path.includes("/chat/completions")) return "chat_completions";
+  const caseId = String(testCase.case_id || "");
+  if (/^am_/.test(caseId)) return "anthropic_messages";
+  if (/^ali_protocol_|^oa_|^or_|^deepseek_|^sf_|^vllm_|^minimax_|^thinking_|^tools_|^response_format_/.test(caseId)) {
+    if (/^am_/.test(caseId)) return "anthropic_messages";
+    if (/^thinking_messages_/.test(caseId)) return "anthropic_messages";
+    if (/^response_format_messages_/.test(caseId)) return "anthropic_messages";
+    return "chat_completions";
+  }
+  if (/^thinking_messages_/.test(caseId) || /^response_format_messages_/.test(caseId)) {
+    return "anthropic_messages";
+  }
+  return "";
+}
+
+function caseMatchesProtocol(testCase, protocolId = runV02ActiveProtocolId()) {
+  if (!protocolId || !testCase) return false;
+  const inferred = caseProtocolIdFromTestCase(testCase);
+  if (inferred) return inferred === protocolId;
+  if (testCase.category === "cache" || testCase.cache_case) {
+    const path = String(testCase.path || "");
+    if (path.includes("/messages")) return protocolId === "anthropic_messages";
+    if (path.includes("/chat/completions")) return protocolId === "chat_completions";
+  }
+  return true;
+}
+
+function runV02CanonicalThinkingProviderId(protocolId) {
+  return protocolId === "anthropic_messages" ? "thinking_messages" : "thinking";
+}
+
+function runV02CanonicalResponseFormatProviderId(protocolId) {
+  return protocolId === "anthropic_messages" ? "response_format_messages" : "response_format";
+}
+
+function resetRunV02DownstreamFromProtocol() {
+  state.runV02.baselineRouteKey = "";
+  state.runV02.baselineRoute = null;
+  state.runV02.targetRouteKeys = new Set();
+  state.runV02.channelConfigs = {};
+  state.runV02.baselineResults = {};
+  state.runV02.cases = [];
+  state.runV02.activeCaseGroupKey = "";
+  state.runV02.selectedCaseIdsByGroup = {};
+  if (els.runV02ChannelPanel) els.runV02ChannelPanel.classList.add("is-hidden");
+  if (els.runV02ConfigPanel) els.runV02ConfigPanel.classList.add("is-hidden");
+  if (els.runV02CasePanel) els.runV02CasePanel.classList.add("is-hidden");
+}
+
+function applyRunV02Protocol(protocolId, { autoSelectBaseline = false } = {}) {
+  if (!protocolId || !runV02SupportedProtocol(protocolId)) return;
+  if (protocolId === state.runV02.protocolId && !autoSelectBaseline) {
+    renderRunV02ProtocolPicker();
+    return;
+  }
+  state.runV02.protocolId = protocolId;
+  resetRunV02DownstreamFromProtocol();
+  if (els.runV02ChannelPanel) els.runV02ChannelPanel.classList.remove("is-hidden");
+  renderRunV02ProtocolPicker();
+  renderRunV02BaselineSelect({ autoSelect: autoSelectBaseline });
+  renderRunV02TargetSelect();
+  renderRunV02ChannelConfigs();
+  loadRunV02Cases();
+}
+
+function renderRunV02ProtocolPicker() {
+  if (!els.runV02ProtocolPicker) return;
+  const modelId = ensureRunV02ModelId();
+  const pickerItems = listRunV02ProtocolPickerItems(modelId);
+  const runnableItems = pickerItems.filter(runV02ProtocolIsRunnable);
+  const plannedItems = pickerItems.filter((def) => def.evalStatus === "planned");
+  const activeId = runV02ActiveProtocolId();
+  const pickerDisabled = !modelId || state.runV02.isRunning;
+
+  if (els.runV02ProtocolHint) {
+    if (!modelId) {
+      els.runV02ProtocolHint.textContent = "先选择测评模型";
+    } else if (!runnableItems.length && !plannedItems.length) {
+      els.runV02ProtocolHint.textContent = "当前模型暂无可用协议";
+    } else if (activeId) {
+      const channelCount = runV02ChannelsForProtocol().length;
+      els.runV02ProtocolHint.textContent = `${channelCount} 个渠道支持该协议`;
+    } else {
+      const plannedNote = plannedItems.length ? ` · ${plannedItems.length} 个即将支持` : "";
+      els.runV02ProtocolHint.textContent = `${runnableItems.length} 个可用协议${plannedNote}`;
+    }
+  }
+
+  if (!modelId) {
+    els.runV02ProtocolPicker.innerHTML = `<p class="muted fs-sm">请先选择测评模型。</p>`;
+    if (els.runV02ProtocolMeta) els.runV02ProtocolMeta.innerHTML = "";
+    return;
+  }
+
+  if (!pickerItems.length) {
+    els.runV02ProtocolPicker.innerHTML = `<p class="muted fs-sm">模型 ${escapeHtml(modelId)} 暂无可用测评协议。</p>`;
+    if (els.runV02ProtocolMeta) els.runV02ProtocolMeta.innerHTML = "";
+    return;
+  }
+
+  els.runV02ProtocolPicker.innerHTML = pickerItems.map((def) => {
+    const planned = def.evalStatus === "planned";
+    const tabDisabled = pickerDisabled || planned;
+    return `
+    <button
+      type="button"
+      class="run-v02-protocol-tab ${def.id === activeId ? "is-active" : ""} ${planned ? "is-planned" : ""}"
+      data-run-v02-protocol="${escapeHtml(def.id)}"
+      role="tab"
+      aria-selected="${def.id === activeId}"
+      aria-disabled="${tabDisabled}"
+      ${tabDisabled ? "disabled" : ""}
+      ${planned ? 'title="即将支持：暂无跑批 case，可在「已支持测评协议」页预览参数矩阵"' : ""}
+    >
+      <span class="run-v02-protocol-tab__head">
+        <span>${escapeHtml(def.tabLabel)}</span>
+        ${planned ? '<span class="protocol-status protocol-status--planned run-v02-protocol-tab__badge">即将支持</span>' : ""}
+      </span>
+      <span class="run-v02-protocol-tab__endpoint">${escapeHtml(def.endpoint)}</span>
+    </button>
+  `;
+  }).join("");
+
+  const activeDef = runV02ProtocolDef(activeId);
+  if (els.runV02ProtocolMeta) {
+    els.runV02ProtocolMeta.innerHTML = activeDef
+      ? `<p>${escapeHtml(activeDef.copy)}</p><span class="mono muted">${escapeHtml(activeDef.label)}</span>`
+      : `<p class="muted">选择协议后，下方渠道与 case 列表将仅展示该协议下的内容。Responses 协议即将支持跑批。</p>`;
+  }
 }
 
 /** payloads/ 下已有 manifest 的 provider，与 GET /api/providers 一致。 */
@@ -7875,7 +10920,13 @@ const casePayloadProviders = new Set([
   "siliconflow",
   "siliconflow_messages",
   "thinking",
-  "vllm"
+  "thinking_messages",
+  "tools",
+  "tools_messages",
+  "response_format",
+  "response_format_messages",
+  "vllm",
+  "model_behaviors_deepseek"
 ]);
 
 /** case 模板与 /api/run-stream 的 provider：渠道无专用 payloads 时回退到通用 OpenAI-compatible 库。 */
@@ -7883,6 +10934,36 @@ const RUN_V02_CANONICAL_PROTOCOL_CASE_PROVIDER = {
   chat_completions: "ali",
   anthropic_messages: "ali_messages"
 };
+
+/** V0.2 协议/流式：按协议独立的 canonical case id。 */
+const CHAT_PROTOCOL_STREAM_CASE_IDS = new Set([
+  "ali_protocol_stream_basic",
+  "ali_protocol_stream_false",
+  "ali_protocol_stream_include_usage",
+  "ali_protocol_stream_usage_without_include_usage",
+  "ali_protocol_stream_usage_chunk_shape"
+]);
+
+const ANTHROPIC_PROTOCOL_STREAM_CASE_IDS = new Set([
+  "am_protocol_stream",
+  "am_protocol_stream_false"
+]);
+
+const PROTOCOL_STREAM_CANONICAL_CASE_IDS = new Set([
+  ...CHAT_PROTOCOL_STREAM_CASE_IDS,
+  ...ANTHROPIC_PROTOCOL_STREAM_CASE_IDS
+]);
+
+function protocolStreamCanonicalCaseIds(protocolId) {
+  if (protocolId === "anthropic_messages") return ANTHROPIC_PROTOCOL_STREAM_CASE_IDS;
+  return CHAT_PROTOCOL_STREAM_CASE_IDS;
+}
+
+function isProtocolStreamCanonicalCaseId(caseId, protocolId = state.runV02?.protocolId) {
+  const id = String(caseId || "");
+  if (protocolId) return protocolStreamCanonicalCaseIds(protocolId).has(id);
+  return PROTOCOL_STREAM_CANONICAL_CASE_IDS.has(id);
+}
 
 function runV02CaseProviderId(route) {
   if (!route) return null;
@@ -7894,23 +10975,85 @@ function runV02CaseProviderId(route) {
 
 /** 协议/采样、协议/思考模式 case 固定使用 canonical payloads；实际请求仍走各渠道的 base_url / model。 */
 function runV02PayloadProviderId(route, caseIds = []) {
+  const protocolId = route?.protocolId || runV02ActiveProtocolId();
   const ids = caseIds || [];
+  if (ids.some((id) => isProtocolStreamCanonicalCaseId(id, protocolId))) {
+    return RUN_V02_CANONICAL_PROTOCOL_CASE_PROVIDER[protocolId] || runV02CaseProviderId(route);
+  }
   if (ids.some((id) => /_protocol_sampling_temperature_/.test(id))) {
-    return RUN_V02_CANONICAL_PROTOCOL_CASE_PROVIDER[route?.protocolId] || runV02CaseProviderId(route);
+    return RUN_V02_CANONICAL_PROTOCOL_CASE_PROVIDER[protocolId] || runV02CaseProviderId(route);
   }
   if (ids.some((id) => PROTOCOL_THINKING_CANONICAL_CASE_IDS.has(id) || /^a[ml]_protocol_thinking_/.test(id))) {
-    return "thinking";
+    return runV02CanonicalThinkingProviderId(protocolId);
+  }
+  if (ids.some((id) => PROTOCOL_TOOLS_CANONICAL_CASE_IDS.has(id))) {
+    return protocolId === "anthropic_messages" ? "tools_messages" : "tools";
+  }
+  if (ids.some((id) => PROTOCOL_RESPONSE_FORMAT_CANONICAL_CASE_IDS.has(id))) {
+    return runV02CanonicalResponseFormatProviderId(protocolId);
+  }
+  if (ids.some((id) => oemBehaviorsApi().OEM_CASE_IDS?.has(id))) {
+    const vendorId = oemBehaviorsApi().inferEvalModelVendorId?.(state.runV02.modelId) || "deepseek";
+    return oemBehaviorsApi().modelBehaviorsProviderId?.(vendorId) || runV02CaseProviderId(route);
+  }
+  if (ids.some((id) => String(id).startsWith("cache_"))) {
+    return runV02CaseProviderId(route);
   }
   return runV02CaseProviderId(route);
 }
 
-async function loadCanonicalProtocolThinkingCases(protocolId) {
-  if (protocolId !== "chat_completions") return [];
+async function loadCanonicalProtocolStreamCases(protocolId) {
+  const providerId = RUN_V02_CANONICAL_PROTOCOL_CASE_PROVIDER[protocolId];
+  if (!providerId) return [];
   try {
-    const response = await fetch(`${API_BASE}/api/providers/thinking/cases?endpoint_id=${encodeURIComponent(protocolId)}`);
+    const response = await fetch(`${API_BASE}/api/providers/${providerId}/cases?endpoint_id=${encodeURIComponent(protocolId)}`);
     if (!response.ok) return [];
     const data = await response.json();
-    return (data.cases || []).filter(isProtocolThinkingCase);
+    return (data.cases || []).filter(isProtocolStreamCase);
+  } catch {
+    return [];
+  }
+}
+
+async function loadCanonicalProtocolThinkingCases(protocolId, channelId) {
+  if (!protocolId || !channelId) return [];
+  const providerId = runV02CanonicalThinkingProviderId(protocolId);
+  if (!casePayloadProviders.has(providerId)) return [];
+  try {
+    const response = await fetch(`${API_BASE}/api/providers/${providerId}/cases?endpoint_id=${encodeURIComponent(protocolId)}`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    const canonical = (data.cases || []).filter(isProtocolThinkingCase);
+    return thinkingCasesForChannel(canonical);
+  } catch {
+    return [];
+  }
+}
+
+async function loadCanonicalProtocolToolsCases(protocolId, channelId) {
+  if (!runV02ModelSupportsTools()) return [];
+  const providerId = protocolId === "anthropic_messages" ? "tools_messages" : "tools";
+  try {
+    const response = await fetch(`${API_BASE}/api/providers/${providerId}/cases?endpoint_id=${encodeURIComponent(protocolId)}`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    const canonical = (data.cases || []).filter(isProtocolToolsCase);
+    return toolsCasesForChannel(canonical);
+  } catch {
+    return [];
+  }
+}
+
+async function loadCanonicalProtocolResponseFormatCases(protocolId, channelId) {
+  if (!protocolId) return [];
+  const providerId = runV02CanonicalResponseFormatProviderId(protocolId);
+  if (!casePayloadProviders.has(providerId)) return [];
+  try {
+    const response = await fetch(`${API_BASE}/api/providers/${providerId}/cases?endpoint_id=${encodeURIComponent(protocolId)}`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    const canonical = (data.cases || []).filter(isProtocolResponseFormatCase);
+    return responseFormatCasesForChannel(canonical);
   } catch {
     return [];
   }
@@ -8019,12 +11162,21 @@ function renderRunV02RouteOptions() {
   const options = lookupApi?.listModelRouteOptions?.(modelId) || [];
   state.runV02.routeOptions = options;
 
-  const channelCount = runV02ChannelOptions().length;
+  renderRunV02ProtocolPicker();
+
+  const protocolId = runV02ActiveProtocolId();
+  const channelCount = runV02ChannelsForProtocol().length;
   if (els.runV02RouteHint) {
-    if (!options.length) {
+    if (!modelId) {
+      els.runV02RouteHint.textContent = "先选择测评模型";
+    } else if (!protocolId) {
+      els.runV02RouteHint.textContent = "先选择测评协议";
+    } else if (!options.length) {
       els.runV02RouteHint.textContent = "未找到支持该模型的渠道";
+    } else if (!channelCount) {
+      els.runV02RouteHint.textContent = "当前协议暂无可用渠道";
     } else if (!state.runV02.baselineRoute) {
-      els.runV02RouteHint.textContent = `${channelCount} 个渠道协议组合`;
+      els.runV02RouteHint.textContent = `${channelCount} 个渠道 · 请选择 Baseline`;
     } else {
       const targetCount = state.runV02.targetRouteKeys.size;
       els.runV02RouteHint.textContent = targetCount
@@ -8033,7 +11185,7 @@ function renderRunV02RouteOptions() {
     }
   }
 
-  const baselineDisabled = !channelCount || state.runV02.isRunning;
+  const baselineDisabled = !protocolId || !channelCount || state.runV02.isRunning;
   if (els.runV02BaselineInput) els.runV02BaselineInput.disabled = baselineDisabled;
   if (els.runV02BaselineControl) els.runV02BaselineControl.classList.toggle("is-disabled", baselineDisabled);
 
@@ -8041,7 +11193,7 @@ function renderRunV02RouteOptions() {
   if (els.runV02TargetInput) els.runV02TargetInput.disabled = targetDisabled;
   if (els.runV02TargetControl) els.runV02TargetControl.classList.toggle("is-disabled", targetDisabled);
 
-  if (!options.length) {
+  if (!protocolId || !channelCount) {
     state.runV02.baselineRouteKey = "";
     state.runV02.baselineRoute = null;
     state.runV02.targetRouteKeys = new Set();
@@ -8054,7 +11206,7 @@ function renderRunV02BaselineSelect({ autoSelect = false } = {}) {
   renderRunV02RouteOptions();
   if (!els.runV02BaselineOptions) return;
 
-  const options = runV02ChannelOptions();
+  const options = runV02ChannelsForProtocol();
   const modelId = ensureRunV02ModelId();
 
   if (!options.length) {
@@ -8062,9 +11214,12 @@ function renderRunV02BaselineSelect({ autoSelect = false } = {}) {
     state.runV02.baselineRoute = null;
     if (els.runV02BaselineInput) {
       els.runV02BaselineInput.value = "";
-      els.runV02BaselineInput.placeholder = "暂无可用渠道";
+      els.runV02BaselineInput.placeholder = runV02ActiveProtocolId() ? "暂无可用渠道" : "先选择测评协议";
     }
-    els.runV02BaselineOptions.innerHTML = `<li class="search-select__empty">模型 ${escapeHtml(modelId)} 暂无可用渠道</li>`;
+    const emptyMsg = !runV02ActiveProtocolId()
+      ? "请先选择测评协议"
+      : `模型 ${escapeHtml(modelId)} 在当前协议下暂无可用渠道`;
+    els.runV02BaselineOptions.innerHTML = `<li class="search-select__empty">${emptyMsg}</li>`;
     syncRunV02BaselineMenu();
     updateRunV02Availability();
     return;
@@ -8272,16 +11427,40 @@ function allRunV02ConfigsReady() {
   });
 }
 
+function cacheDisplayFromResponseBody(responseBody) {
+  const display = responseBody?.cache_display;
+  if (!display || typeof display !== "object") return null;
+  return {
+    hitTokens: display["缓存命中 tokens"] || "—",
+    hitRate: display["缓存命中率"] || "—",
+    hitField: display["命中字段"] || "—"
+  };
+}
+
+function cacheResultDiffLabel(result) {
+  const display = cacheDisplayFromResponseBody(result.response_body);
+  if (!display) return "—";
+  if (display.hitRate === "0%" && display.hitTokens === "0") {
+    return `0 tokens · ${display.hitRate}`;
+  }
+  return `${display.hitTokens} tokens · ${display.hitRate}`;
+}
+
 function mapRunV02Result(result, route, index = 0, { isBaseline = false, baselineResponse = null } = {}) {
   const config = ensureRunV02ChannelConfig(route.key, route);
   const context = runContextForV02(route, config);
   const testCase = (state.runV02.cases || []).find((item) => item.case_id === result.case_id);
+  const groupMeta = runV02GroupMetaForCaseId(result.case_id);
   const parameters = result.parameters?.length ? result.parameters : testCase?.parameters || ["payload"];
   const responseBody = result.response_body || null;
   const supportConclusion = result.support_conclusion || inferSiliconFlowConclusion(testCase || {});
   const meta = supportConclusionMeta[supportConclusion] || supportConclusionMeta.unknown;
+  const cacheCase = isCacheHitCase(testCase || { case_id: result.case_id, category: result.category });
+  const cacheDisplay = cacheDisplayFromResponseBody(responseBody);
   let diffCount = 0;
-  if (isBaseline) {
+  if (cacheCase) {
+    diffCount = 0;
+  } else if (isBaseline) {
     diffCount = 0;
   } else if (baselineResponse && responseBody && typeof responseBody === "object") {
     diffCount = compareStructure(baselineResponse, responseBody).length;
@@ -8307,6 +11486,8 @@ function mapRunV02Result(result, route, index = 0, { isBaseline = false, baselin
     http_status: result.http_status || meta.httpStatus,
     latency_ms: result.latency_ms || 0,
     diff_count: diffCount,
+    cache_display: cacheDisplay,
+    cache_hit_summary: cacheDisplay ? cacheResultDiffLabel({ response_body: responseBody }) : "",
     message: result.error || meta.note,
     proxy: getProxyConfig(),
     source_case: testCase,
@@ -8319,22 +11500,27 @@ function mapRunV02Result(result, route, index = 0, { isBaseline = false, baselin
     expected_http_status: result.expected_http_status,
     expected_support_conclusion: result.expected_support_conclusion,
     error: result.error || "",
-    is_baseline: isBaseline
+    is_baseline: isBaseline,
+    channel_route_key: route?.key || "",
+    case_group_key: testCase?.__run_group_key || groupMeta.key || result.case_group_key || "",
+    case_group_title: testCase?.__run_group_title || groupMeta.title || result.case_group_title || ""
   });
 }
 
 function updateRunV02Availability() {
   if (!els.runV02Tests) return;
+  const protocolId = runV02ActiveProtocolId();
   const baseline = state.runV02.baselineRoute;
   const targets = runV02TargetRoutes();
   const cases = state.runV02.cases || [];
   const canRun = Boolean(
-    baseline
+    protocolId
+    && baseline
     && runV02CaseProviderId(baseline)
     && targets.length
     && allRunV02ConfigsReady()
     && cases.length
-    && runV02SelectedCasesForRun().length
+    && runV02TotalSelectedCaseCount()
     && !state.runV02.isCaseLoading
     && !state.runV02.isRunning
   );
@@ -8353,12 +11539,28 @@ function renderRunV02SelectedCaseCount() {
   const total = group?.cases.length || 0;
   const selectedIds = group ? runV02CaseGroupSelection(group.key) : new Set();
   const selected = group ? group.cases.filter((testCase) => selectedIds.has(testCase.case_id)).length : 0;
+  const allSelected = runV02TotalSelectedCaseCount();
+  const groupCount = runV02SelectedGroupCount();
   if (els.runV02SelectedCaseCount) {
     els.runV02SelectedCaseCount.textContent = group
-      ? `已选 ${selected} / ${total} 个 case · ${group.title}`
-      : "已选 0 个";
+      ? `本组 ${selected}/${total} · 共已选 ${allSelected} 个 case · ${groupCount} 个分组`
+      : `共已选 ${allSelected} 个 case`;
   }
   updateRunV02Availability();
+}
+
+function assignOemCaseToBucket(testCase, buckets) {
+  const api = oemBehaviorsApi();
+  if (!api.isOemReferenceCase?.(testCase)) return false;
+  const target = api.oemTargetGroup?.(testCase);
+  if (!target || !buckets[target]) return false;
+  buckets[target].push(testCase);
+  return true;
+}
+
+function sortRunV02GroupCases(cases = []) {
+  const api = oemBehaviorsApi();
+  return api.sortCasesInGroup?.(cases) || cases;
 }
 
 function listRunV02CaseGroups(cases = []) {
@@ -8366,39 +11568,67 @@ function listRunV02CaseGroups(cases = []) {
   const protocolStream = [];
   const protocolSampling = [];
   const protocolThinking = [];
-  const rest = [];
+  const protocolTools = [];
+  const protocolResponseFormat = [];
+  const outputLength = [];
+  const cacheHit = [];
+  const buckets = {
+    connectivity,
+    protocol: protocolStream,
+    protocol_sampling: protocolSampling,
+    protocol_thinking: protocolThinking,
+    protocol_tools: protocolTools,
+    protocol_response_format: protocolResponseFormat,
+    output_length: outputLength,
+    cache_hit: cacheHit
+  };
   for (const testCase of cases) {
-    if (isConnectivityCase(testCase)) connectivity.push(testCase);
+    if (assignOemCaseToBucket(testCase, buckets)) continue;
+    if (isCacheHitCase(testCase)) cacheHit.push(testCase);
+    else if (isConnectivityCase(testCase)) connectivity.push(testCase);
     else if (isProtocolStreamCase(testCase)) protocolStream.push(testCase);
     else if (isProtocolSamplingCase(testCase)) protocolSampling.push(testCase);
     else if (isProtocolThinkingCase(testCase)) protocolThinking.push(testCase);
-    else rest.push(testCase);
+    else if (isProtocolToolsCase(testCase)) protocolTools.push(testCase);
+    else if (isProtocolResponseFormatCase(testCase)) protocolResponseFormat.push(testCase);
+    else if (isOutputLengthCase(testCase)) outputLength.push(testCase);
   }
-  const partition = partitionCases(rest);
-  const singles = Array.from(partition.singles.values()).flat();
   return [
-    { key: "connectivity", title: "连通性", cases: connectivity },
-    { key: "protocol", title: "协议 / 流式", cases: protocolStream },
-    { key: "protocol_sampling", title: "协议 / 采样", cases: protocolSampling },
-    { key: "protocol_thinking", title: "协议 / 思考模式", cases: protocolThinking },
-    { key: "scenario", title: "基础协议与场景", cases: partition.scenarios },
-    { key: "single", title: "单参数", cases: singles },
-    { key: "combo", title: "参数组合", cases: partition.combos },
-    { key: "optional", title: "可选扩展", cases: partition.optional },
-    { key: "vlm", title: "VLM 图像", cases: partition.vlm }
+    { key: "connectivity", title: "连通性", cases: sortRunV02GroupCases(connectivity) },
+    { key: "protocol", title: "流式/非流式", cases: sortRunV02GroupCases(protocolStream) },
+    { key: "protocol_sampling", title: "采样参数", cases: sortRunV02GroupCases(protocolSampling) },
+    { key: "protocol_thinking", title: "思考模式", cases: sortRunV02GroupCases(protocolThinking) },
+    { key: "protocol_tools", title: "工具调用", cases: sortRunV02GroupCases(protocolTools) },
+    { key: "protocol_response_format", title: "输出控制", cases: sortRunV02GroupCases(protocolResponseFormat) },
+    { key: "output_length", title: "输出长度", cases: sortRunV02GroupCases(outputLength) },
+    { key: "cache_hit", title: "缓存命中率", cases: sortRunV02GroupCases(cacheHit) }
   ].filter((group) => group.cases.length);
 }
 
 function isDefaultSelectedRunV02Case(groupKey, testCase) {
+  if (oemBehaviorsApi().isOemReferenceCase?.(testCase)) return !testCase.optional;
   if (groupKey === "connectivity") return true;
   if (groupKey === "protocol") {
     if (isProtocolStreamCaseP0(testCase)) return true;
     if (isProtocolStreamCaseP0NonStream(testCase)) return true;
-    if (isProtocolStreamCaseP1(testCase)) return baselineSupportsStreamIncludeUsage();
+    if (isProtocolStreamUsageObservedCase(testCase)) {
+      return state.runV02.baselineRoute?.protocolId === "chat_completions";
+    }
+    if (isProtocolStreamCaseP1IncludeUsage(testCase)) return baselineSupportsStreamIncludeUsage();
+    if (isProtocolStreamUsageChunkShapeCase(testCase)) return false;
     return false;
   }
   if (groupKey === "protocol_sampling") return isProtocolSamplingCase(testCase);
-  if (groupKey === "protocol_thinking") return PROTOCOL_THINKING_DEFAULT_CASE_IDS.has(testCase.case_id);
+  if (groupKey === "protocol_thinking") return false;
+  if (groupKey === "protocol_tools") return false;
+  if (groupKey === "protocol_response_format") return false;
+  if (groupKey === "cache_hit") {
+    return testCase.case_id === "cache_passive_long_prompt" || testCase.case_id === "cache_prompt_cache_key";
+  }
+  if (groupKey === "output_length") {
+    const axis = lengthCaseAxisGroup(testCase);
+    return axis === "accept" || axis === "effective" || axis === "precedence";
+  }
   return isDefaultSelectedCase(testCase);
 }
 
@@ -8423,10 +11653,71 @@ function runV02SelectedCasesForRun() {
   return group.cases.filter((testCase) => selectedIds.has(testCase.case_id));
 }
 
+function runV02SelectionSnapshot(cases = state.runV02.cases || []) {
+  return listRunV02CaseGroups(cases)
+    .map((group) => ({
+      group_key: group.key,
+      group_title: group.title,
+      case_ids: group.cases
+        .filter((testCase) => runV02CaseGroupSelection(group.key).has(testCase.case_id))
+        .map((testCase) => testCase.case_id)
+    }))
+    .filter((entry) => entry.case_ids.length > 0);
+}
+
+function runV02AllSelectedCasesForRun() {
+  const byId = new Map();
+  for (const group of listRunV02CaseGroups(state.runV02.cases || [])) {
+    const selectedIds = runV02CaseGroupSelection(group.key);
+    for (const testCase of group.cases) {
+      if (!selectedIds.has(testCase.case_id) || byId.has(testCase.case_id)) continue;
+      byId.set(testCase.case_id, {
+        ...testCase,
+        __run_group_key: group.key,
+        __run_group_title: group.title
+      });
+    }
+  }
+  return Array.from(byId.values());
+}
+
+function runV02TotalSelectedCaseCount() {
+  return runV02AllSelectedCasesForRun().length;
+}
+
+function runV02GroupMetaForCaseId(caseId) {
+  for (const group of listRunV02CaseGroups(state.runV02.cases || [])) {
+    if (group.cases.some((testCase) => testCase.case_id === caseId)) {
+      return { key: group.key, title: group.title };
+    }
+  }
+  return { key: "", title: "" };
+}
+
+function runV02SelectedGroupCount() {
+  return runV02SelectionSnapshot().length;
+}
+
 function initRunV02CaseGroupState(cases = []) {
   const groups = listRunV02CaseGroups(cases);
   const selectedCaseIdsByGroup = {};
   for (const group of groups) {
+    if (group.key === "protocol_thinking") {
+      selectedCaseIdsByGroup[group.key] = new Set(defaultThinkingCaseIds(group.cases));
+      continue;
+    }
+    if (group.key === "protocol_tools") {
+      selectedCaseIdsByGroup[group.key] = new Set(defaultToolsCaseIds(group.cases));
+      continue;
+    }
+    if (group.key === "protocol_response_format") {
+      selectedCaseIdsByGroup[group.key] = new Set(defaultResponseFormatCaseIds(group.cases));
+      continue;
+    }
+    if (group.key === "output_length") {
+      selectedCaseIdsByGroup[group.key] = new Set(defaultOutputLengthCaseIds(group.cases));
+      continue;
+    }
     selectedCaseIdsByGroup[group.key] = new Set(
       group.cases.filter((testCase) => isDefaultSelectedRunV02Case(group.key, testCase)).map((testCase) => testCase.case_id)
     );
@@ -8479,18 +11770,39 @@ function renderRunV02CaseRow(testCase) {
   const connectivity = isConnectivityCase(testCase);
   const protocolP0 = isProtocolStreamCaseP0(testCase);
   const protocolP0NonStream = isProtocolStreamCaseP0NonStream(testCase);
-  const protocolP1 = isProtocolStreamCaseP1(testCase);
+  const protocolP1UsageObserved = isProtocolStreamUsageObservedCase(testCase);
+  const protocolP1IncludeUsage = isProtocolStreamCaseP1IncludeUsage(testCase);
+  const protocolP1UsageChunkShape = isProtocolStreamUsageChunkShapeCase(testCase);
   const protocolSampling = isProtocolSamplingCase(testCase);
   const protocolThinking = isProtocolThinkingCase(testCase);
+  const protocolTools = isProtocolToolsCase(testCase);
+  const protocolResponseFormat = isProtocolResponseFormatCase(testCase);
+  const outputLength = isOutputLengthCase(testCase);
+  const outputLengthCapacity = isOutputLengthCapacityCase(testCase);
   const title = caseTitle(testCase);
   let tipHtml = "";
   if (connectivity) tipHtml = renderRunV02CaseInfoTip(RUN_V02_CONNECTIVITY_CASE_TOOLTIP);
   else if (protocolP0) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_STREAM_BASIC_TOOLTIP);
   else if (protocolP0NonStream) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_STREAM_FALSE_TOOLTIP);
-  else if (protocolP1) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_STREAM_USAGE_TOOLTIP);
+  else if (protocolP1UsageObserved) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_STREAM_USAGE_OBSERVED_TOOLTIP);
+  else if (protocolP1IncludeUsage) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_STREAM_USAGE_TOOLTIP);
+  else if (protocolP1UsageChunkShape) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_STREAM_USAGE_CHUNK_SHAPE_TOOLTIP);
   else if (protocolSampling) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_SAMPLING_TOOLTIP);
   else if (protocolThinking) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_THINKING_TOOLTIP);
-  const hideCaseId = connectivity || protocolP0 || protocolP0NonStream || protocolP1 || protocolSampling || protocolThinking;
+  else if (protocolTools) tipHtml = renderRunV02CaseInfoTip(protocolToolsCaseTooltip(testCase));
+  else if (protocolResponseFormat) tipHtml = renderRunV02CaseInfoTip(protocolResponseFormatCaseTooltip(testCase));
+  else if (outputLength) tipHtml = renderRunV02CaseInfoTip(outputLengthCaseTooltip(testCase));
+  else if (testCase.case_id === "cache_passive_long_prompt") tipHtml = renderRunV02CaseInfoTip(RUN_V02_CACHE_PASSIVE_TOOLTIP);
+  else if (testCase.case_id === "cache_prompt_cache_key") tipHtml = renderRunV02CaseInfoTip(RUN_V02_CACHE_PROMPT_KEY_TOOLTIP);
+  else if (testCase.case_id === "cache_control_ephemeral") tipHtml = renderRunV02CaseInfoTip(RUN_V02_CACHE_CONTROL_TOOLTIP);
+  else if (/_hit_rate_85$/.test(String(testCase.case_id || ""))) tipHtml = renderRunV02CaseInfoTip(RUN_V02_CACHE_HIT_RATE_85_TOOLTIP);
+  const cacheHit = isCacheHitCase(testCase);
+  const hideCaseId = connectivity || protocolP0 || protocolP0NonStream || protocolP1UsageObserved || protocolP1IncludeUsage || protocolP1UsageChunkShape || protocolSampling || protocolThinking || protocolTools || protocolResponseFormat || outputLength || cacheHit;
+  const oemCase = oemBehaviorsApi().isOemReferenceCase?.(testCase);
+  const oemSource = oemCase ? oemBehaviorsApi().oemSource?.(testCase) : "";
+  const oemTagHtml = oemCase
+    ? `<span class="case-row__oem-tag" title="${escapeHtml(oemSource || "原厂参考")}">原厂参考</span>`
+    : "";
   const caseIdHtml = hideCaseId
     ? ""
     : `<span class="muted mono fs-xs">${escapeHtml(testCase.case_id)}</span>`;
@@ -8498,7 +11810,7 @@ function renderRunV02CaseRow(testCase) {
     <label class="case-row ${disabled ? "is-disabled" : ""}">
       <input type="checkbox" data-v02-case-id="${escapeHtml(testCase.case_id)}" ${checked ? "checked" : ""} ${disabled ? "disabled" : ""} />
       <span class="case-row__main">
-        <strong class="case-row__title-line">${escapeHtml(title)}${tipHtml}</strong>
+        <strong class="case-row__title-line">${escapeHtml(title)}${oemTagHtml}${tipHtml}</strong>
         ${caseIdHtml}
       </span>
     </label>
@@ -8506,21 +11818,103 @@ function renderRunV02CaseRow(testCase) {
 }
 
 function renderRunV02ProtocolThinkingSections(cases = []) {
-  const combos = partitionProtocolThinkingCombos(cases);
-  if (!combos.length) return '<div class="case-empty">暂无思考模式组合 case</div>';
+  const channelId = runV02ProtocolEvalChannelId(state.runV02.baselineRoute);
+  const cfg = channelId ? THINKING_CHANNEL_DIALECTS[channelId] : null;
+  const axes = partitionProtocolThinkingForDisplay(cases);
+  if (!axes.length) return '<div class="case-empty">当前渠道官方文档未列出可测的思考模式字段。</div>';
   return `
     <div class="run-v02-thinking-combos">
-      ${combos.map(([comboKey, comboCases]) => `
+      ${axes.map(([group, groupCases]) => {
+        const label = THINKING_AXIS_LABELS[group] || group;
+        const hint = THINKING_AXIS_HINTS[group] || "";
+        if (group === "switch" && cfg) {
+          const fieldTags = thinkingSwitchFieldTags();
+          const dialectBlocks = groupThinkingCasesBySwitchField(groupCases);
+          return `
         <section class="run-v02-thinking-combo">
           <header class="run-v02-thinking-combo__head">
-            <code class="run-v02-thinking-combo__params">${escapeHtml(comboKey)}</code>
-            <span class="muted fs-xs">${comboCases.length} 个 case</span>
+            <span class="run-v02-thinking-axis__label">
+              <span class="run-v02-thinking-combo__params">${escapeHtml(label)}</span>
+              ${fieldTags.map((tag) => `<code class="run-v02-thinking-axis__field">${escapeHtml(tag)}</code>`).join("")}
+              ${hint ? `<span class="muted fs-xs">${escapeHtml(hint)}</span>` : ""}
+            </span>
+            <span class="muted fs-xs">${groupCases.length} 个 case</span>
           </header>
-          <div class="case-rows">${comboCases.map(renderRunV02CaseRow).join("")}</div>
-        </section>
-      `).join("")}
+          <div class="run-v02-thinking-dialect-blocks">
+            ${dialectBlocks.map((block) => `
+            <div class="run-v02-thinking-dialect-block">
+              <div class="case-rows">${block.cases.map(renderRunV02CaseRow).join("")}</div>
+            </div>`).join("")}
+          </div>
+        </section>`;
+        }
+        const field = thinkingChannelFieldForGroup(cfg, group);
+        return `
+        <section class="run-v02-thinking-combo">
+          <header class="run-v02-thinking-combo__head">
+            <span class="run-v02-thinking-axis__label">
+              <span class="run-v02-thinking-combo__params">${escapeHtml(label)}</span>
+              ${field ? `<code class="run-v02-thinking-axis__field">${escapeHtml(field)}</code>` : ""}
+              ${hint ? `<span class="muted fs-xs">${escapeHtml(hint)}</span>` : ""}
+            </span>
+            <span class="muted fs-xs">${groupCases.length} 个 case</span>
+          </header>
+          <div class="case-rows">${groupCases.map(renderRunV02CaseRow).join("")}</div>
+        </section>`;
+      }).join("")}
     </div>
   `;
+}
+
+function renderRunV02OutputLengthSections(cases = []) {
+  const axes = partitionOutputLengthForDisplay(cases);
+  if (!axes.length) return '<div class="case-empty">当前渠道暂无输出长度 case。</div>';
+  return `
+    <div class="run-v02-thinking-combos">
+      ${axes.map(([axis, axisCases]) => {
+        const label = LENGTH_AXIS_LABELS[axis] || axis;
+        const hint = LENGTH_AXIS_HINTS[axis] || "";
+        return `
+        <section class="run-v02-thinking-combo">
+          <header class="run-v02-thinking-combo__head">
+            <span class="run-v02-thinking-axis__label">
+              <span class="run-v02-thinking-combo__params">${escapeHtml(label)}</span>
+              ${hint ? `<span class="muted fs-xs">${escapeHtml(hint)}</span>` : ""}
+            </span>
+            <span class="muted fs-xs">${axisCases.length} 个 case</span>
+          </header>
+          <div class="case-rows">${axisCases.map(renderRunV02CaseRow).join("")}</div>
+        </section>`;
+      }).join("")}
+    </div>
+  `;
+}
+
+function renderRunV02ScopedCaseSections(cases = []) {
+  const api = oemBehaviorsApi();
+  const { common, oem } = api.partitionCasesByScope?.(cases) || { common: cases, oem: [] };
+  if (!oem.length) {
+    return `<div class="case-rows">${cases.map(renderRunV02CaseRow).join("")}</div>`;
+  }
+  const vendorLabel = api.oemVendorLabel?.(oem) || "原厂";
+  return `
+    <div class="run-v02-case-scope-sections">
+      ${common.length ? `
+        <section class="run-v02-case-scope-section">
+          <header class="run-v02-case-scope-section__head">
+            <span class="run-v02-case-scope-section__title">公共</span>
+            <span class="muted fs-xs">${common.length} 个 case</span>
+          </header>
+          <div class="case-rows">${common.map(renderRunV02CaseRow).join("")}</div>
+        </section>` : ""}
+      <section class="run-v02-case-scope-section run-v02-case-scope-section--oem">
+        <header class="run-v02-case-scope-section__head">
+          <span class="run-v02-case-scope-section__title">${escapeHtml(vendorLabel)} 原厂参考</span>
+          <span class="muted fs-xs">对照原厂文档特殊处理 · 全渠道测评 · ${oem.length} 个 case</span>
+        </header>
+        <div class="case-rows">${oem.map(renderRunV02CaseRow).join("")}</div>
+      </section>
+    </div>`;
 }
 
 function renderRunV02CaseGroups() {
@@ -8533,10 +11927,13 @@ function renderRunV02CaseGroups() {
     return;
   }
   if (!cases.length) {
+    const protocolId = runV02ActiveProtocolId();
     const baseline = state.runV02.baselineRoute;
-    const hint = baseline && !runV02CaseProviderId(baseline)
-      ? "当前协议暂无可用 case 模板。"
-      : "请先选择 Baseline 渠道与协议。";
+    const hint = !protocolId
+      ? "请先选择测评协议。"
+      : baseline && !runV02CaseProviderId(baseline)
+        ? "当前协议暂无可用 case 模板。"
+        : "正在加载该协议下的 case…";
     els.runV02CaseGroups.innerHTML = `<div class="case-error"><span>${escapeHtml(hint)}</span></div>`;
     if (els.runV02CaseGroupPicker) els.runV02CaseGroupPicker.innerHTML = "";
     renderRunV02SelectedCaseCount();
@@ -8553,13 +11950,17 @@ function renderRunV02CaseGroups() {
 
   els.runV02CaseGroups.innerHTML = group.key === "protocol_thinking"
     ? renderRunV02ProtocolThinkingSections(group.cases)
-    : `<div class="case-rows">${group.cases.map(renderRunV02CaseRow).join("")}</div>`;
+    : group.key === "output_length"
+      ? renderRunV02OutputLengthSections(group.cases)
+      : renderRunV02ScopedCaseSections(group.cases);
   renderRunV02SelectedCaseCount();
 }
 
 function applyRunV02Baseline(routeKey) {
   const route = runV02RouteByKey(routeKey);
+  const protocolId = runV02ActiveProtocolId();
   if (!route || !runV02SupportedProtocol(route.protocolId)) return;
+  if (protocolId && route.protocolId !== protocolId) return;
   state.runV02.baselineRouteKey = routeKey;
   state.runV02.baselineRoute = route;
   ensureRunV02ChannelConfig(routeKey, route);
@@ -8569,7 +11970,6 @@ function applyRunV02Baseline(routeKey) {
     [...state.runV02.targetRouteKeys].filter((key) => validTargetKeys.has(key))
   );
   state.runV02.baselineResults = {};
-  state.runV02.cases = [];
   state.runV02.activeCaseGroupKey = "";
   state.runV02.selectedCaseIdsByGroup = {};
   closeRunV02BaselineMenu();
@@ -8606,41 +12006,111 @@ function applyRunV02Route(routeKey) {
   applyRunV02Baseline(routeKey);
 }
 
+async function loadModelOemBehaviorCases(vendorId, protocolId) {
+  const api = oemBehaviorsApi();
+  if (!vendorId || vendorId === "other" || protocolId !== "chat_completions") return [];
+  const providerId = api.modelBehaviorsProviderId?.(vendorId);
+  if (!providerId || !casePayloadProviders.has(providerId)) return [];
+  try {
+    const response = await fetch(`${API_BASE}/api/providers/${providerId}/cases?endpoint_id=${encodeURIComponent(protocolId)}`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return (data.cases || []).filter((testCase) => {
+      const caseVendor = api.oemVendorId?.(testCase) || vendorId;
+      return !caseVendor || caseVendor === vendorId;
+    });
+  } catch {
+    return [];
+  }
+}
+
 async function loadRunV02Cases() {
+  const protocolId = runV02ActiveProtocolId();
+  if (!protocolId) return;
+
   const route = state.runV02.baselineRoute;
-  const caseProviderId = runV02CaseProviderId(route);
+  const caseProviderId = route
+    ? runV02CaseProviderId(route)
+    : RUN_V02_CANONICAL_PROTOCOL_CASE_PROVIDER[protocolId];
   if (!caseProviderId) return;
 
+  if (state.runV02.modelCapabilities?.tools?.source === "loading" || state.runV02.modelCapabilities?.tools == null) {
+    await refreshRunV02ModelToolsCapability();
+  }
+
+  const loadToken = `${protocolId}:${route?.key || "canonical"}`;
   state.runV02.isCaseLoading = true;
   renderRunV02CaseGroups();
   updateRunV02Availability();
 
   try {
-    const response = await fetch(`${API_BASE}/api/providers/${caseProviderId}/cases?endpoint_id=${encodeURIComponent(route.protocolId)}`);
+    const response = await fetch(`${API_BASE}/api/providers/${caseProviderId}/cases?endpoint_id=${encodeURIComponent(protocolId)}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
-    if (state.runV02.baselineRoute?.key !== route.key) return;
-    let cases = data.cases || [];
+    const currentToken = `${runV02ActiveProtocolId()}:${state.runV02.baselineRoute?.key || "canonical"}`;
+    if (currentToken !== loadToken) return;
+    let cases = (data.cases || []).filter((testCase) => caseMatchesProtocol(testCase, protocolId));
+    const canonicalStream = await loadCanonicalProtocolStreamCases(protocolId);
+    if (canonicalStream.length) {
+      cases = cases.filter((testCase) => !isProtocolStreamCase(testCase));
+      cases = cases.concat(canonicalStream);
+    }
     if (!cases.some(isProtocolSamplingCase)) {
-      const supplemental = await loadCanonicalProtocolSamplingCases(route.protocolId);
+      const supplemental = await loadCanonicalProtocolSamplingCases(protocolId);
       if (supplemental.length) {
         const existingIds = new Set(cases.map((testCase) => testCase.case_id));
         cases = cases.concat(supplemental.filter((testCase) => !existingIds.has(testCase.case_id)));
       }
     }
     if (!cases.some(isProtocolThinkingCase)) {
-      const supplementalThinking = await loadCanonicalProtocolThinkingCases(route.protocolId);
+      const thinkingChannelId = runV02ProtocolEvalChannelId(route) || runV02ProtocolEvalChannelId(state.runV02.baselineRoute);
+      const supplementalThinking = await loadCanonicalProtocolThinkingCases(protocolId, thinkingChannelId || "aliyun");
       if (supplementalThinking.length) {
         const existingIds = new Set(cases.map((testCase) => testCase.case_id));
         cases = cases.concat(supplementalThinking.filter((testCase) => !existingIds.has(testCase.case_id)));
       }
     }
-    if (state.runV02.baselineRoute?.key !== route.key) return;
+    if (runV02ModelSupportsTools() && !cases.some(isProtocolToolsCase)) {
+      const toolsChannelId = runV02ProtocolEvalChannelId(route) || "aliyun";
+      const supplementalTools = await loadCanonicalProtocolToolsCases(protocolId, toolsChannelId);
+      if (supplementalTools.length) {
+        const existingIds = new Set(cases.map((testCase) => testCase.case_id));
+        cases = cases.concat(supplementalTools.filter((testCase) => !existingIds.has(testCase.case_id)));
+      }
+    }
+    if (!cases.some(isProtocolResponseFormatCase)) {
+      const responseFormatChannelId = runV02ProtocolEvalChannelId(route) || "aliyun";
+      const supplementalResponseFormat = await loadCanonicalProtocolResponseFormatCases(protocolId, responseFormatChannelId);
+      if (supplementalResponseFormat.length) {
+        const existingIds = new Set(cases.map((testCase) => testCase.case_id));
+        cases = cases.concat(supplementalResponseFormat.filter((testCase) => !existingIds.has(testCase.case_id)));
+      }
+    }
+    cases = cases.filter((testCase) => !isCacheHitCase(testCase));
+    cases = cases.filter((testCase) => !isOutputLengthCapacityCase(testCase));
+    const outputLengthCapacity = outputLengthCapacityCasesForRunV02(protocolId, state.runV02.modelId);
+    if (outputLengthCapacity.length) {
+      cases = cases.concat(outputLengthCapacity);
+    }
+    const cacheCases = cacheCasesForRunV02(protocolId, state.runV02.modelId);
+    if (cacheCases.length) {
+      cases = cases.concat(cacheCases);
+    }
+    const vendorId = oemBehaviorsApi().inferEvalModelVendorId?.(state.runV02.modelId) || "other";
+    if (vendorId && vendorId !== "other") {
+      const oemCases = await loadModelOemBehaviorCases(vendorId, protocolId);
+      if (oemCases.length) {
+        const existingIds = new Set(cases.map((testCase) => testCase.case_id));
+        cases = cases.concat(oemCases.filter((testCase) => !existingIds.has(testCase.case_id)));
+      }
+    }
+    cases = cases.filter((testCase) => caseMatchesProtocol(testCase, protocolId));
+    if (`${runV02ActiveProtocolId()}:${state.runV02.baselineRoute?.key || "canonical"}` !== loadToken) return;
     state.runV02.cases = cases;
     initRunV02CaseGroupState(state.runV02.cases);
     updateRunV02CaseGroupHint();
   } catch (error) {
-    if (state.runV02.baselineRoute?.key !== route.key) return;
+    if (`${runV02ActiveProtocolId()}:${state.runV02.baselineRoute?.key || "canonical"}` !== loadToken) return;
     state.runV02.cases = [];
     state.runV02.activeCaseGroupKey = "";
     state.runV02.selectedCaseIdsByGroup = {};
@@ -8648,7 +12118,7 @@ async function loadRunV02Cases() {
       els.runV02CaseHint.textContent = `测试用例加载失败：${error.message}`;
     }
   } finally {
-    if (state.runV02.baselineRoute?.key === route.key) {
+    if (`${runV02ActiveProtocolId()}:${state.runV02.baselineRoute?.key || "canonical"}` === loadToken) {
       state.runV02.isCaseLoading = false;
       renderRunV02CaseGroups();
       updateRunV02Availability();
@@ -8658,31 +12128,53 @@ async function loadRunV02Cases() {
 
 function renderRunV02Stats() {
   const results = state.runV02.completedResults || [];
-  if (els.runV02StatPassed) els.runV02StatPassed.textContent = results.filter(matchesExpectedResult).length;
+  const stats = channelReportStatsForResults(results);
+  if (els.runV02StatPassed) els.runV02StatPassed.textContent = stats.assertPass || 0;
   if (els.runV02StatWarnings) {
-    els.runV02StatWarnings.textContent = results.filter((result) => result.support_conclusion === "ignored" || result.support_conclusion === "permission_limited").length;
+    els.runV02StatWarnings.textContent = stats.observeRecorded || 0;
   }
-  if (els.runV02StatFailed) els.runV02StatFailed.textContent = results.filter((result) => !matchesExpectedResult(result)).length;
-  if (els.runV02StatDiffs) els.runV02StatDiffs.textContent = results.filter((result) => result.diff_count > 0).length;
+  if (els.runV02StatFailed) els.runV02StatFailed.textContent = stats.assertFail || 0;
+  if (els.runV02StatDiffs) els.runV02StatDiffs.textContent = stats.structureDiffs || 0;
+}
+
+function reportExpectationLabel(result) {
+  const intent = resultReportIntent(result);
+  if (intent === "observe") {
+    return matchesExpectedForReport(result) ? "已记录" : "请求异常";
+  }
+  return matchesExpectedForReport(result) ? "达标" : "未达标";
 }
 
 function renderRunV02Results() {
   if (!els.runV02ResultRows) return;
+  const diffHeader = document.querySelector("#runV02ResultDiffHeader");
+  if (diffHeader) diffHeader.textContent = "结构差异 / 缓存";
   els.runV02ResultRows.innerHTML = (state.runV02.completedResults || []).map((rawResult) => {
     const result = enrichResultAxes(rawResult);
     const meta = conclusionMeta(result);
-    const rowTone = matchesExpectedResult(result)
-      ? "s-ok"
-      : (result.support_conclusion === "ignored" || result.support_conclusion === "permission_limited" ? "s-wa" : "s-no");
+    const intent = resultReportIntent(result);
+    const healthy = matchesExpectedForReport(result);
+    const cacheCase = isCacheHitCase(result.source_case || { case_id: result.case_id, category: result.category });
+    const cacheMissWarning = cacheCase && result.support_conclusion === "ignored" && intent === "observe";
+    const rowTone = cacheMissWarning
+      ? "s-wa"
+      : (healthy
+        ? "s-ok"
+        : (intent === "observe" ? "s-wa" : (result.support_conclusion === "ignored" || result.support_conclusion === "permission_limited" ? "s-wa" : "s-no")));
+    const diffCell = cacheCase
+      ? (result.cache_hit_summary || cacheResultDiffLabel(result) || "—")
+      : (result.diff_count ? `${result.diff_count} 个字段差异` : "—");
+    const diffClass = `diffcell ${result.diff_count ? "has" : "none"}`;
+    const intentLabel = CHANNEL_REPORT_INTENT.intentLabel?.(intent) || intent;
     return `
       <tr class="${rowTone}">
         <td class="pcell">${escapeHtml(resultTitle(result))}</td>
         <td class="mono fs-xs">${escapeHtml(result.channel_name || "—")}${result.is_baseline ? " · Baseline" : ""}</td>
-        <td class="cat">${escapeHtml(categoryLabel(result.category))}</td>
+        <td><span class="channel-intent-tag channel-intent-tag--${intent}">${escapeHtml(intentLabel)}</span></td>
         <td><span class="tag tag-${rowTone === "s-ok" ? "success" : rowTone === "s-wa" ? "warning" : "danger"}">${escapeHtml(meta.label)}</span></td>
-        <td><span class="tag tag-${matchesExpectedResult(result) ? "success" : "danger"}">${escapeHtml(expectationLabel(result))}</span></td>
+        <td><span class="tag tag-${healthy ? "success" : "danger"}">${escapeHtml(reportExpectationLabel(result))}</span></td>
         <td class="lat">${result.http_status || meta.httpStatus || "—"}</td>
-        <td class="diffcell ${result.diff_count ? "has" : "none"}">${result.diff_count ? `${result.diff_count} 个字段差异` : "—"}</td>
+        <td class="${diffClass}">${escapeHtml(diffCell)}</td>
       </tr>
     `;
   }).join("");
@@ -8705,7 +12197,16 @@ function resetRunV02Ui() {
   if (els.runV02ResultsPanel) els.runV02ResultsPanel.classList.add("is-hidden");
 }
 
-async function streamRunV02Route(route, config, caseIds, signal, onResult) {
+async function streamRunV02Route(route, config, selectedCases, signal, onResult) {
+  const channelId = runV02ProtocolEvalChannelId(route);
+  const preparedCases = selectedCases.map((testCase) => (
+    oemBehaviorsApi().prepareCaseForRoute?.(testCase, channelId) || testCase
+  ));
+  const builtInIds = preparedCases.filter((testCase) => !testCase.custom).map((testCase) => testCase.case_id);
+  const customCases = preparedCases
+    .filter((testCase) => testCase.custom)
+    .map((testCase) => oemBehaviorsApi().toCustomCaseShape?.(testCase) || testCase);
+  const caseIds = preparedCases.map((testCase) => testCase.case_id);
   const response = await fetch(`${API_BASE}/api/run-stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -8717,8 +12218,8 @@ async function streamRunV02Route(route, config, caseIds, signal, onResult) {
       model: route.apiModelId,
       api_key: config.useLocalKey ? "" : config.apiKey.trim(),
       config_platform_id: config.useLocalKey ? route.platformId : "",
-      case_ids: caseIds,
-      custom_cases: [],
+      case_ids: builtInIds,
+      custom_cases: customCases,
       proxy: getProxyConfig(),
       max_concurrency: 3
     })
@@ -8745,7 +12246,11 @@ function recordRunV02Progress(mapped, count, totalRuns) {
   if (els.runV02ProgressBar) {
     els.runV02ProgressBar.style.width = `${Math.round((count / totalRuns) * 100)}%`;
   }
-  const diffNote = mapped.is_baseline ? "" : (mapped.diff_count ? ` · ${mapped.diff_count} 处结构差异` : " · 结构一致");
+  const diffNote = mapped.is_baseline
+    ? ""
+    : (mapped.cache_hit_summary
+      ? ` · 缓存 ${mapped.cache_hit_summary}`
+      : (mapped.diff_count ? ` · ${mapped.diff_count} 处结构差异` : " · 结构一致"));
   appendRunV02Text(`✓ ${mapped.channel_name} · ${mapped.case_id} · HTTP ${mapped.http_status || "—"} · ${conclusionMeta(mapped).label}${diffNote}`);
   renderRunV02Stats();
   renderRunV02Results();
@@ -8756,15 +12261,15 @@ async function runV02Tests() {
   const baseline = state.runV02.baselineRoute;
   const targets = runV02TargetRoutes();
   const baselineConfig = baseline ? ensureRunV02ChannelConfig(baseline.key, baseline) : null;
-  const selectedCases = runV02SelectedCasesForRun();
-  const activeGroup = runV02ActiveCaseGroup();
+  const selectedCases = runV02AllSelectedCasesForRun();
+  const selection = runV02SelectionSnapshot();
 
   if (!baseline || !runV02CaseProviderId(baseline)) {
-    showToast("请选择 Baseline 渠道与协议。");
+    showToast("请选择 Baseline 渠道。");
     return;
   }
-  if (!activeGroup) {
-    showToast("请选择测评分组。");
+  if (!runV02ActiveProtocolId()) {
+    showToast("请选择测评协议。");
     return;
   }
   if (!targets.length) {
@@ -8776,7 +12281,7 @@ async function runV02Tests() {
     return;
   }
   if (!selectedCases.length) {
-    showToast("请至少选择一个测评 case。");
+    showToast("请至少在一个分组中勾选测评 case。");
     return;
   }
 
@@ -8795,8 +12300,11 @@ async function runV02Tests() {
   try {
     appendRunV02Text(`→ 检查后端连接：${API_BASE}`);
     await ensureBackendReady(signal);
-    appendRunV02Text(`→ Baseline ${baseline.platformName} / ${baseline.protocolLabel} · ${activeGroup.title} · ${caseIds.length} 个 case`);
-    await streamRunV02Route(baseline, baselineConfig, caseIds, signal, (result) => {
+    appendRunV02Text(`→ 全量跑批：${selection.length} 个分组 · ${caseIds.length} 个 case · Baseline ${baseline.platformName}`);
+    for (const entry of selection) {
+      appendRunV02Text(`  · ${entry.group_title}：${entry.case_ids.length} 个 case`);
+    }
+    await streamRunV02Route(baseline, baselineConfig, selectedCases, signal, (result) => {
       state.runV02.baselineResults[result.case_id] = result;
       const mapped = mapRunV02Result(result, baseline, count, { isBaseline: true });
       state.runV02.completedResults.push(mapped);
@@ -8807,8 +12315,8 @@ async function runV02Tests() {
     for (const target of targets) {
       if (!state.runV02.isRunning) break;
       const targetConfig = ensureRunV02ChannelConfig(target.key, target);
-      appendRunV02Text(`→ 测评 ${target.platformName} / ${target.protocolLabel} · 对比 Baseline 结构`);
-      await streamRunV02Route(target, targetConfig, caseIds, signal, (result) => {
+      appendRunV02Text(`→ 测评 ${target.platformName} / ${target.protocolLabel}`);
+      await streamRunV02Route(target, targetConfig, selectedCases, signal, (result) => {
         const baselineResult = state.runV02.baselineResults[result.case_id];
         const baselineResponse = baselineResult?.response_body || null;
         const mapped = mapRunV02Result(result, target, count, { baselineResponse });
@@ -8820,7 +12328,9 @@ async function runV02Tests() {
 
     if (els.runV02ProgressCase) els.runV02ProgressCase.textContent = "— 完成";
     if (els.runV02ProgressBar) els.runV02ProgressBar.style.width = "100%";
-    showToast(`V0.2 跑批完成：${state.runV02.completedResults.length} 条结果。`);
+    if (state.runV02.completedResults.length) saveChannelReportRecord();
+    const reportStats = channelReportStatsForResults(state.runV02.completedResults);
+    showToast(`渠道测评完成：断言 ${reportStats.assertPass}/${reportStats.assertTotal} · 观测 ${reportStats.observeRecorded}/${reportStats.observeTotal}`);
   } catch (error) {
     if (error?.name === "AbortError") {
       if (els.runV02ProgressCase) els.runV02ProgressCase.textContent = "— 用户已停止";
@@ -8847,9 +12357,20 @@ function stopRunV02Tests() {
 
 function renderRunToolV02() {
   if (!els.runV02ModelSelect) return;
-  loadRunV02LocalConfig().then(() => {
+  loadRunV02LocalConfig().then(async () => {
+    await refreshRunV02ModelToolsCapability();
     renderRunV02ModelSelect();
-    renderRunV02RouteSelect({ autoSelect: !state.runV02.baselineRouteKey });
+    renderRunV02ProtocolPicker();
+    const protocols = listRunV02ProtocolOptions();
+    if (!state.runV02.protocolId && protocols.length === 1) {
+      applyRunV02Protocol(protocols[0].id, { autoSelectBaseline: !state.runV02.baselineRouteKey });
+    } else if (state.runV02.protocolId) {
+      if (els.runV02ChannelPanel) els.runV02ChannelPanel.classList.remove("is-hidden");
+      renderRunV02RouteSelect({ autoSelect: !state.runV02.baselineRouteKey });
+    } else {
+      renderRunV02BaselineSelect();
+      renderRunV02TargetSelect();
+    }
     renderRunV02CaseGroups();
     renderRunV02Stats();
     renderRunV02Results();
@@ -8898,6 +12419,14 @@ function bindRunV02Events() {
     event.stopPropagation();
     closeRunV02ModelMenu();
     applyRunV02Model(option.dataset.runV02Model);
+  });
+
+  els.runV02ProtocolPicker?.addEventListener("click", (event) => {
+    const tab = event.target.closest("[data-run-v02-protocol]");
+    if (!tab || state.runV02.isRunning || tab.disabled) return;
+    const def = runV02ProtocolDef(tab.dataset.runV02Protocol);
+    if (!def || !runV02ProtocolIsRunnable(def)) return;
+    applyRunV02Protocol(tab.dataset.runV02Protocol);
   });
 
   els.runV02BaselineControl?.addEventListener("click", (event) => {
@@ -9538,7 +13067,7 @@ function setActiveView(view) {
     state.activeViewKey = viewKey;
     state.runToolVersion = viewKey === "run-v02" ? "v0.2" : "v0.1";
   } else {
-    state.activeView = ["guide", "channels", "protocols", "models", "run", "reports", "performance", "feishu", "evalscope", "opencompass", "error-guide", "error-channels", "error-mapping"].includes(viewKey) ? viewKey : "run";
+    state.activeView = ["guide", "channels", "protocols", "models", "run", "channel-reports", "reports", "performance", "feishu", "evalscope", "opencompass", "error-guide", "error-channels", "error-mapping"].includes(viewKey) ? viewKey : "run";
     state.activeViewKey = state.activeView === "run" ? "run-v01" : state.activeView;
     if (state.activeView === "run") state.runToolVersion = "v0.1";
   }
@@ -9552,6 +13081,7 @@ function setActiveView(view) {
     link.classList.toggle("on", active);
   });
   if (state.activeView === "reports") renderHistory();
+  if (state.activeView === "channel-reports") renderChannelReports();
   if (state.activeView === "feishu") renderFeishuReport();
   if (state.activeView === "channels") renderChannelCatalog();
   if (state.activeView === "protocols") renderProtocolCatalog();
@@ -9576,6 +13106,7 @@ function initialViewFromHash() {
   if (window.location.hash === "#channels" || window.location.hash === "#channelsView") return "channels";
   if (window.location.hash === "#protocols" || window.location.hash === "#protocolsView") return "protocols";
   if (window.location.hash.startsWith("#models")) return "models";
+  if (window.location.hash === "#channel-reports" || window.location.hash === "#channelReportsView") return "channel-reports";
   if (window.location.hash === "#reports" || window.location.hash === "#historyPanel") return "reports";
   if (window.location.hash === "#performance" || window.location.hash === "#performanceView") return "performance";
   if (window.location.hash === "#error-guide" || window.location.hash === "#errorGuideView") return "error-guide";
@@ -9736,6 +13267,43 @@ function bindEvents() {
     state.expandedHistoryId = null;
     renderHistory();
     showToast("历史报告已清空。");
+  });
+  els.clearChannelReports?.addEventListener("click", () => {
+    writeChannelReports([]);
+    state.expandedChannelReportId = null;
+    renderChannelReports();
+    showToast("渠道测评报告已清空。");
+  });
+  els.channelReportsList?.addEventListener("click", (event) => {
+    const row = event.target.closest("tr[data-channel-report-id]");
+    if (row && !event.target.closest("[data-channel-report-action]")) {
+      state.expandedChannelReportId = state.expandedChannelReportId === row.dataset.channelReportId
+        ? null
+        : row.dataset.channelReportId;
+      renderChannelReports();
+      return;
+    }
+    const button = event.target.closest("[data-channel-report-action]");
+    if (!button) return;
+    const items = readChannelReports();
+    const record = items.find((item) => item.id === button.dataset.channelReportId);
+    if (!record) return;
+    if (button.dataset.channelReportAction === "toggle") {
+      state.expandedChannelReportId = state.expandedChannelReportId === record.id ? null : record.id;
+      renderChannelReports();
+      return;
+    }
+    if (button.dataset.channelReportAction === "copy") {
+      const text = channelReportMarkdown(record).join("\n");
+      navigator.clipboard.writeText(text).then(() => showToast("渠道测评报告已复制。")).catch(() => showToast("复制失败。"));
+      return;
+    }
+    if (button.dataset.channelReportAction === "delete") {
+      writeChannelReports(items.filter((item) => item.id !== record.id));
+      if (state.expandedChannelReportId === record.id) state.expandedChannelReportId = null;
+      renderChannelReports();
+      showToast("渠道测评报告已删除。");
+    }
   });
   els.importHistoryFile?.addEventListener("change", async () => {
     await importHistoryFiles(els.importHistoryFile.files);

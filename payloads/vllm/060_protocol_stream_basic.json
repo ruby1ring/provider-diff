@@ -7,12 +7,15 @@
   "path": "/chat/completions",
   "payload": {
     "model": "NousResearch/Meta-Llama-3-8B-Instruct",
-    "messages": [{"role": "user", "content": "Stream one short sentence."}],
+    "messages": [{"role": "user", "content": "Stream 3 to 5 short greeting sentences incrementally, not all at once."}],
     "stream": true,
-    "max_tokens": 48
+    "max_tokens": 128
   },
   "expect": {
     "response_mode": "sse",
-    "required_chunk_fields": ["id", "object", "created", "model", "choices"]
+    "stream_incremental": true,
+    "stream_probe_attempts": 3,
+    "required_chunk_fields": ["id", "object", "created", "model", "choices"],
+    "notes": "Probe 3 times; fail if any attempt returns pseudo-streaming (single content chunk after long delay)."
   }
 }

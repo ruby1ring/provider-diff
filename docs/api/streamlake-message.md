@@ -55,7 +55,7 @@ Anthropic-compatible Messages endpoint on StreamLake gateway (see official doc).
 
 | Parameter | Type | Notes |
 |---|---|---|
-| `thinking` | `object` | Extended Thinking：`enabled` / `disabled` / `adaptive` 等 |
+| `thinking` | `object` | 扩展思考模式：`enabled` / `disabled` / `adaptive` 等 |
 
 ### 工具调用
 

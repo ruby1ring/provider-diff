@@ -1,0 +1,40 @@
+{
+  "case_id": "tools_choice_none",
+  "title": "tool_choice none · 不应返回 tool_calls",
+  "category": "tools",
+  "parameters": ["tools", "tool_choice"],
+  "requires_model_capability": "tools",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-4o-mini",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Do not call any tool. Explain what a weather tool would do."
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_current_weather",
+          "description": "Get current weather for a city.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": { "type": "string" }
+            }
+          }
+        }
+      }
+    ],
+    "tool_choice": "none",
+    "max_completion_tokens": 128
+  },
+  "expect": {
+    "axis": "choice_none",
+    "notes": "tool_choice=none 时不应返回 tool_calls。"
+  }
+}

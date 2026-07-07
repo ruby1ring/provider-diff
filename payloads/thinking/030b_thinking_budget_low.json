@@ -1,0 +1,33 @@
+{
+  "case_id": "thinking_thinking_budget_low",
+  "title": "enable_thinking + thinking_budget=128 · 应有 thinking 内容；usage tokens 应低于 4096 高档",
+  "category": "reasoning",
+  "parameters": ["enable_thinking", "thinking_budget"],
+  "requires_model_capability": "reasoning",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use concise reasoning to compute 34 + 58, then give the final answer."
+      }
+    ],
+    "enable_thinking": true,
+    "thinking_budget": 128,
+    "max_completion_tokens": 1200,
+    "temperature": 0
+  },
+  "expect": {
+    "dialect": "qwen_enable_thinking",
+    "axis": "intensity",
+    "enum_value": "128",
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "assistant_content_non_empty": true,
+    "provider_extension": true,
+    "notes": "强度低档 budget；与 thinking_budget=4096 配对比较 reasoning_tokens。"
+  }
+}

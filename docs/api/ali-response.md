@@ -31,18 +31,18 @@ Only parameters listed in official Bailian Responses docs are processed; unliste
 
 | Parameter | Type | Notes |
 |---|---|---|
-| `model` | `string` | Qwen series |
-| `input` | `string \| array` | Text or message array |
+| `model` | `string` | Qwen 系列模型名称 |
+| `input` | `string \| array` | 输入文本或消息数组 |
 
 ## Documented Request Parameters
 
 | Parameter | Type | Notes |
 |---|---|---|
-| `temperature` | `number` | |
-| `top_p` | `number` | |
-| `max_output_tokens` | `integer` | |
-| `stream` | `boolean` | |
-| `tools` | `array` | Built-in + function tools per Bailian docs |
-| `tool_choice` | `string` | |
-| `reasoning.effort` | `string` | Thinking strength control |
+| `temperature` | `number` | 采样温度 |
+| `top_p` | `number` | 核采样概率阈值 |
+| `max_output_tokens` | `integer` | 最大输出 token 数 |
+| `stream` | `boolean` | 是否流式返回 |
+| `tools` | `array` | 百炼文档所列内置工具与函数工具 |
+| `tool_choice` | `string` | 工具选择策略 |
+| `reasoning.effort` | `string` | 思考强度控制 |
 

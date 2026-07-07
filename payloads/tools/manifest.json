@@ -1,0 +1,26 @@
+{
+  "provider": "tools",
+  "base_url": "https://api.openai.com/v1",
+  "endpoint": "/chat/completions",
+  "method": "POST",
+  "default_model": "gpt-4o-mini",
+  "notes": [
+    "通用 tools 探针：运行时请把 Base URL、Model 和 API Key 改成待测渠道。",
+    "P0 case 覆盖 tools 接受、强制调用、多轮 tool result；P1 覆盖 none / 指定函数 / parallel_tool_calls / 思考模式下 reasoning_content 回传。"
+  ],
+  "common_expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "choice_required_fields": ["index", "message", "finish_reason"]
+  },
+  "cases": [
+    "010_tools_auto.json",
+    "011_tools_choice_required.json",
+    "012_tools_multiturn_tool_result.json",
+    "013_tools_reasoning_content_replay.json",
+    "020_tools_choice_none.json",
+    "021_tools_named_function.json",
+    "022_tools_parallel_false.json"
+  ]
+}

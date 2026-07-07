@@ -1,0 +1,26 @@
+{
+  "case_id": "thinking_baseline_default_effort",
+  "title": "baseline 默认 effort · 不传 reasoning_effort；与显式档位 case 对比 tokens 推断默认强度",
+  "category": "reasoning",
+  "parameters": ["messages"],
+  "requires_model_capability": "reasoning",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "gpt-5.1",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use brief reasoning to compute 34 + 58, then give the final answer."
+      }
+    ],
+    "max_completion_tokens": 1200,
+    "temperature": 0
+  },
+  "expect": {
+    "http_status": 200,
+    "thinking_location_probe": true,
+    "assistant_content_non_empty": true,
+    "notes": "与 effort 枚举 case 同 prompt、不传 reasoning_effort；用于推断默认 effort（与 high/max 等显式档位对比 token/可见 thinking）。"
+  }
+}

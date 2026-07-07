@@ -38,7 +38,7 @@ notes: 对照 docs/api/minimax-response.md（2026-06-16）。temperature/top_p �
 
 | Parameter | Type | Notes |
 |---|---|---|
-| `model` | `string` | e.g. `MiniMax-M3` |
+| `model` | `string` | 如 `MiniMax-M3` 等模型名称 |
 | `input` | `string \| array` | 简单文本或完整对话历史（`InputItem[]`） |
 
 ## Reasoning Control
@@ -58,7 +58,7 @@ For `MiniMax-M3`, `reasoning` controls whether the response includes reasoning o
 | `instructions` | `string` | no | — | — | 系统指令 |
 | `max_output_tokens` | `integer` | no | — | — | 最大输出 token |
 | `temperature` | `number` | no | `1` | (0, 1] | 采样温度 |
-| `top_p` | `number` | no | `0.95` | (0, 1] | Nucleus sampling |
+| `top_p` | `number` | no | `0.95` | (0, 1] | 核采样（Nucleus sampling）概率阈值 |
 | `stream` | `boolean` | no | `false` | — | SSE 流式 |
 | `reasoning` | `object` | no | `{"effort":"none"}` | — | 见上文 Reasoning Control |
 | `reasoning.effort` | `string` | no | `none` | `none` \| `minimal` \| `low` \| `medium` \| `high` | |

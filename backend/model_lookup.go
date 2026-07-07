@@ -117,6 +117,14 @@ var channelModelListSources = []channelModelListSource{
 		PlatformIDs:  []string{"aliyun-us"},
 	},
 	{
+		Key:          "aliyun-sg",
+		ListURL:      "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/models",
+		ConfigKeys:   []string{"aliyun-sg", "aliyun", "ali"},
+		AuthEnv:      "DASHSCOPE_API_KEY",
+		RequiresAuth: true,
+		PlatformIDs:  []string{"aliyun-sg"},
+	},
+	{
 		Key:          "streamlake-cn",
 		ListURL:      "https://wanqing.streamlakeapi.com/api/gateway/v1/endpoints/models",
 		ConfigKeys:   []string{"streamlake-cn", "streamlake"},
@@ -234,7 +242,7 @@ func lookupModelsAcrossChannels(ctx context.Context, root, query string) (channe
 	sort.Slice(matches, func(i, j int) bool {
 		order := map[string]int{
 			"deepseek": 0, "moonshot": 1, "zhipu": 2, "minimax": 3,
-			"aliyun-cn": 4, "aliyun-us": 5,
+			"aliyun-cn": 4, "aliyun-us": 5, "aliyun-sg": 6,
 			"siliconflow-cn": 6, "siliconflow-com": 7,
 			"streamlake-cn": 8,
 			"openrouter": 9, "sf-router-cn": 10, "sf-router-com": 11,

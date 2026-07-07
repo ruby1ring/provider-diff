@@ -8,7 +8,19 @@ const MESSAGE_PROVIDERS = ["claude", "deepseek", "minimax", "siliconflow", "open
 const COMMON_CAPACITY_CANDIDATES = [4194304, 2097152, 1048576, 524288, 262144, 131072, 65536, 32768, 16384, 8192, 4096, 2048, 1024];
 const DEFAULT_OUTPUT_CANDIDATES = COMMON_CAPACITY_CANDIDATES;
 const DEFAULT_CONTEXT_CANDIDATES = COMMON_CAPACITY_CANDIDATES;
+const DEFAULT_INPUT_CANDIDATES = COMMON_CAPACITY_CANDIDATES;
+const DEFAULT_OUTPUT_EFFECTIVE_CAPS = [512, 64];
+const DEFAULT_THINKING_BUDGET_CANDIDATES = [32768, 16384, 8192, 4096, 2048, 1024, 512, 256, 128];
 const DEFAULT_CONTEXT_SAFETY_MARGIN_RATIO = 0.05;
+
+const PROBE_KIND_BY_ARG = {
+  output: "max_output",
+  context: "total_context",
+  input: "max_input",
+  "output-effective": "max_output_effective",
+  "thinking-budget": "thinking_budget"
+};
+const SUPPORTED_PROBE_ARGS = Object.keys(PROBE_KIND_BY_ARG);
 
 const OUTPUT_PARAM_BY_PROVIDER = {
   openai: "max_completion_tokens",
@@ -21,6 +33,29 @@ const OUTPUT_PARAM_BY_PROVIDER = {
   vllm: "max_tokens"
 };
 
+// thinking budget dialect per provider; providers without a token-budget field are skipped.
+const THINKING_BUDGET_FIELD_BY_PROVIDER = {
+  siliconflow: { field: "thinking_budget", enableThinking: true },
+  ali: { field: "thinking_budget", enableThinking: true },
+  vllm: { field: "thinking_budget", enableThinking: true },
+  deepseek: { field: "thinking.budget_tokens", enableThinking: false },
+  claude: { field: "thinking.budget_tokens", enableThinking: false },
+  openrouter: { field: "reasoning.max_tokens", enableThinking: false }
+};
+
+function forceLongPrompt() {
+  return "Write an extremely long and detailed essay about the history of computing, from the abacus to modern AI accelerators. Keep writing continuously with many sections and paragraphs, and do not stop, summarize, or conclude until you are cut off.";
+}
+
+function hardReasoningPrompt() {
+  return "Think step by step in extensive detail before answering, and show all of your reasoning. "
+    + "Carefully work through every case and double-check each step: "
+    + "Three friends Alice, Bob, and Carol each pick a distinct integer from 1 to 9. "
+    + "The sum of Alice's and Bob's numbers equals twice Carol's number; Bob's number is a prime; "
+    + "Alice's number is even; and the product of all three numbers is divisible by 12. "
+    + "Enumerate the possibilities exhaustively, explain why each candidate works or fails, then state the final answer.";
+}
+
 function usage() {
   console.log(`Usage:
   node scripts/probe-capacity.js [options]
@@ -28,13 +63,17 @@ function usage() {
 Options:
   --providers openai,deepseek     Providers to probe. Default: all chat providers.
   --endpoint-id chat_completions  chat_completions, anthropic_messages, or all. Default: chat_completions.
-  --probes output,context         output, context, or both comma-separated. Default: both.
+  --probes output,context         Comma-separated: ${SUPPORTED_PROBE_ARGS.join(", ")}. Default: output,context.
   --config config.yaml            Local config file. Default: config.yaml.
   --output outputs/file.json      Result JSON path. Default: timestamped file under outputs/capacity-probes.
   --model provider=model          Override a provider model. Can be repeated.
   --max-output-candidates list    Descending integer or k/m list. Default: ${formatCandidateList(DEFAULT_OUTPUT_CANDIDATES)}.
   --context-candidates list       Descending integer or k/m list. Default: ${formatCandidateList(DEFAULT_CONTEXT_CANDIDATES)}.
-  --context-output-tokens n       Output budget used during context probes. Default: 8.
+  --input-candidates list         max_input ladder. Default: ${formatCandidateList(DEFAULT_INPUT_CANDIDATES)}.
+  --output-effective-caps list    Small caps for output-effective. Default: ${formatCandidateList(DEFAULT_OUTPUT_EFFECTIVE_CAPS)}.
+  --thinking-budget-candidates l  thinking-budget ladder. Default: ${formatCandidateList(DEFAULT_THINKING_BUDGET_CANDIDATES)}.
+  --no-context-balanced           Disable balanced context split (use input-heavy context probing).
+  --context-output-tokens n       Output budget used during input-heavy context probes. Default: 8.
   --context-safety-margin-ratio n Ratio subtracted from each context tier. Default: ${DEFAULT_CONTEXT_SAFETY_MARGIN_RATIO}.
   --timeout-ms n                  Per-request timeout. Default: 180000.
   --retries n                     Retries for transient 429/5xx/network failures. Default: 2.
@@ -61,6 +100,10 @@ function parseArgs(argv) {
     modelOverrides: {},
     outputCandidates: DEFAULT_OUTPUT_CANDIDATES,
     contextCandidates: DEFAULT_CONTEXT_CANDIDATES,
+    inputCandidates: DEFAULT_INPUT_CANDIDATES,
+    outputEffectiveCaps: DEFAULT_OUTPUT_EFFECTIVE_CAPS,
+    thinkingBudgetCandidates: DEFAULT_THINKING_BUDGET_CANDIDATES,
+    contextBalanced: true,
     contextOutputTokens: 8,
     contextSafetyMarginRatio: DEFAULT_CONTEXT_SAFETY_MARGIN_RATIO,
     timeoutMs: 180000,
@@ -100,6 +143,14 @@ function parseArgs(argv) {
       args.outputCandidates = parseCandidateList(next(), "--max-output-candidates");
     } else if (item === "--context-candidates") {
       args.contextCandidates = parseCandidateList(next(), "--context-candidates");
+    } else if (item === "--input-candidates") {
+      args.inputCandidates = parseCandidateList(next(), "--input-candidates");
+    } else if (item === "--output-effective-caps") {
+      args.outputEffectiveCaps = parseCandidateList(next(), "--output-effective-caps");
+    } else if (item === "--thinking-budget-candidates") {
+      args.thinkingBudgetCandidates = parseCandidateList(next(), "--thinking-budget-candidates");
+    } else if (item === "--no-context-balanced") {
+      args.contextBalanced = false;
     } else if (item === "--context-output-tokens") {
       args.contextOutputTokens = positiveInt(next(), "--context-output-tokens");
     } else if (item === "--context-safety-margin-ratio") {
@@ -126,8 +177,8 @@ function parseArgs(argv) {
   }
 
   for (const probe of args.probes) {
-    if (probe !== "output" && probe !== "context") {
-      throw new Error(`Unsupported probe "${probe}". Use output, context, or both.`);
+    if (!SUPPORTED_PROBE_ARGS.includes(probe)) {
+      throw new Error(`Unsupported probe "${probe}". Use one or more of: ${SUPPORTED_PROBE_ARGS.join(", ")}.`);
     }
   }
   if (!["chat_completions", "anthropic_messages", "all"].includes(args.endpointId)) {
@@ -198,7 +249,7 @@ function readConfig(filePath) {
 
 /** Map probe provider id → config.yaml section ids (测评渠道 platform id first). */
 const PROVIDER_CONFIG_KEYS = {
-  ali: ["aliyun-cn", "aliyun-us", "aliyun", "ali"],
+  ali: ["aliyun-cn", "aliyun-us", "aliyun-sg", "aliyun", "ali"],
   siliconflow: ["siliconflow-cn", "siliconflow-com", "siliconflow"],
   openrouter: ["openrouter"],
   deepseek: ["deepseek"],
@@ -320,6 +371,81 @@ function contextProbePayload(target, totalContextTokens, outputTokens, safetyMar
   return basePayload(target, content, outputTokens);
 }
 
+function inputProbePayload(target, inputTokens, safetyMarginRatio) {
+  const sizing = inputProbeSizing(inputTokens, safetyMarginRatio);
+  const content = longPrompt(sizing.estimated_input_tokens);
+  return basePayload(target, content, 16);
+}
+
+function inputProbeSizing(inputTokens, safetyMarginRatio) {
+  const candidate = Math.max(1, Number(inputTokens) || 1);
+  const ratio = Math.min(Math.max(0, Number(safetyMarginRatio) || 0), 0.99);
+  const margin = Math.round(candidate * ratio);
+  const tested = Math.max(1, candidate - margin);
+  return {
+    estimated_input_tokens: tested,
+    tested_total_context_tokens: tested,
+    tested_total_context_display: formatTokenUnit(tested),
+    applied_context_safety_margin_tokens: candidate - tested,
+    requested_max_output_tokens: 16
+  };
+}
+
+// Balanced context: split a context tier into input/output that each stay under the
+// measured caps, so a context that exceeds the input cap can still be reached.
+function balancedContextPayload(target, totalContextTokens, maxInput, maxOutput, safetyMarginRatio) {
+  const sizing = balancedContextSizing(totalContextTokens, maxInput, maxOutput, safetyMarginRatio);
+  const content = longPrompt(sizing.estimated_input_tokens);
+  return basePayload(target, content, sizing.requested_max_output_tokens);
+}
+
+function balancedContextSizing(totalContextTokens, maxInput, maxOutput, safetyMarginRatio) {
+  const candidate = Math.max(2, Number(totalContextTokens) || 2);
+  const ratio = Math.min(Math.max(0, Number(safetyMarginRatio) || 0), 0.99);
+  const margin = Math.round(candidate * ratio);
+  const testedTotal = Math.max(2, candidate - margin);
+  let output = Math.min(maxOutput, testedTotal - 1);
+  if (output < 1) output = 1;
+  let input = testedTotal - output;
+  if (input > maxInput) {
+    input = maxInput;
+    output = Math.max(1, testedTotal - input);
+  }
+  if (input < 1) input = 1;
+  return {
+    estimated_input_tokens: input,
+    requested_max_output_tokens: output,
+    tested_total_context_tokens: testedTotal,
+    tested_total_context_display: formatTokenUnit(testedTotal),
+    applied_context_safety_margin_tokens: candidate - testedTotal,
+    context_method: "balanced"
+  };
+}
+
+function thinkingBudgetField(target) {
+  return THINKING_BUDGET_FIELD_BY_PROVIDER[target.provider] || null;
+}
+
+function thinkingBudgetPayload(target, budget) {
+  let outputTokens = Math.min(65536, Math.max(2048, budget + 2048));
+  const payload = basePayload(target, hardReasoningPrompt(), outputTokens);
+  const mapping = thinkingBudgetField(target);
+  if (!mapping) return payload;
+  if (mapping.field === "thinking.budget_tokens") {
+    payload.thinking = { type: "enabled", budget_tokens: budget };
+  } else if (mapping.field === "reasoning.max_tokens") {
+    payload.reasoning = { max_tokens: budget, enabled: true };
+  } else {
+    payload.thinking_budget = budget;
+    if (mapping.enableThinking) payload.enable_thinking = true;
+  }
+  return payload;
+}
+
+function outputEffectivePayload(target, cap) {
+  return basePayload(target, forceLongPrompt(), cap);
+}
+
 function contextProbeSizing(totalContextTokens, outputTokens, safetyMarginRatio) {
   const candidate = Math.max(1, Number(totalContextTokens) || 1);
   const output = Math.max(1, Number(outputTokens) || 1);
@@ -373,6 +499,50 @@ function finishReason(body, endpointId) {
   if (endpointId === "anthropic_messages") return typeof body.stop_reason === "string" ? body.stop_reason : "";
   const choice = Array.isArray(body.choices) ? body.choices[0] : null;
   return choice && typeof choice.finish_reason === "string" ? choice.finish_reason : "";
+}
+
+function reasoningTokensFromBody(body) {
+  let max = 0;
+  let found = false;
+  const walk = (value) => {
+    if (!value || typeof value !== "object") return;
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    for (const [key, child] of Object.entries(value)) {
+      if (key.toLowerCase() === "reasoning_tokens") {
+        const count = Number(child);
+        if (Number.isFinite(count)) {
+          found = true;
+          if (count > max) max = count;
+        }
+      }
+      walk(child);
+    }
+  };
+  walk(body);
+  return found ? max : null;
+}
+
+const FINISH_REASON_LENGTH = new Set(["length", "max_tokens", "max_output_tokens", "output_limit", "model_length"]);
+
+function finishReasonIsLength(reason) {
+  return FINISH_REASON_LENGTH.has(String(reason || "").trim().toLowerCase());
+}
+
+function evaluateOutputCapEffective(attempt) {
+  const cap = attempt.candidate;
+  const ct = Number(attempt.usage?.completion_tokens ?? attempt.usage?.output_tokens ?? 0);
+  if (finishReasonIsLength(attempt.finish_reason)) {
+    return ct > 0
+      ? { effective: true, reason: `finish_reason=${attempt.finish_reason}，completion_tokens=${ct}≈cap ${cap}` }
+      : { effective: true, reason: `finish_reason=${attempt.finish_reason}（无 completion_tokens 计数）` };
+  }
+  if (ct > 0 && cap > 0 && ct >= cap - cap / 5 && ct <= cap + cap / 5) {
+    return { effective: true, reason: `completion_tokens=${ct}≈cap ${cap}（finish_reason=${attempt.finish_reason}）` };
+  }
+  return { effective: false, reason: `未被截断：finish_reason=${attempt.finish_reason || "(空)"}，completion_tokens=${ct}，cap=${cap}（疑似被忽略）` };
 }
 
 function providerError(body, text, statusText) {
@@ -435,6 +605,7 @@ async function postJSONOnce(target, payload, timeoutMs) {
       conclusion: classify(response.status, null),
       usage: summarizeUsage(body),
       finish_reason: finishReason(body, target.endpointId),
+      reasoning_tokens: reasoningTokensFromBody(body),
       error: response.ok ? "" : providerError(body, text, response.statusText)
     };
   } catch (error) {
@@ -462,7 +633,9 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function probeDescending(target, label, candidates, makePayload, args, extraAttemptFields = () => ({})) {
+async function probeDescending(target, label, candidates, makePayload, args, extraAttemptFields = () => ({}), options = {}) {
+  const kind = options.kind || "";
+  const exhaustive = args.exhaustive || options.exhaustive;
   const attempts = [];
   let sawNonSupported = false;
   let stoppedByBoundary = false;
@@ -479,12 +652,19 @@ async function probeDescending(target, label, candidates, makePayload, args, ext
     process.stdout.write(`${target.provider}/${target.endpointId}/${label}: try ${formatTokenUnit(candidate)} ... `);
     const result = await postJSON(target, payload, args.timeoutMs);
     Object.assign(attempt, result);
+    if (kind === "max_output_effective" && result.conclusion === "supported") {
+      const evaluated = evaluateOutputCapEffective(attempt);
+      attempt.effective = evaluated.effective;
+      attempt.effective_reason = evaluated.reason;
+    }
     attempts.push(attempt);
-    console.log(`${result.conclusion} HTTP ${result.http_status} ${result.latency_ms}ms`);
-    if (result.conclusion === "supported" && args.stopOnFirstPass) {
+    const effNote = attempt.effective === undefined ? "" : ` effective=${attempt.effective}`;
+    const rtNote = attempt.reasoning_tokens ? ` reasoning_tokens=${attempt.reasoning_tokens}` : "";
+    console.log(`${result.conclusion} HTTP ${result.http_status} ${result.latency_ms}ms${effNote}${rtNote}`);
+    if (result.conclusion === "supported" && args.stopOnFirstPass && !exhaustive) {
       break;
     }
-    if (result.conclusion === "supported" && sawNonSupported && !args.exhaustive) {
+    if (result.conclusion === "supported" && sawNonSupported && !exhaustive) {
       stoppedByBoundary = true;
       break;
     }
@@ -492,7 +672,7 @@ async function probeDescending(target, label, candidates, makePayload, args, ext
       sawNonSupported = true;
     }
   }
-  return { ...summarizeAttempts(candidates, attempts, stoppedByBoundary), attempts };
+  return { ...summarizeAttempts(candidates, attempts, stoppedByBoundary, kind), attempts };
 }
 
 function capacityCaseID(target, label, candidate) {
@@ -533,7 +713,7 @@ function displayAttempt(attempt) {
   };
 }
 
-function summarizeAttempts(candidates, attempts, stoppedByBoundary) {
+function summarizeAttempts(candidates, attempts, stoppedByBoundary, kind = "") {
   const sortedAttempts = [...attempts].sort((a, b) => b.candidate - a.candidate);
   const supported = attempts.filter((attempt) => attempt.conclusion === "supported");
   const supportedMax = supported.length ? Math.max(...supported.map((attempt) => attempt.candidate)) : null;
@@ -569,6 +749,33 @@ function summarizeAttempts(candidates, attempts, stoppedByBoundary) {
             ? "tested_all_candidates_without_supported_candidate"
             : "tested_all_candidates_with_upper_bound"
   };
+
+  if (kind === "max_output_effective") {
+    const effectiveAttempt = attempts.find((attempt) => attempt.effective === true);
+    summary.effective = Boolean(effectiveAttempt);
+    summary.effective_detail = (effectiveAttempt || attempts.find((a) => a.effective_reason))?.effective_reason || "";
+  }
+  if (kind === "thinking_budget") {
+    const supportedAttempts = attempts.filter((attempt) => attempt.conclusion === "supported");
+    let low = null;
+    let high = null;
+    let budgetRespected = true;
+    for (const attempt of supportedAttempts) {
+      const rt = Number(attempt.reasoning_tokens || 0);
+      if (!high || attempt.candidate > high.candidate) high = { candidate: attempt.candidate, rt };
+      if (!low || attempt.candidate < low.candidate) low = { candidate: attempt.candidate, rt };
+      if (rt > attempt.candidate) budgetRespected = false;
+    }
+    summary.budget_accepted = supportedMax !== null;
+    summary.budget_max = supportedMax;
+    summary.budget_max_display = formatTokenUnit(supportedMax);
+    summary.effective = Boolean(high && low && high.candidate > low.candidate && high.rt > low.rt);
+    summary.budget_respected = budgetRespected;
+    summary.thinking_low_budget = low?.candidate ?? null;
+    summary.thinking_high_budget = high?.candidate ?? null;
+    summary.thinking_low_reasoning_tokens = low?.rt ?? null;
+    summary.thinking_high_reasoning_tokens = high?.rt ?? null;
+  }
   return summary;
 }
 
@@ -609,6 +816,20 @@ async function probeTarget(target, args) {
   }
   target.retries = args.retries;
 
+  // Order matters: input + output run before context so balanced context can stay
+  // under each measured cap; thinking-budget runs on its own ladder.
+  if (args.probes.includes("input")) {
+    result.probes.max_input = await probeDescending(
+      target,
+      "max_input",
+      args.inputCandidates,
+      (candidate) => inputProbePayload(target, candidate, args.contextSafetyMarginRatio),
+      args,
+      (candidate) => inputProbeSizing(candidate, args.contextSafetyMarginRatio),
+      { kind: "max_input" }
+    );
+  }
+
   if (args.probes.includes("output")) {
     result.probes.max_output = await probeDescending(
       target,
@@ -616,19 +837,74 @@ async function probeTarget(target, args) {
       args.outputCandidates,
       (candidate) => outputProbePayload(target, candidate),
       args,
-      (candidate) => ({ requested_max_output_tokens: candidate })
+      (candidate) => ({ requested_max_output_tokens: candidate }),
+      { kind: "max_output" }
     );
   }
 
-  if (args.probes.includes("context")) {
-    result.probes.total_context = await probeDescending(
+  if (args.probes.includes("output-effective")) {
+    result.probes.max_output_effective = await probeDescending(
       target,
-      "total_context",
-      args.contextCandidates,
-      (candidate) => contextProbePayload(target, candidate, args.contextOutputTokens, args.contextSafetyMarginRatio),
+      "max_output_effective",
+      args.outputEffectiveCaps,
+      (candidate) => outputEffectivePayload(target, candidate),
       args,
-      (candidate) => contextProbeSizing(candidate, args.contextOutputTokens, args.contextSafetyMarginRatio)
+      (candidate) => ({ requested_max_output_tokens: candidate }),
+      { kind: "max_output_effective", exhaustive: true }
     );
+  }
+
+  if (args.probes.includes("thinking-budget")) {
+    const mapping = thinkingBudgetField(target);
+    if (!mapping) {
+      result.probes.thinking_budget = {
+        skipped: true,
+        skip_reason: `provider ${target.provider} has no documented thinking-budget field`,
+        budget_accepted: false
+      };
+    } else {
+      result.probes.thinking_budget = await probeDescending(
+        target,
+        "thinking_budget",
+        args.thinkingBudgetCandidates,
+        (candidate) => thinkingBudgetPayload(target, candidate),
+        args,
+        (candidate) => ({ requested_thinking_budget: candidate }),
+        { kind: "thinking_budget", exhaustive: true }
+      );
+      result.probes.thinking_budget.thinking_field = mapping.field;
+    }
+  }
+
+  if (args.probes.includes("context")) {
+    const maxInput = result.probes.max_input?.supported_max || 0;
+    const maxOutput = result.probes.max_output?.supported_max || 0;
+    const balanced = args.contextBalanced && maxInput > 0 && maxOutput > 0;
+    if (balanced) {
+      result.probes.total_context = await probeDescending(
+        target,
+        "total_context",
+        args.contextCandidates,
+        (candidate) => balancedContextPayload(target, candidate, maxInput, maxOutput, args.contextSafetyMarginRatio),
+        args,
+        (candidate) => balancedContextSizing(candidate, maxInput, maxOutput, args.contextSafetyMarginRatio),
+        { kind: "total_context" }
+      );
+      result.probes.total_context.context_method = "balanced";
+      result.probes.total_context.balanced_max_input_tokens = maxInput;
+      result.probes.total_context.balanced_max_output_tokens = maxOutput;
+    } else {
+      result.probes.total_context = await probeDescending(
+        target,
+        "total_context",
+        args.contextCandidates,
+        (candidate) => contextProbePayload(target, candidate, args.contextOutputTokens, args.contextSafetyMarginRatio),
+        args,
+        (candidate) => contextProbeSizing(candidate, args.contextOutputTokens, args.contextSafetyMarginRatio),
+        { kind: "total_context" }
+      );
+      result.probes.total_context.context_method = "input_heavy";
+    }
     result.probes.total_context.context_safety_margin_ratio = args.contextSafetyMarginRatio;
     result.probes.total_context.context_safety_margin_percent = args.contextSafetyMarginRatio * 100;
   }
@@ -648,8 +924,11 @@ function printPlan(targets, args) {
   }
   console.log(`Probes: ${args.probes.join(", ")}`);
   console.log(`Max concurrency: ${args.maxConcurrency}`);
+  if (args.probes.includes("input")) console.log(`Max input candidates: ${formatCandidateList(args.inputCandidates)}`);
   if (args.probes.includes("output")) console.log(`Max output candidates: ${formatCandidateList(args.outputCandidates)}`);
-  if (args.probes.includes("context")) console.log(`Context candidates: ${formatCandidateList(args.contextCandidates)}; context safety margin: ${trimNumber(args.contextSafetyMarginRatio * 100, 1)}%; context output budget: ${args.contextOutputTokens}`);
+  if (args.probes.includes("output-effective")) console.log(`Output-effective caps: ${formatCandidateList(args.outputEffectiveCaps)}`);
+  if (args.probes.includes("thinking-budget")) console.log(`Thinking-budget candidates: ${formatCandidateList(args.thinkingBudgetCandidates)}`);
+  if (args.probes.includes("context")) console.log(`Context candidates: ${formatCandidateList(args.contextCandidates)}; balanced=${args.contextBalanced}; context safety margin: ${trimNumber(args.contextSafetyMarginRatio * 100, 1)}%; input-heavy output budget: ${args.contextOutputTokens}`);
 }
 
 function conclusionLine(target, probeKey, label) {
@@ -659,6 +938,20 @@ function conclusionLine(target, probeKey, label) {
 
 function displayConclusion(probe) {
   if (!probe) return null;
+  if (probe.skipped) return probe.skip_reason || "未测试";
+  if (probe.effective !== undefined && probe.budget_accepted === undefined) {
+    // max_output_effective
+    if (probe.effective) return `生效${probe.effective_detail ? `（${probe.effective_detail}）` : ""}`;
+    return `未生效${probe.effective_detail ? `（${probe.effective_detail}）` : "（参数疑似被忽略）"}`;
+  }
+  if (probe.budget_accepted !== undefined) {
+    // thinking_budget
+    if (!probe.budget_accepted) return "不支持该思考预算字段";
+    const parts = [`最大可传 ${probe.budget_max_display}`];
+    parts.push(probe.effective ? "实测生效" : "接受但未观察到随预算变化");
+    if (probe.budget_respected === false) parts.push("reasoning_tokens 曾超出预算");
+    return parts.join("；");
+  }
   if (probe.upper_bound_found && probe.supported_max_display) {
     const tested = probe.supported_tested_total_context_display ? `按${probe.supported_tested_total_context_display}探测，` : "";
     return `${probe.supported_max_display}（${tested}${probe.nearest_higher_non_supported?.candidate_display || "更高档位"}不支持）`;
@@ -678,7 +971,10 @@ function printSummary(report) {
   console.log("Capacity summary:");
   for (const target of report.targets) {
     const parts = [
+      conclusionLine(target, "max_input", "最大Input"),
       conclusionLine(target, "max_output", "最大Max Output"),
+      conclusionLine(target, "max_output_effective", "Max Output 生效"),
+      conclusionLine(target, "thinking_budget", "最大Thinking Budget"),
       conclusionLine(target, "total_context", "最大Total Context")
     ].filter(Boolean);
     if (!parts.length) continue;
@@ -719,6 +1015,13 @@ async function main() {
     output_candidates_display: args.outputCandidates.map(formatTokenUnit),
     context_candidates: args.contextCandidates,
     context_candidates_display: args.contextCandidates.map(formatTokenUnit),
+    input_candidates: args.inputCandidates,
+    input_candidates_display: args.inputCandidates.map(formatTokenUnit),
+    output_effective_caps: args.outputEffectiveCaps,
+    output_effective_caps_display: args.outputEffectiveCaps.map(formatTokenUnit),
+    thinking_budget_candidates: args.thinkingBudgetCandidates,
+    thinking_budget_candidates_display: args.thinkingBudgetCandidates.map(formatTokenUnit),
+    context_balanced: args.contextBalanced,
     context_output_tokens: args.contextOutputTokens,
     context_safety_margin_ratio: args.contextSafetyMarginRatio,
     context_safety_margin_percent: args.contextSafetyMarginRatio * 100,
@@ -727,14 +1030,17 @@ async function main() {
     stop_on_first_pass: args.stopOnFirstPass,
     exhaustive: args.exhaustive,
     stop_after_boundary: !args.exhaustive,
-    note: "max_output is an acceptance probe for common output budget tiers, not proof that the provider generated that many output tokens. total_context results are displayed on common candidate tiers, but each request subtracts a safety margin before generating filler text to avoid tokenizer and message-wrapper edge effects; provider usage is recorded when available.",
+    note: "max_input/max_output/total_context are acceptance probes for common tiers (largest accepted budget), not proof of generated tokens. max_output_effective forces a long generation at small caps to confirm the limit truncates output (finish_reason=length, completion_tokens≈cap). thinking_budget tests the per-provider thinking-budget field for acceptance, max accepted value, and whether reasoning_tokens scale with the budget. total_context defaults to a balanced input/output split so a context that exceeds the input cap can be reached; use --no-context-balanced for input-heavy probing. Provider usage is recorded when available.",
     targets: []
   };
 
   report.targets = await runWithConcurrency(targets, args.maxConcurrency, async (target) => {
     const targetResult = await probeTarget(target, args);
     targetResult.capacity_display = {
+      "最大Input": displayConclusion(targetResult.probes.max_input),
       "最大Max Output": displayConclusion(targetResult.probes.max_output),
+      "Max Output 生效": displayConclusion(targetResult.probes.max_output_effective),
+      "最大Thinking Budget": displayConclusion(targetResult.probes.thinking_budget),
       "最大Total Context": displayConclusion(targetResult.probes.total_context)
     };
     return targetResult;

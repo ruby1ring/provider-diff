@@ -1,6 +1,6 @@
 {
   "case_id": "thinking_reasoning_split_false",
-  "title": "reasoning_split=false keeps or suppresses separated thinking",
+  "title": "reasoning_split=false · 观测 thinking 是否合并进 content 或未分离返回（不断言关闭 thinking）",
   "category": "reasoning",
   "parameters": ["reasoning_split"],
   "optional": true,
@@ -18,6 +18,9 @@
     "max_completion_tokens": 256
   },
   "expect": {
+    "dialect": "reasoning_split",
+    "axis": "output",
+    "enum_value": "false",
     "http_status": 200,
     "thinking_location_probe": true,
     "thinking_absent": true,

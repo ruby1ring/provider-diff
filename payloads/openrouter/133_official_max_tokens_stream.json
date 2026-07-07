@@ -28,6 +28,12 @@
       "model",
       "choices"
     ],
-    "notes": "Imported from docs/api/openrouter.case.md. Uses deprecated max_tokens because that is what the official raw request used."
+    "usage_required_fields": [
+      "prompt_tokens",
+      "completion_tokens",
+      "total_tokens"
+    ],
+    "completion_tokens_max": "request",
+    "notes": "Imported from docs/api/openrouter.case.md. Uses deprecated max_tokens because that is what the official raw request used. OpenRouter baseline also requires completion_tokens ≤ max_tokens (reasoning included)."
   }
 }

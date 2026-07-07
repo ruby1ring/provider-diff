@@ -1,6 +1,6 @@
 {
   "case_id": "thinking_enable_thinking_with_budget",
-  "title": "enable_thinking=true with thinking_budget=1000",
+  "title": "enable_thinking=true + thinking_budget=1000 · 应出现 thinking 内容；usage reasoning_tokens/thinking_tokens > 0",
   "category": "reasoning",
   "parameters": ["enable_thinking", "thinking_budget"],
   "requires_model_capability": "reasoning",
@@ -19,6 +19,9 @@
     "max_completion_tokens": 1200
   },
   "expect": {
+    "dialect": "qwen_enable_thinking",
+    "axis": "intensity",
+    "enum_value": "1000",
     "http_status": 200,
     "thinking_location_probe": true,
     "thinking_evidence_required": true,

@@ -1,0 +1,35 @@
+{
+  "case_id": "ali_protocol_stream_usage_without_include_usage",
+  "title": "流式不传 include_usage 时 usage 是否出现",
+  "category": "protocol",
+  "parameters": [
+    "stream",
+    "stream_options"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "流式输出一句关于 usage 的说明。"
+      }
+    ],
+    "stream": true,
+    "enable_thinking": false,
+    "max_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "response_mode": "sse",
+    "stream_usage_in_sse": "observed",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "choices"
+    ],
+    "notes": "观测 stream=true 且未传 stream_options.include_usage 时，SSE 是否含 usage chunk。阿里文档默认不返回；部分 OpenAI-compatible 渠道仍始终返回 usage。case 始终 pass，用于 V02 横向对比各渠道行为。"
+  }
+}

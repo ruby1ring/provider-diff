@@ -73,13 +73,13 @@ export ANTHROPIC_API_KEY=${YOUR_API_KEY}
 | `stop_sequences` | `array<string>` | |
 | `temperature` | `number` | 范围 **[0.0, 2.0]** |
 | `top_p` | `number` | |
-| `top_k` | `integer` | Ignored |
-| `thinking` | `object` | `budget_tokens` **Ignored** |
+| `top_k` | `integer` | 忽略（无效） |
+| `thinking` | `object` | `budget_tokens` **忽略** |
 | `output_config` | `object` | 仅 `effort` 支持 |
-| `metadata` | `object` | 仅 `user_id` 支持，其余 Ignored |
-| `container` | `object` | Ignored |
-| `mcp_servers` | `array` | Ignored |
-| `service_tier` | `string` | Ignored |
+| `metadata` | `object` | 仅 `user_id` 支持，其余忽略 |
+| `container` | `object` | 忽略 |
+| `mcp_servers` | `array` | 忽略 |
+| `service_tier` | `string` | 忽略 |
 
 ### Support status (reference)
 

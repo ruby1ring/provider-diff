@@ -8,15 +8,18 @@
   "payload": {
     "model": "deepseek-v4-flash",
     "messages": [
-      {"role": "user", "content": "流式输出一句中文。"}
+      {"role": "user", "content": "请用流式方式逐句输出 3 到 5 句简短中文问候，不要一次性全部给出。"}
     ],
-    "stream": true
+    "stream": true,
+    "max_tokens": 128
   },
   "expect": {
     "http_status": 200,
     "support_conclusion": "supported",
     "response_mode": "sse",
+    "stream_incremental": true,
+    "stream_probe_attempts": 3,
     "required_chunk_fields": ["id", "object", "created", "model", "choices"],
-    "notes": "stream=true 时返回 text/event-stream，分片以 data: [DONE] 结束。"
+    "notes": "stream=true 时返回 text/event-stream，分片以 data: [DONE] 结束，并应增量返回多个 content chunk；重复探测 3 次，任一次伪流式即 fail。"
   }
 }

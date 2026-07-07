@@ -56,32 +56,44 @@ Channel keys used by **测评模型 → 查询渠道** (live model list lookup).
 
 Legacy section names (`ali`, `siliconflow`, `streamlake`) are still accepted as fallbacks for scripts. Environment variables (e.g. `SILICONFLOW_API_KEY`, `WQ_API_KEY` for StreamLake) are used when no matching section is found.
 
-## Capacity probes
+## Capacity / model-limit probes
 
-To probe each provider's accepted maximum output limit and total context length, run:
+The capacity probe measures the four 模型限制 metrics from a provider's model card — 最大输入长度 / 最大输出长度 / 上下文长度 / 最大思考长度 — each on three axes: **是否支持传 (accept)** / **传了是否生效 (effective)** / **最大能传多少 (max)**.
 
 ```sh
 node scripts/probe-capacity.js
 ```
 
-The probe reads `config.yaml`, uses each provider manifest's default model, tries common K/M tiers from large to small, and writes a timestamped JSON report under `outputs/capacity-probes/`. Each tier is emitted as a capacity test case with a stable `case_id`. Reports include `capacity_display.最大Max Output`, `capacity_display.最大Total Context`, `supported_max_display`, `upper_bound_found`, `nearest_higher_non_supported.candidate_display`, and `top_candidate_supported` so a passing top tier is not mistaken for a proven maximum.
+The probe reads `config.yaml`, uses each provider manifest's default model, tries common K/M tiers from large to small, and writes a timestamped JSON report under `outputs/capacity-probes/`. Each tier is emitted as a capacity test case with a stable `case_id`.
+
+Probe kinds (`--probes`, default `output,context`):
+
+- `output` (`max_output`) — largest accepted output budget tier.
+- `output-effective` (`max_output_effective`) — forces a long generation at small caps and checks the output is actually truncated (`finish_reason=length`, `completion_tokens≈cap`), proving `max_tokens` really takes effect.
+- `input` (`max_input`) — largest accepted input length, independent of the context window.
+- `context` (`total_context`) — largest accepted total context tier. **Balanced by default**: when `input` and `output` are probed first, each context tier is split into input/output below the measured caps so a context that exceeds the input cap can still be reached (`--no-context-balanced` for the legacy input-heavy mode).
+- `thinking-budget` (`thinking_budget`) — for reasoning models only: tests the per-provider thinking-budget field (`thinking_budget` / `thinking.budget_tokens` / `reasoning.max_tokens`; MiniMax has none) for acceptance, max accepted value, and whether `reasoning_tokens` scale with the budget.
 
 Useful options:
 
 ```sh
 node scripts/probe-capacity.js --providers openai,deepseek
 node scripts/probe-capacity.js --endpoint-id all --providers claude,openrouter
+node scripts/probe-capacity.js --providers siliconflow --model siliconflow=Pro/zai-org/GLM-4.7 --probes input,output,output-effective,thinking-budget,context
 node scripts/probe-capacity.js --providers vllm --model vllm=Qwen/Qwen3-8B --context-candidates 512k,256k,128k
-node scripts/probe-capacity.js --providers siliconflow --context-safety-margin-ratio 0.05
 node scripts/probe-capacity.js --providers ali,deepseek,minimax --max-concurrency 3
 node scripts/probe-capacity.js --dry-run
 ```
 
-`max_output` is an acceptance probe for common output budget tiers (`max_tokens` or `max_completion_tokens`); it confirms the largest requested tier the endpoint accepts, not that the model actually generated that many tokens. `total_context` keeps the conclusion on common tiers such as `128k`, `256k`, and `1m`, but the actual long prompt is built with a proportional safety margin to avoid tokenizer and message-wrapper edge effects. The default margin ratio is `5%`, so each tier is tested at about `95%` of the displayed tier; attempt details include `tested_total_context_display` and provider `usage` when available. K/M labels use 1024 units: `128k = 131072`, `1m = 1048576`. The default mode stops only after a tier boundary is bracketed: one higher non-supported tier followed by a supported tier. Use `--exhaustive` to force every configured tier to run.
+`max_output` / `max_input` / `total_context` are acceptance probes for common tiers; they confirm the largest requested tier the endpoint accepts, not that the model generated that many tokens (`max_output_effective` covers actual truncation). `total_context` keeps the conclusion on common tiers such as `128k`, `256k`, and `1m`, but the actual long prompt is built with a proportional safety margin (default `5%`) to avoid tokenizer and message-wrapper edge effects; attempt details include `tested_total_context_display` and provider `usage` when available. K/M labels use 1024 units: `128k = 131072`, `1m = 1048576`. The default mode stops after a tier boundary is bracketed; `--exhaustive` forces every tier. Target-level concurrency is available with `--max-concurrency` (tiers inside one target stay sequential).
 
-Capacity probes support target-level concurrency with `--max-concurrency`. Each provider/model target runs independently, while candidate tiers inside one target remain sequential so boundary detection stays correct.
+To surface measured-vs-documented limits in the 测评模型 model-intro drawer, aggregate reports into `web/data/model-limits-observed.json`:
 
-See `docs/project/capacity-probe-methodology.md` for the testing methodology and result interpretation rules.
+```sh
+npm run build:model-limits
+```
+
+See `docs/project/capacity-probe-methodology.md` for the full methodology, provider thinking-budget dialects, balanced context, and result interpretation rules.
 
 ## Generated outputs
 

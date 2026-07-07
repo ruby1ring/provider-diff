@@ -1,0 +1,37 @@
+{
+  "case_id": "minimax_protocol_stream_usage_chunk_shape",
+  "title": "流式 usage 应在独立 chunk（choices:[]）中返回",
+  "category": "protocol",
+  "parameters": ["stream", "stream_options", "stream_options.include_usage"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Stream one short sentence about usage accounting."
+      }
+    ],
+    "stream": true,
+    "stream_options": {
+      "include_usage": true
+    },
+    "max_completion_tokens": 80
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "response_mode": "sse",
+    "stream_usage_chunk_shape": "openai_dedicated",
+    "stream_usage_in_sse": "required",
+    "required_chunk_fields": ["id", "object", "created", "model", "choices"],
+    "usage_required_fields": [
+      "prompt_tokens",
+      "completion_tokens",
+      "total_tokens"
+    ],
+    "stream_probe_attempts": 3,
+    "notes": "验证 usage 是否在独立 chunk（choices:[]）中返回，而非与 finish_reason 合并。"
+  }
+}

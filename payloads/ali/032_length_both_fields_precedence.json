@@ -1,0 +1,28 @@
+{
+  "case_id": "ali_length_both_fields_precedence",
+  "title": "max_tokens 与 max_completion_tokens 双参优先级",
+  "category": "length",
+  "parameters": ["max_tokens", "max_completion_tokens"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "请持续写一段很长的技术说明，不要提前结束，直到被截断为止。"
+      }
+    ],
+    "max_tokens": 64,
+    "max_completion_tokens": 512,
+    "enable_thinking": false,
+    "stream": false
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "output_length_cap_precedence": "observed",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "观测双参同时传入时哪个字段实际限制输出；关闭 enable_thinking 避免 reasoning token 干扰 cap 判定。"
+  }
+}

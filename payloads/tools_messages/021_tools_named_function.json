@@ -1,0 +1,40 @@
+{
+  "case_id": "tools_named_function",
+  "title": "tool_choice 指定工具名 · 必须调用 compatibility_status（不能只调别的工具）",
+  "category": "tools",
+  "parameters": ["tool_choice"],
+  "requires_model_capability": "tools",
+  "optional": true,
+  "method": "POST",
+  "path": "/v1/messages",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "max_tokens": 120,
+    "tool_choice": { "type": "tool", "name": "compatibility_status" },
+    "tools": [
+      {
+        "name": "compatibility_status",
+        "description": "Return compatibility status for one parameter.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "parameter": { "type": "string" },
+            "status": { "type": "string", "enum": ["accepted", "rejected", "warning"] }
+          },
+          "required": ["parameter", "status"]
+        }
+      }
+    ],
+    "messages": [
+      {
+        "role": "user",
+        "content": "Call compatibility_status for parameter response_format."
+      }
+    ]
+  },
+  "expect": {
+    "axis": "named_function",
+    "allowed_finish_reasons": ["end_turn", "max_tokens", "stop_sequence", "tool_use", "pause_turn", "refusal"],
+    "notes": "tool_choice 精确指定 compatibility_status 工具名（type=tool + name）；验证渠道按名称路由到正确工具。"
+  }
+}

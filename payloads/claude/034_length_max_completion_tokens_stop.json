@@ -1,0 +1,25 @@
+{
+  "case_id": "claude_length_max_completion_tokens_stop",
+  "title": "max_completion_tokens and stop together",
+  "category": "length",
+  "parameters": ["max_completion_tokens", "stop"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "claude-sonnet-4-6",
+    "messages": [
+      {
+        "role": "user",
+        "content": "按 1、2、3 的格式列出三个测试步骤。"
+      }
+    ],
+    "max_completion_tokens": 48,
+    "stop": "3"
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "allowed_finish_reasons": ["stop", "length"],
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"]
+  }
+}
