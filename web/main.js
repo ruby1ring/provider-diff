@@ -2708,11 +2708,6 @@ function expectationSummary(result) {
   return `测试结果：${expectationLabel(result)}；实际结论：${actual}；预期结论：${expected}${statusText}。`;
 }
 
-function expectedConclusionText(result) {
-  const expected = expectedSupportConclusionForResult(result);
-  return supportConclusionMeta[expected]?.label || supportConclusionMeta.supported.label;
-}
-
 function categoryLabel(category) {
   const labels = {
     basic: "基础",
@@ -3012,21 +3007,6 @@ function isProtocolSamplingCase(testCase) {
   return /_protocol_sampling_temperature_/.test(caseId);
 }
 
-const protocolThinkingParameters = new Set([
-  "enable_thinking",
-  "thinking",
-  "thinking.type",
-  "thinking.budget_tokens",
-  "thinking_budget",
-  "thinking_budget_tokens",
-  "preserve_thinking",
-  "reasoning_effort",
-  "reasoning",
-  "reasoning.effort",
-  "reasoning.enabled",
-  "reasoning.summary"
-]);
-
 function isProtocolThinkingCase(testCase) {
   if (!testCase) return false;
   const caseId = String(testCase.case_id || "");
@@ -3318,37 +3298,6 @@ function focusParametersForCase(testCase) {
 
 function foundationalParametersForCase(testCase) {
   return (testCase.parameters || []).filter((param) => foundationalCaseParameters.has(param));
-}
-
-function caseRelation(testCase) {
-  if (isCapacityCase(testCase)) {
-    return {
-      type: "scenario",
-      label: capacityCaseDisplay(testCase).relation,
-      params: testCase.parameters || []
-    };
-  }
-  const focusParams = focusParametersForCase(testCase);
-  if (focusParams.length === 1) {
-    return {
-      type: "single",
-      label: `${focusParams[0]} 专项测试`,
-      params: focusParams
-    };
-  }
-  if (focusParams.length > 1) {
-    return {
-      type: "combo",
-      label: `${focusParams.join(" + ")} 组合测试`,
-      params: focusParams
-    };
-  }
-  const foundational = foundationalParametersForCase(testCase);
-  return {
-    type: "scenario",
-    label: foundational.length ? `${foundational.join(" + ")} 基础协议` : "场景用例",
-    params: foundational
-  };
 }
 
 function capacityCaseDisplay(testCase) {
@@ -6045,7 +5994,6 @@ function renderHistoryRawCase(result, record) {
   const requestBody = result.request_body || sourceCase?.payload || null;
   const requestHeaders = result.request_headers || sourceCase?.headers || null;
   const responseHeaders = result.response_headers || null;
-  const caseCode = isCapacityResult(result) ? "" : result.case_id;
   const responseBlock = responseBody !== null
     ? `<pre class="code-block">${syntaxJson(responseBody)}</pre>`
     : rawResponse
@@ -8313,8 +8261,6 @@ function sortProtocolParameterMetaList(items) {
   return ordered;
 }
 
-const RESPONSES_PROTOCOL_CHANNEL_IDS = ["aliyun", "openrouter", "streamlake"];
-
 function sortProtocolChannels(channels) {
   const order = new Map(PROTOCOL_CHANNEL_ORDER.map((id, index) => [id, index]));
   return [...channels].sort((a, b) => {
@@ -8402,11 +8348,6 @@ function buildProtocolParameterMatrix(channels, protocolId) {
     missingDocChannels,
     partialDocChannels
   };
-}
-
-function renderProtocolDocBadge(docMeta) {
-  if (!docMeta) return "";
-  return `<span class="protocol-doc-badge ${escapeHtml(docMeta.docStatusClass)}" title="${escapeHtml(docMeta.notes || docMeta.docStatusLabel)}">${escapeHtml(docMeta.docStatusLabel)}</span>`;
 }
 
 function renderProtocolDocLinks(docMeta) {
@@ -8730,11 +8671,6 @@ function renderProtocolParamDrawerTableBody(protocolId, parameter, drawerData) {
   `;
 }
 
-function renderProtocolParamDrawerTable(protocolId, parameter, matrix, paramItem) {
-  const drawerData = buildProtocolParamDrawerData(protocolId, parameter, matrix, paramItem);
-  return `${renderProtocolParamDrawerSummary(drawerData)}${renderProtocolParamDrawerTableBody(protocolId, parameter, drawerData)}`;
-}
-
 function openProtocolParamDrawer(protocolId, parameter, category = "") {
   if (!els.protocolParamDrawer) return;
   const matrix = state.protocolMatrices?.[protocolId];
@@ -8885,11 +8821,6 @@ function protocolParameterParent(parameter) {
   const segments = protocolParameterSegments(parameter);
   if (segments.length <= 1) return "";
   return segments.slice(0, -1).join(".");
-}
-
-function protocolParameterLeaf(parameter) {
-  const segments = protocolParameterSegments(parameter);
-  return segments[segments.length - 1] || parameter;
 }
 
 function protocolParameterNestedDisplayName(parameter) {
@@ -9153,23 +9084,6 @@ function renderProtocolParameterMatrix(matrix, protocolDef) {
       </div>
     </details>
   `;
-}
-
-function providerIdForChannelOnEndpoint(channel, endpointId) {
-  const endpoint = channel.endpoints?.[endpointId];
-  if (endpoint?.supported === false) return null;
-  if (endpoint?.provider_id) return endpoint.provider_id;
-  const baseProvider = channel.provider_id || runnableProviderByChannel[channel.channel_id];
-  if (endpointId === "anthropic_messages" && channel.endpoints?.anthropic_messages?.supported !== false) {
-    return channel.endpoints.anthropic_messages?.provider_id || (baseProvider ? `${baseProvider}_messages` : null);
-  }
-  if (endpointId === "responses_api" && getProtocolMatrix()?.getParameters?.(channel.channel_id, "responses_api")) {
-    return baseProvider || null;
-  }
-  if (endpoint && endpoint.supported !== false) {
-    return baseProvider || null;
-  }
-  return null;
 }
 
 function renderChannelProtocolTags(platformProtocols, protocolColumns) {
@@ -11646,13 +11560,6 @@ function runV02ActiveCaseGroup() {
   return groups.find((group) => group.key === state.runV02.activeCaseGroupKey) || groups[0];
 }
 
-function runV02SelectedCasesForRun() {
-  const group = runV02ActiveCaseGroup();
-  if (!group) return [];
-  const selectedIds = runV02CaseGroupSelection(group.key);
-  return group.cases.filter((testCase) => selectedIds.has(testCase.case_id));
-}
-
 function runV02SelectionSnapshot(cases = state.runV02.cases || []) {
   return listRunV02CaseGroups(cases)
     .map((group) => ({
@@ -11778,7 +11685,6 @@ function renderRunV02CaseRow(testCase) {
   const protocolTools = isProtocolToolsCase(testCase);
   const protocolResponseFormat = isProtocolResponseFormatCase(testCase);
   const outputLength = isOutputLengthCase(testCase);
-  const outputLengthCapacity = isOutputLengthCapacityCase(testCase);
   const title = caseTitle(testCase);
   let tipHtml = "";
   if (connectivity) tipHtml = renderRunV02CaseInfoTip(RUN_V02_CONNECTIVITY_CASE_TOOLTIP);
@@ -12000,10 +11906,6 @@ function toggleRunV02Target(routeKey) {
   renderRunV02TargetSelect();
   renderRunV02ChannelConfigs();
   updateRunV02Availability();
-}
-
-function applyRunV02Route(routeKey) {
-  applyRunV02Baseline(routeKey);
 }
 
 async function loadModelOemBehaviorCases(vendorId, protocolId) {

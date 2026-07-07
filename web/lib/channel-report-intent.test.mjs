@@ -1,5 +1,3 @@
-import { createRequire } from "node:module";
-import { pathToFileURL } from "node:url";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";

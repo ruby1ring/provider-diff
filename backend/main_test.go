@@ -2049,7 +2049,7 @@ func TestCacheProbeConclusionHitSupported(t *testing.T) {
 	attempts := []cacheProbeAttempt{
 		{Attempt: 1, HTTPStatus: 200},
 		{
-			Attempt:   2,
+			Attempt:    2,
 			HTTPStatus: 200,
 			Usage: map[string]any{
 				"prompt_tokens": float64(120),
@@ -2072,7 +2072,7 @@ func TestCacheProbeConclusionZeroHitIgnored(t *testing.T) {
 	attempts := []cacheProbeAttempt{
 		{Attempt: 1, HTTPStatus: 200},
 		{
-			Attempt:   2,
+			Attempt:    2,
 			HTTPStatus: 200,
 			Usage: map[string]any{
 				"prompt_tokens":            float64(100),

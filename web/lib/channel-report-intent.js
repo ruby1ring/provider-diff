@@ -76,7 +76,6 @@ window.NOCTUA_CHANNEL_REPORT_INTENT = (() => {
   function isLengthEdgeOrCapacityCase(testCase) {
     if (testCase?.category === "capacity" || testCase?.capacity_case) return true;
     if (testCase?.category !== "length") return false;
-    const id = caseId(testCase);
     if (isLengthPrecedenceCase(testCase) || isLengthFieldEffectiveCase(testCase) || isLengthAcceptanceCase(testCase)) return false;
     return true;
   }

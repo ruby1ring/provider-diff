@@ -23,9 +23,9 @@ type channelModelLookupMatch struct {
 }
 
 type channelModelLookupResponse struct {
-	Query        string                       `json:"query"`
-	Matches      []channelModelLookupMatch    `json:"matches"`
-	SourceStatus map[string]string            `json:"source_status,omitempty"`
+	Query        string                    `json:"query"`
+	Matches      []channelModelLookupMatch `json:"matches"`
+	SourceStatus map[string]string         `json:"source_status,omitempty"`
 }
 
 type modelCandidate struct {
@@ -141,7 +141,7 @@ type modelListCacheEntry struct {
 }
 
 var (
-	modelListCache   sync.Map
+	modelListCache    sync.Map
 	modelListCacheTTL = 10 * time.Minute
 	modelListClient   = &http.Client{Timeout: 20 * time.Second}
 	numTokenPattern   = regexp.MustCompile(`\d+(?:\.\d+)*`)
@@ -245,7 +245,7 @@ func lookupModelsAcrossChannels(ctx context.Context, root, query string) (channe
 			"aliyun-cn": 4, "aliyun-us": 5, "aliyun-sg": 6,
 			"siliconflow-cn": 6, "siliconflow-com": 7,
 			"streamlake-cn": 8,
-			"openrouter": 9, "sf-router-cn": 10, "sf-router-com": 11,
+			"openrouter":    9, "sf-router-cn": 10, "sf-router-com": 11,
 		}
 		oi, oj := order[matches[i].PlatformID], order[matches[j].PlatformID]
 		if oi != oj {

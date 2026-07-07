@@ -38,7 +38,6 @@ function parseParameterGroups(yaml) {
 function parseSimpleYaml(yaml) {
   const result = {};
   let currentKey = null;
-  let currentIndent = 0;
   let groupObj = null;
 
   for (const rawLine of yaml.split("\n")) {
@@ -65,7 +64,6 @@ function parseSimpleYaml(yaml) {
         continue;
       }
       currentKey = key;
-      currentIndent = indent;
       if (key === "parameter_groups" || key === "mappings") {
         result[key] = {};
         groupObj = result[key];

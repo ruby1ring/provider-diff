@@ -14,9 +14,9 @@ type localProviderConfig struct {
 }
 
 type localConfigStore struct {
-	mu       sync.RWMutex
-	root     string
-	modTime  int64
+	mu        sync.RWMutex
+	root      string
+	modTime   int64
 	providers map[string]localProviderConfig
 }
 
@@ -105,19 +105,19 @@ func isPlaceholderAPIKey(key string) bool {
 
 // platformConfigKeyAliases maps 测评渠道 platform id → config.yaml section ids (first match wins).
 var platformConfigKeyAliases = map[string][]string{
-	"deepseek":       {"deepseek"},
-	"moonshot":       {"moonshot"},
-	"zhipu":          {"zhipu"},
-	"minimax":        {"minimax"},
-	"aliyun-cn":      {"aliyun-cn", "aliyun", "ali"},
-	"aliyun-us":      {"aliyun-us", "aliyun", "ali"},
-	"aliyun-sg":      {"aliyun-sg", "aliyun", "ali"},
-	"siliconflow-cn": {"siliconflow-cn", "sf-router-cn", "siliconflow"},
+	"deepseek":        {"deepseek"},
+	"moonshot":        {"moonshot"},
+	"zhipu":           {"zhipu"},
+	"minimax":         {"minimax"},
+	"aliyun-cn":       {"aliyun-cn", "aliyun", "ali"},
+	"aliyun-us":       {"aliyun-us", "aliyun", "ali"},
+	"aliyun-sg":       {"aliyun-sg", "aliyun", "ali"},
+	"siliconflow-cn":  {"siliconflow-cn", "sf-router-cn", "siliconflow"},
 	"siliconflow-com": {"siliconflow-com", "sf-router-com", "siliconflow"},
-	"openrouter":     {"openrouter"},
-	"sf-router-cn":   {"sf-router-cn", "siliconflow-cn", "siliconflow"},
-	"sf-router-com":  {"sf-router-com", "siliconflow-com", "siliconflow"},
-	"streamlake-cn":  {"streamlake-cn", "streamlake"},
+	"openrouter":      {"openrouter"},
+	"sf-router-cn":    {"sf-router-cn", "siliconflow-cn", "siliconflow"},
+	"sf-router-com":   {"sf-router-com", "siliconflow-com", "siliconflow"},
+	"streamlake-cn":   {"streamlake-cn", "streamlake"},
 }
 
 func maskAPIKey(key string) string {

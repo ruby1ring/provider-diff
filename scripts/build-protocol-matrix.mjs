@@ -11,8 +11,7 @@ import {
   parseFrontmatter,
   collectSpecsFromBody,
   findSectionTables,
-  rowToSpec,
-  normalizeParameterName
+  rowToSpec
 } from "./lib/md-parse.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");

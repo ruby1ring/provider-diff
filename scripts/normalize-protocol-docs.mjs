@@ -19,17 +19,6 @@ function write(p, content) {
   fs.writeFileSync(p, content.trimEnd() + "\n");
 }
 
-function cleanFeishuClip(text) {
-  return text
-    .replace(/\\-/g, "-")
-    .replace(/\\_/g, "_")
-    .replace(/\\\./g, ".")
-    .replace(/\\\(/g, "(")
-    .replace(/\\\)/g, ")")
-    .replace(/<br>/g, " ")
-    .replace(/\{0, 2\^31-1\}/g, "[0, 2^31-1]");
-}
-
 function header({ channel, protocolLabel, protocolId, url, verified = "2026-06-25" }) {
   return `# ${channel} ${protocolLabel} API Notes
 
@@ -580,7 +569,6 @@ Previous HTML export archived if present.
 `);
 
   if (fs.existsSync(path.join(DOCS, "siliconflow-message.md"))) {
-    const msg = read(path.join(DOCS, "siliconflow-message.md"));
     moveToArchive("siliconflow-message.md", "siliconflow-message-raw.md");
     write(path.join(DOCS, "siliconflow-message.md"), `${header({
       channel: "SiliconFlow",

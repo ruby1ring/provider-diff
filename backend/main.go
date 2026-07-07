@@ -187,24 +187,24 @@ type indexedRunCaseResult struct {
 }
 
 type RunCaseResult struct {
-	CaseID                    string          `json:"case_id"`
-	Title                     string          `json:"title"`
-	Category                  string          `json:"category"`
-	Parameters                []string        `json:"parameters"`
-	Method                    string          `json:"method"`
-	URL                       string          `json:"url"`
-	RequestHeaders            map[string]any  `json:"request_headers,omitempty"`
-	RequestBody               map[string]any  `json:"request_body"`
-	ExpectedHTTPStatus        int             `json:"expected_http_status,omitempty"`
-	ExpectedSupportConclusion string          `json:"expected_support_conclusion,omitempty"`
-	HTTPStatus                int             `json:"http_status"`
-	LatencyMS                 int64           `json:"latency_ms"`
-	ResponseBody              any             `json:"response_body,omitempty"`
-	RawResponse               string          `json:"raw_response,omitempty"`
-	ResponseHeaders           map[string]any  `json:"response_headers,omitempty"`
-	Assertions                []CaseAssertion `json:"assertions,omitempty"`
-	Error                     string          `json:"error,omitempty"`
-	SupportConclusion         string          `json:"support_conclusion"`
+	CaseID                    string               `json:"case_id"`
+	Title                     string               `json:"title"`
+	Category                  string               `json:"category"`
+	Parameters                []string             `json:"parameters"`
+	Method                    string               `json:"method"`
+	URL                       string               `json:"url"`
+	RequestHeaders            map[string]any       `json:"request_headers,omitempty"`
+	RequestBody               map[string]any       `json:"request_body"`
+	ExpectedHTTPStatus        int                  `json:"expected_http_status,omitempty"`
+	ExpectedSupportConclusion string               `json:"expected_support_conclusion,omitempty"`
+	HTTPStatus                int                  `json:"http_status"`
+	LatencyMS                 int64                `json:"latency_ms"`
+	ResponseBody              any                  `json:"response_body,omitempty"`
+	RawResponse               string               `json:"raw_response,omitempty"`
+	ResponseHeaders           map[string]any       `json:"response_headers,omitempty"`
+	Assertions                []CaseAssertion      `json:"assertions,omitempty"`
+	Error                     string               `json:"error,omitempty"`
+	SupportConclusion         string               `json:"support_conclusion"`
 	ReasoningTokens           *int                 `json:"reasoning_tokens,omitempty"`
 	ThinkingTokens            *int                 `json:"thinking_tokens,omitempty"`
 	StreamMetrics             *StreamMetrics       `json:"stream_metrics,omitempty"`
@@ -2257,13 +2257,13 @@ func cacheAttemptPayload(manifest Manifest, probe cacheProbe, model string) map[
 				{"role": "system", "content": contextText},
 				{"role": "user", "content": userPrompt},
 			},
-			"prompt_cache_key": "provider-diff-cache-probe",
+			"prompt_cache_key":      "provider-diff-cache-probe",
 			"max_completion_tokens": 20,
 		}
 	case "cache_control":
 		if messagesEndpoint {
 			return map[string]any{
-				"model": model,
+				"model":      model,
 				"max_tokens": 64,
 				"system": []map[string]any{
 					{
@@ -2486,7 +2486,7 @@ func runCacheProbeCase(ctx context.Context, client *http.Client, endpointURL, ap
 func cacheProbeSummary(probe cacheProbe, attempts []cacheProbeAttempt, measure cacheProbeAttempt) map[string]any {
 	display := map[string]any{
 		"缓存命中 tokens": fmt.Sprintf("%d", measure.HitTokens),
-		"缓存命中率":      formatCacheHitRate(measure.HitRate),
+		"缓存命中率":       formatCacheHitRate(measure.HitRate),
 	}
 	if measure.HitField != "" {
 		display["命中字段"] = measure.HitField
@@ -4511,9 +4511,9 @@ func evaluateResultOutputCapEffective(result RunCaseResult) (bool, string) {
 	completionTokens, hasCompletion := responseCompletionTokens(result.ResponseBody)
 	finishReason := responseFinishReason(result.ResponseBody)
 	attempt := capacityAttempt{
-		Candidate:         limit,
-		CompletionTokens:  completionTokens,
-		FinishReason:      finishReason,
+		Candidate:        limit,
+		CompletionTokens: completionTokens,
+		FinishReason:     finishReason,
 	}
 	if !hasCompletion {
 		attempt.CompletionTokens = 0

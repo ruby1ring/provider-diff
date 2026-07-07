@@ -41,10 +41,6 @@ function cleanFeishuClip(text) {
     .trim();
 }
 
-function stripHeadingMarks(line) {
-  return cleanFeishuClip(line.replace(/^#+\s*/, "").replace(/^\*\*|\*\*$/g, ""));
-}
-
 const EXCLUDED_SECTION_PATTERNS = [
   /^SDK 报错$/i,
   /^NetworkError$/i,
@@ -462,7 +458,6 @@ function ensureArchive() {
 
 function main() {
   ensureArchive();
-  const raw = cleanFeishuClip(read(RAW_PATH));
   const parsed = parseRawMarkdown(read(RAW_PATH));
   const records = dedupeGateway(parsed);
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-26T11:14:27.257Z",
+  "generatedAt": "2026-07-07T03:32:14.813Z",
   "docStatus": {
     "verified": {
       "label": "已对照文档",
@@ -176,7 +176,7 @@
       "channel_id": "deepseek",
       "label": "DeepSeek",
       "logo": "/assets/logos/deepseek.ico",
-      "docStatus": "verified",
+      "docStatus": "partial",
       "localDoc": "docs/errorcode/deepseek.md",
       "docUrl": "https://api-docs.deepseek.com/zh-cn/quick_start/error_codes",
       "envelope": {
@@ -187,6 +187,12 @@
         "messagePath": "(response body text)"
       },
       "entries": [
+        {
+          "http": 400,
+          "nativeCode": "400",
+          "nativeType": null,
+          "message": "请求体格式错误"
+        },
         {
           "http": 401,
           "nativeCode": "401",
@@ -248,7 +254,8 @@
           "http": 422,
           "nativeCode": "422",
           "nativeType": null,
-          "nativeMessage": "请求体参数错误"
+          "nativeMessage": "请求体参数错误",
+          "notes": "HTTP 422 参数错误；HTTP 400 请求体格式错误见 entries"
         },
         "server_error": {
           "http": 500,
@@ -268,7 +275,7 @@
       "channel_id": "zhipu",
       "label": "智谱",
       "logo": "/assets/logos/zhipu.svg",
-      "docStatus": "verified",
+      "docStatus": "partial",
       "localDoc": "docs/errorcode/zhipu.md",
       "docUrl": "https://docs.bigmodel.cn/cn/guide/develop/error",
       "envelope": {
@@ -292,6 +299,12 @@
           "message": "身份验证失败"
         },
         {
+          "http": 401,
+          "nativeCode": "1003",
+          "nativeType": null,
+          "message": "Authentication Token 已过期，请重新生成/获取"
+        },
+        {
           "http": 429,
           "nativeCode": "1302",
           "nativeType": null,
@@ -302,6 +315,24 @@
           "nativeCode": "1113",
           "nativeType": null,
           "message": "账户已欠费"
+        },
+        {
+          "http": 429,
+          "nativeCode": "1305",
+          "nativeType": null,
+          "message": "该模型当前访问量过大，请您稍后再试"
+        },
+        {
+          "http": 429,
+          "nativeCode": "1309",
+          "nativeType": null,
+          "message": "GLM Coding Plan 套餐已到期，暂无法使用"
+        },
+        {
+          "http": 429,
+          "nativeCode": "1310",
+          "nativeType": null,
+          "message": "已达到每周/每月使用上限"
         },
         {
           "http": 400,
@@ -322,6 +353,12 @@
           "message": "输入或生成内容可能包含不安全或敏感内容"
         },
         {
+          "http": 400,
+          "nativeCode": "1261",
+          "nativeType": null,
+          "message": "Prompt 超长"
+        },
+        {
           "http": 403,
           "nativeCode": "1220",
           "nativeType": null,
@@ -332,6 +369,132 @@
           "nativeCode": "1200",
           "nativeType": null,
           "message": "API 调用失败"
+        },
+        {
+          "http": 500,
+          "nativeCode": "-",
+          "nativeType": "-",
+          "message": "内部错误"
+        },
+        {
+          "http": 401,
+          "nativeCode": "1005",
+          "nativeType": null,
+          "message": "已开启二次认证保护，需要二次认证登录。"
+        },
+        {
+          "http": 400,
+          "nativeCode": "1212",
+          "nativeType": null,
+          "message": "当前模型不支持 `${method}` 调用方式"
+        },
+        {
+          "http": 400,
+          "nativeCode": "1213",
+          "nativeType": null,
+          "message": "未正常接收到 `${field}` 参数"
+        },
+        {
+          "http": 400,
+          "nativeCode": "1214",
+          "nativeType": null,
+          "message": "`${field}` 参数非法。请检查文档"
+        },
+        {
+          "http": 400,
+          "nativeCode": "1215",
+          "nativeType": null,
+          "message": "`${field1}` 与 `${field2}` 不能同时设置，请检查文档"
+        },
+        {
+          "http": 400,
+          "nativeCode": "1221",
+          "nativeType": null,
+          "message": "API `${API_name}` 已下线"
+        },
+        {
+          "http": 400,
+          "nativeCode": "1222",
+          "nativeType": null,
+          "message": "API `${API_name}` 不存在"
+        },
+        {
+          "http": 500,
+          "nativeCode": "1230",
+          "nativeType": null,
+          "message": "API 调用流程出错"
+        },
+        {
+          "http": 500,
+          "nativeCode": "1234",
+          "nativeType": null,
+          "message": "网络错误，错误id：`${error_id}`，请联系客服"
+        },
+        {
+          "http": 429,
+          "nativeCode": "1308",
+          "nativeType": null,
+          "message": "已达到 `${number} ${unit}` 的使用上限。您的限额将在 `${next_flush_time}` 重置"
+        },
+        {
+          "http": 429,
+          "nativeCode": "1311",
+          "nativeType": null,
+          "message": "当前订阅套餐暂未开放`${model_name}`权限"
+        },
+        {
+          "http": 429,
+          "nativeCode": "1313",
+          "nativeType": null,
+          "message": "您的账户当前使用模式不符合公平使用策略，请求频率已受到限制。详情请参阅《条款与协议-订阅及自动续费协议》，如需恢复请前往个人中心-编程套餐总览-顶部申请解除限制"
+        },
+        {
+          "http": 429,
+          "nativeCode": "1314",
+          "nativeType": null,
+          "message": "您的企业套餐已失效，请联系企业管理员。"
+        },
+        {
+          "http": 429,
+          "nativeCode": "1315",
+          "nativeType": null,
+          "message": "该 API Key 仅限企业编程套餐场景使用，请到官网更换对应产品类型的 API Key"
+        },
+        {
+          "http": 429,
+          "nativeCode": "1316",
+          "nativeType": null,
+          "message": "已达到 5 小时使用上限。主账号余额不足，无法使用超额按量付费。您的限额将在 `{next_flush_time}` 重置。"
+        },
+        {
+          "http": 429,
+          "nativeCode": "1317",
+          "nativeType": null,
+          "message": "已达到 7 天使用上限。主账号余额不足，无法使用超额按量付费。您的限额将在 `{next_flush_time}` 重置。"
+        },
+        {
+          "http": 429,
+          "nativeCode": "1318",
+          "nativeType": null,
+          "message": "已达到 5 小时使用上限，且已达子账号月消费上限，无法使用超额按量付费，请联系管理员调整。您的限额将在 `{next_flush_time}` 重置。"
+        },
+        {
+          "http": 429,
+          "nativeCode": "1319",
+          "nativeType": null,
+          "message": "已达到 7 天使用上限，且已达子账号月消费上限，无法使用超额按量付费，请联系管理员调整。您的限额将在 `{next_flush_time}` 重置。"
+        },
+        {
+          "http": 429,
+          "nativeCode": "1320",
+          "nativeType": null,
+          "message": "已达到 5 小时使用上限，且已达企业级月消费上限，无法使用超额按量付费，请联系管理员调整。您的限额将在 `{next_flush_time}` 重置。"
+        },
+        {
+          "http": 429,
+          "nativeCode": "1321",
+          "nativeType": null,
+          "message": "已达到 7 天使用上限，且已达企业级月消费上限，无法使用超额按量付费，请联系管理员调整。您的限额将在 `{next_flush_time}` 重置。"
         }
       ],
       "mappings": {
@@ -431,6 +594,12 @@
           "message": "Invalid request"
         },
         {
+          "http": 403,
+          "nativeCode": null,
+          "nativeType": "permission_denied_error",
+          "message": "The API you are accessing is not open"
+        },
+        {
           "http": 404,
           "nativeCode": null,
           "nativeType": "resource_not_found_error",
@@ -459,6 +628,12 @@
           "nativeCode": null,
           "nativeType": "server_error",
           "message": "Failed to extract file"
+        },
+        {
+          "http": 500,
+          "nativeCode": null,
+          "nativeType": "unexpected_output",
+          "message": "invalid state transition"
         }
       ],
       "mappings": {
@@ -576,6 +751,12 @@
           "message": "output new_sensitive"
         },
         {
+          "http": 429,
+          "nativeCode": "1039",
+          "nativeType": null,
+          "message": "token limit"
+        },
+        {
           "http": 500,
           "nativeCode": "1024",
           "nativeType": null,
@@ -617,7 +798,8 @@
           "http": 400,
           "nativeCode": "1026",
           "nativeType": null,
-          "nativeMessage": "input new_sensitive"
+          "nativeMessage": "input new_sensitive",
+          "notes": "输出侧敏感内容见业务码 1027"
         },
         "server_error": {
           "http": 500,
@@ -803,6 +985,54 @@
           "nativeCode": "ModelUnavailable",
           "nativeType": "ModelUnavailable",
           "message": "Model is unavailable, please try again later"
+        },
+        {
+          "http": 400,
+          "nativeCode": null,
+          "nativeType": null,
+          "message": "参数无效、内容审核、部分欠费场景（文档亦见 `400-Arrearage`）"
+        },
+        {
+          "http": 401,
+          "nativeCode": null,
+          "nativeType": null,
+          "message": "API Key 无效、业务空间/Token 鉴权失败"
+        },
+        {
+          "http": 403,
+          "nativeCode": null,
+          "nativeType": null,
+          "message": "权限不足、欠费、模型未开通、免费额度策略"
+        },
+        {
+          "http": 404,
+          "nativeCode": null,
+          "nativeType": null,
+          "message": "模型不存在或不支持当前协议"
+        },
+        {
+          "http": 409,
+          "nativeCode": null,
+          "nativeType": null,
+          "message": "资源冲突（如部署实例重名，LLM 场景较少见）"
+        },
+        {
+          "http": 429,
+          "nativeCode": null,
+          "nativeType": null,
+          "message": "请求限流、配额耗尽、Coding Plan 额度"
+        },
+        {
+          "http": 500,
+          "nativeCode": null,
+          "nativeType": null,
+          "message": "内部错误、推理超时、算法异常"
+        },
+        {
+          "http": 503,
+          "nativeCode": null,
+          "nativeType": null,
+          "message": "模型不可用、容量饱和"
         },
         {
           "http": 401,
@@ -1027,6 +1257,12 @@
       },
       "entries": [
         {
+          "http": 400,
+          "nativeCode": "400",
+          "nativeType": "invalid_request",
+          "message": "Bad request"
+        },
+        {
           "http": 401,
           "nativeCode": "401",
           "nativeType": "authentication",
@@ -1067,6 +1303,168 @@
           "nativeCode": "408",
           "nativeType": "timeout",
           "message": "Request timed out"
+        },
+        {
+          "http": 400,
+          "nativeCode": "context_length_exceeded",
+          "nativeType": "context_length_exceeded",
+          "message": "The combined input and output tokens exceed the model's context window."
+        },
+        {
+          "http": 400,
+          "nativeCode": "max_tokens_exceeded",
+          "nativeType": "max_tokens_exceeded",
+          "message": "Generation stopped because `max_tokens` (or `max_completion_tokens`) was reached."
+        },
+        {
+          "http": 400,
+          "nativeCode": "token_limit_exceeded",
+          "nativeType": "token_limit_exceeded",
+          "message": "A token budget enforced by OpenRouter (e.g. credit-based cap) was exceeded."
+        },
+        {
+          "http": 400,
+          "nativeCode": "string_too_long",
+          "nativeType": "string_too_long",
+          "message": "A single string field in the request (system prompt, user message, etc.) exceeded the provider's per-field character limit."
+        },
+        {
+          "http": 401,
+          "nativeCode": "authentication",
+          "nativeType": "authentication",
+          "message": "The API key is missing, invalid, or revoked."
+        },
+        {
+          "http": 403,
+          "nativeCode": "permission_denied",
+          "nativeType": "permission_denied",
+          "message": "The key is valid but lacks the required permission or the request was blocked by a [guardrail](/docs/guides/features/guardrails)."
+        },
+        {
+          "http": 402,
+          "nativeCode": "payment_required",
+          "nativeType": "payment_required",
+          "message": "The account or API key has insufficient credits. [Add credits](https://openrouter.ai/credits) and retry."
+        },
+        {
+          "http": 429,
+          "nativeCode": "rate_limit_exceeded",
+          "nativeType": "rate_limit_exceeded",
+          "message": "Request- or token-level rate limit hit. Respect the `Retry-After` header before retrying."
+        },
+        {
+          "http": 503,
+          "nativeCode": "provider_overloaded",
+          "nativeType": "provider_overloaded",
+          "message": "The upstream provider is temporarily overloaded. Retry after a short delay."
+        },
+        {
+          "http": 502,
+          "nativeCode": "provider_unavailable",
+          "nativeType": "provider_unavailable",
+          "message": "The upstream provider returned an invalid or empty response. OpenRouter may auto-retry with another provider if fallback routing is enabled."
+        },
+        {
+          "http": 400,
+          "nativeCode": "invalid_request",
+          "nativeType": "invalid_request",
+          "message": "A request parameter is malformed or missing."
+        },
+        {
+          "http": 400,
+          "nativeCode": "invalid_prompt",
+          "nativeType": "invalid_prompt",
+          "message": "A specific message in the `messages` array is invalid (e.g. unsupported role, empty content)."
+        },
+        {
+          "http": 404,
+          "nativeCode": "not_found",
+          "nativeType": "not_found",
+          "message": "The requested resource (model, file, etc.) does not exist."
+        },
+        {
+          "http": 412,
+          "nativeCode": "precondition_failed",
+          "nativeType": "precondition_failed",
+          "message": "A precondition header (e.g. `If-Match`) was not satisfied."
+        },
+        {
+          "http": 413,
+          "nativeCode": "payload_too_large",
+          "nativeType": "payload_too_large",
+          "message": "The request body exceeds the maximum allowed size."
+        },
+        {
+          "http": 422,
+          "nativeCode": "unprocessable",
+          "nativeType": "unprocessable",
+          "message": "The request is syntactically valid but semantically unprocessable."
+        },
+        {
+          "http": 400,
+          "nativeCode": "content_policy_violation",
+          "nativeType": "content_policy_violation",
+          "message": "The input or output was flagged by a content filter (provider- or OpenRouter-level)."
+        },
+        {
+          "http": 400,
+          "nativeCode": "refusal",
+          "nativeType": "refusal",
+          "message": "The model explicitly refused to comply with the request (e.g. safety refusal)."
+        },
+        {
+          "http": 400,
+          "nativeCode": "invalid_image",
+          "nativeType": "invalid_image",
+          "message": "An image in the request is corrupt or unreadable."
+        },
+        {
+          "http": 400,
+          "nativeCode": "image_too_large",
+          "nativeType": "image_too_large",
+          "message": "An image exceeds the provider's maximum file size or pixel dimensions."
+        },
+        {
+          "http": 400,
+          "nativeCode": "image_too_small",
+          "nativeType": "image_too_small",
+          "message": "An image is below the provider's minimum pixel dimensions."
+        },
+        {
+          "http": 400,
+          "nativeCode": "unsupported_image_format",
+          "nativeType": "unsupported_image_format",
+          "message": "The image format is not supported by the provider."
+        },
+        {
+          "http": 404,
+          "nativeCode": "image_not_found",
+          "nativeType": "image_not_found",
+          "message": "The referenced image URL or file ID could not be resolved."
+        },
+        {
+          "http": 400,
+          "nativeCode": "image_download_failed",
+          "nativeType": "image_download_failed",
+          "message": "OpenRouter could not download the image from the provided URL (DNS failure, timeout, non-200 response, etc.)."
+        },
+        {
+          "http": 500,
+          "nativeCode": "server",
+          "nativeType": "server",
+          "message": "An unexpected internal error. The upstream error message is masked on this type."
+        },
+        {
+          "http": 504,
+          "nativeCode": "timeout",
+          "nativeType": "timeout",
+          "message": "The provider did not respond within the allowed time."
+        },
+        {
+          "http": 500,
+          "nativeCode": "unmapped",
+          "nativeType": "unmapped",
+          "message": "An upstream error that doesn't map to any known category. `error.metadata.provider_code` may contain the original code."
         }
       ],
       "mappings": {
@@ -1151,106 +1549,125 @@
       },
       "entries": [
         {
+          "http": 0,
+          "nativeCode": "Error Unknowndownstream_remote_disconnect",
+          "nativeType": null,
+          "message": "Error Unknowndownstream_remote_disconnect",
+          "notes": "HTTP 0：连接中断，模型无返回；构建脚本无法从 md 解析此状态码，仅 registry 维护"
+        },
+        {
           "http": 400,
-          "nativeCode": "InvalidArgument.Authorization",
-          "nativeType": null,
-          "message": "The provided API key is invalid"
-        },
-        {
-          "http": 403,
-          "nativeCode": "Forbidden.InsufficientBalance",
-          "nativeType": null,
-          "message": "The balance is insufficient"
-        },
-        {
-          "http": 429,
-          "nativeCode": "TooManyRequests",
-          "nativeType": null,
-          "message": "Too many requests"
+          "nativeCode": "InvalidArgument.MissingRequiredParameter",
+          "nativeType": "InvalidArgument.MissingRequiredParameter",
+          "message": "The xxx parameter is required."
         },
         {
           "http": 400,
           "nativeCode": "InvalidArgument.RequestBodyInvalid",
-          "nativeType": null,
-          "message": "Invalid request body format"
-        },
-        {
-          "http": 404,
-          "nativeCode": "ResourceNotFound",
-          "nativeType": null,
-          "message": "Resource not found"
-        },
-        {
-          "http": 500,
-          "nativeCode": "InternalError",
-          "nativeType": null,
-          "message": "Unknown server error"
-        },
-        {
-          "http": 401,
-          "nativeCode": "Unauthorized",
-          "nativeType": null,
-          "message": "AUTH_INFO missing (公共错误码)"
+          "nativeType": "InvalidArgument.RequestBodyInvalid",
+          "message": "Invalid request body format, please check the request body format."
         },
         {
           "http": 400,
-          "nativeCode": "InvalidArgument\\.MissingRequiredParameter",
-          "nativeType": "InvalidArgument\\.MissingRequiredParameter",
-          "message": "The xxx parameter is required\\."
+          "nativeCode": "InvalidEndpoint.StoppedEndpoint",
+          "nativeType": "InvalidEndpoint.StoppedEndpoint",
+          "message": "The requested endpoint has been stopped and is currently unavailable."
         },
         {
           "http": 400,
-          "nativeCode": "InvalidArgument\\.RequestBodyInvalid",
-          "nativeType": "InvalidArgument\\.RequestBodyInvalid",
-          "message": "Invalid request body format, please check the request body format\\."
+          "nativeCode": "InvalidArgument.Authorization",
+          "nativeType": "InvalidArgument.Authorization",
+          "message": "The provided API key is invalid."
         },
         {
           "http": 400,
-          "nativeCode": "InvalidEndpoint\\.StoppedEndpoint",
-          "nativeType": "InvalidEndpoint\\.StoppedEndpoint",
-          "message": "The requested endpoint has been stopped and is currently unavailable\\."
-        },
-        {
-          "http": 400,
-          "nativeCode": "InvalidArgument\\.Authorization",
-          "nativeType": "InvalidArgument\\.Authorization",
-          "message": "The provided API key is invalid\\."
-        },
-        {
-          "http": 400,
-          "nativeCode": "InvalidArgument\\.UserInfoError",
-          "nativeType": "InvalidArgument\\.UserInfoError",
-          "message": "The userInfo is invalid\\."
+          "nativeCode": "InvalidArgument.UserInfoError",
+          "nativeType": "InvalidArgument.UserInfoError",
+          "message": "The userInfo is invalid."
         },
         {
           "http": 403,
-          "nativeCode": "Forbidden\\.InsufficientBalance",
-          "nativeType": "Forbidden\\.InsufficientBalance",
-          "message": "The balance is insufficient\\."
+          "nativeCode": "Forbidden.InsufficientBalance",
+          "nativeType": "Forbidden.InsufficientBalance",
+          "message": "The balance is insufficient."
         },
         {
           "http": 403,
-          "nativeCode": "Forbidden\\.Frozen",
-          "nativeType": "Forbidden\\.Frozen",
-          "message": "User has been frozen\\."
+          "nativeCode": "Forbidden.Frozen",
+          "nativeType": "Forbidden.Frozen",
+          "message": "User has been frozen."
         },
         {
           "http": 403,
           "nativeCode": "Forbidden",
           "nativeType": "Forbidden",
-          "message": "The request was denied by the server\\."
+          "message": "The request was denied by the server."
         },
         {
           "http": 403,
           "nativeCode": "UnaccessibleUser",
           "nativeType": "UnaccessibleUser",
-          "message": "Request was rejected due to reason: user is not allowed to access, reason: CustomerId：\\{CustomerId\\}，Action：\\{Action\\}，No balance and no resource pack, limit request"
+          "message": "Request was rejected due to reason: user is not allowed to access, reason: CustomerId：{CustomerId}，Action：{Action}，No balance and no resource pack, limit request"
+        },
+        {
+          "http": 404,
+          "nativeCode": "ResourceNotFound",
+          "nativeType": "ResourceNotFound",
+          "message": "Resource not found."
+        },
+        {
+          "http": 408,
+          "nativeCode": "Request Timeou",
+          "nativeType": "Request Timeou",
+          "message": "Request Timeout"
+        },
+        {
+          "http": 413,
+          "nativeCode": "Payload Too Large",
+          "nativeType": "Payload Too Large",
+          "message": "Payload Too Large"
+        },
+        {
+          "http": 429,
+          "nativeCode": "TooManyRequests",
+          "nativeType": "TooManyRequests",
+          "message": "Too many requests."
+        },
+        {
+          "http": 500,
+          "nativeCode": "InternalServerError",
+          "nativeType": "InternalServerError",
+          "message": "The request processing has failed due to some unknown error."
+        },
+        {
+          "http": 502,
+          "nativeCode": "Bad Gateway",
+          "nativeType": "Bad Gateway",
+          "message": "Bad Gateway"
+        },
+        {
+          "http": 503,
+          "nativeCode": "Service Unavailable",
+          "nativeType": "Service Unavailable",
+          "message": "Service Unavailable"
+        },
+        {
+          "http": 200,
+          "nativeCode": "ClientClosedRequestdownstream_remote_disconnect",
+          "nativeType": "ClientClosedRequestdownstream_remote_disconnect",
+          "message": "ClientClosedRequestdownstream_remote_disconnect"
         },
         {
           "http": 400,
           "nativeCode": "InvalidArgument",
           "nativeType": "InvalidArgument",
           "message": "Missing Action parameter"
+        },
+        {
+          "http": 401,
+          "nativeCode": "Unauthorized",
+          "nativeType": "Unauthorized",
+          "message": "AUTH_INFO missing"
         }
       ],
       "mappings": {
@@ -1258,43 +1675,67 @@
           "http": 400,
           "nativeCode": "InvalidArgument.Authorization",
           "nativeType": null,
-          "nativeMessage": "The provided API key is invalid"
+          "nativeMessage": "The provided API key is invalid."
         },
         "rate_limit": {
           "http": 429,
           "nativeCode": "TooManyRequests",
           "nativeType": null,
-          "nativeMessage": "Too many requests"
+          "nativeMessage": "Too many requests."
         },
         "insufficient_quota": {
           "http": 403,
           "nativeCode": "Forbidden.InsufficientBalance",
           "nativeType": null,
-          "nativeMessage": "The balance is insufficient"
+          "nativeMessage": "The balance is insufficient."
         },
         "invalid_parameter": {
           "http": 400,
           "nativeCode": "InvalidArgument.RequestBodyInvalid",
           "nativeType": null,
-          "nativeMessage": "Invalid request body format"
+          "nativeMessage": "Invalid request body format, please check the request body format."
         },
         "permission_denied": {
           "http": 403,
           "nativeCode": "Forbidden",
           "nativeType": null,
-          "nativeMessage": "The request was denied by the server"
+          "nativeMessage": "The request was denied by the server."
         },
         "model_not_found": {
           "http": 404,
           "nativeCode": "ResourceNotFound",
           "nativeType": null,
-          "nativeMessage": "Resource not found"
+          "nativeMessage": "Resource not found."
         },
         "server_error": {
           "http": 500,
-          "nativeCode": "InternalError",
+          "nativeCode": "InternalServerError",
           "nativeType": null,
-          "nativeMessage": "The request processing has failed"
+          "nativeMessage": "The request processing has failed due to some unknown error."
+        },
+        "timeout": {
+          "http": 408,
+          "nativeCode": "Request Timeou",
+          "nativeType": null,
+          "nativeMessage": "Request Timeout"
+        },
+        "context_length": {
+          "http": 413,
+          "nativeCode": "Payload Too Large",
+          "nativeType": null,
+          "nativeMessage": "Payload Too Large"
+        },
+        "bad_gateway": {
+          "http": 502,
+          "nativeCode": "Bad Gateway",
+          "nativeType": null,
+          "nativeMessage": "Bad Gateway"
+        },
+        "engine_overloaded": {
+          "http": 503,
+          "nativeCode": "Service Unavailable",
+          "nativeType": null,
+          "nativeMessage": "Service Unavailable"
         }
       }
     },
@@ -1302,9 +1743,11 @@
       "channel_id": "siliconflow",
       "label": "SiliconFlow",
       "logo": "/assets/logos/siliconflow-mark.svg",
-      "docStatus": "verified",
+      "docStatus": "partial",
       "localDoc": "docs/errorcode/siliconflow.md",
       "docUrl": "https://docs.siliconflow.cn/en/faqs/error-code",
+      "mdMerge": false,
+      "envelopeNotes": "完整业务码见 localDoc（136 条）；catalog 仅展示 LLM 网关高频场景代表码",
       "envelope": {
         "summary": "HTTP 状态码 + 顶层业务错误码 code（数字）与 message；非 OpenAI error 嵌套形态",
         "httpPath": "(HTTP status)",
