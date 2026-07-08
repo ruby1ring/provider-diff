@@ -3,7 +3,7 @@ channel_id: minimax
 protocol_id: anthropic_messages
 doc_status: verified
 doc_url: "https://platform.minimax.io/docs/api-reference/text-chat-openai"
-last_verified: 2026-06-25
+last_verified: 2026-07-08
 compare: true
 required_parameters: [model, messages, max_tokens]
 parameter_groups:
@@ -13,9 +13,9 @@ parameter_groups:
   Tools: [tools, tool_choice]
   Protocol: [stream]
   Extra: [service_tier, metadata]
-notes: 对照 docs/api/minimax-message.md（2026-06-25）。 类型字段按该渠道官方 API 原文收录。
+  Observed: [input, max_completion_tokens, n, stop, stream_options, user]
+notes: 对照 docs/api/minimax-message.md（2026-06-25）。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：input, max_completion_tokens, n, stop, stream_options, user。
 ---
-
 # MiniMax Anthropic Messages API Notes
 
 
@@ -56,3 +56,13 @@ notes: 对照 docs/api/minimax-message.md（2026-06-25）。 类型字段按该�
 
 ## Raw Archive
 
+## 实测补充参数（来源：实测）
+
+| Parameter | Type | Required | Default | Range | Notes |
+|---|---|---|---|---|---|
+| `input` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。 |
+| `max_completion_tokens` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。 |
+| `n` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。 |
+| `stop` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。 |
+| `stream_options` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。 |
+| `user` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。 |

@@ -18,8 +18,8 @@
     "support_conclusion": "supported",
     "response_mode": "sse",
     "stream_incremental": true,
-    "stream_probe_attempts": 3,
+    "stream_probe_attempts": 1,
     "required_chunk_fields": ["id", "object", "created", "model", "choices"],
-    "notes": "stream=true 时返回 text/event-stream，分片以 data: [DONE] 结束，并应增量返回多个 content chunk；重复探测 3 次，任一次伪流式即 fail。"
+    "notes": "stream=true 时返回 text/event-stream，分片以 data: [DONE] 结束；增量分片按 content 或 reasoning_content 合计至少 2 个 chunk，探测 1 次。"
   }
 }

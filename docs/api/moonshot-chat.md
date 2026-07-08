@@ -3,7 +3,7 @@ channel_id: moonshot
 protocol_id: chat_completions
 doc_status: verified
 doc_url: "https://platform.moonshot.cn/docs/api/chat"
-last_verified: 2026-06-25
+last_verified: 2026-07-08
 compare: true
 required_parameters: [model, messages]
 parameter_groups:
@@ -13,9 +13,9 @@ parameter_groups:
   Tools: [tools]
   Protocol: [stream, stream_options.include_usage]
   Metadata: [prompt_cache_key, safety_identifier]
-notes: 对照 docs/api/moonshot-chat.md（2026-06-25）。temperature 范围 [0,1]（非 OpenAI [0,2]）；max_tokens 已弃用。 类型字段按该渠道官方 API 原文收录。
+  Observed: [stream_options, thinking, user]
+notes: 对照 docs/api/moonshot-chat.md（2026-06-25）。temperature 范围 [0,1]（非 OpenAI [0,2]）；max_tokens 已弃用。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：stream_options, thinking, user。
 ---
-
 # Moonshot / Kimi Chat Completions API Notes
 
 
@@ -72,3 +72,10 @@ notes: 对照 docs/api/moonshot-chat.md（2026-06-25）。temperature 范围 [0,
 
 ## Raw Archive
 
+## 实测补充参数（来源：实测）
+
+| Parameter | Type | Required | Default | Range | Notes |
+|---|---|---|---|---|---|
+| `stream_options` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.moonshot.cn/docs/api/chat）检索到该参数，已补录。 |
+| `thinking` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.moonshot.cn/docs/api/chat）检索到该参数，已补录。 |
+| `user` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.moonshot.cn/docs/api/chat）检索到该参数，已补录。 |

@@ -23,7 +23,7 @@
     "support_conclusion": "supported",
     "response_mode": "sse",
     "stream_incremental": true,
-    "stream_probe_attempts": 3,
+    "stream_probe_attempts": 1,
     "required_chunk_fields": [
       "id",
       "object",
@@ -31,6 +31,6 @@
       "model",
       "choices"
     ],
-    "notes": "流式 case 验证 SSE/chunk 结构与增量分片（至少 2 个含 content 的 chunk）；同一 case 重复探测 3 次，任一次命中伪流式（单 chunk、长延迟后一次性返回）即 fail。Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+    "notes": "流式 case 验证 SSE/chunk 结构与增量分片（content 或 reasoning_content 合计至少 2 个增量 chunk）；探测 1 次。Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
   }
 }

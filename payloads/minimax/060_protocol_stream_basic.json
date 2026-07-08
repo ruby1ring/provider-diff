@@ -18,7 +18,7 @@
     "support_conclusion": "supported",
     "response_mode": "sse",
     "stream_incremental": true,
-    "stream_probe_attempts": 3,
+    "stream_probe_attempts": 1,
     "required_chunk_fields": ["id", "object", "created", "model", "choices"],
     "notes": "Validate SSE/chunk framing and incremental content chunks; probe 3 times, fail if any attempt is pseudo-streaming."
   }

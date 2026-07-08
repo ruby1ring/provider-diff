@@ -3,7 +3,7 @@ channel_id: deepseek
 protocol_id: anthropic_messages
 doc_status: verified
 doc_url: "https://api-docs.deepseek.com/zh-cn/guides/anthropic_api"
-last_verified: 2026-06-16
+last_verified: 2026-07-08
 compare: true
 required_parameters: [model, messages, max_tokens]
 parameter_groups:
@@ -15,9 +15,9 @@ parameter_groups:
   Protocol: [stream]
   Metadata: [metadata, metadata.user_id]
   Unsupported: [top_k, container, mcp_servers, service_tier]
-notes: 对照 docs/api/deepseek-message.md（2026-06-16）。temperature [0,2]；thinking.budget_tokens Ignored。 类型字段按该渠道官方 API 原文收录。
+  Observed: [input, user, user_id]
+notes: 对照 docs/api/deepseek-message.md（2026-06-16）。temperature [0,2]；thinking.budget_tokens Ignored。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：input, user, user_id。
 ---
-
 # DeepSeek Anthropic Messages API Notes
 
 
@@ -165,3 +165,11 @@ export ANTHROPIC_API_KEY=${YOUR_API_KEY}
 ## Official Archive
 
 Source page: https://api-docs.deepseek.com/zh-cn/guides/anthropic_api
+
+## 实测补充参数（来源：实测）
+
+| Parameter | Type | Required | Default | Range | Notes |
+|---|---|---|---|---|---|
+| `input` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://api-docs.deepseek.com/zh-cn/guides/anthropic_api）检索到该参数，已补录。 |
+| `user` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://api-docs.deepseek.com/zh-cn/guides/anthropic_api）检索到该参数，已补录。 |
+| `user_id` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://api-docs.deepseek.com/zh-cn/guides/anthropic_api）检索到该参数，已补录。 |

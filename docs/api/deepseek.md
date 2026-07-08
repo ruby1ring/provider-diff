@@ -3,7 +3,7 @@ channel_id: deepseek
 protocol_id: chat_completions
 doc_status: verified
 doc_url: "https://api-docs.deepseek.com/zh-cn/api/create-chat-completion"
-last_verified: 2026-06-16
+last_verified: 2026-07-08
 compare: true
 required_parameters: [model, messages]
 parameter_groups:
@@ -17,9 +17,9 @@ parameter_groups:
   Debug: [logprobs, top_logprobs]
   Metadata: [user_id]
   Beta: [messages[].prefix, messages[].reasoning_content]
-notes: 对照 docs/api/deepseek.md（2026-06-16）。frequency_penalty / presence_penalty 已 deprecated，接受但无效果。 类型字段按该渠道官方 API 原文收录。
+  Observed: [user]
+notes: 对照 docs/api/deepseek.md（2026-06-16）。frequency_penalty / presence_penalty 已 deprecated，接受但无效果。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：user。
 ---
-
 # DeepSeek Chat Completions API Notes
 
 
@@ -178,3 +178,9 @@ Official docs describe the OpenAI-compatible pattern: a separate pre-`[DONE]` ch
 | `2.0` | float | 类型 `number \| null`；最大 `2` | 待实测 | |
 
 > 实测与文档不一致时，在「实测」列记录 HTTP 状态、错误码或实际行为；勿改写「官方文档」列。
+
+## 实测补充参数（来源：实测）
+
+| Parameter | Type | Required | Default | Range | Notes |
+|---|---|---|---|---|---|
+| `user` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://api-docs.deepseek.com/zh-cn/api/create-chat-completion）检索到该参数，已补录。 |

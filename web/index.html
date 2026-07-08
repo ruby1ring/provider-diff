@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/design-system/tokens.css" />
-    <link rel="stylesheet" href="/design-system/styles.css?v=noctua-param-hierarchy" />
+    <link rel="stylesheet" href="/design-system/styles.css?v=noctua-param-diagnosis" />
   </head>
   <body>
     <div class="app">
@@ -43,9 +43,10 @@
                 <a href="#protocols" data-view-link="protocols">已支持测评协议</a>
                 <a href="#models" data-view-link="models">已支持测评模型</a>
                 <a href="#run-v02" data-view-link="run-v02">渠道参数测评工具</a>
-                <a href="#channel-reports" data-view-link="channel-reports">渠道测评报告</a>
+                <a href="#channel-performance" data-view-link="channel-performance">渠道性能测评工具</a>
+                <a href="#channel-reports" data-view-link="channel-reports">渠道参数测评报告</a>
+                <a href="#channel-performance-reports" data-view-link="channel-performance-reports">渠道性能测评报告</a>
                 <a class="is-active" href="#run-v01" data-view-link="run-v01">测评工具 V0.1</a>
-                <a href="#performance" data-view-link="performance">性能工具V0.1</a>
                 <a href="#reports" data-view-link="reports">测评报告 V0.1</a>
               </div>
             </div>
@@ -411,7 +412,6 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
               <h1>渠道参数测评工具</h1>
               <p>选择测评模型与协议，再选 Baseline 与待测评渠道；配置连接信息后执行该协议下的 case 并对比响应结构差异。</p>
             </div>
-            <button id="runV02Tests" class="btn btn-primary btn-lg" type="button" disabled>运行测试</button>
           </div>
 
           <section class="panel run-v02-step">
@@ -546,106 +546,56 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
                 <p class="eyebrow">Step 5</p>
                 <h2>选择测评 case</h2>
               </div>
-              <div class="row gap-2">
-                <button id="runV02SelectAllCases" class="btn btn-secondary btn-sm" type="button">全选</button>
-                <button id="runV02ClearAllCases" class="btn btn-ghost btn-sm" type="button">清空</button>
-              </div>
+              <button id="runV02Tests" class="btn btn-primary btn-lg" type="button" disabled>运行测试</button>
             </div>
             <div class="case-summary">
               <span id="runV02SelectedCaseCount" class="mono">已选 0 个</span>
-              <span id="runV02CaseHint" class="muted">先选择测评分组：连通性 → 流式/非流式 → 采样参数 → 思考模式 → 缓存命中率；再勾选该分组内的 case。</span>
+              <span id="runV02CaseHint" class="muted">先选择测评分组：连通性 → 流式/非流式 → 采样参数 → 思考模式 → 缓存命中率；勾选分组标签可全选/取消该组 case。</span>
             </div>
             <div id="runV02CaseGroupPicker" class="run-v02-case-group-picker" role="tablist" aria-label="测评 case 分组"></div>
             <div id="runV02CaseGroups" class="case-groups run-v02-case-list"></div>
-          </section>
-
-          <section id="runV02ProgressPanel" class="panel is-hidden" aria-live="polite">
-            <div class="runbar-head">
-              <div class="row gap-3">
-                <span class="live-dot run"></span>
-                <span id="runV02ProgressCount" class="mono fs-sm">0 / 0</span>
-                <span id="runV02ProgressCase" class="muted fs-sm mono">空闲</span>
-              </div>
-              <button id="runV02StopTests" class="btn btn-secondary btn-sm" type="button" disabled>停止</button>
-            </div>
-            <div class="prog"><i id="runV02ProgressBar" style="width: 0%"></i></div>
-            <div id="runV02RunLog" class="runlog" style="margin-top: var(--space-4)"></div>
-          </section>
-
-          <section id="runV02ResultsPanel" class="results is-hidden">
-            <div class="stat-grid">
-              <article class="stat-card">
-                <div class="st-top"><span class="marker" style="background: var(--status-success)"></span>断言达标</div>
-                <div class="st-val" id="runV02StatPassed">0</div>
-              </article>
-              <article class="stat-card">
-                <div class="st-top"><span class="marker" style="background: var(--status-info)"></span>观测已记录</div>
-                <div class="st-val" id="runV02StatWarnings">0</div>
-              </article>
-              <article class="stat-card">
-                <div class="st-top"><span class="marker" style="background: var(--status-danger)"></span>断言未达标</div>
-                <div class="st-val" id="runV02StatFailed">0</div>
-              </article>
-              <article class="stat-card">
-                <div class="st-top"><span class="marker" style="background: var(--status-info)"></span>结构差异</div>
-                <div class="st-val" id="runV02StatDiffs">0</div>
-              </article>
-            </div>
-            <section class="panel matrix-panel">
-              <div class="matrix-toolbar">
-                <div>
-                  <p class="eyebrow">结果</p>
-                  <h2>参数支持结论</h2>
-                </div>
-              </div>
-              <div class="table-wrap">
-                <table class="rtable">
-                  <thead>
-                    <tr>
-                      <th>Case / 参数</th>
-                      <th>渠道</th>
-                      <th>评测类型</th>
-                      <th>支持性</th>
-                      <th>结论</th>
-                      <th>HTTP 状态</th>
-                      <th id="runV02ResultDiffHeader">结构差异</th>
-                    </tr>
-                  </thead>
-                  <tbody id="runV02ResultRows"></tbody>
-                </table>
-              </div>
-            </section>
           </section>
         </section>
 
         <section id="channelReportsView" class="app-view is-hidden" data-view="channel-reports">
           <div class="page-head">
             <div>
-              <h1>渠道测评报告</h1>
+              <h1>渠道参数测评报告</h1>
               <p>一次跑批生成一份报告：按 case × 渠道对比实测结果，区分断言型（有明确对错）与观测型（了解现状）。</p>
             </div>
             <div class="row gap-2">
+              <button id="exportChannelReportsJson" class="btn btn-secondary" type="button">导出 JSON（doc_gap 扫描）</button>
               <button id="clearChannelReports" class="btn btn-ghost" type="button">清空历史</button>
             </div>
           </div>
 
-          <section class="panel history-panel" aria-labelledby="channel-reports-title">
-            <div class="sec-head">
+          <section id="channelReportRunPanel" class="panel is-hidden" aria-live="polite">
+            <div class="matrix-toolbar">
               <div>
-                <p class="eyebrow">报告</p>
-                <h2 id="channel-reports-title">渠道测评汇总</h2>
+                <p class="eyebrow">进行中</p>
+                <h2 style="font-size: var(--text-lg); font-weight: 700">测评报告生成</h2>
+                <p id="channelReportRunMeta" class="muted fs-xs"></p>
               </div>
-              <span id="channelReportsCount" class="muted mono fs-xs">0 条</span>
+              <button id="runV02StopTests" class="btn btn-secondary btn-sm" type="button" disabled>停止</button>
             </div>
-            <div id="channelReportsSummary" class="rep-grid"></div>
+            <div class="runbar-head">
+              <div class="row gap-3">
+                <span class="live-dot run"></span>
+                <span id="runV02ProgressCount" class="mono fs-sm">0 / 0</span>
+                <span id="runV02ProgressCase" class="muted fs-sm mono">准备中</span>
+              </div>
+            </div>
+            <div class="prog"><i id="runV02ProgressBar" style="width: 0%"></i></div>
+            <div id="runV02RunLog" class="runlog" style="margin-top: var(--space-4)"></div>
           </section>
 
-          <section class="panel" style="margin-top: var(--space-5)">
+          <section class="panel">
             <div class="matrix-toolbar">
               <div>
                 <p class="eyebrow">明细</p>
                 <h2 style="font-size: var(--text-lg); font-weight: 700">运行记录</h2>
               </div>
+              <span id="channelReportsCount" class="muted mono fs-xs">0 条</span>
             </div>
             <div id="channelReportsList"></div>
           </section>
@@ -720,144 +670,252 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
           <div id="errorCodeMappingCatalog"></div>
         </section>
 
-        <section id="performanceView" class="app-view is-hidden" data-view="performance">
+        <section id="channelPerformanceReportsView" class="app-view is-hidden" data-view="channel-performance-reports">
           <div class="page-head">
             <div>
-              <h1>性能工具V0.1</h1>
-              <p>Go 版 vLLM serving benchmark：按 OpenAI-compatible SSE 流式接口统计 TTFT、TPOT、ITL、吞吐和 Goodput。</p>
+              <h1>渠道性能测评报告</h1>
+              <p>汇总各渠道 llm-bench 压测结果，横向对比 TTFT、吞吐与 Goodput；点击展开查看指标对比表与原始 JSON。</p>
             </div>
-            <button id="runPerformanceBenchmark" class="btn btn-primary btn-lg" type="button">运行性能测试</button>
+            <div class="row gap-2">
+              <button id="clearChannelPerfReports" class="btn btn-ghost" type="button">清空历史</button>
+            </div>
           </div>
 
-          <section class="panel performance-panel" aria-labelledby="performance-config-title">
+          <section id="channelPerfReportRunPanel" class="panel is-hidden" aria-live="polite">
             <div class="matrix-toolbar">
               <div>
-                <p class="eyebrow">Benchmark</p>
-                <h2 id="performance-config-title">vLLM benchmark_serving 参数</h2>
+                <p class="eyebrow">进行中</p>
+                <h2 style="font-size: var(--text-lg); font-weight: 700">性能测评报告生成</h2>
+                <p id="channelPerfReportRunMeta" class="muted fs-xs"></p>
               </div>
-              <button id="fillPerformanceFromRun" class="btn btn-secondary btn-sm" type="button">使用运行页配置</button>
+              <button id="channelPerfStopBenchmark" class="btn btn-secondary btn-sm" type="button" disabled>停止</button>
             </div>
+            <div class="runbar-head">
+              <div class="row gap-3">
+                <span class="live-dot run"></span>
+                <span id="channelPerfProgressCount" class="mono fs-sm">0 / 0</span>
+                <span id="channelPerfProgressLabel" class="muted fs-sm mono">准备中</span>
+              </div>
+            </div>
+            <div class="prog"><i id="channelPerfProgressBar" style="width: 0%"></i></div>
+            <div id="channelPerfRunLog" class="runlog" style="margin-top: var(--space-4)"></div>
+          </section>
 
-            <form class="performance-form">
-              <label class="fld">
-                <span>Backend</span>
-                <select id="performanceBackend" class="sel mono">
-                  <option value="openai-chat">openai-chat</option>
-                  <option value="openai">openai</option>
-                  <option value="vllm">vllm</option>
-                  <option value="sglang">sglang</option>
-                </select>
-              </label>
-              <label class="fld field--wide">
-                <span>Base URL</span>
-                <input id="performanceBaseUrl" class="inp mono" type="url" placeholder="http://127.0.0.1:8000" />
-              </label>
-              <label class="fld">
-                <span>Endpoint</span>
-                <input id="performanceEndpoint" class="inp mono" type="text" value="/v1/chat/completions" />
-              </label>
-              <label class="fld">
-                <span>Model</span>
-                <input id="performanceModel" class="inp mono" type="text" placeholder="meta-llama/Llama-3.1-8B-Instruct" />
-              </label>
-              <label class="fld">
-                <span>API Key</span>
-                <input id="performanceApiKey" class="inp mono" type="password" placeholder="EMPTY / sk-..." autocomplete="off" />
-              </label>
-              <label class="fld">
-                <span>Dataset</span>
-                <select id="performanceDatasetName" class="sel mono">
-                  <option value="random">random</option>
-                  <option value="sharegpt">sharegpt</option>
-                  <option value="sonnet">sonnet</option>
-                </select>
-              </label>
-              <label class="fld field--wide">
-                <span>Dataset Path</span>
-                <input id="performanceDatasetPath" class="inp mono" type="text" placeholder="sharegpt/sonnet 本地文件路径，random 可留空" />
-              </label>
+          <section class="panel">
+            <div class="matrix-toolbar">
+              <div>
+                <p class="eyebrow">明细</p>
+                <h2 style="font-size: var(--text-lg); font-weight: 700">运行记录</h2>
+              </div>
+              <span id="channelPerfReportsCount" class="muted mono fs-xs">0 条</span>
+            </div>
+            <div id="channelPerfReportsList"></div>
+          </section>
+        </section>
+
+        <section id="channelPerformanceView" class="app-view is-hidden" data-view="channel-performance">
+          <div class="page-head">
+            <div>
+              <h1>渠道性能测评工具</h1>
+              <p>选择模型与协议，对 Baseline 与多个测评渠道执行 llm-bench 压测，对比 TTFT、吞吐与 Goodput。</p>
+            </div>
+            <button id="runChannelPerfBenchmark" class="btn btn-primary btn-lg" type="button" disabled>运行性能测试</button>
+          </div>
+
+          <section class="panel run-v02-step">
+            <div class="sec-head">
+              <div>
+                <p class="eyebrow">Step 1</p>
+                <h2>选择测评模型</h2>
+              </div>
+            </div>
+            <div class="fld run-v02-select-field">
+              <span class="lbl">测评模型</span>
+              <div id="channelPerfModelSelect" class="search-select">
+                <div id="channelPerfModelControl" class="search-select__control">
+                  <input
+                    id="channelPerfModelInput"
+                    class="search-select__input mono"
+                    type="text"
+                    placeholder="选择模型"
+                    readonly
+                    autocomplete="off"
+                    role="combobox"
+                    aria-expanded="false"
+                    aria-controls="channelPerfModelMenu"
+                  />
+                  <span class="search-select__chevrons" aria-hidden="true">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <path d="M3.5 5.25L7 2.75L10.5 5.25" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M3.5 8.75L7 11.25L10.5 8.75" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                </div>
+                <div id="channelPerfModelMenu" class="search-select__menu is-hidden">
+                  <ul id="channelPerfModelOptions" class="search-select__options" role="listbox" aria-label="测评模型"></ul>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="channelPerfProtocolPanel" class="panel run-v02-step">
+            <div class="sec-head">
+              <div>
+                <p class="eyebrow">Step 2</p>
+                <h2>选择测评协议</h2>
+              </div>
+              <span id="channelPerfProtocolHint" class="muted mono fs-xs">先选择模型</span>
+            </div>
+            <div id="channelPerfProtocolPicker" class="run-v02-protocol-picker" role="tablist" aria-label="测评协议"></div>
+            <div id="channelPerfProtocolMeta" class="run-v02-protocol-meta"></div>
+          </section>
+
+          <section id="channelPerfChannelPanel" class="panel run-v02-step is-hidden">
+            <div class="sec-head">
+              <div>
+                <p class="eyebrow">Step 3</p>
+                <h2>选择 Baseline 与测评渠道</h2>
+              </div>
+              <span id="channelPerfRouteHint" class="muted mono fs-xs">先选择协议</span>
+            </div>
+            <div class="fld run-v02-select-field">
+              <span class="lbl">Baseline 渠道</span>
+              <div id="channelPerfBaselineSelect" class="search-select">
+                <div id="channelPerfBaselineControl" class="search-select__control">
+                  <input
+                    id="channelPerfBaselineInput"
+                    class="search-select__input"
+                    type="text"
+                    placeholder="选择 Baseline"
+                    readonly
+                    autocomplete="off"
+                    role="combobox"
+                    aria-expanded="false"
+                    aria-controls="channelPerfBaselineMenu"
+                  />
+                  <span class="search-select__chevrons" aria-hidden="true">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <path d="M3.5 5.25L7 2.75L10.5 5.25" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M3.5 8.75L7 11.25L10.5 8.75" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                </div>
+                <div id="channelPerfBaselineMenu" class="search-select__menu is-hidden">
+                  <ul id="channelPerfBaselineOptions" class="search-select__options" role="listbox" aria-label="Baseline 渠道"></ul>
+                </div>
+              </div>
+            </div>
+            <div class="fld run-v02-select-field run-v02-select-field--targets">
+              <span class="lbl">测评渠道</span>
+              <div id="channelPerfTargetSelect" class="search-select search-select--multi">
+                <div id="channelPerfTargetControl" class="search-select__control">
+                  <div id="channelPerfTargetTags" class="search-select__tags" aria-live="polite"></div>
+                  <input
+                    id="channelPerfTargetInput"
+                    class="search-select__input"
+                    type="text"
+                    placeholder="选择测评渠道"
+                    readonly
+                    autocomplete="off"
+                    role="combobox"
+                    aria-expanded="false"
+                    aria-controls="channelPerfTargetMenu"
+                  />
+                  <span class="search-select__chevrons" aria-hidden="true">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <path d="M3.5 5.25L7 2.75L10.5 5.25" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M3.5 8.75L7 11.25L10.5 8.75" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                </div>
+                <div id="channelPerfTargetMenu" class="search-select__menu is-hidden">
+                  <ul id="channelPerfTargetOptions" class="search-select__options" role="listbox" aria-label="测评渠道" aria-multiselectable="true"></ul>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="channelPerfConfigPanel" class="panel run-v02-step is-hidden">
+            <div class="sec-head">
+              <div>
+                <p class="eyebrow">Step 4</p>
+                <h2>配置连接信息</h2>
+              </div>
+              <span id="channelPerfSelectedRoute" class="muted mono fs-xs"></span>
+            </div>
+            <div id="channelPerfChannelConfigs" class="run-v02-channel-configs"></div>
+          </section>
+
+          <section id="channelPerfBenchmarkPanel" class="panel run-v02-step is-hidden">
+            <div class="sec-head">
+              <div>
+                <p class="eyebrow">Step 5</p>
+                <h2>Benchmark 参数</h2>
+              </div>
+            </div>
+            <form class="performance-form channel-perf-benchmark-form">
               <label class="fld">
                 <span>请求数</span>
-                <input id="performanceNumPrompts" class="inp mono" type="number" min="1" value="100" />
+                <input id="channelPerfNumPrompts" class="inp mono" type="number" min="1" value="100" />
               </label>
               <label class="fld">
                 <span>输入 tokens</span>
-                <input id="performanceRandomInputLen" class="inp mono" type="number" min="1" value="1024" />
+                <input id="channelPerfRandomInputLen" class="inp mono" type="number" min="1" value="1024" />
               </label>
               <label class="fld">
                 <span>输出 tokens</span>
-                <input id="performanceRandomOutputLen" class="inp mono" type="number" min="1" value="128" />
-              </label>
-              <label class="fld">
-                <span>长度随机比例</span>
-                <input id="performanceRandomRangeRatio" class="inp mono" type="number" min="0" max="1" step="0.05" value="1" />
-              </label>
-              <label class="fld">
-                <span>共享前缀 tokens</span>
-                <input id="performanceRandomPrefixLen" class="inp mono" type="number" min="0" value="0" />
+                <input id="channelPerfRandomOutputLen" class="inp mono" type="number" min="1" value="128" />
               </label>
               <label class="fld">
                 <span>请求速率 req/s</span>
-                <input id="performanceRequestRate" class="inp mono" type="text" value="inf" />
-              </label>
-              <label class="fld">
-                <span>突发系数</span>
-                <input id="performanceBurstiness" class="inp mono" type="number" min="0.01" step="0.05" value="1" />
+                <input id="channelPerfRequestRate" class="inp mono" type="text" value="inf" />
               </label>
               <label class="fld">
                 <span>最大并发</span>
-                <input id="performanceMaxConcurrency" class="inp mono" type="number" min="0" placeholder="不限制" />
-              </label>
-              <label class="fld">
-                <span>预热请求数</span>
-                <input id="performanceWarmups" class="inp mono" type="number" min="0" value="0" />
+                <input id="channelPerfMaxConcurrency" class="inp mono" type="number" min="0" placeholder="不限制" />
               </label>
               <label class="fld">
                 <span>指标段</span>
-                <input id="performancePercentileMetrics" class="inp mono" type="text" value="ttft,tpot,itl,e2el" />
+                <input id="channelPerfPercentileMetrics" class="inp mono" type="text" value="ttft,tpot,itl,e2el" />
               </label>
               <label class="fld">
                 <span>分位数</span>
-                <input id="performanceMetricPercentiles" class="inp mono" type="text" value="50,90,95,99" />
+                <input id="channelPerfMetricPercentiles" class="inp mono" type="text" value="50,90,95,99" />
               </label>
               <label class="fld field--wide">
                 <span>Goodput SLO</span>
-                <input id="performanceGoodput" class="inp mono" type="text" placeholder="ttft:200 e2el:2000" />
-              </label>
-              <label class="fld field--wide">
-                <span>元数据</span>
-                <input id="performanceMetadata" class="inp mono" type="text" placeholder="env=local,engine=vllm" />
-              </label>
-              <label class="fld field--wide">
-                <span>额外 CLI 参数</span>
-                <input id="performanceExtraArgs" class="inp mono" type="text" placeholder="例如 --sonnet-input-len 550 --sharegpt-output-len 128" />
+                <input id="channelPerfGoodput" class="inp mono" type="text" placeholder="ttft:200 e2el:2000" />
               </label>
             </form>
-          </section>
-
-          <section id="performanceProgressPanel" class="panel is-hidden" aria-live="polite">
-            <div class="runbar-head">
-              <div class="row gap-3">
-                <span id="performanceStatus" class="mono fs-sm">空闲</span>
-                <span id="performanceCommandHint" class="muted mono fs-xs">等待运行</span>
-              </div>
-            </div>
-            <div class="prog"><i id="performanceProgressBar" style="width: 0%"></i></div>
-          </section>
-
-          <section id="performanceResultsPanel" class="performance-results is-hidden">
-            <div id="performanceStats" class="stat-grid performance-stats"></div>
-            <section class="panel performance-output-panel" aria-labelledby="performance-output-title">
-              <div class="matrix-toolbar">
-                <div>
-                  <p class="eyebrow">Result</p>
-                  <h2 id="performance-output-title">输出与 JSON</h2>
-                </div>
-                <button id="copyPerformanceJson" class="btn btn-secondary btn-sm" type="button">复制 JSON</button>
-              </div>
-              <pre id="performanceStdout" class="code-block performance-stdout"></pre>
-              <pre id="performanceJson" class="code-block performance-json"></pre>
-            </section>
+            <details class="channel-perf-advanced">
+              <summary>高级参数</summary>
+              <form class="performance-form channel-perf-benchmark-form">
+                <label class="fld">
+                  <span>长度随机比例</span>
+                  <input id="channelPerfRandomRangeRatio" class="inp mono" type="number" min="0" max="1" step="0.05" value="1" />
+                </label>
+                <label class="fld">
+                  <span>共享前缀 tokens</span>
+                  <input id="channelPerfRandomPrefixLen" class="inp mono" type="number" min="0" value="0" />
+                </label>
+                <label class="fld">
+                  <span>突发系数</span>
+                  <input id="channelPerfBurstiness" class="inp mono" type="number" min="0.01" step="0.05" value="1" />
+                </label>
+                <label class="fld">
+                  <span>预热请求数</span>
+                  <input id="channelPerfWarmups" class="inp mono" type="number" min="0" value="0" />
+                </label>
+                <label class="fld field--wide">
+                  <span>元数据</span>
+                  <input id="channelPerfMetadata" class="inp mono" type="text" placeholder="env=local,engine=vllm" />
+                </label>
+                <label class="fld field--wide">
+                  <span>额外 CLI 参数</span>
+                  <input id="channelPerfExtraArgs" class="inp mono" type="text" placeholder="--disable-tqdm" />
+                </label>
+              </form>
+            </details>
           </section>
         </section>
 
@@ -1059,7 +1117,10 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
     <script src="/web/lib/openrouter-model-detail.js?v=noctua-model-intro"></script>
     <script src="/web/lib/eval-model-capabilities.js?v=noctua-eval-model-capabilities"></script>
     <script src="/web/lib/model-oem-behaviors.js?v=noctua-model-oem-behaviors-2"></script>
-    <script src="/web/lib/channel-report-intent.js?v=noctua-channel-report-intent"></script>
+    <script src="/web/lib/parameter-diagnosis.js?v=noctua-param-diagnosis"></script>
+    <script src="/web/lib/channel-route-core.js?v=noctua-channel-perf"></script>
+    <script src="/web/lib/channel-performance.js?v=noctua-channel-perf"></script>
+    <script src="/web/lib/channel-report-intent.js?v=noctua-channel-ranking"></script>
     <script>
       (function loadNoctuaDocs() {
         const matrixUrl = "/web/data/protocol-matrix.json";
@@ -1084,7 +1145,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
         });
       })();
     </script>
-    <script src="/web/main.js?v=noctua-run-v02-groups"></script>
+    <script src="/web/main.js?v=noctua-docs-sync"></script>
     <script>
       if (new URLSearchParams(location.search).has("canvas-annotate")) {
         const s = document.createElement("script");

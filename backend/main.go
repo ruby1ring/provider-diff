@@ -214,14 +214,26 @@ type RunCaseResult struct {
 	StreamDoneMarkerPresent   *bool                `json:"stream_done_marker_present,omitempty"`
 	OutputLengthCapPrecedence *string              `json:"output_length_cap_precedence,omitempty"`
 	OutputCapEffective        *bool                `json:"output_cap_effective,omitempty"`
+	ParameterDiagnosis        *ParameterDiagnosis  `json:"parameter_diagnosis,omitempty"`
+}
+
+type ParameterDiagnosis struct {
+	DocSupport string `json:"doc_support"`
+	Policy     string `json:"policy"`
+	Scenario   string `json:"scenario,omitempty"`
+	Compliant  *bool  `json:"compliant"`
+	Flag       string `json:"flag,omitempty"`
+	Effect     bool   `json:"effect"`
+	Message    string `json:"message"`
 }
 
 type StreamMetrics struct {
-	SSEChunkCount     int   `json:"sse_chunk_count"`
-	ContentChunkCount int   `json:"content_chunk_count"`
-	FirstChunkMS      int64 `json:"first_chunk_ms"`
-	LastChunkMS       int64 `json:"last_chunk_ms"`
-	ChunkSpreadMS     int64 `json:"chunk_spread_ms"`
+	SSEChunkCount       int   `json:"sse_chunk_count"`
+	ContentChunkCount   int   `json:"content_chunk_count"`
+	ReasoningChunkCount int   `json:"reasoning_chunk_count,omitempty"`
+	FirstChunkMS        int64 `json:"first_chunk_ms"`
+	LastChunkMS         int64 `json:"last_chunk_ms"`
+	ChunkSpreadMS       int64 `json:"chunk_spread_ms"`
 }
 
 type StreamProbeAttempt struct {
@@ -1682,7 +1694,7 @@ func runProviderCase(ctx context.Context, client *http.Client, endpointURL, apiK
 	bodyBytes, err := json.Marshal(requestBody)
 	if err != nil {
 		result.Error = fmt.Sprintf("marshal request body: %v", err)
-		result.SupportConclusion = finalizeSupportConclusionForResult(result, err, tc.Expect)
+		finalizeCaseResult(&result, err, tc.Expect)
 		return result
 	}
 
@@ -1700,7 +1712,7 @@ func executeProviderCase(ctx context.Context, client *http.Client, endpointURL, 
 	result.LatencyMS = time.Since(start).Milliseconds()
 	if err != nil {
 		result.Error = err.Error()
-		result.SupportConclusion = finalizeSupportConclusionForResult(result, err, tc.Expect)
+		finalizeCaseResult(&result, err, tc.Expect)
 		return result
 	}
 	defer resp.Body.Close()
@@ -1710,7 +1722,7 @@ func executeProviderCase(ctx context.Context, client *http.Client, endpointURL, 
 	raw, metrics, readErr := readProviderResponseBody(io.LimitReader(resp.Body, 4<<20), start, stream)
 	if readErr != nil {
 		result.Error = fmt.Sprintf("read response body: %v", readErr)
-		result.SupportConclusion = finalizeSupportConclusionForResult(result, readErr, tc.Expect)
+		finalizeCaseResult(&result, readErr, tc.Expect)
 		return result
 	}
 	result.RawResponse = raw
@@ -1731,7 +1743,7 @@ func executeProviderCase(ctx context.Context, client *http.Client, endpointURL, 
 	populateStreamUsageChunkProfile(&result)
 	populateOutputLengthMetrics(&result)
 	populateThinkingTokenMetrics(&result)
-	result.SupportConclusion = finalizeSupportConclusionForResult(result, nil, tc.Expect)
+	finalizeCaseResult(&result, nil, tc.Expect)
 	return result
 }
 
@@ -1763,7 +1775,7 @@ func runStreamProbeCase(ctx context.Context, client *http.Client, endpointURL, a
 	populateStreamUsageChunkProfile(&lastResult)
 	populateOutputLengthMetrics(&lastResult)
 	populateThinkingTokenMetrics(&lastResult)
-	lastResult.SupportConclusion = finalizeSupportConclusionForResult(lastResult, nil, tc.Expect)
+	finalizeCaseResult(&lastResult, nil, tc.Expect)
 	return lastResult
 }
 
@@ -1833,6 +1845,14 @@ func readProviderSSEStream(body io.Reader, started time.Time) (string, StreamMet
 			metrics.ContentChunkCount++
 			metrics.LastChunkMS = now.Sub(started).Milliseconds()
 		}
+		if reasoning := sseChunkReasoningContent(dataLine); reasoning != "" {
+			if metrics.ContentChunkCount == 0 && metrics.ReasoningChunkCount == 0 {
+				firstContentAt = now
+			}
+			lastContentAt = now
+			metrics.ReasoningChunkCount++
+			metrics.LastChunkMS = now.Sub(started).Milliseconds()
+		}
 	}
 	if err := scanner.Err(); err != nil {
 		return builder.String(), metrics, err
@@ -1876,6 +1896,38 @@ func sseChunkContent(dataLine string) string {
 	default:
 		return ""
 	}
+}
+
+func sseChunkReasoningContent(dataLine string) string {
+	var chunk struct {
+		Choices []struct {
+			Delta struct {
+				ReasoningContent any `json:"reasoning_content"`
+			} `json:"delta"`
+		} `json:"choices"`
+	}
+	if err := json.Unmarshal([]byte(dataLine), &chunk); err != nil || len(chunk.Choices) == 0 {
+		return ""
+	}
+	switch value := chunk.Choices[0].Delta.ReasoningContent.(type) {
+	case string:
+		return value
+	default:
+		return ""
+	}
+}
+
+func streamIncrementalChunkCount(metrics StreamMetrics) int {
+	return metrics.ContentChunkCount + metrics.ReasoningChunkCount
+}
+
+func streamIncrementalChunkMessage(metrics StreamMetrics, minChunks int) string {
+	incremental := streamIncrementalChunkCount(metrics)
+	message := fmt.Sprintf("预期 >= %d 个增量 chunk（content/reasoning），实际 %d（content %d · reasoning %d）", minChunks, incremental, metrics.ContentChunkCount, metrics.ReasoningChunkCount)
+	if incremental == 1 {
+		message = fmt.Sprintf("仅收到 1 个增量 chunk（疑似伪流式），预期 >= %d（content %d · reasoning %d）", minChunks, metrics.ContentChunkCount, metrics.ReasoningChunkCount)
+	}
+	return message
 }
 
 type capacityProbe struct {
@@ -3385,6 +3437,145 @@ func finalizeSupportConclusionForResult(result RunCaseResult, err error, expect 
 	return finalizeSupportConclusion(result.HTTPStatus, err, expect, result.Assertions)
 }
 
+func attachParameterDiagnosis(result *RunCaseResult, expect map[string]any) {
+	if result == nil {
+		return
+	}
+	result.ParameterDiagnosis = diagnoseParameterSupport(*result, expect)
+}
+
+func docSupportPolicy(expect map[string]any) string {
+	if expect == nil {
+		return "documented"
+	}
+	if v, ok := expect["doc_support"].(string); ok {
+		switch strings.ToLower(strings.TrimSpace(v)) {
+		case "documented", "undocumented":
+			return strings.ToLower(strings.TrimSpace(v))
+		}
+	}
+	if v, ok := expect["undocumented_scenario"].(string); ok && strings.TrimSpace(v) != "" {
+		return "undocumented"
+	}
+	return "documented"
+}
+
+func detectParameterEffect(result RunCaseResult, expect map[string]any) bool {
+	if expect != nil {
+		if v, ok := expect["output_cap_effective"].(bool); ok && v {
+			return true
+		}
+	}
+	if result.OutputCapEffective != nil && *result.OutputCapEffective {
+		return true
+	}
+	for _, assertion := range result.Assertions {
+		switch assertion.Name {
+		case "parameter_acceptance":
+			if assertion.Pass && strings.Contains(assertion.Message, "已接受且已生效") {
+				return true
+			}
+		case "thinking_required", "thinking_evidence_required":
+			if assertion.Pass {
+				return true
+			}
+		case "thinking_absent":
+			if !assertion.Pass {
+				return true
+			}
+		case "token_limit":
+			if assertion.Pass && strings.Contains(assertion.Message, "生效") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func diagnoseParameterSupport(result RunCaseResult, expect map[string]any) *ParameterDiagnosis {
+	policy := docSupportPolicy(expect)
+	effect := detectParameterEffect(result, expect)
+	httpOK := result.HTTPStatus >= 200 && result.HTTPStatus < 300
+	httpRejected := result.HTTPStatus == http.StatusBadRequest || result.HTTPStatus == http.StatusUnprocessableEntity
+
+	diag := &ParameterDiagnosis{
+		DocSupport: policy,
+		Policy:     policy,
+		Effect:     effect,
+	}
+
+	if policy == "documented" {
+		compliant := result.SupportConclusion == expectedSupportConclusion(expect)
+		if compliant {
+			for _, assertion := range result.Assertions {
+				if assertion.Name == "http_status" || assertion.Name == "optional_capability_mismatch" {
+					continue
+				}
+				if !assertion.Pass {
+					compliant = false
+					break
+				}
+			}
+		}
+		diag.Compliant = &compliant
+		if compliant {
+			diag.Message = "文档已声明支持，实测结论与预期一致。"
+		} else {
+			diag.Message = "文档已声明支持，实测结论与预期不一致，须以复测结果更新文档或判渠道不达标。"
+		}
+		return diag
+	}
+
+	scenario := ""
+	if expect != nil {
+		if v, ok := expect["undocumented_scenario"].(string); ok {
+			scenario = strings.TrimSpace(v)
+		}
+	}
+	diag.Scenario = scenario
+
+	if httpRejected {
+		compliant := scenario == "reject_on_pass"
+		diag.Compliant = &compliant
+		diag.Scenario = "reject_on_pass"
+		if compliant {
+			diag.Message = "文档未声明支持的参数按预期被拒绝。"
+		} else {
+			diag.Flag = "undocumented_rejected"
+			diag.Message = "文档未声明支持的参数传参后直接报错，存在兼容性风险。"
+		}
+		return diag
+	}
+
+	if httpOK && effect {
+		compliant := false
+		diag.Compliant = &compliant
+		diag.Scenario = "silent_effective"
+		diag.Flag = "doc_gap"
+		diag.Message = "文档未声明支持的参数传参后静默生效，属渠道 API 文档漏洞，需补充文档。"
+		return diag
+	}
+
+	if httpOK && !effect {
+		compliant := result.SupportConclusion == "ignored" || result.SupportConclusion == "supported" || scenario == "silent_ignore"
+		diag.Compliant = &compliant
+		diag.Scenario = "silent_ignore"
+		diag.Message = "传参无报错且未观察到生效，符合未文档化参数的预期。"
+		return diag
+	}
+
+	diag.Message = "未文档化参数场景证据不足，需补充 case 或复测。"
+	return diag
+}
+
+func finalizeCaseResult(result *RunCaseResult, err error, expect map[string]any) {
+	if result == nil {
+		return
+	}
+	result.SupportConclusion = finalizeSupportConclusionForResult(*result, err, expect)
+	attachParameterDiagnosis(result, expect)
+}
+
 func optionalCapabilityMismatch(result RunCaseResult, expect map[string]any) bool {
 	enabled, _ := expect["optional_capability_mismatch"].(bool)
 	if !enabled {
@@ -3566,7 +3757,7 @@ func inferredAssertions(result RunCaseResult, expect map[string]any) []CaseAsser
 	if assertion, ok := nAssertion(result); ok {
 		assertions = append(assertions, assertion)
 	}
-	if assertion, ok := tokenLimitAssertion(result); ok {
+	if assertion, ok := tokenLimitAssertion(result, expect); ok {
 		assertions = append(assertions, assertion)
 	}
 	if assertion, ok := finishReasonAssertion(result, expect); ok {
@@ -3609,7 +3800,13 @@ func nAssertion(result RunCaseResult) (CaseAssertion, bool) {
 	}, true
 }
 
-func tokenLimitAssertion(result RunCaseResult) (CaseAssertion, bool) {
+func tokenLimitAssertion(result RunCaseResult, expect map[string]any) (CaseAssertion, bool) {
+	if shouldSkipTokenLimitEnforcement(expect, result.CaseID, result.Category) {
+		if isLengthParameterAcceptanceCase(result.CaseID, result.Category) {
+			return lengthParameterAcceptanceAssertion(result), true
+		}
+		return CaseAssertion{}, false
+	}
 	limitName, limit, ok := tokenLimit(result.RequestBody)
 	if !ok {
 		return CaseAssertion{}, false
@@ -3627,6 +3824,71 @@ func tokenLimitAssertion(result RunCaseResult) (CaseAssertion, bool) {
 		Pass:    actual <= limit,
 		Message: fmt.Sprintf("预期 %s <= %d，实际 %d", usageField, limit, actual),
 	}, true
+}
+
+func isLengthParameterAcceptanceCase(caseID, category string) bool {
+	if category != "length" {
+		return false
+	}
+	if strings.Contains(caseID, "_only_effective") || strings.Contains(caseID, "_precedence") {
+		return false
+	}
+	if strings.Contains(caseID, "deprecated") || strings.Contains(caseID, "_null") || strings.Contains(caseID, "legacy") {
+		return false
+	}
+	if strings.HasSuffix(caseID, "_length_max_tokens") || strings.HasSuffix(caseID, "_length_max_completion_tokens") {
+		return true
+	}
+	if strings.HasSuffix(caseID, "_length_max_tokens_stop") || strings.HasSuffix(caseID, "_length_max_completion_tokens_stop") {
+		return true
+	}
+	return false
+}
+
+func shouldSkipTokenLimitEnforcement(expect map[string]any, caseID, category string) bool {
+	if enforced, ok := expect["token_limit_enforced"].(bool); ok && !enforced {
+		return true
+	}
+	if _, ok := expect["output_cap_effective"]; ok {
+		return true
+	}
+	if _, ok := expect["output_length_cap_precedence"]; ok {
+		return true
+	}
+	if _, ok := expect["completion_tokens_max"]; ok {
+		return true
+	}
+	return isLengthParameterAcceptanceCase(caseID, category)
+}
+
+func lengthParameterAcceptanceAssertion(result RunCaseResult) CaseAssertion {
+	limitName, limit, ok := tokenLimit(result.RequestBody)
+	if !ok {
+		return CaseAssertion{Name: "parameter_acceptance", Pass: false, Message: "请求未设置输出上限参数"}
+	}
+	actual, hasTokens := responseCompletionTokens(result.ResponseBody)
+	enforced := hasTokens && actual <= limit
+	if enforced {
+		return CaseAssertion{
+			Name:    "parameter_acceptance",
+			Pass:    true,
+			Message: fmt.Sprintf("参数 %s 已接受且已生效（completion_tokens=%d <= %d）", limitName, actual, limit),
+		}
+	}
+	message := fmt.Sprintf("参数 %s 已接受（HTTP %d），未验证生效性", limitName, result.HTTPStatus)
+	if hasTokens {
+		message = fmt.Sprintf(
+			"参数 %s 已接受但未生效（completion_tokens=%d > %d）；若渠道文档未声明支持该参数，视为静默忽略",
+			limitName,
+			actual,
+			limit,
+		)
+	}
+	return CaseAssertion{
+		Name:    "parameter_acceptance",
+		Pass:    true,
+		Message: message,
+	}
 }
 
 func finishReasonAssertion(result RunCaseResult, expect map[string]any) (CaseAssertion, bool) {
@@ -5138,14 +5400,11 @@ func streamMetricsAssertions(metrics StreamMetrics, expect map[string]any) []Cas
 		})
 	}
 	if minContentChunks > 0 {
-		message := fmt.Sprintf("预期 >= %d 个含 content 的 chunk，实际 %d", minContentChunks, metrics.ContentChunkCount)
-		if metrics.ContentChunkCount == 1 {
-			message = fmt.Sprintf("仅收到 1 个 content chunk（疑似伪流式），预期 >= %d", minContentChunks)
-		}
+		incremental := streamIncrementalChunkCount(metrics)
 		assertions = append(assertions, CaseAssertion{
 			Name:    "min_content_chunks",
-			Pass:    metrics.ContentChunkCount >= minContentChunks,
-			Message: message,
+			Pass:    incremental >= minContentChunks,
+			Message: streamIncrementalChunkMessage(metrics, minContentChunks),
 		})
 	}
 	if maxFirstChunkMS > 0 {
@@ -5191,15 +5450,11 @@ func streamProbeAttemptsAssertion(attempts []StreamProbeAttempt, expect map[stri
 				Message: fmt.Sprintf("第 %d/%d 次探测 SSE chunk 不足（实际 %d，预期 >= %d）", attempt.Attempt, required, metrics.SSEChunkCount, minSSEChunks),
 			}
 		}
-		if minContentChunks > 0 && metrics.ContentChunkCount < minContentChunks {
-			message := fmt.Sprintf("第 %d/%d 次探测 content chunk 不足（实际 %d，预期 >= %d）", attempt.Attempt, required, metrics.ContentChunkCount, minContentChunks)
-			if metrics.ContentChunkCount == 1 {
-				message = fmt.Sprintf("第 %d/%d 次探测仅收到 1 个 content chunk（疑似伪流式），预期 >= %d", attempt.Attempt, required, minContentChunks)
-			}
+		if minContentChunks > 0 && streamIncrementalChunkCount(metrics) < minContentChunks {
 			return CaseAssertion{
 				Name:    "stream_probe_attempts",
 				Pass:    false,
-				Message: message,
+				Message: fmt.Sprintf("第 %d/%d 次探测 %s", attempt.Attempt, required, streamIncrementalChunkMessage(metrics, minContentChunks)),
 			}
 		}
 		if maxFirstChunkMS > 0 && metrics.FirstChunkMS > maxFirstChunkMS {

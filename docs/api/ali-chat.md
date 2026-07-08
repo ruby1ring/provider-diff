@@ -3,7 +3,7 @@ channel_id: aliyun
 protocol_id: chat_completions
 doc_status: verified
 doc_url: "https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions"
-last_verified: 2026-06-25
+last_verified: 2026-07-08
 compare: true
 required_parameters: [model, messages]
 parameter_groups:
@@ -19,9 +19,9 @@ parameter_groups:
   Debug: [logprobs, top_logprobs]
   Search: [enable_search, search_options]
   Extra: [skill, X-DashScope-DataInspection]
-notes: 对照 docs/api/ali-chat.md（2026-06-25）。含百炼 extra_body 与搜索扩展参数。 类型字段按该渠道官方 API 原文收录。
+  Observed: [function_call, input, service_tier, stream_options, user]
+notes: 对照 docs/api/ali-chat.md（2026-06-25）。含百炼 extra_body 与搜索扩展参数。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：function_call, input, service_tier, stream_options, user。
 ---
-
 # 阿里云百炼 Chat Completions API Notes
 
 
@@ -118,3 +118,13 @@ Non-standard parameters (`top_k`, `repetition_penalty`, `enable_thinking`, `thin
 ## Source
 
 Structured from user-supplied `ali-chat` (2026-06-25) + prior `ali.md` endpoint/multimodal notes.
+
+## 实测补充参数（来源：实测）
+
+| Parameter | Type | Required | Default | Range | Notes |
+|---|---|---|---|---|---|
+| `function_call` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions）检索到该参数，已补录。 |
+| `input` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions）检索到该参数，已补录。 |
+| `service_tier` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions）检索到该参数，已补录。 |
+| `stream_options` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions）检索到该参数，已补录。 |
+| `user` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions）检索到该参数，已补录。 |

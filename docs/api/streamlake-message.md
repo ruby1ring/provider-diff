@@ -3,7 +3,7 @@ channel_id: streamlake
 protocol_id: anthropic_messages
 doc_status: verified
 doc_url: "https://www.streamlake.com/document/WANQING/mq6k6xfnbs4vn99zggq"
-last_verified: 2026-06-25
+last_verified: 2026-07-08
 compare: true
 required_parameters: [model, messages, max_tokens]
 parameter_groups:
@@ -14,9 +14,9 @@ parameter_groups:
   Protocol: [stream]
   Metadata: [metadata, cache_control, service_tier]
   Extra: [container, inference_geo, output_config]
-notes: 对照 docs/api/streamlake-message.md（2026-06-25）。 类型字段按该渠道官方 API 原文收录。
+  Observed: [temperature, user, user_id]
+notes: 对照 docs/api/streamlake-message.md（2026-06-25）。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：temperature, user, user_id。
 ---
-
 # StreamLake / 快手万擎 Anthropic Messages API Notes
 
 
@@ -74,3 +74,11 @@ Anthropic-compatible Messages endpoint on StreamLake gateway (see official doc).
 | `inference_geo` | `string` | — | 推理地理区域 |
 | `output_config` | `object` | — | `effort` / `format`；可替代 temperature |
 | `service_tier` | `string` | `auto` | `auto` / `standard_only` |
+
+## 实测补充参数（来源：实测）
+
+| Parameter | Type | Required | Default | Range | Notes |
+|---|---|---|---|---|---|
+| `temperature` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://www.streamlake.com/document/WANQING/mq6k6xfnbs4vn99zggq）检索到该参数，已补录。 |
+| `user` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://www.streamlake.com/document/WANQING/mq6k6xfnbs4vn99zggq）检索到该参数，已补录。 |
+| `user_id` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://www.streamlake.com/document/WANQING/mq6k6xfnbs4vn99zggq）检索到该参数，已补录。 |

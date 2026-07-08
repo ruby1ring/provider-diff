@@ -17,7 +17,9 @@
   },
   "expect": {
     "http_status": 200,
-    "support_conclusion": "supported",
+    "support_conclusion": "ignored",
+    "doc_support": "undocumented",
+    "undocumented_scenario": "silent_ignore",
     "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
     "notes": "seed is not clearly documented for MiniMax OpenAI-compatible endpoint; optional probe."
   }

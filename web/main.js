@@ -37,6 +37,289 @@ function channelReportStatsForResults(results = []) {
   return historyStats(results);
 }
 
+function ensureChannelReportEvaluation(record) {
+  if (record?.evaluation?.version === 2) return record.evaluation;
+  const matrix = ensureChannelReportMatrix(record);
+  const channels = ensureChannelReportChannels(record);
+  const stats = record.stats || channelReportStatsForResults(record.results || []);
+  if (CHANNEL_REPORT_INTENT.channelReportEvaluationSummary) {
+    return CHANNEL_REPORT_INTENT.channelReportEvaluationSummary(matrix, channels, stats, channelReportIntentDeps());
+  }
+  return null;
+}
+
+function caseSeverityMetaForRow(row = {}) {
+  const sourceCase = {
+    case_id: row.case_id,
+    category: row.category,
+    optional: row.optional,
+    expect: row.expect
+  };
+  const level = CHANNEL_REPORT_INTENT.caseSeverityLevel?.(sourceCase, row.group_key) || "p2";
+  return CHANNEL_REPORT_INTENT.caseSeverityMeta?.(level) || { level, label: level.toUpperCase(), title: level, css: "extension" };
+}
+
+function renderSeverityLevelBadge(level, { compact = false, description = "", title = "" } = {}) {
+  if (!level) return "";
+  const meta = CHANNEL_REPORT_INTENT.caseSeverityMeta?.(level) || {
+    level,
+    label: String(level).toUpperCase(),
+    title: title || level,
+    description,
+    css: "extension"
+  };
+  const label = compact ? meta.label : `${meta.label} ${meta.title}`;
+  return `<span class="case-severity case-severity--${meta.css}" title="${escapeHtml(meta.description || description || meta.title)}">${escapeHtml(label)}</span>`;
+}
+
+function splitCaseDisplayTitle(title = "", caseId = "") {
+  const text = String(title || caseId || "").trim();
+  const colon = text.indexOf("：");
+  if (colon > 0) {
+    return { name: text.slice(0, colon).trim(), desc: text.slice(colon + 1).trim() };
+  }
+  const enColon = text.indexOf(":");
+  if (enColon > 0) {
+    return { name: text.slice(0, enColon).trim(), desc: text.slice(enColon + 1).trim() };
+  }
+  return { name: text || caseId, desc: "" };
+}
+
+function renderChannelIssueCard(entry) {
+  return `
+    <article class="channel-eval-channel-card channel-eval-channel-card--${escapeHtml(entry.severity_meta?.css || "extension")}">
+      <header class="channel-eval-channel-card__head">
+        <strong>${escapeHtml(entry.platformName)}</strong>
+        ${entry.severity_meta ? renderSeverityLevelBadge(entry.worstSeverity, { compact: true }) : ""}
+      </header>
+      <p class="channel-eval-channel-card__count">${entry.issueCount} 项未达标</p>
+      <ul class="channel-eval-channel-card__cases">
+        ${entry.failedCases.map((item) => {
+    const parts = splitCaseDisplayTitle(item.title, item.case_id);
+    return `<li class="channel-eval-channel-card__case">
+            <strong class="mono fs-xs">${escapeHtml(parts.name)}</strong>
+            ${parts.desc ? `<span class="muted fs-xs channel-eval-channel-card__case-desc">${escapeHtml(parts.desc)}</span>` : ""}
+          </li>`;
+  }).join("")}
+      </ul>
+    </article>`;
+}
+
+function renderChannelIssueDetailSection(channelSummaries = []) {
+  if (!channelSummaries.length) return "";
+  const body = channelSummaries.length === 1
+    ? `<div class="channel-issue-tabs__single">${renderChannelIssueCard(channelSummaries[0])}</div>`
+    : `
+      <div class="channel-issue-tabs">
+        <div class="channel-issue-tabs__nav tabs" role="tablist">
+          ${channelSummaries.map((entry, index) => `
+            <button
+              type="button"
+              class="${index === 0 ? "on" : ""}"
+              role="tab"
+              aria-selected="${index === 0 ? "true" : "false"}"
+              data-channel-issue-tab="${index}"
+            >
+              <span class="channel-issue-tabs__label">${escapeHtml(entry.platformName)}</span>
+              <span class="count">${entry.issueCount}</span>
+            </button>
+          `).join("")}
+        </div>
+        <div class="channel-issue-tabs__panels">
+          ${channelSummaries.map((entry, index) => `
+            <div
+              class="channel-issue-tabs__panel${index === 0 ? "" : " is-hidden"}"
+              role="tabpanel"
+              data-channel-issue-panel="${index}"
+            >${renderChannelIssueCard(entry)}</div>
+          `).join("")}
+        </div>
+      </div>`;
+
+  return `
+    <details class="channel-report-evaluation__channels">
+      <summary>各渠道问题明细（${channelSummaries.length} 个渠道有问题）</summary>
+      ${body}
+    </details>`;
+}
+
+function activateTabSwitcher(root, tabId, { tabSelector, panelSelector, tabKey, panelKey }) {
+  root.querySelectorAll(tabSelector).forEach((button) => {
+    const active = button.dataset[tabKey] === String(tabId);
+    button.classList.toggle("on", active);
+    button.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  root.querySelectorAll(panelSelector).forEach((panel) => {
+    panel.classList.toggle("is-hidden", panel.dataset[panelKey] !== String(tabId));
+  });
+}
+
+function renderChannelReportEvaluationSummary(record) {
+  const evaluation = ensureChannelReportEvaluation(record);
+  if (!evaluation) return "";
+  const stats = record.stats || channelReportStatsForResults(record.results || []);
+  const verdict = evaluation.verdict_meta || {};
+  const failingCases = evaluation.failing_cases || [];
+  const channelRankings = evaluation.channel_rankings || [];
+  const channelSummaries = (evaluation.channel_summaries || []).filter((entry) => entry.issueCount > 0);
+  const docGapIssues = (window.NOCTUA_PARAMETER_DIAGNOSIS?.scanResultsForDocIssues(record.results || []) || []);
+  const severityLevels = ["p0", "p1", "p2", "p3"]
+    .map((level) => {
+      const meta = CHANNEL_REPORT_INTENT.caseSeverityMeta?.(level) || { label: level, title: level, css: "extension" };
+      const counts = evaluation.severity_counts?.[level] || { total: 0, failed: 0 };
+      if (!counts.total) return null;
+      return { level, meta, counts };
+    })
+    .filter(Boolean);
+
+  const statChips = [
+    { label: "断言达标", value: `${stats.assertPass || 0}/${stats.assertTotal || 0}`, tone: stats.assertFail ? "warn" : "ok" },
+    { label: "观测记录", value: `${stats.observeRecorded || 0}/${stats.observeTotal || 0}`, tone: (stats.observeAssertionFail || stats.observeIssue) ? "warn" : "neutral" },
+    { label: "结构差异", value: String(stats.structureDiffs || 0), tone: stats.structureDiffs ? "warn" : "neutral" },
+    ...(docGapIssues.length ? [{ label: "文档漏洞", value: String(docGapIssues.length), tone: "warn" }] : [])
+  ];
+
+  return `
+    <section class="channel-report-evaluation channel-report-evaluation--${escapeHtml(verdict.css || evaluation.verdict || "pass")}">
+      <header class="channel-report-evaluation__banner">
+        <div class="channel-report-evaluation__banner-main">
+          <p class="eyebrow">整体评测结论</p>
+          <div class="channel-report-evaluation__verdict-row">
+            <span class="channel-report-verdict channel-report-verdict--${escapeHtml(verdict.css || "pass")}">${escapeHtml(verdict.label || "—")}</span>
+            <p class="channel-report-evaluation__headline">${escapeHtml(evaluation.headline || verdict.headline || "")}</p>
+          </div>
+        </div>
+        <div class="channel-eval-stat-chips">
+          ${statChips.map((chip) => `
+            <div class="channel-eval-stat-chip channel-eval-stat-chip--${chip.tone}">
+              <span class="channel-eval-stat-chip__label">${escapeHtml(chip.label)}</span>
+              <strong class="channel-eval-stat-chip__value">${escapeHtml(chip.value)}</strong>
+            </div>
+          `).join("")}
+        </div>
+      </header>
+
+      <details class="channel-report-evaluation__glossary">
+        <summary>术语说明（运营可读）</summary>
+        <dl class="channel-eval-glossary">
+          <div><dt>推荐接入</dt><dd>该渠道在当前 case 下全部达标，可优先考虑。</dd></div>
+          <div><dt>不建议接入</dt><dd>存在阻断级（P0）失败，暂不建议用于生产流量。</dd></div>
+          <div><dt>断言达标</dt><dd>必须通过的兼容性检查项已通过。</dd></div>
+          <div><dt>观测记录</dt><dd>仅记录行为、不作为阻断的探针项。</dd></div>
+          <div><dt>文档漏洞</dt><dd>渠道文档未声明支持某参数，但实测传参后静默生效，须更新 API 文档。</dd></div>
+          <div><dt>未文档化拒绝</dt><dd>文档未声明支持的参数传参后直接报错，可能影响 OpenAI 兼容透传。</dd></div>
+          <div><dt>Baseline</dt><dd>对照用的原厂或 OpenAI 标准响应，用于结构 diff。</dd></div>
+        </dl>
+      </details>
+
+      ${severityLevels.length ? `
+        <div class="channel-eval-severity-bar">
+          ${severityLevels.map(({ meta, counts }) => `
+            <div class="channel-eval-severity-chip channel-eval-severity-chip--${meta.css}${counts.failed ? " has-fail" : ""}">
+              <span class="case-severity case-severity--${meta.css}">${escapeHtml(meta.label)}</span>
+              <span class="channel-eval-severity-chip__title">${escapeHtml(meta.title)}</span>
+              <span class="channel-eval-severity-chip__stat">${counts.failed ? `${counts.failed} 项未达标` : "全部达标"} · ${counts.total} case</span>
+            </div>
+          `).join("")}
+        </div>
+      ` : ""}
+
+      ${channelRankings.length ? `
+        <div class="channel-report-evaluation__section">
+          <h4 class="channel-report-evaluation__section-title">渠道接入建议 <span class="muted">（按表现排序）</span></h4>
+          <div class="channel-eval-ranking-list">
+            ${channelRankings.map((entry) => `
+              <article class="channel-eval-ranking-item channel-eval-ranking-item--${escapeHtml(entry.verdict_meta?.css || entry.verdict || "pass")}">
+                <div class="channel-eval-ranking-item__rank" aria-hidden="true">#${entry.rank}</div>
+                <div class="channel-eval-ranking-item__main">
+                  <div class="channel-eval-ranking-item__head">
+                    <strong>${escapeHtml(entry.platformName)}</strong>
+                    <span class="channel-report-verdict channel-report-verdict--${escapeHtml(entry.verdict_meta?.css || entry.verdict || "pass")}">${escapeHtml(entry.verdict_meta?.label || "—")}</span>
+                  </div>
+                  <p class="muted fs-xs channel-eval-ranking-item__summary">${escapeHtml(entry.summary_text || "")}</p>
+                </div>
+                <div class="channel-eval-ranking-item__stats">
+                  <span class="channel-eval-ranking-item__pass">${entry.passCount}/${entry.totalCases} 达标</span>
+                  ${entry.issueCount ? `<span class="channel-eval-ranking-item__issues">${entry.issueCount} 项问题</span>` : ""}
+                </div>
+              </article>
+            `).join("")}
+          </div>
+          ${evaluation.ranking_comparison_text ? `<p class="muted fs-xs channel-eval-ranking-note">${escapeHtml(evaluation.ranking_comparison_text)}</p>` : ""}
+        </div>
+      ` : ""}
+
+      ${failingCases.length ? `
+        <div class="channel-report-evaluation__section">
+          <h4 class="channel-report-evaluation__section-title">待处理问题 <span class="muted">(${failingCases.length})</span></h4>
+          <div class="table-wrap">
+            <table class="rtable channel-eval-issue-table">
+              <thead>
+                <tr>
+                  <th>严重度</th>
+                  <th>Case</th>
+                  <th>未达标渠道</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${failingCases.map((item) => {
+    const parts = splitCaseDisplayTitle(item.title, item.case_id);
+    return `
+                  <tr class="channel-eval-issue-row channel-eval-issue-row--${escapeHtml(item.severity_meta?.css || item.severity || "extension")}">
+                    <td>${renderSeverityLevelBadge(item.severity, { compact: true })}</td>
+                    <td class="channel-eval-issue-case">
+                      <strong class="mono">${escapeHtml(parts.name)}</strong>
+                      ${parts.desc ? `<span class="muted fs-xs channel-eval-issue-case__desc">${escapeHtml(parts.desc)}</span>` : ""}
+                    </td>
+                    <td class="channel-eval-issue-channels">
+                      ${(item.failed_channels || []).map((name) => `<span class="channel-eval-channel-tag">${escapeHtml(name)}</span>`).join("")}
+                    </td>
+                  </tr>`;
+  }).join("")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ` : `<p class="muted fs-sm channel-report-evaluation__all-pass">所有测评 case 在渠道侧均达标。</p>`}
+
+      ${docGapIssues.length ? `
+        <div class="channel-report-evaluation__section channel-report-evaluation__section--doc-gap">
+          <h4 class="channel-report-evaluation__section-title">文档漏洞 <span class="muted">(${docGapIssues.length})</span></h4>
+          <p class="muted fs-xs channel-eval-doc-gap-intro">以下问题属渠道 API 文档与实测不一致：文档未声明支持，但传参后实际生效。须以实测为准更新 API 文档并标注来源。</p>
+          <div class="table-wrap">
+            <table class="rtable channel-eval-doc-gap-table">
+              <thead>
+                <tr>
+                  <th>渠道</th>
+                  <th>Case</th>
+                  <th>参数</th>
+                  <th>说明</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${docGapIssues.map((issue) => {
+    const parts = splitCaseDisplayTitle(issue.title, issue.case_id);
+    return `
+                <tr>
+                  <td>${escapeHtml(issue.channel_name || "—")}</td>
+                  <td class="channel-eval-issue-case">
+                    <strong class="mono">${escapeHtml(parts.name)}</strong>
+                    ${parts.desc ? `<span class="muted fs-xs">${escapeHtml(parts.desc)}</span>` : ""}
+                  </td>
+                  <td class="mono fs-xs">${escapeHtml((issue.parameters || []).join(", ") || "—")}</td>
+                  <td class="fs-xs">${escapeHtml(issue.message || issue.flag_meta?.operator_note || "")}</td>
+                </tr>`;
+  }).join("")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ` : ""}
+
+      ${renderChannelIssueDetailSection(channelSummaries)}
+    </section>`;
+}
+
 const RUN_V02_GROUP_TITLES = {
   connectivity: "连通性",
   protocol: "流式/非流式",
@@ -110,41 +393,62 @@ const els = {
   importHistoryFile: document.querySelector("#importHistoryFile"),
   clearHistory: document.querySelector("#clearHistory"),
   channelReportsCount: document.querySelector("#channelReportsCount"),
-  channelReportsSummary: document.querySelector("#channelReportsSummary"),
   channelReportsList: document.querySelector("#channelReportsList"),
   clearChannelReports: document.querySelector("#clearChannelReports"),
-  runPerformanceBenchmark: document.querySelector("#runPerformanceBenchmark"),
-  fillPerformanceFromRun: document.querySelector("#fillPerformanceFromRun"),
-  performanceBackend: document.querySelector("#performanceBackend"),
-  performanceBaseUrl: document.querySelector("#performanceBaseUrl"),
-  performanceEndpoint: document.querySelector("#performanceEndpoint"),
-  performanceModel: document.querySelector("#performanceModel"),
-  performanceApiKey: document.querySelector("#performanceApiKey"),
-  performanceDatasetName: document.querySelector("#performanceDatasetName"),
-  performanceDatasetPath: document.querySelector("#performanceDatasetPath"),
-  performanceNumPrompts: document.querySelector("#performanceNumPrompts"),
-  performanceRandomInputLen: document.querySelector("#performanceRandomInputLen"),
-  performanceRandomOutputLen: document.querySelector("#performanceRandomOutputLen"),
-  performanceRandomRangeRatio: document.querySelector("#performanceRandomRangeRatio"),
-  performanceRandomPrefixLen: document.querySelector("#performanceRandomPrefixLen"),
-  performanceRequestRate: document.querySelector("#performanceRequestRate"),
-  performanceBurstiness: document.querySelector("#performanceBurstiness"),
-  performanceMaxConcurrency: document.querySelector("#performanceMaxConcurrency"),
-  performanceWarmups: document.querySelector("#performanceWarmups"),
-  performancePercentileMetrics: document.querySelector("#performancePercentileMetrics"),
-  performanceMetricPercentiles: document.querySelector("#performanceMetricPercentiles"),
-  performanceGoodput: document.querySelector("#performanceGoodput"),
-  performanceMetadata: document.querySelector("#performanceMetadata"),
-  performanceExtraArgs: document.querySelector("#performanceExtraArgs"),
-  performanceProgressPanel: document.querySelector("#performanceProgressPanel"),
-  performanceStatus: document.querySelector("#performanceStatus"),
-  performanceCommandHint: document.querySelector("#performanceCommandHint"),
-  performanceProgressBar: document.querySelector("#performanceProgressBar"),
-  performanceResultsPanel: document.querySelector("#performanceResultsPanel"),
-  performanceStats: document.querySelector("#performanceStats"),
-  performanceStdout: document.querySelector("#performanceStdout"),
-  performanceJson: document.querySelector("#performanceJson"),
-  copyPerformanceJson: document.querySelector("#copyPerformanceJson"),
+  exportChannelReportsJson: document.querySelector("#exportChannelReportsJson"),
+  channelReportRunPanel: document.querySelector("#channelReportRunPanel"),
+  channelReportRunMeta: document.querySelector("#channelReportRunMeta"),
+  channelPerfModelSelect: document.querySelector("#channelPerfModelSelect"),
+  channelPerfModelControl: document.querySelector("#channelPerfModelControl"),
+  channelPerfModelInput: document.querySelector("#channelPerfModelInput"),
+  channelPerfModelMenu: document.querySelector("#channelPerfModelMenu"),
+  channelPerfModelOptions: document.querySelector("#channelPerfModelOptions"),
+  channelPerfProtocolPanel: document.querySelector("#channelPerfProtocolPanel"),
+  channelPerfProtocolPicker: document.querySelector("#channelPerfProtocolPicker"),
+  channelPerfProtocolMeta: document.querySelector("#channelPerfProtocolMeta"),
+  channelPerfProtocolHint: document.querySelector("#channelPerfProtocolHint"),
+  channelPerfChannelPanel: document.querySelector("#channelPerfChannelPanel"),
+  channelPerfRouteHint: document.querySelector("#channelPerfRouteHint"),
+  channelPerfBaselineSelect: document.querySelector("#channelPerfBaselineSelect"),
+  channelPerfBaselineControl: document.querySelector("#channelPerfBaselineControl"),
+  channelPerfBaselineInput: document.querySelector("#channelPerfBaselineInput"),
+  channelPerfBaselineMenu: document.querySelector("#channelPerfBaselineMenu"),
+  channelPerfBaselineOptions: document.querySelector("#channelPerfBaselineOptions"),
+  channelPerfTargetSelect: document.querySelector("#channelPerfTargetSelect"),
+  channelPerfTargetControl: document.querySelector("#channelPerfTargetControl"),
+  channelPerfTargetTags: document.querySelector("#channelPerfTargetTags"),
+  channelPerfTargetInput: document.querySelector("#channelPerfTargetInput"),
+  channelPerfTargetMenu: document.querySelector("#channelPerfTargetMenu"),
+  channelPerfTargetOptions: document.querySelector("#channelPerfTargetOptions"),
+  channelPerfConfigPanel: document.querySelector("#channelPerfConfigPanel"),
+  channelPerfSelectedRoute: document.querySelector("#channelPerfSelectedRoute"),
+  channelPerfChannelConfigs: document.querySelector("#channelPerfChannelConfigs"),
+  channelPerfBenchmarkPanel: document.querySelector("#channelPerfBenchmarkPanel"),
+  channelPerfNumPrompts: document.querySelector("#channelPerfNumPrompts"),
+  channelPerfRandomInputLen: document.querySelector("#channelPerfRandomInputLen"),
+  channelPerfRandomOutputLen: document.querySelector("#channelPerfRandomOutputLen"),
+  channelPerfRequestRate: document.querySelector("#channelPerfRequestRate"),
+  channelPerfMaxConcurrency: document.querySelector("#channelPerfMaxConcurrency"),
+  channelPerfPercentileMetrics: document.querySelector("#channelPerfPercentileMetrics"),
+  channelPerfMetricPercentiles: document.querySelector("#channelPerfMetricPercentiles"),
+  channelPerfGoodput: document.querySelector("#channelPerfGoodput"),
+  channelPerfRandomRangeRatio: document.querySelector("#channelPerfRandomRangeRatio"),
+  channelPerfRandomPrefixLen: document.querySelector("#channelPerfRandomPrefixLen"),
+  channelPerfBurstiness: document.querySelector("#channelPerfBurstiness"),
+  channelPerfWarmups: document.querySelector("#channelPerfWarmups"),
+  channelPerfMetadata: document.querySelector("#channelPerfMetadata"),
+  channelPerfExtraArgs: document.querySelector("#channelPerfExtraArgs"),
+  runChannelPerfBenchmark: document.querySelector("#runChannelPerfBenchmark"),
+  channelPerfReportRunPanel: document.querySelector("#channelPerfReportRunPanel"),
+  channelPerfReportRunMeta: document.querySelector("#channelPerfReportRunMeta"),
+  channelPerfStopBenchmark: document.querySelector("#channelPerfStopBenchmark"),
+  channelPerfProgressCount: document.querySelector("#channelPerfProgressCount"),
+  channelPerfProgressLabel: document.querySelector("#channelPerfProgressLabel"),
+  channelPerfProgressBar: document.querySelector("#channelPerfProgressBar"),
+  channelPerfRunLog: document.querySelector("#channelPerfRunLog"),
+  channelPerfReportsCount: document.querySelector("#channelPerfReportsCount"),
+  channelPerfReportsList: document.querySelector("#channelPerfReportsList"),
+  clearChannelPerfReports: document.querySelector("#clearChannelPerfReports"),
   feishuDocumentUrl: document.querySelector("#feishuDocumentUrl"),
   feishuDocumentMode: document.querySelector("#feishuDocumentMode"),
   feishuTitlePrefix: document.querySelector("#feishuTitlePrefix"),
@@ -200,21 +504,12 @@ const els = {
   runV02CaseGroups: document.querySelector("#runV02CaseGroups"),
   runV02SelectedCaseCount: document.querySelector("#runV02SelectedCaseCount"),
   runV02CaseHint: document.querySelector("#runV02CaseHint"),
-  runV02SelectAllCases: document.querySelector("#runV02SelectAllCases"),
-  runV02ClearAllCases: document.querySelector("#runV02ClearAllCases"),
   runV02Tests: document.querySelector("#runV02Tests"),
   runV02StopTests: document.querySelector("#runV02StopTests"),
-  runV02ProgressPanel: document.querySelector("#runV02ProgressPanel"),
   runV02ProgressCount: document.querySelector("#runV02ProgressCount"),
   runV02ProgressCase: document.querySelector("#runV02ProgressCase"),
   runV02ProgressBar: document.querySelector("#runV02ProgressBar"),
   runV02RunLog: document.querySelector("#runV02RunLog"),
-  runV02ResultsPanel: document.querySelector("#runV02ResultsPanel"),
-  runV02StatPassed: document.querySelector("#runV02StatPassed"),
-  runV02StatWarnings: document.querySelector("#runV02StatWarnings"),
-  runV02StatFailed: document.querySelector("#runV02StatFailed"),
-  runV02StatDiffs: document.querySelector("#runV02StatDiffs"),
-  runV02ResultRows: document.querySelector("#runV02ResultRows"),
   proxySwitch: document.querySelector("#proxySwitch"),
   toast: document.querySelector("#toast"),
   channelCatalog: document.querySelector("#channelCatalog"),
@@ -288,7 +583,7 @@ const state = {
   expandedChannelReportId: null,
   lastRunProxy: null,
   lastReportRecord: null,
-  lastPerformanceResult: null,
+  expandedChannelPerfReportId: null,
   historyFilters: {
     channel: "all",
     model: "all",
@@ -322,25 +617,35 @@ const state = {
     isRunning: false,
     completedResults: [],
     currentRunAbortController: null,
+    runProgress: { count: 0, total: 0, label: "准备中" },
+    runMeta: null,
     localConfigProviders: {}
+  },
+  channelPerf: {
+    modelId: "",
+    protocolId: "",
+    routeOptions: [],
+    baselineRouteKey: "",
+    baselineRoute: null,
+    targetRouteKeys: new Set(),
+    channelConfigs: {},
+    benchmark: { ...window.NOCTUA_CHANNEL_PERFORMANCE?.DEFAULT_BENCHMARK },
+    localConfigProviders: {},
+    modelSearch: "",
+    baselineSearch: "",
+    baselineMenuOpen: false,
+    targetSearch: "",
+    targetMenuOpen: false,
+    modelMenuOpen: false,
+    isRunning: false,
+    completedResults: [],
+    currentRunAbortController: null,
+    runProgress: { count: 0, total: 0, label: "准备中" },
+    runMeta: null,
+    startedAt: null
   }
 };
 
-const RUN_V02_CONFIG_PLATFORM_ALIASES = {
-  deepseek: ["deepseek"],
-  moonshot: ["moonshot"],
-  zhipu: ["zhipu"],
-  minimax: ["minimax"],
-  "aliyun-cn": ["aliyun-cn", "aliyun", "ali"],
-  "aliyun-us": ["aliyun-us", "aliyun", "ali"],
-  "aliyun-sg": ["aliyun-sg", "aliyun", "ali"],
-  "siliconflow-cn": ["siliconflow-cn", "sf-router-cn", "siliconflow"],
-  "siliconflow-com": ["siliconflow-com", "sf-router-com", "siliconflow"],
-  openrouter: ["openrouter"],
-  "sf-router-cn": ["sf-router-cn", "siliconflow-cn", "siliconflow"],
-  "sf-router-com": ["sf-router-com", "siliconflow-com", "siliconflow"],
-  "streamlake-cn": ["streamlake-cn", "streamlake"]
-};
 const appProtocol = window.location.protocol === "file:" ? "http:" : window.location.protocol;
 const appHost = window.location.hostname || "localhost";
 const appQuery = new URLSearchParams(window.location.search);
@@ -348,6 +653,7 @@ const API_BASE = appQuery.get("apiBase") || window.PROVIDER_DIFF_API_BASE || `${
 const BACKEND_UNAVAILABLE_MESSAGE = `后端未连接：无法访问 ${API_BASE}。请先启动 Go 后端（默认 8080），再运行测试。`;
 const HISTORY_STORAGE_KEY = "noctua-history-v1";
 const CHANNEL_REPORTS_STORAGE_KEY = "noctua-channel-reports-v1";
+const CHANNEL_PERF_REPORTS_STORAGE_KEY = "noctua-channel-performance-reports-v1";
 const FEISHU_CONFIG_STORAGE_KEY = "noctua-feishu-config-v1";
 const EVALSCOPE_URL_STORAGE_KEY = "noctua-evalscope-url-v1";
 const DEFAULT_EVALSCOPE_URL = appQuery.get("evalscopeUrl") || `${appProtocol}//${appHost}:9000/dashboard`;
@@ -522,7 +828,7 @@ const RUN_V02_PROTOCOL_STREAM_USAGE_TITLE = "流式用量：include_usage=true �
 const RUN_V02_PROTOCOL_STREAM_USAGE_OBSERVED_TITLE = "流式用量：不传 include_usage 时是否仍返回 usage。";
 const RUN_V02_PROTOCOL_STREAM_USAGE_CHUNK_SHAPE_TITLE = "流式用量 chunk 结构：usage 应在独立 chunk（choices:[]）中返回。";
 const RUN_V02_PROTOCOL_STREAM_BASIC_TOOLTIP =
-  "该 Case 在 stream=true 时验证是否返回 SSE 流式数据，chunk 结构是否符合预期（如 choices[].delta），并检查至少 2 个含 content 的增量 chunk（防伪流式）；默认重复探测 3 次，任一次伪流式即失败。";
+  "该 Case 在 stream=true 时验证是否返回 SSE 流式数据、chunk 结构是否符合预期（如 choices[].delta），并检查至少 2 个增量 chunk（content 或 reasoning_content，防伪流式）；默认探测 1 次。";
 const RUN_V02_PROTOCOL_STREAM_FALSE_TOOLTIP =
   "该 Case 在 stream=false 时验证响应为普通 JSON（非 SSE），结构含 choices / usage 等字段。";
 const RUN_V02_PROTOCOL_STREAM_USAGE_TOOLTIP =
@@ -1480,6 +1786,37 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+const NOCTUA_ICON_PATHS = {
+  "chevron-down": "<path d=\"m6 9 6 6 6-6\"/>",
+  "trash-2": "<path d=\"M3 6h18\"/><path d=\"M8 6V4h8v2\"/><path d=\"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6\"/><path d=\"M10 11v6\"/><path d=\"M14 11v6\"/>",
+  copy: "<rect width=\"14\" height=\"14\" x=\"8\" y=\"8\" rx=\"2\" ry=\"2\"/><path d=\"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2\"/>",
+  "external-link": "<path d=\"M15 3h6v6\"/><path d=\"M10 14 21 3\"/><path d=\"M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6\"/>",
+  download: "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><path d=\"m7 10 5 5 5-5\"/><path d=\"M12 15V3\"/>",
+  "file-text": "<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"M10 9H8\"/><path d=\"M16 13H8\"/><path d=\"M16 17H8\"/>"
+};
+
+function renderIcon(name, { size = 16, className = "" } = {}) {
+  const paths = NOCTUA_ICON_PATHS[name];
+  if (!paths) return "";
+  const classes = ["icon", className].filter(Boolean).join(" ");
+  return `<svg class="${classes}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+}
+
+function renderHiconButton({
+  icon,
+  extraClass = "",
+  isOpen = false,
+  title = "",
+  ariaLabel = "",
+  dataAttrs = {}
+}) {
+  const attrs = Object.entries(dataAttrs)
+    .map(([key, value]) => `${key}="${escapeHtml(value)}"`)
+    .join(" ");
+  const label = ariaLabel || title;
+  return `<button class="hicon ${extraClass}${isOpen ? " is-open" : ""}" type="button" ${attrs} title="${escapeHtml(title)}" aria-label="${escapeHtml(label)}">${renderIcon(icon)}</button>`;
+}
+
 function isFetchNetworkError(error) {
   const message = String(error?.message || "");
   return error?.name === "TypeError"
@@ -1640,7 +1977,19 @@ function canonicalResultFromRaw(result = {}, fallback = {}) {
     stream_usage_chunk_profile: result.stream_usage_chunk_profile ?? null,
     stream_done_marker_present: result.stream_done_marker_present ?? null,
     output_length_cap_precedence: result.output_length_cap_precedence ?? null,
-    output_cap_effective: result.output_cap_effective ?? null
+    output_cap_effective: result.output_cap_effective ?? null,
+    channel_id: result.channel_id || fallback.channel_id || "",
+    channel_name: result.channel_name || fallback.channel_name || "",
+    channel_route_key: result.channel_route_key || fallback.channel_route_key || "",
+    is_baseline: Boolean(result.is_baseline),
+    provider: result.provider || fallback.provider || "",
+    endpoint_id: result.endpoint_id || fallback.endpoint_id || "",
+    endpoint_label: result.endpoint_label || fallback.endpoint_label || "",
+    base_url: result.base_url || fallback.base_url || "",
+    model: result.model || fallback.model || "",
+    cache_hit_summary: result.cache_hit_summary || "",
+    case_group_key: result.case_group_key || fallback.case_group_key || "",
+    case_group_title: result.case_group_title || fallback.case_group_title || ""
   };
 }
 
@@ -1806,9 +2155,12 @@ function formatStreamMetricsSummary(metrics) {
   if (!metrics || typeof metrics !== "object") return "";
   const parts = [
     `SSE ${metrics.sse_chunk_count ?? "—"} 包`,
-    `content ${metrics.content_chunk_count ?? "—"} 包`,
-    `首包 ${metrics.first_chunk_ms ?? "—"}ms`
+    `content ${metrics.content_chunk_count ?? "—"} 包`
   ];
+  if (metrics.reasoning_chunk_count > 0) {
+    parts.push(`reasoning ${metrics.reasoning_chunk_count} 包`);
+  }
+  parts.push(`首包 ${metrics.first_chunk_ms ?? "—"}ms`);
   if (metrics.chunk_spread_ms != null) {
     parts.push(`跨度 ${metrics.chunk_spread_ms}ms`);
   }
@@ -2876,15 +3228,6 @@ function partitionOutputLengthForDisplay(cases = []) {
     .map((axis) => [axis, sortOutputLengthCases(buckets.get(axis))]);
 }
 
-function defaultOutputLengthCaseIds(cases = []) {
-  return cases
-    .filter((testCase) => {
-      const axis = lengthCaseAxisGroup(testCase);
-      return axis === "accept" || axis === "effective" || axis === "precedence";
-    })
-    .map((testCase) => testCase.case_id);
-}
-
 function isLengthFieldEffectiveCase(testCase) {
   if (testCase?.category !== "length") return false;
   const caseId = String(testCase.case_id || "");
@@ -3140,43 +3483,14 @@ function groupThinkingCasesBySwitchField(cases) {
     .map((field) => ({ field, cases: buckets.get(field) }));
 }
 
-function defaultThinkingCaseIds(cases = []) {
-  const ids = [];
-  const on = cases.find((testCase) => testCase.case_id === "thinking_enable_thinking_true");
-  const off = cases.find((testCase) => testCase.case_id === "thinking_enable_thinking_false");
-  const altOn = cases.find((testCase) => testCase.case_id === "thinking_switch_alt_thinking_enabled");
-  const altOff = cases.find((testCase) => testCase.case_id === "thinking_switch_alt_thinking_disabled");
-  const intensity = cases.find((testCase) =>
-    thinkingCaseAxisGroup(thinkingCaseMeta(testCase).axis) === "intensity" && !testCase.optional);
-  for (const testCase of [on, off, altOn, altOff, intensity]) {
-    if (testCase) ids.push(testCase.case_id);
-  }
-  return ids;
-}
-
 /** canonical tools case 全量展示，不以 protocol-matrix 是否列出 parallel_tool_calls 裁剪。 */
 function toolsCasesForChannel(cases = []) {
   return cases;
 }
 
-function defaultToolsCaseIds(cases = []) {
-  const ids = [];
-  for (const caseId of ["tools_auto", "tools_choice_required", "tools_multiturn_tool_result"]) {
-    const testCase = cases.find((item) => item.case_id === caseId);
-    if (testCase) ids.push(testCase.case_id);
-  }
-  return ids;
-}
-
 /** canonical response_format case 全量展示 P0 三件套，不以渠道文档是否列出参数或枚举值裁剪。 */
 function responseFormatCasesForChannel(cases = []) {
   return cases;
-}
-
-function defaultResponseFormatCaseIds(cases = []) {
-  return cases
-    .filter((testCase) => PROTOCOL_RESPONSE_FORMAT_CANONICAL_CASE_IDS.has(testCase.case_id))
-    .map((testCase) => testCase.case_id);
 }
 
 function protocolResponseFormatCaseTooltip(testCase) {
@@ -3236,23 +3550,13 @@ function runV02ProtocolEvalChannelId(route) {
   return null;
 }
 
-function baselineSupportsStreamIncludeUsage() {
-  const route = state.runV02.baselineRoute;
-  if (!route) return false;
-  const channelId = runV02ProtocolEvalChannelId(route);
-  if (!channelId) return false;
-  const params = getProtocolMatrix()?.getParameters?.(channelId, route.protocolId);
-  if (!params) return false;
-  return Object.values(params).flat().includes("stream_options.include_usage");
-}
-
 function runV02CaseGroupHint(group) {
   if (!group) return "先选择测评分组，再勾选该分组内的 case。";
   if (group.key === "connectivity") {
     return `当前分组：${group.title}。发一句 Hello，验证该协议能否成功请求当前模型。`;
   }
   if (group.key === "protocol") {
-    return `当前分组：${group.title}。验证流式与非流式：stream=true 应增量返回多个 content chunk（默认重复探测 3 次）；不传 include_usage 时观测各渠道是否仍返回 usage；传 include_usage=true 时必须有 usage；stream=false 返回普通 JSON。`;
+    return `当前分组：${group.title}。验证流式与非流式：stream=true 应增量返回多个 chunk（content 或 reasoning_content，探测 1 次）；不传 include_usage 时观测各渠道是否仍返回 usage；传 include_usage=true 时必须有 usage；stream=false 返回普通 JSON。`;
   }
   if (group.key === "protocol_sampling") {
     const oemCount = group.cases.filter((testCase) => oemBehaviorsApi().isOemReferenceCase?.(testCase)).length;
@@ -5192,6 +5496,12 @@ function historyChannelLabel(record = {}) {
   return record.channel_name || record.channel_id || record.provider || "未知渠道";
 }
 
+function resultChannelLabel(result = {}, fallbackRecord = {}) {
+  const name = result.channel_name || result.channel_id || historyChannelLabel(fallbackRecord);
+  if (result.is_baseline) return `${name} · Baseline`;
+  return name;
+}
+
 function historyChannelKey(record = {}) {
   return record.channel_id || record.provider || historyChannelLabel(record);
 }
@@ -5670,26 +5980,54 @@ function escapeMarkdownCell(value) {
 
 function channelReportMarkdown(record) {
   const stats = record.stats || channelReportStatsForResults(record.results || []);
+  const evaluation = ensureChannelReportEvaluation(record);
   const matrix = ensureChannelReportMatrix(record);
   const lines = [
-    "## 渠道测评报告",
+    "## 渠道参数测评报告",
     "",
     `- 模型：${record.model_id || "—"}`,
     `- 协议：${record.protocol_id || "—"}`,
     `- Baseline：${record.baseline_label || "—"}`,
     `- 测评渠道：${(record.target_labels || []).join("、") || "—"}`,
     `- 生成时间：${formatDateTime(record.generated_at)}`,
+    `- 整体结论：${evaluation?.verdict_meta?.label || "—"} · ${evaluation?.headline || "—"}`,
     `- 断言达标：${stats.assertPass || 0}/${stats.assertTotal || 0}`,
     `- 观测记录：${stats.observeRecorded || 0}/${stats.observeTotal || 0}`,
     `- 结构差异：${stats.structureDiffs || 0}`,
     ""
   ];
+  if (evaluation?.severity_counts) {
+    lines.push("### Case 严重度分布");
+    for (const level of ["p0", "p1", "p2", "p3"]) {
+      const meta = CHANNEL_REPORT_INTENT.caseSeverityMeta?.(level);
+      const counts = evaluation.severity_counts[level];
+      if (!counts?.total) continue;
+      lines.push(`- ${meta?.label || level} ${meta?.title || ""}：${counts.total} case，${counts.failed} 项未达标`);
+    }
+    lines.push("");
+  }
+  if (evaluation?.channel_summaries?.length) {
+    const issueChannels = evaluation.channel_summaries.filter((entry) => entry.issueCount > 0);
+    if (issueChannels.length) {
+      lines.push("### 问题渠道");
+      for (const entry of issueChannels) {
+        lines.push(`- ${entry.platformName}：${entry.issueCount} 项未达标（最高 ${entry.severity_meta?.label || "—"}）`);
+      }
+      lines.push("");
+    }
+  }
   for (const row of matrix) {
-    lines.push(`### ${row.title || row.case_id}（${CHANNEL_REPORT_INTENT.intentLabel?.(row.intent) || row.intent}）`);
+    const severity = CHANNEL_REPORT_INTENT.caseSeverityLevel?.({ case_id: row.case_id }, row.group_key) || "p2";
+    const severityMeta = CHANNEL_REPORT_INTENT.caseSeverityMeta?.(severity);
+    lines.push(`### ${row.title || row.case_id}（${severityMeta?.label || severity} ${severityMeta?.title || ""} · ${CHANNEL_REPORT_INTENT.intentLabel?.(row.intent) || row.intent}）`);
     for (const [channelKey, summary] of Object.entries(row.by_channel || {})) {
       if (!summary) continue;
       const status = row.intent === "observe"
-        ? (summary.report_status === "observe_issue" ? "请求异常" : "已记录")
+        ? (summary.report_status === "observe_issue"
+          ? "请求异常"
+          : summary.report_status === "observe_assert_fail"
+            ? `断言异常${summary.failed_assertion_summary ? ` · ${summary.failed_assertion_summary}` : ""}`
+            : "已记录")
         : (summary.report_status === "pass" ? "达标" : "未达标");
       lines.push(`- ${summary.channel_name || channelKey}：${status} · ${summary.support_label || summary.support_conclusion} · HTTP ${summary.http_status}${summary.diff_count ? ` · diff ${summary.diff_count}` : ""}${summary.cache_hit_summary ? ` · ${summary.cache_hit_summary}` : ""}`);
     }
@@ -5697,6 +6035,214 @@ function channelReportMarkdown(record) {
   }
   lines.push(...originalChannelReportMarkdown(record));
   return lines;
+}
+
+function channelReportFilename(record, ext) {
+  const id = String(record.id || "report").replace(/^channel_report_/, "run-");
+  const model = String(record.model_id || "model").replace(/[^\w.-]+/g, "_").slice(0, 48);
+  return `${model}_${id}.${ext}`;
+}
+
+function downloadTextFile(filename, content, mime = "text/plain;charset=utf-8") {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function downloadChannelReportMarkdown(record) {
+  const content = channelReportMarkdown(record).join("\n");
+  downloadTextFile(channelReportFilename(record, "md"), content, "text/markdown;charset=utf-8");
+  showToast("Markdown 报告已下载。");
+}
+
+function exportDocGapScanBundle() {
+  const channelReports = readChannelReports();
+  const historyReports = readHistory();
+  const payload = {
+    exported_at: new Date().toISOString(),
+    channel_reports: channelReports,
+    history_reports: historyReports
+  };
+  downloadTextFile(
+    "channel-reports-export.json",
+    JSON.stringify(payload, null, 2),
+    "application/json;charset=utf-8"
+  );
+  showToast(`已导出 ${channelReports.length} 份渠道报告 + ${historyReports.length} 份历史报告，供 npm run scan:doc-gaps 使用。`);
+}
+
+function channelReportPdfCellText(summary, intent) {
+  if (!summary) return "—";
+  if (intent === "observe") {
+    if (summary.report_status === "observe_issue") {
+      return `请求异常 · ${summary.support_label || summary.support_conclusion || "—"} · HTTP ${summary.http_status || "—"}`;
+    }
+    if (summary.report_status === "observe_assert_fail") {
+      const parts = [
+        "断言异常",
+        summary.support_label || summary.support_conclusion || "—"
+      ];
+      if (summary.failed_assertion_summary) parts.push(summary.failed_assertion_summary);
+      parts.push(`HTTP ${summary.http_status || "—"}`);
+      return parts.join(" · ");
+    }
+    return `已记录 · ${summary.support_label || summary.support_conclusion || "—"} · HTTP ${summary.http_status || "—"}`;
+  }
+  const status = summary.report_status === "pass" ? "达标" : "未达标";
+  const parts = [
+    status,
+    summary.support_label || summary.support_conclusion || "—",
+    `HTTP ${summary.http_status || "—"}`
+  ];
+  if (summary.cache_hit_summary) parts.push(summary.cache_hit_summary);
+  return parts.join(" · ");
+}
+
+function renderChannelReportPdfMatrixSection(record, groupKey, rows, channels) {
+  if (!rows.length) return "";
+  const baselineChannel = channels.find((channel) => channel.role === "baseline");
+  const targetChannels = channels.filter((channel) => channel.role !== "baseline");
+  const title = escapeHtml(rows[0].group_title || RUN_V02_GROUP_TITLES[groupKey] || groupKey);
+  const headerCols = [
+    "<th style=\"padding:6px 8px;border:1px solid #ddd;text-align:left\">Case</th>",
+    "<th style=\"padding:6px 8px;border:1px solid #ddd;text-align:left\">类型</th>",
+    baselineChannel ? `<th style="padding:6px 8px;border:1px solid #ddd;text-align:left">${escapeHtml(baselineChannel.platformName)} (Baseline)</th>` : "",
+    ...targetChannels.map((channel) => `<th style="padding:6px 8px;border:1px solid #ddd;text-align:left">${escapeHtml(channel.platformName)}</th>`),
+    "<th style=\"padding:6px 8px;border:1px solid #ddd;text-align:left\">结构差异</th>"
+  ].join("");
+  const bodyRows = rows.map((row) => {
+    const diffParts = targetChannels.map((channel) => {
+      const summary = row.by_channel?.[channel.key];
+      if (!summary || summary.diff_count <= 0) return "";
+      return `${channel.platformName} ${summary.diff_count}`;
+    }).filter(Boolean);
+    const cellStyle = "padding:6px 8px;border:1px solid #ddd;vertical-align:top";
+    return `<tr>
+      <td style="${cellStyle}">${escapeHtml(row.title || row.case_id)}</td>
+      <td style="${cellStyle}">${escapeHtml(CHANNEL_REPORT_INTENT.intentLabel?.(row.intent) || row.intent)}</td>
+      ${baselineChannel ? `<td style="${cellStyle}">${escapeHtml(channelReportPdfCellText(row.by_channel?.[baselineChannel.key], row.intent))}</td>` : ""}
+      ${targetChannels.map((channel) => `<td style="${cellStyle}">${escapeHtml(channelReportPdfCellText(row.by_channel?.[channel.key], row.intent))}</td>`).join("")}
+      <td style="${cellStyle}">${escapeHtml(diffParts.length ? diffParts.join(" · ") : "—")}</td>
+    </tr>`;
+  }).join("");
+  return `
+    <section style="margin-top:20px">
+      <h3 style="font-size:14px;margin:0 0 8px">${title}</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead><tr style="background:#f4f4f5">${headerCols}</tr></thead>
+        <tbody>${bodyRows}</tbody>
+      </table>
+    </section>`;
+}
+
+function channelReportPdfBodyHtml(record) {
+  const stats = record.stats || channelReportStatsForResults(record.results || []);
+  const channels = ensureChannelReportChannels(record);
+  const matrix = ensureChannelReportMatrix(record);
+  const protocolLabel = channelReportProtocolLabel(record.protocol_id);
+  const grouped = new Map();
+  for (const row of matrix) {
+    const key = row.group_key || "other";
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(row);
+  }
+  const groupOrder = Object.keys(RUN_V02_GROUP_TITLES);
+  const sections = groupOrder
+    .filter((key) => grouped.has(key))
+    .map((key) => renderChannelReportPdfMatrixSection(record, key, grouped.get(key), channels))
+    .join("");
+  const extraSections = [...grouped.keys()]
+    .filter((key) => !groupOrder.includes(key))
+    .map((key) => renderChannelReportPdfMatrixSection(record, key, grouped.get(key), channels))
+    .join("");
+  const metaRow = (label, value) => `
+    <tr>
+      <td style="padding:3px 12px 3px 0;font-weight:600;white-space:nowrap;vertical-align:top">${escapeHtml(label)}</td>
+      <td style="padding:3px 0">${escapeHtml(value)}</td>
+    </tr>`;
+  return `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#111;padding:16px;max-width:800px;background:#fff">
+      <h1 style="font-size:20px;margin:0 0 4px">渠道参数测评报告</h1>
+      <p style="font-size:12px;color:#666;margin:0 0 16px">${escapeHtml(formatDateTime(record.generated_at))}</p>
+      <table style="width:100%;font-size:12px;margin-bottom:16px">
+        ${metaRow("模型", record.model_id || "—")}
+        ${metaRow("协议", protocolLabel)}
+        ${metaRow("Baseline", record.baseline_label || "—")}
+        ${metaRow("测评渠道", (record.target_labels || []).join("、") || "—")}
+        ${metaRow("断言达标", `${stats.assertPass || 0}/${stats.assertTotal || 0}`)}
+        ${metaRow("观测记录", `${stats.observeRecorded || 0}/${stats.observeTotal || 0}`)}
+        ${metaRow("结构差异", String(stats.structureDiffs || 0))}
+      </table>
+      ${sections}${extraSections}
+    </div>`;
+}
+
+let html2PdfLoader = null;
+
+function loadHtml2Pdf() {
+  if (window.html2pdf) return Promise.resolve(window.html2pdf);
+  if (!html2PdfLoader) {
+    html2PdfLoader = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+      script.async = true;
+      script.onload = () => resolve(window.html2pdf);
+      script.onerror = () => reject(new Error("无法加载 PDF 生成库"));
+      document.head.appendChild(script);
+    });
+  }
+  return html2PdfLoader;
+}
+
+async function downloadChannelReportPdf(record) {
+  showToast("正在生成 PDF…");
+  let container = null;
+  try {
+    const html2pdf = await loadHtml2Pdf();
+    container = document.createElement("div");
+    container.innerHTML = channelReportPdfBodyHtml(record);
+    container.style.cssText = "position:fixed;left:-10000px;top:0;width:800px;background:#fff";
+    document.body.appendChild(container);
+    await html2pdf().set({
+      margin: [10, 10, 10, 10],
+      filename: channelReportFilename(record, "pdf"),
+      image: { type: "jpeg", quality: 0.92 },
+      html2canvas: { scale: 2, useCORS: true, logging: false },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      pagebreak: { mode: ["avoid-all", "css", "legacy"] }
+    }).from(container).save();
+    showToast("PDF 报告已下载。");
+  } catch (error) {
+    showToast(`PDF 生成失败：${error.message}`);
+  } finally {
+    container?.remove();
+  }
+}
+
+function renderChannelReportDownloadMenu(record) {
+  return `
+    <details class="channel-report-download-menu">
+      <summary class="btn btn-secondary btn-sm channel-report-download-menu__trigger">
+        ${renderIcon("download", { size: 14, className: "icon--inline" })}
+        <span>下载报告</span>
+      </summary>
+      <div class="channel-report-download-menu__panel" role="menu">
+        <button class="channel-report-download-menu__item" type="button" data-channel-report-action="download-md" data-channel-report-id="${escapeHtml(record.id)}" role="menuitem">
+          ${renderIcon("file-text", { size: 14, className: "icon--inline" })}
+          <span>Markdown (.md)</span>
+        </button>
+        <button class="channel-report-download-menu__item" type="button" data-channel-report-action="download-pdf" data-channel-report-id="${escapeHtml(record.id)}" role="menuitem">
+          ${renderIcon("download", { size: 14, className: "icon--inline" })}
+          <span>PDF (.pdf)</span>
+        </button>
+      </div>
+    </details>`;
 }
 
 function originalChannelReportMarkdown(record) {
@@ -5985,26 +6531,109 @@ function renderHistoryResultGroups(record) {
   }).join("");
 }
 
-function renderHistoryRawCase(result, record) {
-  const meta = conclusionMeta(result);
-  const responseBody = hasResponseBody(result) ? result.response_body : null;
-  const rawResponse = result.raw_response || "";
-  const sourceCase = result.source_case || null;
-  const assertions = result.assertions || [];
-  const requestBody = result.request_body || sourceCase?.payload || null;
-  const requestHeaders = result.request_headers || sourceCase?.headers || null;
-  const responseHeaders = result.response_headers || null;
-  const responseBlock = responseBody !== null
+function renderAssertionList(assertions = [], { variant = "all" } = {}) {
+  if (!assertions.length) return "";
+  return `
+    <div class="assertion-list assertion-list--${variant}">
+      ${assertions.map((assertion) => `
+        <span class="assertion-item ${assertion.pass ? "pass" : "fail"}">
+          <strong>${assertion.pass ? "✓" : "✗"} ${escapeHtml(assertion.name)}</strong>
+          <span>${escapeHtml(assertion.message || (assertion.pass ? "通过" : "未通过"))}</span>
+        </span>
+      `).join("")}
+    </div>`;
+}
+
+function hcaseResponseTabGroupId(result = {}, channelLabel = "") {
+  const base = String(result.result_uid || result.case_id || "case");
+  const channel = String(result.channel_id || result.channel_name || channelLabel || "channel");
+  return `${base}-${channel}`.replace(/[^a-zA-Z0-9_-]/g, "_");
+}
+
+function renderHcaseResponseTabs({ tabGroupId, responseBody, rawResponse, responseHeaders }) {
+  const tabs = [];
+  const parsedContent = responseBody !== null
     ? `<pre class="code-block">${syntaxJson(responseBody)}</pre>`
     : rawResponse
       ? `<pre class="code-block">${escapeHtml(rawResponse)}</pre>`
       : `<pre class="code-block">null</pre>`;
+
+  tabs.push({ id: "parsed", label: "原始响应", content: parsedContent });
+
+  if (rawResponse && responseBody !== null) {
+    tabs.push({
+      id: "raw",
+      label: "Raw Response",
+      content: `<pre class="code-block">${escapeHtml(rawResponse)}</pre>`
+    });
+  }
+
+  if (responseHeaders) {
+    tabs.push({
+      id: "headers",
+      label: "响应 Headers",
+      content: `<pre class="code-block">${syntaxJson(responseHeaders)}</pre>`
+    });
+  }
+
+  if (tabs.length === 1) return tabs[0].content;
+
   return `
-    <details class="hcase">
+    <div class="hcase-response-tabs" data-hcase-response-group="${escapeHtml(tabGroupId)}">
+      <div class="hcase-response-tabs__nav tabs" role="tablist">
+        ${tabs.map((tab, index) => `
+          <button
+            type="button"
+            class="${index === 0 ? "on" : ""}"
+            role="tab"
+            aria-selected="${index === 0 ? "true" : "false"}"
+            data-hcase-response-tab="${escapeHtml(tab.id)}"
+          >${escapeHtml(tab.label)}</button>
+        `).join("")}
+      </div>
+      <div class="hcase-response-tabs__panels">
+        ${tabs.map((tab, index) => `
+          <div
+            class="hcase-response-tabs__panel${index === 0 ? "" : " is-hidden"}"
+            role="tabpanel"
+            data-hcase-response-panel="${escapeHtml(tab.id)}"
+          >${tab.content}</div>
+        `).join("")}
+      </div>
+    </div>`;
+}
+
+function renderHistoryRawCase(result, record, options = {}) {
+  const meta = conclusionMeta(result);
+  const healthy = matchesExpectedForReport(result);
+  const channelLabel = options.channelLabel || resultChannelLabel(result, record);
+  const matrixContext = Boolean(options.matrixContext);
+  const defaultOpen = options.defaultOpen ?? !healthy;
+  const responseBody = hasResponseBody(result) ? result.response_body : null;
+  const rawResponse = result.raw_response || "";
+  const sourceCase = result.source_case || null;
+  const assertions = result.assertions || [];
+  const failedAssertions = assertions.filter((assertion) => !assertion.pass);
+  const passedAssertions = assertions.filter((assertion) => assertion.pass);
+  const requestBody = result.request_body || sourceCase?.payload || null;
+  const requestHeaders = result.request_headers || sourceCase?.headers || null;
+  const responseHeaders = result.response_headers || null;
+  const responseTabs = renderHcaseResponseTabs({
+    tabGroupId: hcaseResponseTabGroupId(result, channelLabel),
+    responseBody,
+    rawResponse,
+    responseHeaders
+  });
+  const failedSummary = failedAssertions.length
+    ? failedAssertions.map((assertion) => assertion.name).join(" · ")
+    : "";
+  return `
+    <details class="hcase ${healthy ? "hcase--pass" : "hcase--fail"}"${defaultOpen ? " open" : ""}>
       <summary>
-        <span class="cid">${escapeHtml(resultTitle(result))}</span>
-        <span class="badge-sm ${matchesExpectedResult(result) ? "ok" : "no"}">${escapeHtml(expectationLabel(result))}</span>
-        <span class="muted fs-xs">${escapeHtml(meta.label)} · ${escapeHtml(result.parameter || "payload")}</span>
+        <span class="hcase-channel">${escapeHtml(channelLabel)}</span>
+        ${matrixContext ? "" : `<span class="cid">${escapeHtml(resultTitle(result))}</span>`}
+        <span class="badge-sm ${healthy ? "ok" : "no"}">${escapeHtml(healthy ? "达标" : "未达标")}</span>
+        <span class="muted fs-xs">${escapeHtml(meta.label)}${failedSummary ? ` · ${escapeHtml(failedSummary)}` : ""}</span>
         <span class="grow"></span>
         <span class="mono fs-xs subtle">HTTP ${escapeHtml(result.http_status || meta.httpStatus || "—")} · ${escapeHtml(result.latency_ms ? `${result.latency_ms}ms` : "—")}</span>
       </summary>
@@ -6021,30 +6650,22 @@ function renderHistoryRawCase(result, record) {
             <pre class="code-block">${syntaxJson(sourceCase.expect)}</pre>
           ` : ""}
         </section>
-        <section class="pane">
-          <div class="pt">${escapeHtml(historyChannelLabel(record))} 原始响应</div>
-          ${responseBlock}
-          ${rawResponse && responseBody !== null ? `
-            <div class="pt">Raw Response</div>
-            <pre class="code-block">${escapeHtml(rawResponse)}</pre>
-          ` : ""}
-          ${responseHeaders ? `
-            <div class="pt">响应 Headers</div>
-            <pre class="code-block">${syntaxJson(responseHeaders)}</pre>
-          ` : ""}
+        <section class="pane pane--response">
+          ${responseTabs}
         </section>
         <section class="pane">
           <div class="pt">真实断言结果</div>
-          ${assertions.length ? `
-            <div class="assertion-list">
-              ${assertions.map((assertion) => `
-                <span class="assertion-item ${assertion.pass ? "pass" : "fail"}">
-                  <strong>${assertion.pass ? "✓" : "✗"} ${escapeHtml(assertion.name)}</strong>
-                  <span>${escapeHtml(assertion.message || (assertion.pass ? "通过" : "未通过"))}</span>
-                </span>
-              `).join("")}
-            </div>
-          ` : `<pre class="code-block">[]</pre>`}
+          ${failedAssertions.length
+    ? renderAssertionList(failedAssertions, { variant: "failed" })
+    : assertions.length
+      ? `<p class="muted fs-xs hcase-all-passed">全部断言通过</p>`
+      : `<pre class="code-block">[]</pre>`}
+          ${passedAssertions.length ? `
+            <details class="hcase-passed-assertions">
+              <summary class="muted fs-xs">已通过 ${passedAssertions.length} 项断言</summary>
+              ${renderAssertionList(passedAssertions, { variant: "passed" })}
+            </details>
+          ` : ""}
           ${renderStreamMetricsBlock(result)}
           <div class="pt">运行消息</div>
           <pre class="code-block">${escapeHtml(result.message || result.error || "—")}</pre>
@@ -6146,10 +6767,44 @@ function renderHistory() {
                 <td class="mono">${escapeHtml(formatDateTime(record.generated_at))}</td>
                 <td>
                   <div class="hactions">
-                    <button class="hicon" type="button" data-history-action="toggle" data-history-id="${escapeHtml(record.id)}" title="查看明细" aria-label="查看明细">⌄</button>
-                    <button class="hicon" type="button" data-history-action="copy" data-history-id="${escapeHtml(record.id)}" title="复制 Markdown" aria-label="复制 Markdown">⧉</button>
-                    <button class="hicon" type="button" data-history-action="feishu" data-history-id="${escapeHtml(record.id)}" title="写入飞书文档" aria-label="写入飞书文档">↗</button>
-                    <button class="hicon danger" type="button" data-history-action="delete" data-history-id="${escapeHtml(record.id)}" title="删除报告" aria-label="删除报告">⌫</button>
+                    ${renderHiconButton({
+    icon: "chevron-down",
+    isOpen,
+    title: "查看明细",
+    ariaLabel: "查看明细",
+    dataAttrs: {
+      "data-history-action": "toggle",
+      "data-history-id": record.id
+    }
+  })}
+                    ${renderHiconButton({
+    icon: "copy",
+    title: "复制 Markdown",
+    ariaLabel: "复制 Markdown",
+    dataAttrs: {
+      "data-history-action": "copy",
+      "data-history-id": record.id
+    }
+  })}
+                    ${renderHiconButton({
+    icon: "external-link",
+    title: "写入飞书文档",
+    ariaLabel: "写入飞书文档",
+    dataAttrs: {
+      "data-history-action": "feishu",
+      "data-history-id": record.id
+    }
+  })}
+                    ${renderHiconButton({
+    icon: "trash-2",
+    extraClass: "danger",
+    title: "删除报告",
+    ariaLabel: "删除报告",
+    dataAttrs: {
+      "data-history-action": "delete",
+      "data-history-id": record.id
+    }
+  })}
                   </div>
                 </td>
               </tr>
@@ -6171,7 +6826,7 @@ function readChannelReports() {
   }
 }
 
-function writeChannelReports(items) {
+function writeReportList(storageKey, items, compactFn = (item) => item) {
   const deduped = [];
   const seen = new Set();
   for (const item of items) {
@@ -6182,17 +6837,17 @@ function writeChannelReports(items) {
   const candidates = deduped.slice(0, MAX_HISTORY_ITEMS);
   const attempts = [
     { items: candidates, compacted: false },
-    { items: candidates.map(compactHistoryRecord), compacted: true },
-    { items: candidates.slice(0, 60).map(compactHistoryRecord), compacted: true },
-    { items: candidates.slice(0, 30).map(compactHistoryRecord), compacted: true },
-    { items: candidates.slice(0, 10).map(compactHistoryRecord), compacted: true },
-    { items: candidates.slice(0, 1).map(compactHistoryRecord), compacted: true }
+    { items: candidates.map(compactFn), compacted: true },
+    { items: candidates.slice(0, 60).map(compactFn), compacted: true },
+    { items: candidates.slice(0, 30).map(compactFn), compacted: true },
+    { items: candidates.slice(0, 10).map(compactFn), compacted: true },
+    { items: candidates.slice(0, 1).map(compactFn), compacted: true }
   ];
 
   let lastError = null;
   for (const attempt of attempts) {
     try {
-      localStorage.setItem(CHANNEL_REPORTS_STORAGE_KEY, JSON.stringify(attempt.items));
+      localStorage.setItem(storageKey, JSON.stringify(attempt.items));
       return {
         saved: true,
         compacted: attempt.compacted,
@@ -6210,6 +6865,10 @@ function writeChannelReports(items) {
     droppedCount: candidates.length,
     error: lastError
   };
+}
+
+function writeChannelReports(items) {
+  return writeReportList(CHANNEL_REPORTS_STORAGE_KEY, items, compactHistoryRecord);
 }
 
 function channelRouteDescriptors(baseline, targets = []) {
@@ -6260,6 +6919,10 @@ function summarizeResultForMatrix(result) {
   const intent = resultReportIntent(result);
   const healthy = matchesExpectedForReport(result);
   const meta = conclusionMeta(result);
+  const observeStatus = intent === "observe"
+    ? (CHANNEL_REPORT_INTENT.observeReportStatus?.(result, channelReportIntentDeps()) || (healthy ? "recorded" : "observe_issue"))
+    : "";
+  const failedAssertionSummary = CHANNEL_REPORT_INTENT.failedAssertionNames?.(result, 3).join(" · ") || "";
   return {
     channel_route_key: result.channel_route_key || "",
     channel_name: result.channel_name || "",
@@ -6270,8 +6933,9 @@ function summarizeResultForMatrix(result) {
     matches_expected: healthy,
     intent,
     report_status: intent === "observe"
-      ? (healthy ? "recorded" : "observe_issue")
+      ? observeStatus
       : (healthy ? "pass" : "fail"),
+    failed_assertion_summary: failedAssertionSummary,
     diff_count: Number(result.diff_count || 0),
     cache_hit_summary: result.cache_hit_summary || "",
     latency_ms: result.latency_ms || 0,
@@ -6349,9 +7013,6 @@ function buildChannelReportMatrix(results = [], channels = [], selection = []) {
 }
 
 function ensureChannelReportMatrix(record) {
-  if (Array.isArray(record?.case_matrix) && record.case_matrix.length) {
-    return record.case_matrix;
-  }
   const channels = record.channels?.length ? record.channels : inferChannelsFromResults(record.results || []);
   const selection = record.selection?.length
     ? record.selection
@@ -6360,6 +7021,11 @@ function ensureChannelReportMatrix(record) {
       group_title: group.title,
       case_ids: group.results.map((result) => result.case_id)
     }));
+  const stored = Array.isArray(record?.case_matrix) ? record.case_matrix : [];
+  if (stored.length) {
+    const hasCells = stored.some((row) => row.by_channel && Object.keys(row.by_channel).length > 0);
+    if (hasCells) return stored;
+  }
   return buildChannelReportMatrix(record.results || [], channels, selection);
 }
 
@@ -6379,6 +7045,12 @@ function createChannelReportRecord(sourceResults = state.runV02.completedResults
   const channels = channelRouteDescriptors(baseline, targets);
   const stats = channelReportStatsForResults(results);
   const case_matrix = buildChannelReportMatrix(results, channels, selection);
+  const evaluation = CHANNEL_REPORT_INTENT.channelReportEvaluationSummary?.(
+    case_matrix,
+    channels,
+    stats,
+    channelReportIntentDeps()
+  ) || null;
   const groupTitles = selection.map((entry) => entry.group_title).join(" · ");
   return {
     id: `channel_report_${Date.now()}`,
@@ -6407,6 +7079,7 @@ function createChannelReportRecord(sourceResults = state.runV02.completedResults
     selection,
     channels,
     stats,
+    evaluation,
     case_matrix,
     results
   };
@@ -6421,82 +7094,67 @@ function saveChannelReportRecord(sourceResults = state.runV02.completedResults) 
     showToast("本次渠道测评结果已展示，但报告写入失败：浏览器本地存储空间不足。");
   } else if (writeResult.compacted || writeResult.droppedCount > 0) {
     showToast(writeResult.droppedCount > 0
-      ? `渠道测评报告已保存；本地空间不足，已保留最近 ${writeResult.savedCount} 条。`
-      : "渠道测评报告已保存；较大的响应内容已压缩。");
+      ? `渠道参数测评报告已保存；本地空间不足，已保留最近 ${writeResult.savedCount} 条。`
+      : "渠道参数测评报告已保存；较大的响应内容已压缩。");
   }
   return record;
 }
 
-function aggregateChannelReports(items = []) {
-  const aggregate = createEmptyAggregateStats();
-  aggregate.reports = items.length;
-  aggregate.assertPass = 0;
-  aggregate.assertFail = 0;
-  aggregate.observeRecorded = 0;
-  aggregate.observeIssue = 0;
-  for (const record of items) {
-    const stats = record.stats || channelReportStatsForResults(record.results || []);
-    aggregate.total += stats.total || 0;
-    aggregate.assertPass += stats.assertPass || 0;
-    aggregate.assertFail += stats.assertFail || 0;
-    aggregate.observeRecorded += stats.observeRecorded || 0;
-    aggregate.observeIssue += stats.observeIssue || 0;
-    aggregate.expectedPass += stats.expectedPass ?? ((stats.assertPass || 0) + (stats.observeRecorded || 0));
-    aggregate.unexpected += stats.unexpected ?? ((stats.assertFail || 0) + (stats.observeIssue || 0));
-    aggregate.diffs += stats.structureDiffs || stats.diffs || 0;
-    if (record.model_id) aggregate.models.add(record.model_id);
-    if (record.generated_at && (!aggregate.latestAt || record.generated_at > aggregate.latestAt)) {
-      aggregate.latestAt = record.generated_at;
-    }
+function renderChannelReportRunPanel() {
+  const running = state.runV02.isRunning;
+  if (els.channelReportRunPanel) {
+    els.channelReportRunPanel.classList.toggle("is-hidden", !running);
   }
-  return aggregate;
-}
-
-function renderChannelReportSummary(items) {
-  if (!els.channelReportsSummary) return;
-  const aggregate = aggregateChannelReports(items);
-  const latestText = aggregate.latestAt ? formatDateTime(aggregate.latestAt) : "—";
-  els.channelReportsSummary.innerHTML = `
-      <article class="rep-card">
-        <span class="lbl">测评报告</span>
-        <span class="num">${items.length}</span>
-        <span class="sub">一次跑批一份报告 · 最近 ${escapeHtml(latestText)}</span>
-      </article>
-      <article class="rep-card pass">
-        <span class="lbl"><span class="mk" style="background:var(--status-success)"></span>断言达标</span>
-        <span class="num">${aggregate.assertPass || 0}</span>
-        <span class="sub">${percentText(aggregate.assertPass || 0, (aggregate.assertPass || 0) + (aggregate.assertFail || 0))}</span>
-      </article>
-      <article class="rep-card fail">
-        <span class="lbl"><span class="mk" style="background:var(--status-danger)"></span>断言未达标</span>
-        <span class="num">${aggregate.assertFail || 0}</span>
-        <span class="sub">有明确对错的 case</span>
-      </article>
-      <article class="rep-card">
-        <span class="lbl"><span class="mk" style="background:var(--status-info)"></span>观测已记录</span>
-        <span class="num">${aggregate.observeRecorded || 0}</span>
-        <span class="sub">了解现状 · 异常 ${aggregate.observeIssue || 0}</span>
-      </article>
-      <article class="rep-card">
-        <span class="lbl"><span class="mk" style="background:var(--status-warning)"></span>结构差异</span>
-        <span class="num">${aggregate.diffs || 0}</span>
-        <span class="sub">相对 Baseline 的 JSON 差异条目</span>
-      </article>
-  `;
+  if (!running) return;
+  const progress = state.runV02.runProgress || { count: 0, total: 0, label: "准备中" };
+  if (els.runV02ProgressCount) {
+    els.runV02ProgressCount.textContent = `${progress.count} / ${progress.total}`;
+  }
+  if (els.runV02ProgressCase) {
+    els.runV02ProgressCase.textContent = progress.label || "准备中";
+  }
+  if (els.runV02ProgressBar) {
+    const pct = progress.total ? Math.round((progress.count / progress.total) * 100) : 0;
+    els.runV02ProgressBar.style.width = `${pct}%`;
+  }
+  if (els.channelReportRunMeta && state.runV02.runMeta) {
+    const meta = state.runV02.runMeta;
+    els.channelReportRunMeta.textContent = [
+      meta.modelId,
+      meta.baseline,
+      `测评 ${meta.targetCount} 个渠道`,
+      `${meta.groupCount} 组 · ${meta.caseCount} case`
+    ].filter(Boolean).join(" · ");
+  }
 }
 
 function renderChannelReportMatrixCell(summary, intent) {
   if (!summary) return `<span class="channel-matrix-cell channel-matrix-cell--empty">—</span>`;
   const conclusion = escapeHtml(summary.support_label || summary.support_conclusion || "—");
   const http = summary.http_status || "—";
+  const assertionHint = summary.failed_assertion_summary
+    ? escapeHtml(summary.failed_assertion_summary)
+    : "";
   if (intent === "observe") {
-    const tone = summary.report_status === "observe_issue" ? "issue" : "observe";
-    const label = tone === "issue" ? "请求异常" : "已记录";
+    let tone = "observe";
+    let label = "已记录";
+    if (summary.report_status === "observe_issue") {
+      tone = "issue";
+      label = "请求异常";
+    } else if (summary.report_status === "observe_assert_fail") {
+      tone = "observe-fail";
+      label = "断言异常";
+    }
+    const metaParts = [conclusion];
+    if (assertionHint && summary.report_status === "observe_assert_fail") {
+      metaParts.push(assertionHint);
+    }
+    metaParts.push(`HTTP ${http}`);
     const extra = summary.cache_hit_summary ? `<span class="channel-matrix-cell__extra">${escapeHtml(summary.cache_hit_summary)}</span>` : "";
     return `
       <div class="channel-matrix-cell channel-matrix-cell--${tone}">
         <span class="channel-matrix-badge channel-matrix-badge--${tone}">${label}</span>
-        <span class="channel-matrix-cell__meta">${conclusion} · HTTP ${http}</span>
+        <span class="channel-matrix-cell__meta">${metaParts.join(" · ")}</span>
         ${extra}
       </div>`;
   }
@@ -6531,6 +7189,7 @@ function renderChannelReportMatrixSection(record, groupKey, rows, channels) {
           <thead>
             <tr>
               <th>Case</th>
+              <th>严重度</th>
               <th>类型</th>
               ${baselineChannel ? `<th>${escapeHtml(baselineChannel.platformName)}<span class="muted fs-xs"> Baseline</span></th>` : ""}
               ${targetChannels.map((channel) => `<th>${escapeHtml(channel.platformName)}</th>`).join("")}
@@ -6548,25 +7207,56 @@ function renderChannelReportMatrixSection(record, groupKey, rows, channels) {
                 if (!summary || summary.diff_count <= 0) return `${channel.platformName} —`;
                 return `${channel.platformName} ${summary.diff_count}`;
               }).filter((text) => !text.endsWith(" —"));
+              const channelEntries = channels
+                .map((channel) => {
+                  const result = resultsByChannel.get(channel.key)
+                    || (record.results || []).find((item) => item.case_id === row.case_id && item.channel_name === channel.platformName && Boolean(item.is_baseline) === (channel.role === "baseline"));
+                  if (!result) return null;
+                  return {
+                    channel,
+                    result,
+                    healthy: matchesExpectedForReport(result)
+                  };
+                })
+                .filter(Boolean)
+                .sort((left, right) => {
+                  if (left.healthy === right.healthy) {
+                    if (left.channel.role === right.channel.role) {
+                      return left.channel.platformName.localeCompare(right.channel.platformName, "zh-CN");
+                    }
+                    return left.channel.role === "baseline" ? -1 : 1;
+                  }
+                  return left.healthy ? 1 : -1;
+                });
+              const issueCount = channelEntries.filter((entry) => !entry.healthy).length;
+              const passCount = channelEntries.length - issueCount;
+              const rowSeverity = caseSeverityMetaForRow(row);
+              const rowHasTargetIssue = issueCount > 0;
               return `
-                <tr class="channel-report-matrix-row">
-                  <td class="pcell">${escapeHtml(row.title || row.case_id)}</td>
+                <tr class="channel-report-matrix-row${rowHasTargetIssue ? " channel-report-matrix-row--has-issue" : ""}${rowHasTargetIssue ? ` channel-report-matrix-row--${rowSeverity.css}` : ""}">
+                  <td class="pcell">
+                    <div class="channel-report-case-title">${escapeHtml(row.title || row.case_id)}</div>
+                  </td>
+                  <td>${renderSeverityLevelBadge(rowSeverity.level)}</td>
                   <td><span class="channel-intent-tag channel-intent-tag--${row.intent}">${escapeHtml(CHANNEL_REPORT_INTENT.intentLabel?.(row.intent) || row.intent)}</span></td>
                   ${baselineChannel ? `<td>${renderChannelReportMatrixCell(row.by_channel?.[baselineChannel.key], row.intent)}</td>` : ""}
                   ${targetChannels.map((channel) => `<td>${renderChannelReportMatrixCell(row.by_channel?.[channel.key], row.intent)}</td>`).join("")}
                   <td class="mono fs-xs">${escapeHtml(diffParts.length ? diffParts.join(" · ") : "—")}</td>
                 </tr>
                 <tr class="channel-report-matrix-detail-row">
-                  <td colspan="${(baselineChannel ? 1 : 0) + 3 + targetChannels.length}">
-                    <details class="hcase">
-                      <summary class="muted fs-xs">展开请求 / 响应明细</summary>
+                  <td colspan="${(baselineChannel ? 1 : 0) + 4 + targetChannels.length}">
+                    <details class="channel-report-case-details"${issueCount ? " open" : ""}>
+                      <summary class="channel-report-case-details__summary">
+                        <span>展开请求 / 响应明细</span>
+                        ${issueCount ? `<span class="channel-case-details-badge channel-case-details-badge--fail">${issueCount} 个渠道异常</span>` : ""}
+                        ${passCount ? `<span class="channel-case-details-badge channel-case-details-badge--pass">${passCount} 个通过</span>` : ""}
+                      </summary>
                       <div class="channel-report-matrix-detail-list">
-                        ${channels.map((channel) => {
-                          const result = resultsByChannel.get(channel.key)
-                            || (record.results || []).find((item) => item.case_id === row.case_id && item.channel_name === channel.platformName && Boolean(item.is_baseline) === (channel.role === "baseline"));
-                          if (!result) return "";
-                          return renderHistoryRawCase(result, record);
-                        }).join("")}
+                        ${channelEntries.map(({ channel, result, healthy }) => renderHistoryRawCase(result, record, {
+    matrixContext: true,
+    channelLabel: channel.role === "baseline" ? `${channel.platformName} · Baseline` : channel.platformName,
+    defaultOpen: !healthy
+  })).join("")}
                       </div>
                     </details>
                   </td>
@@ -6585,11 +7275,7 @@ function renderChannelReportDetail(record) {
   const selectionText = (record.selection || [])
     .map((entry) => `${entry.group_title}(${entry.case_ids.length})`)
     .join(" · ") || record.case_group_title || "—";
-  const protocolLabel = record.protocol_id === "anthropic_messages"
-    ? "Anthropic Messages"
-    : record.protocol_id === "chat_completions"
-      ? "Chat Completions"
-      : (record.protocol_id || "—");
+  const protocolLabel = channelReportProtocolLabel(record.protocol_id);
   const grouped = new Map();
   for (const row of matrix) {
     const key = row.group_key || "other";
@@ -6621,9 +7307,10 @@ function renderChannelReportDetail(record) {
               <span class="hpill">断言 ${stats.assertPass || 0}/${stats.assertTotal || 0}</span>
               <span class="hpill">观测 ${stats.observeRecorded || 0}/${stats.observeTotal || 0}</span>
               <span class="hpill ${stats.structureDiffs ? "warn" : "neutral"}">结构差异 ${stats.structureDiffs || 0}</span>
-              <button class="btn btn-secondary btn-sm" type="button" data-channel-report-action="copy" data-channel-report-id="${escapeHtml(record.id)}">复制报告</button>
+              ${renderChannelReportDownloadMenu(record)}
             </div>
           </div>
+          ${renderChannelReportEvaluationSummary(record)}
           <div class="channel-report-matrix-wrap">
             ${sections}${extraSections}
           </div>
@@ -6632,20 +7319,74 @@ function renderChannelReportDetail(record) {
     </tr>`;
 }
 
+function channelReportProtocolLabel(protocolId = "") {
+  if (protocolId === "anthropic_messages") return "Anthropic Messages";
+  if (protocolId === "chat_completions") return "Chat Completions";
+  return protocolId || "—";
+}
+
+function channelReportRoutePlatformName(label = "") {
+  const text = String(label || "").trim();
+  if (!text) return "—";
+  const slash = text.indexOf(" / ");
+  return slash >= 0 ? text.slice(0, slash) : text;
+}
+
+function renderChannelReportIdCell(record) {
+  return `
+    <div class="channel-report-id-cell">
+      <div class="rep-id channel-report-id">${escapeHtml(record.id.replace(/^channel_report_/, "run/"))}</div>
+      <time class="mono muted fs-xs channel-report-id-time">${escapeHtml(formatDateTime(record.generated_at))}</time>
+    </div>`;
+}
+
+function renderChannelReportRouteCell(record) {
+  const baseline = channelReportRoutePlatformName(record.baseline_label);
+  const targets = (record.target_labels || []).map(channelReportRoutePlatformName);
+  return `
+    <div class="hprovider channel-report-routes channel-report-routes--compact">
+      <strong class="mono">${escapeHtml(record.model_id || "—")}</strong>
+      <span class="meta">${escapeHtml(channelReportProtocolLabel(record.protocol_id))}</span>
+      <span class="meta channel-report-route-line channel-report-route-line--compact">
+        <span class="channel-report-route-label">Baseline</span>
+        ${escapeHtml(baseline)}
+      </span>
+      <span class="meta channel-report-route-line channel-report-route-line--compact">
+        <span class="channel-report-route-label">测评 ${targets.length || 0}</span>
+        ${escapeHtml(targets.length ? targets.join("、") : "—")}
+      </span>
+    </div>`;
+}
+
+function renderChannelReportVerdictCell(record, evaluation) {
+  const verdict = evaluation?.verdict_meta || {};
+  const issueText = evaluation?.issue_text;
+  const showIssue = issueText && issueText !== "无断言失败";
+  return `
+    <div class="channel-report-verdict-cell">
+      <span class="channel-report-verdict channel-report-verdict--${escapeHtml(verdict.css || evaluation?.verdict || "pass")}">${escapeHtml(verdict.label || "—")}</span>
+      ${showIssue ? `<span class="muted fs-xs channel-report-verdict-issue">${escapeHtml(issueText)}</span>` : ""}
+    </div>`;
+}
+
 function renderChannelReports() {
   if (!els.channelReportsList) return;
+  renderChannelReportRunPanel();
   const items = readChannelReports();
   if (state.expandedChannelReportId && !items.some((record) => record.id === state.expandedChannelReportId)) {
     state.expandedChannelReportId = null;
   }
   if (els.channelReportsCount) els.channelReportsCount.textContent = `${items.length} 条`;
-  if (els.clearChannelReports) els.clearChannelReports.disabled = items.length === 0;
-  renderChannelReportSummary(items);
+  if (els.clearChannelReports) {
+    els.clearChannelReports.disabled = items.length === 0 && !state.runV02.isRunning;
+  }
   if (!items.length) {
-    els.channelReportsList.innerHTML = `
+    els.channelReportsList.innerHTML = state.runV02.isRunning
+      ? ""
+      : `
       <div class="empty-state">
-        <strong>暂无渠道测评报告</strong>
-        <span>在「渠道参数测评工具」中完成跑批后会自动保存在这里。</span>
+        <strong>暂无渠道参数测评报告</strong>
+        <span>在「渠道参数测评工具」中配置并运行测试，报告会在这里生成。</span>
       </div>
     `;
     return;
@@ -6653,63 +7394,75 @@ function renderChannelReports() {
 
   els.channelReportsList.innerHTML = `
     <div class="htable-wrap">
-      <table class="htable">
+      <table class="htable channel-report-table">
         <colgroup>
-          <col class="history-col-id" />
-          <col class="history-col-provider" />
-          <col class="history-col-endpoint" />
-          <col class="history-col-cases" />
-          <col class="history-col-expected" />
-          <col class="history-col-behavior" />
-          <col class="history-col-created" />
-          <col class="history-col-actions" />
+          <col class="channel-report-col-id" />
+          <col class="channel-report-col-verdict" />
+          <col class="channel-report-col-routes" />
+          <col class="channel-report-col-cases" />
+          <col class="channel-report-col-assert" />
+          <col class="channel-report-col-observe" />
+          <col class="channel-report-col-diff" />
+          <col class="channel-report-col-actions" />
         </colgroup>
         <thead>
           <tr>
             <th>报告编号</th>
+            <th>整体结论</th>
             <th>模型与渠道</th>
             <th>分组 / Case</th>
             <th>断言达标</th>
             <th>观测记录</th>
             <th>结构差异</th>
-            <th>生成时间</th>
             <th style="text-align:right">操作</th>
           </tr>
         </thead>
         <tbody>
           ${items.map((record) => {
             const stats = record.stats || channelReportStatsForResults(record.results || []);
+            const evaluation = ensureChannelReportEvaluation(record);
             const isOpen = state.expandedChannelReportId === record.id;
-            const targetText = (record.target_labels || []).join("、") || "—";
             const caseCount = record.case_matrix?.length
               || new Set((record.results || []).map((result) => result.case_id)).size;
             const groupCount = record.selection?.length || (record.case_group_key === "multi" ? "多" : 1);
             const passSummary = `${stats.assertPass || 0}/${stats.assertTotal || 0}`;
             return `
               <tr class="hrow ${isOpen ? "open" : ""}" data-channel-report-id="${escapeHtml(record.id)}">
-                <td class="rep-id">${escapeHtml(record.id.replace(/^channel_report_/, "run/"))}</td>
-                <td>
-                  <div class="hprovider">
-                    <strong class="mono">${escapeHtml(record.model_id || "—")}</strong>
-                    <span class="meta">${escapeHtml(record.protocol_id || "—")}</span>
-                    <span class="meta">Baseline：${escapeHtml(record.baseline_label || "—")}</span>
-                    <span class="meta">测评：${escapeHtml(targetText)}</span>
-                  </div>
-                </td>
+                <td>${renderChannelReportIdCell(record)}</td>
+                <td>${renderChannelReportVerdictCell(record, evaluation)}</td>
+                <td>${renderChannelReportRouteCell(record)}</td>
                 <td>${escapeHtml(String(groupCount))} 组 · ${caseCount} case</td>
                 <td>
                   <span class="hpill ${stats.assertFail ? "warn" : "neutral"}">${escapeHtml(passSummary)}</span>
                 </td>
                 <td>
                   <span class="hpill">${escapeHtml(`${stats.observeRecorded || 0}/${stats.observeTotal || 0}`)}</span>
-                  ${stats.observeIssue ? `<span class="meta">异常 ${stats.observeIssue}</span>` : ""}
+                  ${stats.observeAssertionFail ? `<span class="meta channel-report-observe-assert-fail">断言异常 ${stats.observeAssertionFail}</span>` : ""}
+                  ${stats.observeIssue ? `<span class="meta">请求异常 ${stats.observeIssue}</span>` : ""}
                 </td>
                 <td>${escapeHtml(historyDiffSummaryText({ diffs: stats.structureDiffs || stats.diffs || 0 }))}</td>
-                <td class="mono">${escapeHtml(formatDateTime(record.generated_at))}</td>
                 <td>
                   <div class="hactions">
-                    <button class="hicon" type="button" data-channel-report-action="toggle" data-channel-report-id="${escapeHtml(record.id)}" title="查看对比矩阵" aria-label="查看对比矩阵">⌄</button>
-                    <button class="hicon danger" type="button" data-channel-report-action="delete" data-channel-report-id="${escapeHtml(record.id)}" title="删除报告" aria-label="删除报告">⌫</button>
+                    ${renderHiconButton({
+    icon: "chevron-down",
+    isOpen,
+    title: "查看对比矩阵",
+    ariaLabel: "查看对比矩阵",
+    dataAttrs: {
+      "data-channel-report-action": "toggle",
+      "data-channel-report-id": record.id
+    }
+  })}
+                    ${renderHiconButton({
+    icon: "trash-2",
+    extraClass: "danger",
+    title: "删除报告",
+    ariaLabel: "删除报告",
+    dataAttrs: {
+      "data-channel-report-action": "delete",
+      "data-channel-report-id": record.id
+    }
+  })}
                   </div>
                 </td>
               </tr>
@@ -7820,162 +8573,1210 @@ function integerInputValue(input, fallback = 0) {
   return Math.max(0, Math.trunc(numberInputValue(input, fallback)));
 }
 
-function splitListInput(value) {
-  return String(value || "")
-    .split(/[,\s]+/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
+const CHANNEL_ROUTE_CORE = () => window.NOCTUA_CHANNEL_ROUTE_CORE;
+const CHANNEL_PERF = () => window.NOCTUA_CHANNEL_PERFORMANCE;
 
-function parseKeyValueInput(value) {
-  return splitListInput(value).reduce((out, item) => {
-    const index = item.indexOf("=");
-    if (index > 0) {
-      out[item.slice(0, index).trim()] = item.slice(index + 1).trim();
-    }
-    return out;
-  }, {});
-}
-
-function splitCliArgs(value) {
-  const text = String(value || "").trim();
-  if (!text) return [];
-  const args = [];
-  const pattern = /"([^"]*)"|'([^']*)'|(\S+)/g;
-  let match;
-  while ((match = pattern.exec(text))) {
-    args.push(match[1] ?? match[2] ?? match[3]);
+function readChannelPerfReports() {
+  try {
+    const parsed = JSON.parse(readStorageItem(CHANNEL_PERF_REPORTS_STORAGE_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
   }
-  return args;
 }
 
-function fillPerformanceFromRunConfig() {
-  const endpoint = getSelectedEndpointTemplate();
-  if (els.performanceBaseUrl) els.performanceBaseUrl.value = els.baseUrl?.value.trim() || "";
-  if (els.performanceModel) els.performanceModel.value = els.modelName?.value.trim() || "";
-  if (els.performanceApiKey) els.performanceApiKey.value = els.apiKey?.value.trim() || "";
-  if (els.performanceEndpoint) {
-    els.performanceEndpoint.value = endpoint.endpoint_id === "anthropic_messages" ? "/messages" : "/v1/chat/completions";
-  }
-  showToast("已填入运行页的 Base URL、Model 和 API Key。");
+function writeChannelPerfReports(items) {
+  return writeReportList(CHANNEL_PERF_REPORTS_STORAGE_KEY, items);
 }
 
-function performanceRequestPayload() {
+function channelPerfBucket() {
+  return state.channelPerf;
+}
+
+function ensureChannelPerfModelId() {
+  return CHANNEL_ROUTE_CORE().ensureModelId(channelPerfBucket());
+}
+
+function channelPerfActiveProtocolId() {
+  return CHANNEL_ROUTE_CORE().activeProtocolId(channelPerfBucket());
+}
+
+function channelPerfRouteByKey(routeKey = state.channelPerf.baselineRouteKey) {
+  return CHANNEL_ROUTE_CORE().routeByKey(state.channelPerf.routeOptions, routeKey);
+}
+
+function channelPerfChannelsForProtocol() {
+  return CHANNEL_ROUTE_CORE().channelsForProtocol(state.channelPerf.routeOptions, channelPerfActiveProtocolId());
+}
+
+function channelPerfTargetRoutes() {
+  return CHANNEL_ROUTE_CORE().targetRoutes(state.channelPerf);
+}
+
+function channelPerfTargetCandidateOptions() {
+  return CHANNEL_ROUTE_CORE().targetCandidateOptions(state.channelPerf.routeOptions, state.channelPerf.baselineRoute);
+}
+
+function ensureChannelPerfChannelConfig(routeKey, route) {
+  return CHANNEL_ROUTE_CORE().ensureChannelConfig(
+    state.channelPerf,
+    routeKey,
+    route,
+    state.channelPerf.localConfigProviders
+  );
+}
+
+function channelPerfChannelApiKeyValue(config) {
+  return CHANNEL_ROUTE_CORE().channelApiKeyValue(config);
+}
+
+function channelPerfChannelHasApiKey(config) {
+  return CHANNEL_ROUTE_CORE().channelHasApiKey(config);
+}
+
+function channelPerfBenchmarkFromForm() {
+  const perf = CHANNEL_PERF();
   return {
-    backend: els.performanceBackend?.value || "openai-chat",
-    base_url: els.performanceBaseUrl?.value.trim() || "",
-    endpoint: els.performanceEndpoint?.value.trim() || "/v1/chat/completions",
-    model: els.performanceModel?.value.trim() || "",
-    api_key: els.performanceApiKey?.value.trim() || "",
-    dataset_name: els.performanceDatasetName?.value || "random",
-    dataset_path: els.performanceDatasetPath?.value.trim() || "",
-    num_prompts: integerInputValue(els.performanceNumPrompts, 100),
-    random_input_len: integerInputValue(els.performanceRandomInputLen, 1024),
-    random_output_len: integerInputValue(els.performanceRandomOutputLen, 128),
-    random_range_ratio: numberInputValue(els.performanceRandomRangeRatio, 1),
-    random_prefix_len: integerInputValue(els.performanceRandomPrefixLen, 0),
-    request_rate: els.performanceRequestRate?.value.trim() || "inf",
-    burstiness: numberInputValue(els.performanceBurstiness, 1),
-    max_concurrency: integerInputValue(els.performanceMaxConcurrency, 0),
-    num_warmup_requests: integerInputValue(els.performanceWarmups, 0),
-    percentile_metrics: els.performancePercentileMetrics?.value.trim() || "ttft,tpot,itl",
-    metric_percentiles: els.performanceMetricPercentiles?.value.trim() || "99",
-    goodput: splitListInput(els.performanceGoodput?.value),
-    metadata: parseKeyValueInput(els.performanceMetadata?.value),
-    extra_args: splitCliArgs(els.performanceExtraArgs?.value),
-    disable_tqdm: true,
-    proxy: getProxyConfig()
+    ...perf.DEFAULT_BENCHMARK,
+    num_prompts: integerInputValue(els.channelPerfNumPrompts, 100),
+    random_input_len: integerInputValue(els.channelPerfRandomInputLen, 1024),
+    random_output_len: integerInputValue(els.channelPerfRandomOutputLen, 128),
+    random_range_ratio: numberInputValue(els.channelPerfRandomRangeRatio, 1),
+    random_prefix_len: integerInputValue(els.channelPerfRandomPrefixLen, 0),
+    request_rate: els.channelPerfRequestRate?.value.trim() || "inf",
+    burstiness: numberInputValue(els.channelPerfBurstiness, 1),
+    max_concurrency: integerInputValue(els.channelPerfMaxConcurrency, 0),
+    num_warmup_requests: integerInputValue(els.channelPerfWarmups, 0),
+    percentile_metrics: els.channelPerfPercentileMetrics?.value.trim() || "ttft,tpot,itl,e2el",
+    metric_percentiles: els.channelPerfMetricPercentiles?.value.trim() || "50,90,95,99",
+    goodput: perf.splitListInput(els.channelPerfGoodput?.value),
+    metadata: perf.parseKeyValueInput(els.channelPerfMetadata?.value),
+    extra_args: perf.splitCliArgs(els.channelPerfExtraArgs?.value),
+    disable_tqdm: true
   };
 }
 
-async function runPerformanceBenchmark() {
-  const payload = performanceRequestPayload();
+function resetChannelPerfDownstreamFromProtocol() {
+  state.channelPerf.baselineRouteKey = "";
+  state.channelPerf.baselineRoute = null;
+  state.channelPerf.targetRouteKeys = new Set();
+  state.channelPerf.channelConfigs = {};
+  if (els.channelPerfChannelPanel) els.channelPerfChannelPanel.classList.add("is-hidden");
+  if (els.channelPerfConfigPanel) els.channelPerfConfigPanel.classList.add("is-hidden");
+  if (els.channelPerfBenchmarkPanel) els.channelPerfBenchmarkPanel.classList.add("is-hidden");
+}
+
+function applyChannelPerfModel(modelId) {
+  if (!modelId) return;
+  if (modelId === state.channelPerf.modelId) {
+    closeChannelPerfModelMenu();
+    return;
+  }
+  state.channelPerf.modelId = modelId;
+  state.channelPerf.protocolId = "";
+  resetChannelPerfDownstreamFromProtocol();
+  if (els.channelPerfChannelPanel) els.channelPerfChannelPanel.classList.add("is-hidden");
+  closeChannelPerfModelMenu();
+  closeChannelPerfBaselineMenu();
+  closeChannelPerfTargetMenu();
+  renderChannelPerfModelSelect();
+  renderChannelPerfProtocolPicker();
+  renderChannelPerfBaselineSelect();
+  renderChannelPerfTargetSelect();
+  const protocols = CHANNEL_ROUTE_CORE().listProtocolOptions(modelId);
+  if (protocols.length === 1) {
+    applyChannelPerfProtocol(protocols[0].id, { autoSelectBaseline: true });
+  }
+}
+
+function applyChannelPerfProtocol(protocolId, { autoSelectBaseline = false } = {}) {
+  const core = CHANNEL_ROUTE_CORE();
+  if (!protocolId || !core.supportedProtocol(protocolId)) return;
+  if (protocolId === state.channelPerf.protocolId && !autoSelectBaseline) {
+    renderChannelPerfProtocolPicker();
+    return;
+  }
+  state.channelPerf.protocolId = protocolId;
+  resetChannelPerfDownstreamFromProtocol();
+  if (els.channelPerfChannelPanel) els.channelPerfChannelPanel.classList.remove("is-hidden");
+  renderChannelPerfProtocolPicker();
+  renderChannelPerfBaselineSelect({ autoSelect: autoSelectBaseline });
+  renderChannelPerfTargetSelect();
+  renderChannelPerfChannelConfigs();
+}
+
+function applyChannelPerfBaseline(routeKey) {
+  const route = channelPerfRouteByKey(routeKey);
+  if (!route) return;
+  state.channelPerf.baselineRouteKey = routeKey;
+  state.channelPerf.baselineRoute = route;
+  state.channelPerf.targetRouteKeys = new Set(
+    [...state.channelPerf.targetRouteKeys].filter((key) => key !== routeKey)
+  );
+  ensureChannelPerfChannelConfig(routeKey, route);
+  closeChannelPerfBaselineMenu();
+  if (els.channelPerfConfigPanel) els.channelPerfConfigPanel.classList.remove("is-hidden");
+  if (els.channelPerfBenchmarkPanel) els.channelPerfBenchmarkPanel.classList.remove("is-hidden");
+  renderChannelPerfBaselineSelect();
+  renderChannelPerfTargetSelect();
+  renderChannelPerfChannelConfigs();
+  updateChannelPerfAvailability();
+}
+
+function toggleChannelPerfTarget(routeKey) {
+  if (!routeKey || routeKey === state.channelPerf.baselineRouteKey) return;
+  const next = new Set(state.channelPerf.targetRouteKeys);
+  if (next.has(routeKey)) next.delete(routeKey);
+  else next.add(routeKey);
+  state.channelPerf.targetRouteKeys = next;
+  const route = channelPerfRouteByKey(routeKey);
+  if (route) ensureChannelPerfChannelConfig(routeKey, route);
+  renderChannelPerfTargetSelect();
+  renderChannelPerfChannelConfigs();
+  updateChannelPerfAvailability();
+}
+
+function syncChannelPerfModelMenu() {
+  if (!els.channelPerfModelMenu || !els.channelPerfModelInput) return;
+  const open = state.channelPerf.modelMenuOpen;
+  els.channelPerfModelMenu.classList.toggle("is-hidden", !open);
+  els.channelPerfModelInput.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+function syncChannelPerfBaselineMenu() {
+  if (!els.channelPerfBaselineMenu || !els.channelPerfBaselineInput) return;
+  const open = state.channelPerf.baselineMenuOpen;
+  els.channelPerfBaselineMenu.classList.toggle("is-hidden", !open);
+  els.channelPerfBaselineInput.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+function syncChannelPerfTargetMenu() {
+  if (!els.channelPerfTargetMenu || !els.channelPerfTargetInput) return;
+  const open = state.channelPerf.targetMenuOpen;
+  els.channelPerfTargetMenu.classList.toggle("is-hidden", !open);
+  els.channelPerfTargetInput.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+function closeChannelPerfModelMenu() {
+  state.channelPerf.modelMenuOpen = false;
+  state.channelPerf.modelSearch = "";
+  syncChannelPerfModelMenu();
+  els.channelPerfModelInput?.blur();
+  updateChannelPerfModelInputDisplay();
+}
+
+function closeChannelPerfBaselineMenu() {
+  state.channelPerf.baselineMenuOpen = false;
+  state.channelPerf.baselineSearch = "";
+  syncChannelPerfBaselineMenu();
+  els.channelPerfBaselineInput?.blur();
+  updateChannelPerfBaselineInputDisplay();
+}
+
+function closeChannelPerfTargetMenu() {
+  state.channelPerf.targetMenuOpen = false;
+  state.channelPerf.targetSearch = "";
+  syncChannelPerfTargetMenu();
+  els.channelPerfTargetInput?.blur();
+}
+
+function openChannelPerfModelMenu() {
+  if (state.channelPerf.isRunning) return;
+  closeChannelPerfBaselineMenu();
+  closeChannelPerfTargetMenu();
+  state.channelPerf.modelMenuOpen = true;
+  state.channelPerf.modelSearch = "";
+  if (els.channelPerfModelInput) {
+    els.channelPerfModelInput.readOnly = false;
+    els.channelPerfModelInput.placeholder = "搜索模型，支持模糊匹配";
+    els.channelPerfModelInput.value = "";
+  }
+  renderChannelPerfModelSelect();
+  syncChannelPerfModelMenu();
+  requestAnimationFrame(() => els.channelPerfModelInput?.focus());
+}
+
+function openChannelPerfBaselineMenu() {
+  if (state.channelPerf.isRunning || els.channelPerfBaselineInput?.disabled) return;
+  closeChannelPerfModelMenu();
+  closeChannelPerfTargetMenu();
+  state.channelPerf.baselineMenuOpen = true;
+  state.channelPerf.baselineSearch = "";
+  if (els.channelPerfBaselineInput) {
+    els.channelPerfBaselineInput.readOnly = false;
+    els.channelPerfBaselineInput.placeholder = "搜索 Baseline 渠道或协议";
+    els.channelPerfBaselineInput.value = "";
+  }
+  renderChannelPerfBaselineSelect();
+  syncChannelPerfBaselineMenu();
+  requestAnimationFrame(() => els.channelPerfBaselineInput?.focus());
+}
+
+function openChannelPerfTargetMenu() {
+  if (state.channelPerf.isRunning || els.channelPerfTargetInput?.disabled) return;
+  closeChannelPerfModelMenu();
+  closeChannelPerfBaselineMenu();
+  state.channelPerf.targetMenuOpen = true;
+  state.channelPerf.targetSearch = "";
+  if (els.channelPerfTargetInput) {
+    els.channelPerfTargetInput.readOnly = false;
+    els.channelPerfTargetInput.placeholder = "搜索测评渠道";
+    els.channelPerfTargetInput.value = "";
+  }
+  renderChannelPerfTargetSelect();
+  syncChannelPerfTargetMenu();
+  requestAnimationFrame(() => els.channelPerfTargetInput?.focus());
+}
+
+function updateChannelPerfModelInputDisplay() {
+  if (!els.channelPerfModelInput || state.channelPerf.modelMenuOpen) return;
+  els.channelPerfModelInput.readOnly = true;
+  els.channelPerfModelInput.placeholder = "选择模型";
+  els.channelPerfModelInput.value = state.channelPerf.modelId || "";
+}
+
+function updateChannelPerfBaselineInputDisplay() {
+  if (!els.channelPerfBaselineInput || state.channelPerf.baselineMenuOpen) return;
+  const route = state.channelPerf.baselineRoute;
+  els.channelPerfBaselineInput.readOnly = true;
+  els.channelPerfBaselineInput.placeholder = route ? "" : "选择 Baseline";
+  els.channelPerfBaselineInput.value = route
+    ? CHANNEL_ROUTE_CORE().routeOptionLabel(route)
+    : "";
+}
+
+function renderChannelPerfModelSelect() {
+  if (!els.channelPerfModelOptions) return;
+  const lookupApi = window.NOCTUA_MODEL_LOOKUP;
+  const evalIds = lookupApi?.getEvalModelIds?.() || [];
+  ensureChannelPerfModelId();
+  const selectedId = state.channelPerf.modelId;
+  const filtered = evalIds.filter((modelId) => matchSearchQuery(state.channelPerf.modelSearch, modelId));
+  if (!filtered.length) {
+    els.channelPerfModelOptions.innerHTML = `<li class="search-select__empty">没有匹配的模型</li>`;
+  } else {
+    els.channelPerfModelOptions.innerHTML = filtered.map((modelId) => `
+      <li
+        class="search-select__option ${modelId === selectedId ? "is-selected" : ""}"
+        role="option"
+        data-channel-perf-model="${escapeHtml(modelId)}"
+        aria-selected="${modelId === selectedId}"
+      >${escapeHtml(modelId)}</li>
+    `).join("");
+  }
+  updateChannelPerfModelInputDisplay();
+  syncChannelPerfModelMenu();
+}
+
+function renderChannelPerfProtocolPicker() {
+  if (!els.channelPerfProtocolPicker) return;
+  const core = CHANNEL_ROUTE_CORE();
+  const modelId = ensureChannelPerfModelId();
+  const pickerItems = core.listProtocolPickerItems(modelId);
+  const runnableItems = pickerItems.filter(core.protocolIsRunnable);
+  const plannedItems = pickerItems.filter((def) => def.evalStatus === "planned");
+  const activeId = channelPerfActiveProtocolId();
+  const pickerDisabled = !modelId || state.channelPerf.isRunning;
+
+  if (els.channelPerfProtocolHint) {
+    if (!modelId) {
+      els.channelPerfProtocolHint.textContent = "先选择测评模型";
+    } else if (!runnableItems.length && !plannedItems.length) {
+      els.channelPerfProtocolHint.textContent = "当前模型暂无可用协议";
+    } else if (activeId) {
+      els.channelPerfProtocolHint.textContent = `${channelPerfChannelsForProtocol().length} 个渠道支持该协议`;
+    } else {
+      const plannedNote = plannedItems.length ? ` · ${plannedItems.length} 个即将支持` : "";
+      els.channelPerfProtocolHint.textContent = `${runnableItems.length} 个可用协议${plannedNote}`;
+    }
+  }
+
+  if (!modelId) {
+    els.channelPerfProtocolPicker.innerHTML = `<p class="muted fs-sm">请先选择测评模型。</p>`;
+    if (els.channelPerfProtocolMeta) els.channelPerfProtocolMeta.innerHTML = "";
+    return;
+  }
+
+  if (!pickerItems.length) {
+    els.channelPerfProtocolPicker.innerHTML = `<p class="muted fs-sm">模型 ${escapeHtml(modelId)} 暂无可用测评协议。</p>`;
+    if (els.channelPerfProtocolMeta) els.channelPerfProtocolMeta.innerHTML = "";
+    return;
+  }
+
+  els.channelPerfProtocolPicker.innerHTML = pickerItems.map((def) => {
+    const planned = def.evalStatus === "planned";
+    const tabDisabled = pickerDisabled || planned;
+    return `
+    <button
+      type="button"
+      class="run-v02-protocol-tab ${def.id === activeId ? "is-active" : ""} ${planned ? "is-planned" : ""}"
+      data-channel-perf-protocol="${escapeHtml(def.id)}"
+      role="tab"
+      aria-selected="${def.id === activeId}"
+      ${tabDisabled ? "disabled" : ""}
+    >
+      <span class="run-v02-protocol-tab__head">
+        <span>${escapeHtml(def.tabLabel)}</span>
+        ${planned ? '<span class="protocol-status protocol-status--planned run-v02-protocol-tab__badge">即将支持</span>' : ""}
+      </span>
+      <span class="run-v02-protocol-tab__endpoint">${escapeHtml(def.endpoint)}</span>
+    </button>
+  `;
+  }).join("");
+
+  const activeDef = core.protocolDef(activeId);
+  if (els.channelPerfProtocolMeta) {
+    els.channelPerfProtocolMeta.innerHTML = activeDef
+      ? `<p>${escapeHtml(activeDef.copy)}</p><span class="mono muted">${escapeHtml(activeDef.label)}</span>`
+      : `<p class="muted">选择协议后配置渠道连接信息与 Benchmark 参数。</p>`;
+  }
+}
+
+function renderChannelPerfRouteOptions() {
+  CHANNEL_ROUTE_CORE().refreshRouteOptions(state.channelPerf);
+  const protocolId = channelPerfActiveProtocolId();
+  const modelId = ensureChannelPerfModelId();
+  const channelCount = channelPerfChannelsForProtocol().length;
+
+  if (els.channelPerfRouteHint) {
+    if (!modelId) {
+      els.channelPerfRouteHint.textContent = "先选择测评模型";
+    } else if (!protocolId) {
+      els.channelPerfRouteHint.textContent = "先选择测评协议";
+    } else if (!channelCount) {
+      els.channelPerfRouteHint.textContent = "当前协议暂无可用渠道";
+    } else if (!state.channelPerf.baselineRoute) {
+      els.channelPerfRouteHint.textContent = `${channelCount} 个渠道 · 请选择 Baseline`;
+    } else {
+      const targetCount = state.channelPerf.targetRouteKeys.size;
+      els.channelPerfRouteHint.textContent = targetCount
+        ? `Baseline 已选 · ${targetCount} 个测评渠道`
+        : "请选择至少一个测评渠道";
+    }
+  }
+
+  if (els.channelPerfSelectedRoute && state.channelPerf.baselineRoute) {
+    const targets = channelPerfTargetRoutes();
+    els.channelPerfSelectedRoute.textContent = [
+      state.channelPerf.baselineRoute.platformName,
+      targets.length ? `测评 ${targets.length} 个渠道` : ""
+    ].filter(Boolean).join(" · ");
+  }
+
+  const baselineDisabled = !protocolId || !channelCount || state.channelPerf.isRunning;
+  if (els.channelPerfBaselineInput) els.channelPerfBaselineInput.disabled = baselineDisabled;
+  if (els.channelPerfBaselineControl) els.channelPerfBaselineControl.classList.toggle("is-disabled", baselineDisabled);
+
+  const targetDisabled = !state.channelPerf.baselineRoute || state.channelPerf.isRunning;
+  if (els.channelPerfTargetInput) els.channelPerfTargetInput.disabled = targetDisabled;
+  if (els.channelPerfTargetControl) els.channelPerfTargetControl.classList.toggle("is-disabled", targetDisabled);
+
+  if (!protocolId || !channelCount) {
+    state.channelPerf.baselineRouteKey = "";
+    state.channelPerf.baselineRoute = null;
+    state.channelPerf.targetRouteKeys = new Set();
+    if (els.channelPerfConfigPanel) els.channelPerfConfigPanel.classList.add("is-hidden");
+    if (els.channelPerfBenchmarkPanel) els.channelPerfBenchmarkPanel.classList.add("is-hidden");
+  }
+}
+
+function renderChannelPerfBaselineSelect({ autoSelect = false } = {}) {
+  renderChannelPerfRouteOptions();
+  if (!els.channelPerfBaselineOptions) return;
+
+  const options = channelPerfChannelsForProtocol();
+  const modelId = ensureChannelPerfModelId();
+
+  if (!options.length) {
+    state.channelPerf.baselineRouteKey = "";
+    state.channelPerf.baselineRoute = null;
+    if (els.channelPerfBaselineInput) {
+      els.channelPerfBaselineInput.value = "";
+      els.channelPerfBaselineInput.placeholder = channelPerfActiveProtocolId() ? "暂无可用渠道" : "先选择测评协议";
+    }
+    const emptyMsg = !channelPerfActiveProtocolId()
+      ? "请先选择测评协议"
+      : `模型 ${escapeHtml(modelId)} 在当前协议下暂无可用渠道`;
+    els.channelPerfBaselineOptions.innerHTML = `<li class="search-select__empty">${emptyMsg}</li>`;
+    syncChannelPerfBaselineMenu();
+    updateChannelPerfAvailability();
+    return;
+  }
+
+  if (!options.some((item) => item.key === state.channelPerf.baselineRouteKey)) {
+    if (autoSelect) {
+      applyChannelPerfBaseline(options[0].key);
+      return;
+    }
+    state.channelPerf.baselineRouteKey = "";
+    state.channelPerf.baselineRoute = null;
+  }
+
+  updateChannelPerfBaselineInputDisplay();
+  const core = CHANNEL_ROUTE_CORE();
+  const filtered = options.filter((option) => matchSearchQuery(
+    state.channelPerf.baselineSearch,
+    option.platformName,
+    option.categoryLabel,
+    option.protocolLabel,
+    option.apiModelId,
+    option.platformId,
+    core.routeOptionLabel(option)
+  ));
+
+  if (!filtered.length) {
+    els.channelPerfBaselineOptions.innerHTML = `<li class="search-select__empty">没有匹配的 Baseline 渠道</li>`;
+  } else {
+    els.channelPerfBaselineOptions.innerHTML = filtered.map((option) => `
+      <li
+        class="search-select__option ${option.key === state.channelPerf.baselineRouteKey ? "is-selected" : ""}"
+        role="option"
+        data-channel-perf-baseline="${escapeHtml(option.key)}"
+        aria-selected="${option.key === state.channelPerf.baselineRouteKey}"
+      >${escapeHtml(core.routeOptionLabel(option))}</li>
+    `).join("");
+  }
+  syncChannelPerfBaselineMenu();
+  updateChannelPerfAvailability();
+}
+
+function renderChannelPerfTargetTags() {
+  if (!els.channelPerfTargetTags) return;
+  const routes = channelPerfTargetRoutes();
+  if (!routes.length) {
+    els.channelPerfTargetTags.innerHTML = "";
+    return;
+  }
+  els.channelPerfTargetTags.innerHTML = routes.map((route) => `
+    <span class="search-select__tag">
+      <span class="search-select__tag-label">${escapeHtml(route.platformName)}</span>
+      <button
+        type="button"
+        class="search-select__tag-remove"
+        data-channel-perf-target-remove="${escapeHtml(route.key)}"
+        aria-label="移除 ${escapeHtml(route.platformName)}"
+        ${state.channelPerf.isRunning ? "disabled" : ""}
+      >×</button>
+    </span>
+  `).join("");
+}
+
+function renderChannelPerfTargetSelect() {
+  renderChannelPerfRouteOptions();
+  if (!els.channelPerfTargetOptions) return;
+  renderChannelPerfTargetTags();
+
+  const baseline = state.channelPerf.baselineRoute;
+  if (!baseline) {
+    els.channelPerfTargetOptions.innerHTML = `<li class="search-select__empty">请先选择 Baseline 渠道</li>`;
+    syncChannelPerfTargetMenu();
+    return;
+  }
+
+  const core = CHANNEL_ROUTE_CORE();
+  const options = channelPerfTargetCandidateOptions();
+  const filtered = options.filter((option) => matchSearchQuery(
+    state.channelPerf.targetSearch,
+    option.platformName,
+    option.categoryLabel,
+    option.protocolLabel,
+    option.apiModelId,
+    option.platformId,
+    core.routeOptionLabel(option)
+  ));
+
+  if (!filtered.length) {
+    els.channelPerfTargetOptions.innerHTML = `<li class="search-select__empty">没有可测评的同协议渠道</li>`;
+  } else {
+    els.channelPerfTargetOptions.innerHTML = filtered.map((option) => {
+      const checked = state.channelPerf.targetRouteKeys.has(option.key);
+      return `
+        <li
+          class="search-select__option ${checked ? "is-checked is-selected" : ""}"
+          role="option"
+          data-channel-perf-target="${escapeHtml(option.key)}"
+          aria-selected="${checked}"
+        >${escapeHtml(core.routeOptionLabel(option))}</li>
+      `;
+    }).join("");
+  }
+  syncChannelPerfTargetMenu();
+  updateChannelPerfAvailability();
+}
+
+function renderChannelPerfChannelConfigs() {
+  if (!els.channelPerfChannelConfigs) return;
+  const baseline = state.channelPerf.baselineRoute;
+  const targets = channelPerfTargetRoutes();
+  if (!baseline) {
+    els.channelPerfChannelConfigs.innerHTML = "";
+    return;
+  }
+
+  const rows = [
+    { route: baseline, role: "baseline", badge: "Baseline", badgeClass: "run-v02-channel-config__badge--baseline" },
+    ...targets.map((route) => ({ route, role: "target", badge: "测评", badgeClass: "" }))
+  ];
+
+  els.channelPerfChannelConfigs.innerHTML = rows.map(({ route, badge, badgeClass }) => {
+    const config = ensureChannelPerfChannelConfig(route.key, route);
+    return `
+      <div class="run-v02-channel-config" data-channel-perf-config="${escapeHtml(route.key)}">
+        <div class="run-v02-channel-config__head">
+          <span class="run-v02-channel-config__badge ${badgeClass}">${escapeHtml(badge)}</span>
+          <span>${escapeHtml(route.platformName)} · ${escapeHtml(route.protocolLabel)}</span>
+        </div>
+        <div class="config-row">
+          <label class="fld">
+            <span>API 模型 ID</span>
+            <input class="inp mono" type="text" value="${escapeHtml(route.apiModelId || "")}" readonly />
+          </label>
+          <label class="fld">
+            <span>Endpoint 地址</span>
+            <input
+              class="inp mono"
+              type="text"
+              data-channel-perf-config-field="baseUrl"
+              data-channel-perf-config-key="${escapeHtml(route.key)}"
+              value="${escapeHtml(config.baseUrl || "")}"
+              placeholder="https://..."
+              ${state.channelPerf.isRunning ? "disabled" : ""}
+            />
+          </label>
+          <label class="fld">
+            <span>API Key${config.useLocalKey ? ' <span class="muted fs-xs">config.yaml</span>' : ""}</span>
+            <input
+              class="inp mono"
+              type="${config.useLocalKey ? "text" : "password"}"
+              data-channel-perf-config-field="apiKey"
+              data-channel-perf-config-key="${escapeHtml(route.key)}"
+              value="${escapeHtml(channelPerfChannelApiKeyValue(config))}"
+              placeholder="${config.useLocalKey ? "" : "sk-..."}"
+              autocomplete="off"
+              ${state.channelPerf.isRunning ? "disabled" : ""}
+            />
+          </label>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function updateChannelPerfAvailability() {
+  if (!els.runChannelPerfBenchmark) return;
+  const baseline = state.channelPerf.baselineRoute;
+  const targets = channelPerfTargetRoutes();
+  const routes = baseline ? [baseline, ...targets] : [];
+  const allConfigured = routes.every((route) => {
+    const config = ensureChannelPerfChannelConfig(route.key, route);
+    return config.baseUrl?.trim() && channelPerfChannelHasApiKey(config);
+  });
+  const canRun = Boolean(
+    state.channelPerf.modelId
+    && channelPerfActiveProtocolId()
+    && baseline
+    && targets.length
+    && allConfigured
+    && !state.channelPerf.isRunning
+  );
+  els.runChannelPerfBenchmark.disabled = !canRun;
+  if (els.channelPerfStopBenchmark) {
+    els.channelPerfStopBenchmark.disabled = !state.channelPerf.isRunning;
+  }
+}
+
+async function loadChannelPerfLocalConfig() {
+  try {
+    const response = await fetch(`${API_BASE}/api/local-config`);
+    if (!response.ok) return;
+    const data = await response.json();
+    state.channelPerf.localConfigProviders = data.providers || {};
+  } catch {
+    state.channelPerf.localConfigProviders = {};
+  }
+
+  const routeKeys = new Set();
+  if (state.channelPerf.baselineRouteKey) routeKeys.add(state.channelPerf.baselineRouteKey);
+  for (const key of state.channelPerf.targetRouteKeys) routeKeys.add(key);
+
+  const core = CHANNEL_ROUTE_CORE();
+  for (const routeKey of routeKeys) {
+    const route = channelPerfRouteByKey(routeKey);
+    if (!route) continue;
+    const local = core.resolveLocalProvider(route.platformId, state.channelPerf.localConfigProviders);
+    let config = state.channelPerf.channelConfigs[routeKey];
+    if (!config) {
+      ensureChannelPerfChannelConfig(routeKey, route);
+      continue;
+    }
+    if (config.apiKey?.trim() && !config.useLocalKey) continue;
+    if (!local?.api_key_hint) continue;
+    config.useLocalKey = true;
+    config.apiKeyHint = local.api_key_hint;
+    config.apiKey = "";
+    if (!config.baseUrl?.trim() && local.base_url) config.baseUrl = local.base_url;
+  }
+  renderChannelPerfChannelConfigs();
+  updateChannelPerfAvailability();
+}
+
+function appendChannelPerfLog(line) {
+  if (!els.channelPerfRunLog) return;
+  const text = String(line || "");
+  els.channelPerfRunLog.textContent = `${els.channelPerfRunLog.textContent}${els.channelPerfRunLog.textContent ? "\n" : ""}${text}`;
+  els.channelPerfRunLog.scrollTop = els.channelPerfRunLog.scrollHeight;
+}
+
+function renderChannelPerfReportRunPanel() {
+  const running = state.channelPerf.isRunning;
+  if (els.channelPerfReportRunPanel) {
+    els.channelPerfReportRunPanel.classList.toggle("is-hidden", !running);
+  }
+  if (!running) return;
+  const progress = state.channelPerf.runProgress || { count: 0, total: 0, label: "准备中" };
+  if (els.channelPerfProgressCount) {
+    els.channelPerfProgressCount.textContent = `${progress.count} / ${progress.total}`;
+  }
+  if (els.channelPerfProgressLabel) {
+    els.channelPerfProgressLabel.textContent = progress.label || "准备中";
+  }
+  if (els.channelPerfProgressBar) {
+    const pct = progress.total ? Math.round((progress.count / progress.total) * 100) : 0;
+    els.channelPerfProgressBar.style.width = `${pct}%`;
+  }
+  if (els.channelPerfReportRunMeta && state.channelPerf.runMeta) {
+    const meta = state.channelPerf.runMeta;
+    els.channelPerfReportRunMeta.textContent = [
+      meta.modelId,
+      meta.baseline,
+      `测评 ${meta.targetCount} 个渠道`,
+      `${meta.channelCount} 个渠道合计`
+    ].filter(Boolean).join(" · ");
+  }
+}
+
+function channelPerfProtocolLabel(protocolId) {
+  const def = CHANNEL_ROUTE_CORE().protocolDef(protocolId);
+  return def?.tabLabel || protocolId || "—";
+}
+
+function renderChannelPerfComparisonTable(record) {
+  const perf = CHANNEL_PERF();
+  const { channels, rows } = perf.comparisonTableRows(record);
+  if (!channels.length) return "";
+  return `
+    <div class="htable-wrap channel-perf-comparison-wrap">
+      <table class="htable channel-perf-comparison-table">
+        <thead>
+          <tr>
+            <th>指标</th>
+            ${channels.map((channel) => `<th>${escapeHtml(channel.label)}</th>`).join("")}
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((row) => `
+            <tr>
+              <td>${escapeHtml(row.label)}</td>
+              ${row.cells.map((cell) => `<td class="mono">${escapeHtml(cell)}</td>`).join("")}
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderChannelPerfReportDetail(record) {
+  const perf = CHANNEL_PERF();
+  const comparison = record.comparison || {};
+  const bestThroughput = comparison.best_output_throughput;
+  const lowestTtft = comparison.lowest_mean_ttft_ms;
+  const summaryCards = [
+    ["最佳输出 tok/s", bestThroughput ? `${bestThroughput.platformName} · ${perf.formatMetricValue(bestThroughput.value)}` : "—"],
+    ["最低 Mean TTFT", lowestTtft ? `${lowestTtft.platformName} · ${perf.formatMetricValue(lowestTtft.value)} ms` : "—"],
+    ["渠道数", String(record.results?.length || 0)],
+    ["请求数", String(record.benchmark?.num_prompts || "—")]
+  ];
+  return `
+    <div class="channel-perf-report-detail">
+      <div class="stat-grid performance-stats">
+        ${summaryCards.map(([label, value]) => `
+          <article class="stat-card">
+            <div class="st-top">${escapeHtml(label)}</div>
+            <div class="st-val">${escapeHtml(String(value))}</div>
+          </article>
+        `).join("")}
+      </div>
+      ${renderChannelPerfComparisonTable(record)}
+      <details class="channel-perf-json-details">
+        <summary>原始 JSON</summary>
+        <pre class="code-block performance-json">${escapeHtml(JSON.stringify(record, null, 2))}</pre>
+      </details>
+    </div>
+  `;
+}
+
+function renderChannelPerfReports() {
+  if (!els.channelPerfReportsList) return;
+  renderChannelPerfReportRunPanel();
+  const items = readChannelPerfReports();
+  if (state.expandedChannelPerfReportId && !items.some((record) => record.id === state.expandedChannelPerfReportId)) {
+    state.expandedChannelPerfReportId = null;
+  }
+  if (els.channelPerfReportsCount) els.channelPerfReportsCount.textContent = `${items.length} 条`;
+  if (els.clearChannelPerfReports) {
+    els.clearChannelPerfReports.disabled = items.length === 0 && !state.channelPerf.isRunning;
+  }
+  if (!items.length) {
+    els.channelPerfReportsList.innerHTML = state.channelPerf.isRunning
+      ? ""
+      : `
+      <div class="empty-state">
+        <strong>暂无渠道性能测评报告</strong>
+        <span>在「渠道性能测评工具」中配置并运行测试，报告会在这里生成。</span>
+      </div>
+    `;
+    return;
+  }
+
+  const perf = CHANNEL_PERF();
+  els.channelPerfReportsList.innerHTML = `
+    <div class="htable-wrap">
+      <table class="htable channel-perf-report-table">
+        <thead>
+          <tr>
+            <th>报告编号</th>
+            <th>模型与协议</th>
+            <th>渠道</th>
+            <th>最佳吞吐</th>
+            <th>最低 TTFT</th>
+            <th>时间</th>
+            <th style="text-align:right">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map((record) => {
+            const isOpen = state.expandedChannelPerfReportId === record.id;
+            const comparison = record.comparison || {};
+            const bestThroughput = comparison.best_output_throughput;
+            const lowestTtft = comparison.lowest_mean_ttft_ms;
+            const channelCount = record.results?.length || record.channels?.length || 0;
+            return `
+              <tr class="hrow ${isOpen ? "open" : ""}" data-channel-perf-report-id="${escapeHtml(record.id)}">
+                <td>
+                  <div class="channel-report-id-cell">
+                    <div class="rep-id channel-report-id">${escapeHtml(record.id.replace(/^channel_perf_report_/, "perf/"))}</div>
+                    <time class="mono muted fs-xs">${escapeHtml(formatDateTime(record.generated_at))}</time>
+                  </div>
+                </td>
+                <td>
+                  <strong class="mono">${escapeHtml(record.model_id || "—")}</strong>
+                  <div class="muted fs-xs">${escapeHtml(channelPerfProtocolLabel(record.protocol_id))}</div>
+                </td>
+                <td class="mono">${channelCount}</td>
+                <td class="mono">${bestThroughput ? escapeHtml(`${bestThroughput.platformName} · ${perf.formatMetricValue(bestThroughput.value)}`) : "—"}</td>
+                <td class="mono">${lowestTtft ? escapeHtml(`${lowestTtft.platformName} · ${perf.formatMetricValue(lowestTtft.value)}`) : "—"}</td>
+                <td class="mono muted fs-xs">${escapeHtml(formatDateTime(record.finished_at || record.generated_at))}</td>
+                <td style="text-align:right">
+                  <button class="btn btn-ghost btn-sm" type="button" data-channel-perf-report-action="toggle">${isOpen ? "收起" : "展开"}</button>
+                  <button class="btn btn-ghost btn-sm" type="button" data-channel-perf-report-action="copy">复制 JSON</button>
+                  <button class="btn btn-ghost btn-sm" type="button" data-channel-perf-report-action="delete">删除</button>
+                </td>
+              </tr>
+              ${isOpen ? `
+                <tr class="hrow-detail">
+                  <td colspan="7">${renderChannelPerfReportDetail(record)}</td>
+                </tr>
+              ` : ""}
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function saveChannelPerfReportRecord() {
+  const perf = CHANNEL_PERF();
+  const baseline = state.channelPerf.baselineRoute;
+  const targets = channelPerfTargetRoutes();
+  if (!state.channelPerf.completedResults.length) return null;
+  const record = perf.createChannelPerformanceReportRecord({
+    modelId: state.channelPerf.modelId,
+    protocolId: channelPerfActiveProtocolId(),
+    benchmark: channelPerfBenchmarkFromForm(),
+    baseline,
+    targets,
+    channelResults: state.channelPerf.completedResults,
+    startedAt: state.channelPerf.startedAt,
+    finishedAt: new Date().toISOString()
+  });
+  const writeResult = writeChannelPerfReports([record, ...readChannelPerfReports()]);
+  if (state.activeView === "channel-performance-reports") renderChannelPerfReports();
+  if (!writeResult.saved) {
+    showToast("本次性能测评结果已展示，但报告写入失败：浏览器本地存储空间不足。");
+  } else if (writeResult.compacted || writeResult.droppedCount > 0) {
+    showToast(writeResult.droppedCount > 0
+      ? `渠道性能测评报告已保存；本地空间不足，已保留最近 ${writeResult.savedCount} 条。`
+      : "渠道性能测评报告已保存。");
+  } else {
+    showToast("渠道性能测评报告已保存。");
+  }
+  return record;
+}
+
+async function runChannelPerfBenchmarkForRoute(route, role, benchmark, signal, index, total) {
+  const perf = CHANNEL_PERF();
+  const config = ensureChannelPerfChannelConfig(route.key, route);
+  const payload = perf.buildBenchmarkRequest({
+    route,
+    config,
+    protocolId: channelPerfActiveProtocolId(),
+    modelId: state.channelPerf.modelId,
+    benchmark,
+    proxy: getProxyConfig()
+  });
   if (!payload.base_url) {
-    showToast("性能测试需要填写 Base URL。");
+    throw new Error(`${route.platformName} 未填写 Endpoint 地址`);
+  }
+  if (!channelPerfChannelHasApiKey(config)) {
+    throw new Error(`${route.platformName} 未配置 API Key`);
+  }
+
+  state.channelPerf.runProgress = {
+    count: index,
+    total,
+    label: `压测 ${route.platformName}`
+  };
+  renderChannelPerfReportRunPanel();
+  appendChannelPerfLog(`→ ${route.platformName} / ${route.protocolLabel}`);
+
+  const response = await fetch(`${API_BASE}/api/performance/benchmark`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    signal
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || `HTTP ${response.status}`);
+  }
+
+  const result = data.result || {};
+  const summary = perf.summarizeBenchmarkResult(result);
+  const stdout = String(data.stdout || "");
+  const entry = {
+    channel_key: route.key,
+    role,
+    platformName: route.platformName,
+    protocolLabel: route.protocolLabel,
+    base_url_host: perf.sanitizeBaseUrlHost(config.baseUrl),
+    summary,
+    result,
+    stdout_preview: stdout.length > 4000 ? `${stdout.slice(0, 4000)}\n…（已截断）` : stdout
+  };
+  state.channelPerf.completedResults.push(entry);
+  appendChannelPerfLog(`  ✓ ${route.platformName} · 输出 ${perf.formatMetricValue(summary.output_throughput)} tok/s · TTFT ${perf.formatMetricValue(summary.mean_ttft_ms)} ms`);
+  state.channelPerf.runProgress = {
+    count: index + 1,
+    total,
+    label: `完成 ${route.platformName}`
+  };
+  renderChannelPerfReportRunPanel();
+  renderChannelPerfReports();
+  return entry;
+}
+
+async function runChannelPerformanceBenchmarks() {
+  const baseline = state.channelPerf.baselineRoute;
+  const targets = channelPerfTargetRoutes();
+  if (!state.channelPerf.modelId) {
+    showToast("请先选择测评模型。");
     return;
   }
-  if (!payload.model) {
-    showToast("性能测试需要填写 Model。");
+  if (!channelPerfActiveProtocolId()) {
+    showToast("请先选择测评协议。");
     return;
   }
-  if (payload.dataset_name !== "random" && !payload.dataset_path) {
-    showToast("sharegpt/sonnet 数据集需要填写本地文件路径。");
+  if (!baseline) {
+    showToast("请选择 Baseline 渠道。");
     return;
   }
-  if (payload.proxy.enabled && !payload.proxy.url) {
+  if (!targets.length) {
+    showToast("请至少选择一个测评渠道。");
+    return;
+  }
+
+  const routes = [
+    { route: baseline, role: "baseline" },
+    ...targets.map((route) => ({ route, role: "target" }))
+  ];
+  for (const { route } of routes) {
+    const config = ensureChannelPerfChannelConfig(route.key, route);
+    if (!config.baseUrl?.trim()) {
+      showToast(`${route.platformName} 未填写 Endpoint 地址。`);
+      return;
+    }
+    if (!channelPerfChannelHasApiKey(config)) {
+      showToast(`${route.platformName} 未配置 API Key。`);
+      return;
+    }
+  }
+
+  const proxy = getProxyConfig();
+  if (proxy.enabled && !proxy.url) {
     showToast("已启用代理，但 Proxy URL 为空。");
     return;
   }
 
-  state.lastPerformanceResult = null;
-  els.runPerformanceBenchmark.disabled = true;
-  els.performanceProgressPanel.classList.remove("is-hidden");
-  els.performanceResultsPanel.classList.add("is-hidden");
-  els.performanceStatus.textContent = "运行中";
-  els.performanceCommandHint.textContent = `${payload.backend} · ${payload.num_prompts} prompts · ${payload.request_rate} req/s`;
-  els.performanceProgressBar.style.width = "35%";
-  els.performanceStdout.textContent = "";
-  els.performanceJson.textContent = "";
+  state.channelPerf.completedResults = [];
+  state.channelPerf.startedAt = new Date().toISOString();
+  state.channelPerf.currentRunAbortController = new AbortController();
+  state.channelPerf.isRunning = true;
+  updateChannelPerfAvailability();
 
+  const benchmark = channelPerfBenchmarkFromForm();
+  state.channelPerf.benchmark = benchmark;
+  const total = routes.length;
+  state.channelPerf.runMeta = {
+    modelId: state.channelPerf.modelId,
+    baseline: baseline ? `${baseline.platformName} / ${baseline.protocolLabel}` : "",
+    targetCount: targets.length,
+    channelCount: total
+  };
+  state.channelPerf.runProgress = { count: 0, total, label: "准备中" };
+
+  history.replaceState(null, "", "#channel-performance-reports");
+  setActiveView("channel-performance-reports");
+  if (els.channelPerfRunLog) els.channelPerfRunLog.textContent = "";
+  renderChannelPerfReports();
+
+  const signal = state.channelPerf.currentRunAbortController.signal;
   try {
-    const response = await fetch(`${API_BASE}/api/performance/benchmark`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    els.performanceProgressBar.style.width = "78%";
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(data.error || `HTTP ${response.status}`);
+    appendChannelPerfLog(`→ 检查后端连接：${API_BASE}`);
+    await ensureBackendReady(signal);
+    appendChannelPerfLog(`→ 性能压测：${total} 个渠道 · ${benchmark.num_prompts} prompts`);
+    for (let index = 0; index < routes.length; index += 1) {
+      if (!state.channelPerf.isRunning) break;
+      const { route, role } = routes[index];
+      await runChannelPerfBenchmarkForRoute(route, role, benchmark, signal, index, total);
     }
-    state.lastPerformanceResult = data.result || {};
-    renderPerformanceResult(data);
-    els.performanceStatus.textContent = "完成";
-    els.performanceProgressBar.style.width = "100%";
+    if (els.channelPerfProgressLabel) els.channelPerfProgressLabel.textContent = "— 完成";
+    if (els.channelPerfProgressBar) els.channelPerfProgressBar.style.width = "100%";
+    state.channelPerf.runProgress = { count: total, total, label: "— 完成" };
+    if (state.channelPerf.completedResults.length) {
+      const record = saveChannelPerfReportRecord();
+      if (record) state.expandedChannelPerfReportId = record.id;
+    }
+    renderChannelPerfReports();
   } catch (error) {
-    els.performanceStatus.textContent = "失败";
-    els.performanceProgressBar.style.width = "100%";
-    showToast(`性能测试失败：${error.message}`);
+    if (error?.name === "AbortError") {
+      if (els.channelPerfProgressLabel) els.channelPerfProgressLabel.textContent = "— 用户已停止";
+      state.channelPerf.runProgress = { ...state.channelPerf.runProgress, label: "— 用户已停止" };
+      if (state.channelPerf.completedResults.length) {
+        const record = saveChannelPerfReportRecord();
+        if (record) state.expandedChannelPerfReportId = record.id;
+      }
+      showToast("性能测评已停止。");
+    } else {
+      showToast(`性能测评失败：${error.message}`);
+      appendChannelPerfLog(`✗ ${error.message}`);
+    }
+    renderChannelPerfReports();
   } finally {
-    els.runPerformanceBenchmark.disabled = false;
+    state.channelPerf.isRunning = false;
+    state.channelPerf.currentRunAbortController = null;
+    updateChannelPerfAvailability();
+    renderChannelPerfReportRunPanel();
   }
 }
 
-function renderPerformanceResult(data = {}) {
-  const result = data.result || {};
-  const cards = [
-    ["成功请求", result.completed ?? "0"],
-    ["失败请求", result.failed ?? "0"],
-    ["耗时 s", formatMetricValue(result.benchmark_duration)],
-    ["Req/s", formatMetricValue(result.request_throughput)],
-    ["输出 tok/s", formatMetricValue(result.output_throughput)],
-    ["总 tok/s", formatMetricValue(result.total_token_throughput)],
-    ["Mean TTFT ms", formatMetricValue(result.mean_ttft_ms)],
-    ["P99 TTFT ms", formatMetricValue(result.p99_ttft_ms)],
-    ["Mean TPOT ms", formatMetricValue(result.mean_tpot_ms)],
-    ["P99 TPOT ms", formatMetricValue(result.p99_tpot_ms)],
-    ["Mean ITL ms", formatMetricValue(result.mean_itl_ms)],
-    ["P99 ITL ms", formatMetricValue(result.p99_itl_ms)]
-  ];
-  if (result.goodput !== null && result.goodput !== undefined) {
-    cards.push(["Goodput", formatMetricValue(result.goodput)]);
-  }
-  els.performanceStats.innerHTML = cards.map(([label, value]) => `
-    <article class="stat-card">
-      <div class="st-top">${escapeHtml(label)}</div>
-      <div class="st-val">${escapeHtml(String(value))}</div>
-    </article>
-  `).join("");
-  els.performanceStdout.textContent = data.stdout || "";
-  els.performanceJson.textContent = JSON.stringify(result, null, 2);
-  els.performanceResultsPanel.classList.remove("is-hidden");
+function stopChannelPerformanceBenchmarks() {
+  if (!state.channelPerf.isRunning) return;
+  state.channelPerf.isRunning = false;
+  state.channelPerf.currentRunAbortController?.abort();
+}
+
+function renderChannelPerformanceTool() {
+  if (!els.channelPerfModelSelect) return;
+  loadChannelPerfLocalConfig().then(() => {
+    renderChannelPerfModelSelect();
+    renderChannelPerfProtocolPicker();
+    const protocols = CHANNEL_ROUTE_CORE().listProtocolOptions(state.channelPerf.modelId);
+    if (!state.channelPerf.protocolId && protocols.length === 1) {
+      applyChannelPerfProtocol(protocols[0].id, { autoSelectBaseline: !state.channelPerf.baselineRouteKey });
+    } else if (state.channelPerf.protocolId) {
+      if (els.channelPerfChannelPanel) els.channelPerfChannelPanel.classList.remove("is-hidden");
+      renderChannelPerfBaselineSelect({ autoSelect: !state.channelPerf.baselineRouteKey });
+      renderChannelPerfChannelConfigs();
+      if (state.channelPerf.baselineRoute) {
+        if (els.channelPerfConfigPanel) els.channelPerfConfigPanel.classList.remove("is-hidden");
+        if (els.channelPerfBenchmarkPanel) els.channelPerfBenchmarkPanel.classList.remove("is-hidden");
+      }
+    } else {
+      renderChannelPerfBaselineSelect();
+      renderChannelPerfTargetSelect();
+    }
+    updateChannelPerfAvailability();
+  });
+}
+
+function bindChannelPerfEvents() {
+  document.addEventListener("click", (event) => {
+    if (state.activeViewKey !== "channel-performance") return;
+    if (els.channelPerfModelSelect && !els.channelPerfModelSelect.contains(event.target)) {
+      closeChannelPerfModelMenu();
+    }
+    if (els.channelPerfBaselineSelect && !els.channelPerfBaselineSelect.contains(event.target)) {
+      closeChannelPerfBaselineMenu();
+    }
+    if (els.channelPerfTargetSelect && !els.channelPerfTargetSelect.contains(event.target)) {
+      closeChannelPerfTargetMenu();
+    }
+  });
+
+  els.channelPerfModelControl?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (state.channelPerf.isRunning) return;
+    if (!state.channelPerf.modelMenuOpen) openChannelPerfModelMenu();
+    else els.channelPerfModelInput?.focus();
+  });
+
+  els.channelPerfModelInput?.addEventListener("input", () => {
+    if (!state.channelPerf.modelMenuOpen) return;
+    state.channelPerf.modelSearch = els.channelPerfModelInput.value;
+    renderChannelPerfModelSelect();
+  });
+
+  els.channelPerfModelOptions?.addEventListener("mousedown", (event) => {
+    const option = event.target.closest("[data-channel-perf-model]");
+    if (!option || state.channelPerf.isRunning) return;
+    event.preventDefault();
+    event.stopPropagation();
+    closeChannelPerfModelMenu();
+    applyChannelPerfModel(option.dataset.channelPerfModel);
+  });
+
+  els.channelPerfProtocolPicker?.addEventListener("click", (event) => {
+    const tab = event.target.closest("[data-channel-perf-protocol]");
+    if (!tab || state.channelPerf.isRunning || tab.disabled) return;
+    const def = CHANNEL_ROUTE_CORE().protocolDef(tab.dataset.channelPerfProtocol);
+    if (!def || !CHANNEL_ROUTE_CORE().protocolIsRunnable(def)) return;
+    applyChannelPerfProtocol(tab.dataset.channelPerfProtocol);
+  });
+
+  els.channelPerfBaselineControl?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (state.channelPerf.isRunning || els.channelPerfBaselineInput?.disabled) return;
+    if (!state.channelPerf.baselineMenuOpen) openChannelPerfBaselineMenu();
+    else els.channelPerfBaselineInput?.focus();
+  });
+
+  els.channelPerfBaselineInput?.addEventListener("input", () => {
+    if (!state.channelPerf.baselineMenuOpen) return;
+    state.channelPerf.baselineSearch = els.channelPerfBaselineInput.value;
+    renderChannelPerfBaselineSelect();
+  });
+
+  els.channelPerfBaselineOptions?.addEventListener("mousedown", (event) => {
+    const option = event.target.closest("[data-channel-perf-baseline]");
+    if (!option || state.channelPerf.isRunning) return;
+    event.preventDefault();
+    event.stopPropagation();
+    applyChannelPerfBaseline(option.dataset.channelPerfBaseline);
+  });
+
+  els.channelPerfTargetControl?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (state.channelPerf.isRunning || els.channelPerfTargetInput?.disabled) return;
+    if (!state.channelPerf.targetMenuOpen) openChannelPerfTargetMenu();
+    else els.channelPerfTargetInput?.focus();
+  });
+
+  els.channelPerfTargetInput?.addEventListener("input", () => {
+    if (!state.channelPerf.targetMenuOpen) return;
+    state.channelPerf.targetSearch = els.channelPerfTargetInput.value;
+    renderChannelPerfTargetSelect();
+  });
+
+  els.channelPerfTargetOptions?.addEventListener("mousedown", (event) => {
+    const option = event.target.closest("[data-channel-perf-target]");
+    if (!option || state.channelPerf.isRunning) return;
+    event.preventDefault();
+    event.stopPropagation();
+    toggleChannelPerfTarget(option.dataset.channelPerfTarget);
+  });
+
+  els.channelPerfTargetTags?.addEventListener("click", (event) => {
+    const remove = event.target.closest("[data-channel-perf-target-remove]");
+    if (!remove || state.channelPerf.isRunning) return;
+    toggleChannelPerfTarget(remove.dataset.channelPerfTargetRemove);
+  });
+
+  els.channelPerfChannelConfigs?.addEventListener("input", (event) => {
+    const field = event.target.closest("[data-channel-perf-config-field]");
+    if (!field || state.channelPerf.isRunning) return;
+    const routeKey = field.dataset.channelPerfConfigKey;
+    const config = state.channelPerf.channelConfigs[routeKey];
+    if (!config) return;
+    if (field.dataset.channelPerfConfigField === "baseUrl") {
+      config.baseUrl = field.value;
+      config.useLocalKey = false;
+    }
+    if (field.dataset.channelPerfConfigField === "apiKey") {
+      config.apiKey = field.value;
+      config.useLocalKey = false;
+      config.apiKeyHint = "";
+    }
+    updateChannelPerfAvailability();
+  });
+
+  els.runChannelPerfBenchmark?.addEventListener("click", runChannelPerformanceBenchmarks);
+  els.channelPerfStopBenchmark?.addEventListener("click", stopChannelPerformanceBenchmarks);
+
+  els.clearChannelPerfReports?.addEventListener("click", () => {
+    if (!readChannelPerfReports().length) return;
+    if (!window.confirm("确定清空所有渠道性能测评报告？")) return;
+    writeChannelPerfReports([]);
+    state.expandedChannelPerfReportId = null;
+    renderChannelPerfReports();
+    showToast("渠道性能测评报告已清空。");
+  });
+
+  els.channelPerfReportsList?.addEventListener("click", (event) => {
+    const row = event.target.closest("[data-channel-perf-report-id]");
+    if (!row) return;
+    const recordId = row.dataset.channelPerfReportId;
+    const record = readChannelPerfReports().find((item) => item.id === recordId);
+    if (!record) return;
+    const button = event.target.closest("[data-channel-perf-report-action]");
+    if (!button) {
+      state.expandedChannelPerfReportId = state.expandedChannelPerfReportId === recordId ? null : recordId;
+      renderChannelPerfReports();
+      return;
+    }
+    if (button.dataset.channelPerfReportAction === "toggle") {
+      state.expandedChannelPerfReportId = state.expandedChannelPerfReportId === recordId ? null : recordId;
+      renderChannelPerfReports();
+      return;
+    }
+    if (button.dataset.channelPerfReportAction === "copy") {
+      copyText(JSON.stringify(record, null, 2), "性能报告 JSON");
+      return;
+    }
+    if (button.dataset.channelPerfReportAction === "delete") {
+      const reportLabel = record.id.replace(/^channel_perf_report_/, "perf/");
+      if (!window.confirm(`确定删除报告 ${reportLabel}？`)) return;
+      writeChannelPerfReports(readChannelPerfReports().filter((item) => item.id !== recordId));
+      if (state.expandedChannelPerfReportId === recordId) state.expandedChannelPerfReportId = null;
+      renderChannelPerfReports();
+      showToast("渠道性能测评报告已删除。");
+    }
+  });
 }
 
 function formatMetricValue(value) {
-  if (value === null || value === undefined || value === "") return "—";
-  const number = Number(value);
-  if (!Number.isFinite(number)) return String(value);
-  return number.toFixed(2);
+  return CHANNEL_PERF().formatMetricValue(value);
 }
 
 function showToast(message) {
@@ -10566,7 +12367,7 @@ function openRunV02ModelMenu() {
 }
 
 function runV02RouteOptionLabel(option) {
-  return `${option.platformName} · ${option.categoryLabel}`;
+  return CHANNEL_ROUTE_CORE().routeOptionLabel(option);
 }
 
 function applyRunV02Model(modelId) {
@@ -10620,62 +12421,38 @@ function renderRunV02ModelSelect() {
 }
 
 function runV02SupportedProtocol(protocolId) {
-  return protocolId === "chat_completions" || protocolId === "anthropic_messages";
+  return CHANNEL_ROUTE_CORE().supportedProtocol(protocolId);
 }
 
 function runV02ProtocolCatalogDefs() {
-  return (typeof PROTOCOL_CATALOG_DEFS !== "undefined" ? PROTOCOL_CATALOG_DEFS : []);
+  return CHANNEL_ROUTE_CORE().protocolCatalogDefs();
 }
 
 function runV02ProtocolDef(protocolId) {
-  return runV02ProtocolCatalogDefs().find((def) => def.id === protocolId) || null;
+  return CHANNEL_ROUTE_CORE().protocolDef(protocolId);
 }
 
 function runV02ProtocolIsRunnable(def) {
-  return Boolean(def) && def.evalStatus !== "planned" && runV02SupportedProtocol(def.id);
+  return CHANNEL_ROUTE_CORE().protocolIsRunnable(def);
 }
 
 /** 当前模型可跑批的协议（Chat / Anthropic）。 */
 function listRunV02ProtocolOptions(modelId = ensureRunV02ModelId()) {
-  const lookupApi = window.NOCTUA_MODEL_LOOKUP;
-  const options = lookupApi?.listModelRouteOptions?.(modelId) || [];
-  const seen = new Set();
-  const result = [];
-  for (const option of options) {
-    if (!runV02SupportedProtocol(option.protocolId) || !option.runnable) continue;
-    if (seen.has(option.protocolId)) continue;
-    seen.add(option.protocolId);
-    const def = runV02ProtocolDef(option.protocolId);
-    if (def && runV02ProtocolIsRunnable(def)) result.push(def);
-  }
-  return result;
+  return CHANNEL_ROUTE_CORE().listProtocolOptions(modelId);
 }
 
 /** Step 2 展示项：可跑批协议 + 规划中协议（如 Responses，仅展示不可选）。 */
 function listRunV02ProtocolPickerItems(modelId = ensureRunV02ModelId()) {
-  const runnable = listRunV02ProtocolOptions(modelId);
-  const runnableIds = new Set(runnable.map((def) => def.id));
-  const planned = runV02ProtocolCatalogDefs().filter(
-    (def) => def.evalStatus === "planned" && !runnableIds.has(def.id)
-  );
-  return [...runnable, ...planned];
+  return CHANNEL_ROUTE_CORE().listProtocolPickerItems(modelId);
 }
 
 function runV02ActiveProtocolId() {
-  const protocolId = state.runV02.protocolId;
-  if (!protocolId || !runV02SupportedProtocol(protocolId)) return "";
-  return protocolId;
+  return CHANNEL_ROUTE_CORE().activeProtocolId(state.runV02);
 }
 
 /** 当前所选协议下的渠道协议组合（不含其他协议）。 */
 function runV02ChannelsForProtocol() {
-  const protocolId = runV02ActiveProtocolId();
-  if (!protocolId) return [];
-  return (state.runV02.routeOptions || []).filter((item) => (
-    runV02SupportedProtocol(item.protocolId)
-    && item.protocolId === protocolId
-    && item.runnable !== false
-  ));
+  return CHANNEL_ROUTE_CORE().channelsForProtocol(state.runV02.routeOptions, runV02ActiveProtocolId());
 }
 
 /** @deprecated 使用 runV02ChannelsForProtocol */
@@ -10879,12 +12656,17 @@ function isProtocolStreamCanonicalCaseId(caseId, protocolId = state.runV02?.prot
   return PROTOCOL_STREAM_CANONICAL_CASE_IDS.has(id);
 }
 
-function runV02CaseProviderId(route) {
+function runV02CanonicalCaseProviderId(route) {
   if (!route) return null;
-  if (route.providerId && casePayloadProviders.has(route.providerId)) return route.providerId;
   if (route.protocolId === "anthropic_messages") return "ali_messages";
   if (route.protocolId === "chat_completions") return "ali";
   return null;
+}
+
+function runV02CaseProviderId(route) {
+  if (!route) return null;
+  if (route.providerId && casePayloadProviders.has(route.providerId)) return route.providerId;
+  return runV02CanonicalCaseProviderId(route);
 }
 
 /** 协议/采样、协议/思考模式 case 固定使用 canonical payloads；实际请求仍走各渠道的 base_url / model。 */
@@ -10892,10 +12674,10 @@ function runV02PayloadProviderId(route, caseIds = []) {
   const protocolId = route?.protocolId || runV02ActiveProtocolId();
   const ids = caseIds || [];
   if (ids.some((id) => isProtocolStreamCanonicalCaseId(id, protocolId))) {
-    return RUN_V02_CANONICAL_PROTOCOL_CASE_PROVIDER[protocolId] || runV02CaseProviderId(route);
+    return RUN_V02_CANONICAL_PROTOCOL_CASE_PROVIDER[protocolId] || runV02CanonicalCaseProviderId(route);
   }
   if (ids.some((id) => /_protocol_sampling_temperature_/.test(id))) {
-    return RUN_V02_CANONICAL_PROTOCOL_CASE_PROVIDER[protocolId] || runV02CaseProviderId(route);
+    return RUN_V02_CANONICAL_PROTOCOL_CASE_PROVIDER[protocolId] || runV02CanonicalCaseProviderId(route);
   }
   if (ids.some((id) => PROTOCOL_THINKING_CANONICAL_CASE_IDS.has(id) || /^a[ml]_protocol_thinking_/.test(id))) {
     return runV02CanonicalThinkingProviderId(protocolId);
@@ -10908,12 +12690,64 @@ function runV02PayloadProviderId(route, caseIds = []) {
   }
   if (ids.some((id) => oemBehaviorsApi().OEM_CASE_IDS?.has(id))) {
     const vendorId = oemBehaviorsApi().inferEvalModelVendorId?.(state.runV02.modelId) || "deepseek";
-    return oemBehaviorsApi().modelBehaviorsProviderId?.(vendorId) || runV02CaseProviderId(route);
+    return oemBehaviorsApi().modelBehaviorsProviderId?.(vendorId) || runV02CanonicalCaseProviderId(route);
   }
   if (ids.some((id) => String(id).startsWith("cache_"))) {
-    return runV02CaseProviderId(route);
+    return runV02CanonicalCaseProviderId(route);
   }
-  return runV02CaseProviderId(route);
+  return runV02CanonicalCaseProviderId(route);
+}
+
+function runV02PayloadProviderForCase(route, testCase) {
+  if (testCase?.custom) return runV02CanonicalCaseProviderId(route);
+  return runV02PayloadProviderId(route, [testCase.case_id]);
+}
+
+function groupRunV02CasesByPayloadProvider(route, preparedCases = []) {
+  const groups = new Map();
+  for (const testCase of preparedCases) {
+    const providerId = runV02PayloadProviderForCase(route, testCase);
+    if (!providerId) continue;
+    if (!groups.has(providerId)) groups.set(providerId, []);
+    groups.get(providerId).push(testCase);
+  }
+  return groups;
+}
+
+async function streamRunV02ProviderBatch(route, config, providerId, cases, signal, onResult) {
+  const builtInIds = cases.filter((testCase) => !testCase.custom).map((testCase) => testCase.case_id);
+  const customCases = cases
+    .filter((testCase) => testCase.custom)
+    .map((testCase) => oemBehaviorsApi().toCustomCaseShape?.(testCase) || testCase);
+  const response = await fetch(`${API_BASE}/api/run-stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    signal,
+    body: JSON.stringify({
+      provider: providerId,
+      endpoint_id: route.protocolId,
+      base_url: config.baseUrl.trim(),
+      model: route.apiModelId,
+      api_key: config.useLocalKey ? "" : config.apiKey.trim(),
+      config_platform_id: config.useLocalKey ? route.platformId : "",
+      case_ids: builtInIds,
+      custom_cases: customCases,
+      proxy: getProxyConfig(),
+      max_concurrency: 3
+    })
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || `HTTP ${response.status}`);
+  }
+
+  await readRunStream(response, (event) => {
+    if (!state.runV02.isRunning) return;
+    if (event.type === "error") throw new Error(event.error || "run stream failed");
+    if (event.type === "end") return;
+    if (event.type !== "result" || !event.result) return;
+    onResult(event.result);
+  });
 }
 
 async function loadCanonicalProtocolStreamCases(protocolId) {
@@ -10987,28 +12821,15 @@ async function loadCanonicalProtocolSamplingCases(protocolId) {
 }
 
 function runV02TargetCandidateOptions() {
-  const baseline = state.runV02.baselineRoute;
-  if (!baseline) return [];
-  return runV02ChannelOptions().filter((item) => (
-    item.protocolId === baseline.protocolId
-    && item.key !== baseline.key
-  ));
+  return CHANNEL_ROUTE_CORE().targetCandidateOptions(state.runV02.routeOptions, state.runV02.baselineRoute);
 }
 
 function runV02TargetRoutes() {
-  return [...state.runV02.targetRouteKeys]
-    .map((key) => runV02RouteByKey(key))
-    .filter(Boolean);
+  return CHANNEL_ROUTE_CORE().targetRoutes(state.runV02);
 }
 
 function resolveRunV02LocalProvider(platformId) {
-  const providers = state.runV02.localConfigProviders || {};
-  const aliasKeys = RUN_V02_CONFIG_PLATFORM_ALIASES[platformId] || [platformId];
-  for (const key of aliasKeys) {
-    const entry = providers[key];
-    if (entry?.api_key_hint) return entry;
-  }
-  return null;
+  return CHANNEL_ROUTE_CORE().resolveLocalProvider(platformId, state.runV02.localConfigProviders);
 }
 
 async function loadRunV02LocalConfig() {
@@ -11046,39 +12867,30 @@ async function loadRunV02LocalConfig() {
 }
 
 function runV02ChannelApiKeyValue(config) {
-  if (!config) return "";
-  return config.useLocalKey ? (config.apiKeyHint || "") : (config.apiKey || "");
+  return CHANNEL_ROUTE_CORE().channelApiKeyValue(config);
 }
 
 function runV02ChannelHasApiKey(config) {
-  if (!config) return false;
-  return config.useLocalKey ? Boolean(config.apiKeyHint?.trim()) : Boolean(config.apiKey?.trim());
+  return CHANNEL_ROUTE_CORE().channelHasApiKey(config);
 }
 
 function ensureRunV02ChannelConfig(routeKey, route) {
-  if (!routeKey) return { baseUrl: "", apiKey: "", apiKeyHint: "", useLocalKey: false };
-  if (!state.runV02.channelConfigs[routeKey]) {
-    const local = route ? resolveRunV02LocalProvider(route.platformId) : null;
-    const useLocalKey = Boolean(local?.api_key_hint);
-    state.runV02.channelConfigs[routeKey] = {
-      baseUrl: local?.base_url || route?.endpointUrl || "",
-      apiKey: "",
-      apiKeyHint: local?.api_key_hint || "",
-      useLocalKey
-    };
-  }
-  return state.runV02.channelConfigs[routeKey];
+  return CHANNEL_ROUTE_CORE().ensureChannelConfig(
+    state.runV02,
+    routeKey,
+    route,
+    state.runV02.localConfigProviders
+  );
 }
 
 function renderRunV02RouteOptions() {
-  const lookupApi = window.NOCTUA_MODEL_LOOKUP;
-  const modelId = ensureRunV02ModelId();
-  const options = lookupApi?.listModelRouteOptions?.(modelId) || [];
-  state.runV02.routeOptions = options;
+  CHANNEL_ROUTE_CORE().refreshRouteOptions(state.runV02);
 
   renderRunV02ProtocolPicker();
 
   const protocolId = runV02ActiveProtocolId();
+  const modelId = ensureRunV02ModelId();
+  const options = state.runV02.routeOptions || [];
   const channelCount = runV02ChannelsForProtocol().length;
   if (els.runV02RouteHint) {
     if (!modelId) {
@@ -11305,16 +13117,11 @@ function renderRunV02RouteSelect(opts) {
 }
 
 function ensureRunV02ModelId() {
-  const lookupApi = window.NOCTUA_MODEL_LOOKUP;
-  const evalIds = lookupApi?.getEvalModelIds?.() || [];
-  if (!state.runV02.modelId || !evalIds.includes(state.runV02.modelId)) {
-    state.runV02.modelId = evalIds[0] || "";
-  }
-  return state.runV02.modelId;
+  return CHANNEL_ROUTE_CORE().ensureModelId(state.runV02);
 }
 
 function runV02RouteByKey(routeKey = state.runV02.baselineRouteKey) {
-  return (state.runV02.routeOptions || []).find((item) => item.key === routeKey) || null;
+  return CHANNEL_ROUTE_CORE().routeByKey(state.runV02.routeOptions, routeKey);
 }
 
 function runContextForV02(route, config) {
@@ -11440,11 +13247,36 @@ function updateRunV02Availability() {
   );
   els.runV02Tests.disabled = !canRun;
   if (els.runV02StopTests) els.runV02StopTests.disabled = !state.runV02.isRunning;
-  if (els.runV02SelectAllCases) {
-    els.runV02SelectAllCases.disabled = state.runV02.isRunning || state.runV02.isCaseLoading || !cases.length;
-  }
-  if (els.runV02ClearAllCases) {
-    els.runV02ClearAllCases.disabled = state.runV02.isRunning || state.runV02.isCaseLoading || !cases.length;
+}
+
+function runV02CaseGroupSelectionState(group) {
+  const selectedIds = runV02CaseGroupSelection(group.key);
+  const total = group.cases.length;
+  const selected = group.cases.filter((testCase) => selectedIds.has(testCase.case_id)).length;
+  return {
+    selected,
+    total,
+    all: total > 0 && selected === total,
+    none: selected === 0
+  };
+}
+
+function setRunV02CaseGroupSelection(groupKey, selected) {
+  const group = listRunV02CaseGroups(state.runV02.cases || []).find((item) => item.key === groupKey);
+  if (!group) return;
+  state.runV02.selectedCaseIdsByGroup[groupKey] = selected
+    ? new Set(group.cases.map((testCase) => testCase.case_id))
+    : new Set();
+}
+
+function syncRunV02CaseGroupTabChecks() {
+  if (!els.runV02CaseGroupPicker) return;
+  for (const input of els.runV02CaseGroupPicker.querySelectorAll("[data-run-v02-case-group-toggle]")) {
+    const group = listRunV02CaseGroups(state.runV02.cases || []).find((item) => item.key === input.dataset.runV02CaseGroupToggle);
+    if (!group) continue;
+    const { all, none } = runV02CaseGroupSelectionState(group);
+    input.checked = all;
+    input.indeterminate = !all && !none;
   }
 }
 
@@ -11519,33 +13351,6 @@ function listRunV02CaseGroups(cases = []) {
   ].filter((group) => group.cases.length);
 }
 
-function isDefaultSelectedRunV02Case(groupKey, testCase) {
-  if (oemBehaviorsApi().isOemReferenceCase?.(testCase)) return !testCase.optional;
-  if (groupKey === "connectivity") return true;
-  if (groupKey === "protocol") {
-    if (isProtocolStreamCaseP0(testCase)) return true;
-    if (isProtocolStreamCaseP0NonStream(testCase)) return true;
-    if (isProtocolStreamUsageObservedCase(testCase)) {
-      return state.runV02.baselineRoute?.protocolId === "chat_completions";
-    }
-    if (isProtocolStreamCaseP1IncludeUsage(testCase)) return baselineSupportsStreamIncludeUsage();
-    if (isProtocolStreamUsageChunkShapeCase(testCase)) return false;
-    return false;
-  }
-  if (groupKey === "protocol_sampling") return isProtocolSamplingCase(testCase);
-  if (groupKey === "protocol_thinking") return false;
-  if (groupKey === "protocol_tools") return false;
-  if (groupKey === "protocol_response_format") return false;
-  if (groupKey === "cache_hit") {
-    return testCase.case_id === "cache_passive_long_prompt" || testCase.case_id === "cache_prompt_cache_key";
-  }
-  if (groupKey === "output_length") {
-    const axis = lengthCaseAxisGroup(testCase);
-    return axis === "accept" || axis === "effective" || axis === "precedence";
-  }
-  return isDefaultSelectedCase(testCase);
-}
-
 function runV02CaseGroupSelection(groupKey) {
   if (!groupKey) return new Set();
   if (!state.runV02.selectedCaseIdsByGroup[groupKey]) {
@@ -11609,25 +13414,7 @@ function initRunV02CaseGroupState(cases = []) {
   const groups = listRunV02CaseGroups(cases);
   const selectedCaseIdsByGroup = {};
   for (const group of groups) {
-    if (group.key === "protocol_thinking") {
-      selectedCaseIdsByGroup[group.key] = new Set(defaultThinkingCaseIds(group.cases));
-      continue;
-    }
-    if (group.key === "protocol_tools") {
-      selectedCaseIdsByGroup[group.key] = new Set(defaultToolsCaseIds(group.cases));
-      continue;
-    }
-    if (group.key === "protocol_response_format") {
-      selectedCaseIdsByGroup[group.key] = new Set(defaultResponseFormatCaseIds(group.cases));
-      continue;
-    }
-    if (group.key === "output_length") {
-      selectedCaseIdsByGroup[group.key] = new Set(defaultOutputLengthCaseIds(group.cases));
-      continue;
-    }
-    selectedCaseIdsByGroup[group.key] = new Set(
-      group.cases.filter((testCase) => isDefaultSelectedRunV02Case(group.key, testCase)).map((testCase) => testCase.case_id)
-    );
+    selectedCaseIdsByGroup[group.key] = new Set();
   }
   state.runV02.selectedCaseIdsByGroup = selectedCaseIdsByGroup;
   const preferred = groups.find((group) => group.key === "connectivity") || groups[0];
@@ -11643,21 +13430,33 @@ function renderRunV02CaseGroupPicker() {
     return;
   }
   els.runV02CaseGroupPicker.innerHTML = groups.map((group) => {
-    const selectedCount = group.cases.filter((testCase) => runV02CaseGroupSelection(group.key).has(testCase.case_id)).length;
+    const { selected, total, all } = runV02CaseGroupSelectionState(group);
+    const toggleTitle = all ? `取消全选：${group.title}` : `全选：${group.title}`;
     return `
-      <button
-        type="button"
-        class="run-v02-case-group-tab ${group.key === activeKey ? "is-active" : ""}"
-        data-run-v02-case-group="${escapeHtml(group.key)}"
-        role="tab"
-        aria-selected="${group.key === activeKey}"
-        ${state.runV02.isRunning || state.runV02.isCaseLoading ? "disabled" : ""}
-      >
-        <span>${escapeHtml(group.title)}</span>
-        <span class="run-v02-case-group-tab__count">${selectedCount}/${group.cases.length}</span>
-      </button>
+      <div class="run-v02-case-group-tab ${group.key === activeKey ? "is-active" : ""}" role="presentation">
+        <label class="run-v02-case-group-tab__check" title="${escapeHtml(toggleTitle)}" aria-label="${escapeHtml(toggleTitle)}">
+          <input
+            type="checkbox"
+            data-run-v02-case-group-toggle="${escapeHtml(group.key)}"
+            ${all ? "checked" : ""}
+            ${state.runV02.isRunning || state.runV02.isCaseLoading ? "disabled" : ""}
+          />
+        </label>
+        <button
+          type="button"
+          class="run-v02-case-group-tab__btn"
+          data-run-v02-case-group="${escapeHtml(group.key)}"
+          role="tab"
+          aria-selected="${group.key === activeKey}"
+          ${state.runV02.isRunning || state.runV02.isCaseLoading ? "disabled" : ""}
+        >
+          <span>${escapeHtml(group.title)}</span>
+          <span class="run-v02-case-group-tab__count">${selected}/${total}</span>
+        </button>
+      </div>
     `;
   }).join("");
+  syncRunV02CaseGroupTabChecks();
 }
 
 function renderRunV02CaseInfoTip(text) {
@@ -11931,9 +13730,8 @@ async function loadRunV02Cases() {
   if (!protocolId) return;
 
   const route = state.runV02.baselineRoute;
-  const caseProviderId = route
-    ? runV02CaseProviderId(route)
-    : RUN_V02_CANONICAL_PROTOCOL_CASE_PROVIDER[protocolId];
+  const caseProviderId = runV02CanonicalCaseProviderId(route)
+    || RUN_V02_CANONICAL_PROTOCOL_CASE_PROVIDER[protocolId];
   if (!caseProviderId) return;
 
   if (state.runV02.modelCapabilities?.tools?.source === "loading" || state.runV02.modelCapabilities?.tools == null) {
@@ -12028,60 +13826,6 @@ async function loadRunV02Cases() {
   }
 }
 
-function renderRunV02Stats() {
-  const results = state.runV02.completedResults || [];
-  const stats = channelReportStatsForResults(results);
-  if (els.runV02StatPassed) els.runV02StatPassed.textContent = stats.assertPass || 0;
-  if (els.runV02StatWarnings) {
-    els.runV02StatWarnings.textContent = stats.observeRecorded || 0;
-  }
-  if (els.runV02StatFailed) els.runV02StatFailed.textContent = stats.assertFail || 0;
-  if (els.runV02StatDiffs) els.runV02StatDiffs.textContent = stats.structureDiffs || 0;
-}
-
-function reportExpectationLabel(result) {
-  const intent = resultReportIntent(result);
-  if (intent === "observe") {
-    return matchesExpectedForReport(result) ? "已记录" : "请求异常";
-  }
-  return matchesExpectedForReport(result) ? "达标" : "未达标";
-}
-
-function renderRunV02Results() {
-  if (!els.runV02ResultRows) return;
-  const diffHeader = document.querySelector("#runV02ResultDiffHeader");
-  if (diffHeader) diffHeader.textContent = "结构差异 / 缓存";
-  els.runV02ResultRows.innerHTML = (state.runV02.completedResults || []).map((rawResult) => {
-    const result = enrichResultAxes(rawResult);
-    const meta = conclusionMeta(result);
-    const intent = resultReportIntent(result);
-    const healthy = matchesExpectedForReport(result);
-    const cacheCase = isCacheHitCase(result.source_case || { case_id: result.case_id, category: result.category });
-    const cacheMissWarning = cacheCase && result.support_conclusion === "ignored" && intent === "observe";
-    const rowTone = cacheMissWarning
-      ? "s-wa"
-      : (healthy
-        ? "s-ok"
-        : (intent === "observe" ? "s-wa" : (result.support_conclusion === "ignored" || result.support_conclusion === "permission_limited" ? "s-wa" : "s-no")));
-    const diffCell = cacheCase
-      ? (result.cache_hit_summary || cacheResultDiffLabel(result) || "—")
-      : (result.diff_count ? `${result.diff_count} 个字段差异` : "—");
-    const diffClass = `diffcell ${result.diff_count ? "has" : "none"}`;
-    const intentLabel = CHANNEL_REPORT_INTENT.intentLabel?.(intent) || intent;
-    return `
-      <tr class="${rowTone}">
-        <td class="pcell">${escapeHtml(resultTitle(result))}</td>
-        <td class="mono fs-xs">${escapeHtml(result.channel_name || "—")}${result.is_baseline ? " · Baseline" : ""}</td>
-        <td><span class="channel-intent-tag channel-intent-tag--${intent}">${escapeHtml(intentLabel)}</span></td>
-        <td><span class="tag tag-${rowTone === "s-ok" ? "success" : rowTone === "s-wa" ? "warning" : "danger"}">${escapeHtml(meta.label)}</span></td>
-        <td><span class="tag tag-${healthy ? "success" : "danger"}">${escapeHtml(reportExpectationLabel(result))}</span></td>
-        <td class="lat">${result.http_status || meta.httpStatus || "—"}</td>
-        <td class="${diffClass}">${escapeHtml(diffCell)}</td>
-      </tr>
-    `;
-  }).join("");
-}
-
 function appendRunV02Text(line) {
   if (!els.runV02RunLog) return;
   const row = document.createElement("div");
@@ -12092,11 +13836,11 @@ function appendRunV02Text(line) {
 
 function resetRunV02Ui() {
   state.runV02.completedResults = [];
+  state.runV02.runProgress = { count: 0, total: 0, label: "准备中" };
   if (els.runV02RunLog) els.runV02RunLog.innerHTML = "";
   if (els.runV02ProgressBar) els.runV02ProgressBar.style.width = "0%";
   if (els.runV02ProgressCount) els.runV02ProgressCount.textContent = "0 / 0";
-  if (els.runV02ProgressCase) els.runV02ProgressCase.textContent = "等待中";
-  if (els.runV02ResultsPanel) els.runV02ResultsPanel.classList.add("is-hidden");
+  if (els.runV02ProgressCase) els.runV02ProgressCase.textContent = "准备中";
 }
 
 async function streamRunV02Route(route, config, selectedCases, signal, onResult) {
@@ -12104,59 +13848,26 @@ async function streamRunV02Route(route, config, selectedCases, signal, onResult)
   const preparedCases = selectedCases.map((testCase) => (
     oemBehaviorsApi().prepareCaseForRoute?.(testCase, channelId) || testCase
   ));
-  const builtInIds = preparedCases.filter((testCase) => !testCase.custom).map((testCase) => testCase.case_id);
-  const customCases = preparedCases
-    .filter((testCase) => testCase.custom)
-    .map((testCase) => oemBehaviorsApi().toCustomCaseShape?.(testCase) || testCase);
-  const caseIds = preparedCases.map((testCase) => testCase.case_id);
-  const response = await fetch(`${API_BASE}/api/run-stream`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    signal,
-    body: JSON.stringify({
-      provider: runV02PayloadProviderId(route, caseIds),
-      endpoint_id: route.protocolId,
-      base_url: config.baseUrl.trim(),
-      model: route.apiModelId,
-      api_key: config.useLocalKey ? "" : config.apiKey.trim(),
-      config_platform_id: config.useLocalKey ? route.platformId : "",
-      case_ids: builtInIds,
-      custom_cases: customCases,
-      proxy: getProxyConfig(),
-      max_concurrency: 3
-    })
-  });
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    throw new Error(data.error || `HTTP ${response.status}`);
+  const providerGroups = groupRunV02CasesByPayloadProvider(route, preparedCases);
+  for (const [providerId, cases] of providerGroups) {
+    if (!state.runV02.isRunning) break;
+    await streamRunV02ProviderBatch(route, config, providerId, cases, signal, onResult);
   }
-
-  await readRunStream(response, (event) => {
-    if (!state.runV02.isRunning) return;
-    if (event.type === "error") throw new Error(event.error || "run stream failed");
-    if (event.type === "end") return;
-    if (event.type !== "result" || !event.result) return;
-    onResult(event.result);
-  });
 }
 
 function recordRunV02Progress(mapped, count, totalRuns) {
-  if (els.runV02ProgressCount) els.runV02ProgressCount.textContent = `${count} / ${totalRuns}`;
-  if (els.runV02ProgressCase) {
-    els.runV02ProgressCase.textContent = `— 已完成 ${count}/${totalRuns}: ${mapped.channel_name} · ${resultTitle(mapped)}`;
-  }
-  if (els.runV02ProgressBar) {
-    els.runV02ProgressBar.style.width = `${Math.round((count / totalRuns) * 100)}%`;
-  }
+  state.runV02.runProgress = {
+    count,
+    total: totalRuns,
+    label: `— 已完成 ${count}/${totalRuns}: ${mapped.channel_name} · ${resultTitle(mapped)}`
+  };
   const diffNote = mapped.is_baseline
     ? ""
     : (mapped.cache_hit_summary
       ? ` · 缓存 ${mapped.cache_hit_summary}`
       : (mapped.diff_count ? ` · ${mapped.diff_count} 处结构差异` : " · 结构一致"));
   appendRunV02Text(`✓ ${mapped.channel_name} · ${mapped.case_id} · HTTP ${mapped.http_status || "—"} · ${conclusionMeta(mapped).label}${diffNote}`);
-  renderRunV02Stats();
-  renderRunV02Results();
-  if (els.runV02ResultsPanel) els.runV02ResultsPanel.classList.remove("is-hidden");
+  renderChannelReportRunPanel();
 }
 
 async function runV02Tests() {
@@ -12192,10 +13903,22 @@ async function runV02Tests() {
   state.runV02.currentRunAbortController = new AbortController();
   state.runV02.isRunning = true;
   updateRunV02Availability();
-  if (els.runV02ProgressPanel) els.runV02ProgressPanel.classList.remove("is-hidden");
 
   const caseIds = selectedCases.map((testCase) => testCase.case_id);
   const totalRuns = caseIds.length * (1 + targets.length);
+  state.runV02.runMeta = {
+    modelId: state.runV02.modelId,
+    baseline: baseline ? `${baseline.platformName} / ${baseline.protocolLabel}` : "",
+    targetCount: targets.length,
+    groupCount: selection.length,
+    caseCount: caseIds.length
+  };
+  state.runV02.runProgress = { count: 0, total: totalRuns, label: "准备中" };
+
+  history.replaceState(null, "", "#channel-reports");
+  setActiveView("channel-reports");
+  renderChannelReportRunPanel();
+
   let count = 0;
   const signal = state.runV02.currentRunAbortController?.signal;
 
@@ -12230,31 +13953,49 @@ async function runV02Tests() {
 
     if (els.runV02ProgressCase) els.runV02ProgressCase.textContent = "— 完成";
     if (els.runV02ProgressBar) els.runV02ProgressBar.style.width = "100%";
-    if (state.runV02.completedResults.length) saveChannelReportRecord();
+    state.runV02.runProgress = {
+      count: totalRuns,
+      total: totalRuns,
+      label: "— 完成"
+    };
+    if (state.runV02.completedResults.length) {
+      const record = saveChannelReportRecord();
+      if (record) state.expandedChannelReportId = record.id;
+    }
     const reportStats = channelReportStatsForResults(state.runV02.completedResults);
     showToast(`渠道测评完成：断言 ${reportStats.assertPass}/${reportStats.assertTotal} · 观测 ${reportStats.observeRecorded}/${reportStats.observeTotal}`);
   } catch (error) {
     if (error?.name === "AbortError") {
       if (els.runV02ProgressCase) els.runV02ProgressCase.textContent = "— 用户已停止";
+      state.runV02.runProgress = {
+        ...state.runV02.runProgress,
+        label: "— 用户已停止"
+      };
+      if (state.runV02.completedResults.length) {
+        const record = saveChannelReportRecord();
+        if (record) state.expandedChannelReportId = record.id;
+      }
       showToast("测试已停止。");
     } else {
       appendRunV02Text(`✗ ${error.message}`);
+      state.runV02.runProgress = {
+        ...state.runV02.runProgress,
+        label: `— 失败：${error.message}`
+      };
       showToast(error.message);
     }
   } finally {
     state.runV02.isRunning = false;
     state.runV02.currentRunAbortController = null;
+    state.runV02.runMeta = null;
     updateRunV02Availability();
+    renderChannelReports();
   }
 }
 
 function stopRunV02Tests() {
   if (!state.runV02.isRunning) return;
   state.runV02.currentRunAbortController?.abort();
-  state.runV02.isRunning = false;
-  updateRunV02Availability();
-  if (els.runV02ProgressCase) els.runV02ProgressCase.textContent = "— 用户已停止";
-  showToast("测试已停止。");
 }
 
 function renderRunToolV02() {
@@ -12274,8 +14015,6 @@ function renderRunToolV02() {
       renderRunV02TargetSelect();
     }
     renderRunV02CaseGroups();
-    renderRunV02Stats();
-    renderRunV02Results();
     updateRunV02Availability();
   });
 }
@@ -12435,6 +14174,15 @@ function bindRunV02Events() {
     renderRunV02CaseGroups();
   });
 
+  els.runV02CaseGroupPicker?.addEventListener("change", (event) => {
+    const toggle = event.target.closest("[data-run-v02-case-group-toggle]");
+    if (!toggle || state.runV02.isRunning || state.runV02.isCaseLoading) return;
+    const group = listRunV02CaseGroups(state.runV02.cases || []).find((item) => item.key === toggle.dataset.runV02CaseGroupToggle);
+    if (!group) return;
+    setRunV02CaseGroupSelection(group.key, toggle.checked);
+    renderRunV02CaseGroups();
+  });
+
   els.runV02CaseGroups?.addEventListener("change", (event) => {
     const input = event.target.closest("[data-v02-case-id]");
     if (!input || state.runV02.isRunning) return;
@@ -12445,21 +14193,6 @@ function bindRunV02Events() {
     else selectedIds.delete(input.dataset.v02CaseId);
     renderRunV02SelectedCaseCount();
     renderRunV02CaseGroupPicker();
-  });
-
-  els.runV02SelectAllCases?.addEventListener("click", () => {
-    const group = runV02ActiveCaseGroup();
-    if (!group) return;
-    const selectedIds = runV02CaseGroupSelection(group.key);
-    for (const testCase of group.cases) selectedIds.add(testCase.case_id);
-    renderRunV02CaseGroups();
-  });
-
-  els.runV02ClearAllCases?.addEventListener("click", () => {
-    const group = runV02ActiveCaseGroup();
-    if (!group) return;
-    state.runV02.selectedCaseIdsByGroup[group.key] = new Set();
-    renderRunV02CaseGroups();
   });
 
   els.runV02Tests?.addEventListener("click", runV02Tests);
@@ -12969,7 +14702,7 @@ function setActiveView(view) {
     state.activeViewKey = viewKey;
     state.runToolVersion = viewKey === "run-v02" ? "v0.2" : "v0.1";
   } else {
-    state.activeView = ["guide", "channels", "protocols", "models", "run", "channel-reports", "reports", "performance", "feishu", "evalscope", "opencompass", "error-guide", "error-channels", "error-mapping"].includes(viewKey) ? viewKey : "run";
+    state.activeView = ["guide", "channels", "protocols", "models", "run", "channel-reports", "channel-performance-reports", "reports", "channel-performance", "feishu", "evalscope", "opencompass", "error-guide", "error-channels", "error-mapping"].includes(viewKey) ? viewKey : "run";
     state.activeViewKey = state.activeView === "run" ? "run-v01" : state.activeView;
     if (state.activeView === "run") state.runToolVersion = "v0.1";
   }
@@ -12984,6 +14717,7 @@ function setActiveView(view) {
   });
   if (state.activeView === "reports") renderHistory();
   if (state.activeView === "channel-reports") renderChannelReports();
+  if (state.activeView === "channel-performance-reports") renderChannelPerfReports();
   if (state.activeView === "feishu") renderFeishuReport();
   if (state.activeView === "channels") renderChannelCatalog();
   if (state.activeView === "protocols") renderProtocolCatalog();
@@ -12997,6 +14731,7 @@ function setActiveView(view) {
     }
   }
   if (state.activeViewKey === "run-v02") renderRunToolV02();
+  if (state.activeViewKey === "channel-performance") renderChannelPerformanceTool();
   if (state.activeView === "error-guide") renderErrorCodeGuide();
   if (state.activeView === "error-channels") renderErrorCodeChannelCatalog();
   if (state.activeView === "error-mapping") renderErrorCodeMappingCatalog();
@@ -13009,8 +14744,10 @@ function initialViewFromHash() {
   if (window.location.hash === "#protocols" || window.location.hash === "#protocolsView") return "protocols";
   if (window.location.hash.startsWith("#models")) return "models";
   if (window.location.hash === "#channel-reports" || window.location.hash === "#channelReportsView") return "channel-reports";
+  if (window.location.hash === "#channel-performance-reports" || window.location.hash === "#channelPerformanceReportsView") return "channel-performance-reports";
   if (window.location.hash === "#reports" || window.location.hash === "#historyPanel") return "reports";
-  if (window.location.hash === "#performance" || window.location.hash === "#performanceView") return "performance";
+  // Legacy hash: #performance → channel-performance (keep until ~2026-12)
+  if (window.location.hash === "#performance" || window.location.hash === "#performanceView" || window.location.hash === "#channel-performance" || window.location.hash === "#channelPerformanceView") return "channel-performance";
   if (window.location.hash === "#error-guide" || window.location.hash === "#errorGuideView") return "error-guide";
   if (window.location.hash === "#error-channels" || window.location.hash === "#errorChannelsView") return "error-channels";
   if (window.location.hash === "#error-mapping" || window.location.hash === "#errorMappingView") return "error-mapping";
@@ -13023,6 +14760,32 @@ function initialViewFromHash() {
 }
 
 function bindEvents() {
+  document.addEventListener("click", (event) => {
+    const hcaseTab = event.target.closest("[data-hcase-response-tab]");
+    if (hcaseTab) {
+      const root = hcaseTab.closest(".hcase-response-tabs");
+      if (root) {
+        activateTabSwitcher(root, hcaseTab.dataset.hcaseResponseTab, {
+          tabSelector: "[data-hcase-response-tab]",
+          panelSelector: "[data-hcase-response-panel]",
+          tabKey: "hcaseResponseTab",
+          panelKey: "hcaseResponsePanel"
+        });
+      }
+      return;
+    }
+    const channelTab = event.target.closest("[data-channel-issue-tab]");
+    if (!channelTab) return;
+    const root = channelTab.closest(".channel-issue-tabs");
+    if (!root) return;
+    activateTabSwitcher(root, channelTab.dataset.channelIssueTab, {
+      tabSelector: "[data-channel-issue-tab]",
+      panelSelector: "[data-channel-issue-panel]",
+      tabKey: "channelIssueTab",
+      panelKey: "channelIssuePanel"
+    });
+  });
+
   els.viewLinks.forEach((link) => {
     link.addEventListener("click", (event) => {
       event.preventDefault();
@@ -13174,9 +14937,13 @@ function bindEvents() {
     writeChannelReports([]);
     state.expandedChannelReportId = null;
     renderChannelReports();
-    showToast("渠道测评报告已清空。");
+    showToast("渠道参数测评报告已清空。");
   });
+  els.exportChannelReportsJson?.addEventListener("click", exportDocGapScanBundle);
   els.channelReportsList?.addEventListener("click", (event) => {
+    if (event.target.closest(".channel-report-download-menu")) {
+      event.stopPropagation();
+    }
     const row = event.target.closest("tr[data-channel-report-id]");
     if (row && !event.target.closest("[data-channel-report-action]")) {
       state.expandedChannelReportId = state.expandedChannelReportId === row.dataset.channelReportId
@@ -13195,37 +14962,30 @@ function bindEvents() {
       renderChannelReports();
       return;
     }
-    if (button.dataset.channelReportAction === "copy") {
-      const text = channelReportMarkdown(record).join("\n");
-      navigator.clipboard.writeText(text).then(() => showToast("渠道测评报告已复制。")).catch(() => showToast("复制失败。"));
+    if (button.dataset.channelReportAction === "download-md") {
+      button.closest("details")?.removeAttribute("open");
+      downloadChannelReportMarkdown(record);
+      return;
+    }
+    if (button.dataset.channelReportAction === "download-pdf") {
+      button.closest("details")?.removeAttribute("open");
+      downloadChannelReportPdf(record);
       return;
     }
     if (button.dataset.channelReportAction === "delete") {
+      const reportLabel = record.id.replace(/^channel_report_/, "run/");
+      if (!window.confirm(`确定删除报告 ${reportLabel}？此操作不可撤销。`)) return;
       writeChannelReports(items.filter((item) => item.id !== record.id));
       if (state.expandedChannelReportId === record.id) state.expandedChannelReportId = null;
       renderChannelReports();
-      showToast("渠道测评报告已删除。");
+      showToast("渠道参数测评报告已删除。");
     }
   });
   els.importHistoryFile?.addEventListener("change", async () => {
     await importHistoryFiles(els.importHistoryFile.files);
     els.importHistoryFile.value = "";
   });
-  els.fillPerformanceFromRun?.addEventListener("click", fillPerformanceFromRunConfig);
-  els.runPerformanceBenchmark?.addEventListener("click", runPerformanceBenchmark);
-  els.performanceBackend?.addEventListener("change", () => {
-    if (!els.performanceEndpoint) return;
-    els.performanceEndpoint.value = els.performanceBackend.value === "openai"
-      ? "/v1/completions"
-      : "/v1/chat/completions";
-  });
-  els.copyPerformanceJson?.addEventListener("click", () => {
-    if (!state.lastPerformanceResult) {
-      showToast("还没有可复制的性能测试结果。");
-      return;
-    }
-    copyText(JSON.stringify(state.lastPerformanceResult, null, 2), "性能 JSON");
-  });
+  bindChannelPerfEvents();
 
   els.historyFilters?.addEventListener("click", (event) => {
     const reset = event.target.closest("[data-history-filter-reset]");

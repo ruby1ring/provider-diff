@@ -1324,6 +1324,39 @@ data: [DONE]
 	}
 }
 
+func TestStreamIncrementalAssertionPassesOnReasoningChunks(t *testing.T) {
+	raw := strings.Builder{}
+	for i := 0; i < 5; i++ {
+		raw.WriteString(fmt.Sprintf("data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"step %d\"}}]}\n", i))
+	}
+	raw.WriteString("data: {\"choices\":[{\"delta\":{\"content\":\"你好\"}}]}\n")
+	raw.WriteString("data: [DONE]\n")
+
+	_, metrics, err := readProviderSSEStream(strings.NewReader(raw.String()), time.Now().Add(-200*time.Millisecond))
+	if err != nil {
+		t.Fatalf("readProviderSSEStream failed: %v", err)
+	}
+	if metrics.ContentChunkCount != 1 || metrics.ReasoningChunkCount != 5 {
+		t.Fatalf("unexpected metrics: content=%d reasoning=%d", metrics.ContentChunkCount, metrics.ReasoningChunkCount)
+	}
+
+	assertions := evaluateAssertions(RunCaseResult{
+		HTTPStatus:    200,
+		RawResponse:   raw.String(),
+		StreamMetrics: &metrics,
+	}, map[string]any{
+		"response_mode":      "sse",
+		"stream_incremental": true,
+	})
+	assertion, ok := findAssertion(assertions, "min_content_chunks")
+	if !ok {
+		t.Fatal("min_content_chunks assertion was not emitted")
+	}
+	if !assertion.Pass {
+		t.Fatalf("expected reasoning chunks to satisfy incremental stream assertion, got %q", assertion.Message)
+	}
+}
+
 func TestStreamProbeAttemptsAssertionFailsWhenAnyAttemptIsPseudoStream(t *testing.T) {
 	result := RunCaseResult{
 		HTTPStatus: 200,
@@ -1982,6 +2015,72 @@ func TestCompletionTokensMaxInfersCapFromRequest(t *testing.T) {
 	}
 }
 
+func TestLengthAcceptanceDoesNotEnforceMaxCompletionTokens(t *testing.T) {
+	result := RunCaseResult{
+		CaseID:     "deepseek_length_max_completion_tokens",
+		Category:   "length",
+		HTTPStatus: 200,
+		RequestBody: map[string]any{
+			"max_completion_tokens": float64(32),
+		},
+		ResponseBody: map[string]any{
+			"usage": map[string]any{
+				"completion_tokens": float64(204),
+			},
+		},
+	}
+	assertions := evaluateAssertions(result, map[string]any{
+		"http_status":        float64(200),
+		"support_conclusion": "supported",
+	})
+	assertion, ok := findAssertion(assertions, "parameter_acceptance")
+	if !ok {
+		t.Fatal("parameter_acceptance assertion was not emitted")
+	}
+	if !assertion.Pass {
+		t.Fatalf("expected acceptance case to pass when parameter is ignored, got %q", assertion.Message)
+	}
+	if _, ok := findAssertion(assertions, "max_completion_tokens"); ok {
+		t.Fatal("acceptance case should not emit strict max_completion_tokens assertion")
+	}
+	conclusion := finalizeSupportConclusionForResult(result, nil, map[string]any{
+		"http_status":        float64(200),
+		"support_conclusion": "supported",
+	})
+	if conclusion != "supported" {
+		t.Fatalf("expected supported conclusion, got %q", conclusion)
+	}
+}
+
+func TestLengthEffectiveObservedSkipsStrictTokenLimit(t *testing.T) {
+	result := RunCaseResult{
+		CaseID:     "deepseek_length_max_completion_tokens_only_effective",
+		Category:   "length",
+		HTTPStatus: 200,
+		RequestBody: map[string]any{
+			"max_completion_tokens": float64(64),
+		},
+		ResponseBody: map[string]any{
+			"usage": map[string]any{
+				"completion_tokens": float64(204),
+			},
+		},
+	}
+	assertions := evaluateAssertions(result, map[string]any{
+		"output_cap_effective": "observed",
+	})
+	if _, ok := findAssertion(assertions, "max_completion_tokens"); ok {
+		t.Fatal("observed effective case should not emit strict max_completion_tokens assertion")
+	}
+	assertion, ok := findAssertion(assertions, "output_cap_effective")
+	if !ok {
+		t.Fatal("output_cap_effective assertion was not emitted")
+	}
+	if !assertion.Pass {
+		t.Fatalf("expected observed output_cap_effective to pass, got %q", assertion.Message)
+	}
+}
+
 func TestPopulateThinkingTokenMetrics(t *testing.T) {
 	result := RunCaseResult{
 		ResponseBody: map[string]any{
@@ -2230,5 +2329,42 @@ func TestCacheAttemptPayloadKinds(t *testing.T) {
 	}
 	if controlBlock, ok := content[0]["cache_control"].(map[string]any); !ok || controlBlock["type"] != "ephemeral" {
 		t.Fatalf("expected cache_control ephemeral, got %#v", content[0]["cache_control"])
+	}
+}
+
+func TestDiagnoseParameterSupportDocGap(t *testing.T) {
+	expect := map[string]any{
+		"doc_support":            "undocumented",
+		"undocumented_scenario":  "silent_ignore",
+		"support_conclusion":     "ignored",
+	}
+	result := RunCaseResult{
+		HTTPStatus:        200,
+		SupportConclusion: "schema_mismatch",
+		Assertions: []CaseAssertion{
+			{Name: "thinking_absent", Pass: false, Message: "出现 reasoning_content"},
+		},
+	}
+	finalizeCaseResult(&result, nil, expect)
+	if result.ParameterDiagnosis == nil {
+		t.Fatal("expected parameter diagnosis")
+	}
+	if result.ParameterDiagnosis.Flag != "doc_gap" {
+		t.Fatalf("expected doc_gap flag, got %q", result.ParameterDiagnosis.Flag)
+	}
+}
+
+func TestDiagnoseParameterSupportUndocumentedRejected(t *testing.T) {
+	expect := map[string]any{
+		"doc_support":           "undocumented",
+		"undocumented_scenario": "silent_ignore",
+	}
+	result := RunCaseResult{
+		HTTPStatus:        400,
+		SupportConclusion: "rejected_400",
+	}
+	finalizeCaseResult(&result, nil, expect)
+	if result.ParameterDiagnosis == nil || result.ParameterDiagnosis.Flag != "undocumented_rejected" {
+		t.Fatalf("expected undocumented_rejected, got %#v", result.ParameterDiagnosis)
 	}
 }

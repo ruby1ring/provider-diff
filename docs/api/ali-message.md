@@ -3,7 +3,7 @@ channel_id: aliyun
 protocol_id: anthropic_messages
 doc_status: verified
 doc_url: "https://help.aliyun.com/zh/model-studio/anthropic-api-messages"
-last_verified: 2026-06-25
+last_verified: 2026-07-08
 compare: true
 required_parameters: [model, messages, max_tokens]
 parameter_groups:
@@ -14,9 +14,9 @@ parameter_groups:
   Tools: [tools, tool_choice]
   Protocol: [stream]
   Output.Structure: [output_config]
-notes: 对照 docs/api/ali-message.md（2026-06-25）。temperature 范围 [0,2)（非 Anthropic 官方 [0,1]）。 类型字段按该渠道官方 API 原文收录。
+  Observed: [input, n, user]
+notes: 对照 docs/api/ali-message.md（2026-06-25）。temperature 范围 [0,2)（非 Anthropic 官方 [0,1]）。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：input, n, user。
 ---
-
 # 阿里云百炼 Anthropic Messages API Notes
 
 
@@ -72,3 +72,10 @@ notes: 对照 docs/api/ali-message.md（2026-06-25）。temperature 范围 [0,2)
 
 ## Raw Archive
 
+## 实测补充参数（来源：实测）
+
+| Parameter | Type | Required | Default | Range | Notes |
+|---|---|---|---|---|---|
+| `input` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/anthropic-api-messages）检索到该参数，已补录。 |
+| `n` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/anthropic-api-messages）检索到该参数，已补录。 |
+| `user` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/anthropic-api-messages）检索到该参数，已补录。 |

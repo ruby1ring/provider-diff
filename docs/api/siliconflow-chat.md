@@ -3,7 +3,7 @@ channel_id: siliconflow
 protocol_id: chat_completions
 doc_status: verified
 doc_url: "https://docs.siliconflow.cn/cn/api-reference/chat-completions/chat-completions"
-last_verified: 2026-06-16
+last_verified: 2026-07-08
 compare: true
 required_parameters: [model, messages]
 parameter_groups:
@@ -16,9 +16,9 @@ parameter_groups:
   Tools: [tools, tools[].type, tools[].function.name, tools[].function.description, tools[].function.parameters, tools[].function.strict]
   Protocol: [stream]
   Multimodal: [messages[].content[].type=text, messages[].content[].type=image_url, messages[].content[].image_url.url, messages[].content[].image_url.detail, messages[].content[].type=video_url, messages[].content[].video_url.url, messages[].content[].video_url.fps, messages[].content[].type=audio_url, messages[].content[].audio_url.url]
-notes: 对照 docs/api/siliconflow-chat.md（2026-06-16）。 类型字段按该渠道官方 API 原文收录。
+  Observed: [functions, input, thinking, user]
+notes: 对照 docs/api/siliconflow-chat.md（2026-06-16）。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：functions, input, thinking, user。
 ---
-
 # SiliconFlow Chat Completions API Notes
 
 
@@ -110,3 +110,11 @@ VLM schema（`ChatCompletionVLMRequest`）与 LLM 共享 `stream`、`max_tokens`
 
 ## Raw Archive
 
+## 实测补充参数（来源：实测）
+
+| Parameter | Type | Required | Default | Range | Notes |
+|---|---|---|---|---|---|
+| `functions` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://docs.siliconflow.cn/cn/api-reference/chat-completions/chat-completions）检索到该参数，已补录。 |
+| `input` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://docs.siliconflow.cn/cn/api-reference/chat-completions/chat-completions）检索到该参数，已补录。 |
+| `thinking` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://docs.siliconflow.cn/cn/api-reference/chat-completions/chat-completions）检索到该参数，已补录。 |
+| `user` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://docs.siliconflow.cn/cn/api-reference/chat-completions/chat-completions）检索到该参数，已补录。 |
