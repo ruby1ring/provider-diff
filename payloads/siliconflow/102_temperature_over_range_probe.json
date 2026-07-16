@@ -1,0 +1,37 @@
+{
+  "case_id": "sf_temperature_over_range_probe",
+  "title": "边界探针：temperature=2.5（官方 schema 已撤范围声明，旧记载 ≤2）",
+  "category": "unknown",
+  "target_group": "protocol_sampling",
+  "parameters": [
+    "temperature"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句中文打个招呼。"
+      }
+    ],
+    "max_tokens": 32,
+    "temperature": 2.5
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "doc_support": "undocumented",
+    "undocumented_scenario": "silent_ignore",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "官方文档未声明该参数；实测 2xx 静默接受、未观察到行为差异。来源：实测（Noctua，2026-07-08，probe=sf_temperature_over_2）。实测模型 Qwen/Qwen3-8B（cn 站）。"
+  }
+}

@@ -1,8 +1,10 @@
 # 错误码
 
-调用 SiliconFlow API 时，接收到的响应码由两部分组成：外层是 HTTP 状态码，内层是响应体 JSON 中的业务错误码（`code`）与错误信息（`message`），提供更具体的错误描述。
+调用 SiliconFlow API 时，接收到的响应码由两部分组成：外层是 HTTP 状态码，内层是响应体 JSON 中的业务错误码（`code`）与错误信息（`message`），提供更具体的错误描述。**注意：这一「HTTP + 业务 code」形态只覆盖 400/503 等部分状态码，401/403/404/504 返回裸 JSON 字符串、429 返回无 `code` 字段的对象，详见下文「错误响应形态」。**
 
-> 官方说明：[Error Handling - SiliconFlow](https://docs.siliconflow.cn/en/faqs/error-code)
+> 官方说明：[错误处理 FAQ - SiliconFlow](https://docs.siliconflow.cn/cn/faqs/error-code)（HTTP 状态码级排障指导，无完整业务码表）
+>
+> 错误响应体示例出处：[Chat Completions API 参考](https://api-docs.siliconflow.cn/docs/api/chat-completions-post)（按 HTTP 状态码给出官方响应体示例）
 
 ## 错误响应示例
 
@@ -15,19 +17,37 @@ Content-Type: application/json; charset=utf-8
 {"code":20012,"message":"Model does not exist. Please check it carefully.","data":null}
 ```
 
+## 错误响应形态（按状态码不同，现行官方 API 参考 + 实测）
+
+**解析器关键情报：SiliconFlow 错误响应体的形态按 HTTP 状态码不统一——400/503 是 `{"code","message","data"}` 对象，401/403/404/504 是裸 JSON 字符串，429 是无 `code` 字段的对象。解析必须按状态码分支容错。**
+
+| HTTP | 响应体形态 | 官方示例 / 实测 | 来源 |
+| --- | --- | --- | --- |
+| 400 | JSON 对象（`code` 数字 + `message` + `data`） | `{"code":20012,"message":"Model does not exist. Please check it carefully.","data":null}` | 官方：https://api-docs.siliconflow.cn/docs/api/chat-completions-post |
+| 401 | **裸 JSON 字符串**（非对象） | 官方示例 `"Invalid token"`；实测无效 key 返回 `"Api key is invalid"`、不带 Authorization 头返回 `"Invalid token"` | 官方：同上；实测（Noctua，2026-07-12） |
+| 403 | **裸 JSON 字符串** | `"Forbidden"` | 官方：同上 |
+| 404 | **裸 JSON 字符串** | `"404 page not found"` | 官方：同上 |
+| 429 | JSON 对象，**无 `code` 字段** | `{"message":"Request was rejected due to rate limiting. If you want more, please contact contact@siliconflow.cn. Details:TPM limit reached.","data":"string"}` | 官方：同上 |
+| 503 | JSON 对象（`code` 数字 + `message` + `data`） | `{"code":50505,"message":"Model service overloaded. Please try again later.","data":"string"}` | 官方：同上 |
+| 504 | **裸字符串** | `"string"` | 官方：同上 |
+
 ## 常见 HTTP 状态码速查
 
 | HTTP 状态码 | 说明 |
 | --- | --- |
 | 400 | 参数错误，请根据 `message` 修正请求参数 |
 | 401 | API Key 未正确设置 |
-| 403 | 权限不足，常见原因是模型需实名认证 |
-| 429 | 触发限流，可能涉及 RPM / RPD / TPM / TPD / IPM / IPD |
-| 500 | 服务端未知错误，可稍后重试或联系支持 |
-| 503 | 系统负载较高，建议稍后重试或使用流式输出 |
-| 504 | 请求超时，建议稍后重试或使用流式输出 |
+| 403 | 账户余额不足或者权限不够；权限不够最常见的原因是该模型需要实名认证，其他情况参考报错信息（`message`） |
+| 429 | 触发限流（rate limits），参考 `message` 判断触发的是 RPM / RPD / TPM / TPD / IPM / IPD 中的哪一种 |
+| 500 | 服务发生了未知的错误，可稍后重试或联系支持 |
+| 503 | 一般是服务系统负载比较高，可稍后重试；对话/文本转语音请求可尝试流式输出（`"stream": true`）缓解 |
+| 504 | 一般是服务系统负载比较高，可稍后重试；对话/文本转语音请求可尝试流式输出（`"stream": true`）缓解 |
 
-## 错误列表
+（以上口径对照官方 FAQ https://docs.siliconflow.cn/cn/faqs/error-code ，2026-07-12 核查。）
+
+## 错误列表（历史参考）
+
+> **⚠️ 降级说明（2026-07-12 核查）**：以下 100+ 条业务错误码来自旧版官方文档；核查现行官方文档（docs.siliconflow.cn / api-docs.siliconflow.cn 及 Wayback 快照）已不再公开该表，无法逐条复核，仅作历史参考。现行官方可确认的码：**20012 = Model does not exist（HTTP 400）**、**50505 = Model service overloaded（HTTP 503）**。
 
 ### 请求错误
 
@@ -132,7 +152,7 @@ Content-Type: application/json; charset=utf-8
 | 30011 | 403 | `OnyByChargeBalanceErrCode` | 该模型/服务仅面向已充值、授信的用户或组织，请充值后再试 |
 | 30012 | 403 | `UserExpiredCode` | 您的账户已过期，请联系客服 |
 | 30013 | 403 | `IPNotAllowedCode` | 您没有权限访问该模型，请确认您的权限或选择其他模型 |
-| 50603 | -503 | `EconnoisseurBannedCode` | 系统当前负载较高，请稍后重试 |
+| 50603 | 503 | `EconnoisseurBannedCode` | 系统当前负载较高，请稍后重试 |
 
 ### 速率限制
 

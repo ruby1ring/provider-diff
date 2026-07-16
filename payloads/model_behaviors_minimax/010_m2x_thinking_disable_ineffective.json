@@ -1,0 +1,45 @@
+{
+  "case_id": "minimax_oem_m2x_thinking_disable_ineffective",
+  "title": "M2.x 系列思考不可关闭：传 thinking disabled 被接受但思考照常进行",
+  "category": "reasoning",
+  "case_scope": "oem_reference",
+  "oem_vendor": "minimax",
+  "target_group": "protocol_thinking",
+  "parameters": [
+    "thinking",
+    "reasoning_split"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句中文打个招呼。"
+      }
+    ],
+    "max_completion_tokens": 2048,
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_split": true
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "evaluation_intent": "observe",
+    "case_scope": "oem_reference",
+    "target_group": "protocol_thinking",
+    "oem_source": "https://platform.minimax.io/docs/api-reference/text-chat-openai",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "MiniMax OEM：官方明文「For M2.x models, thinking cannot be disabled」——disabled 被接受但思考仍进行。2026-07-08 原厂复测因账号余额不足未完成，待重测；结论暂以官方文档为准。观察 reasoning_content 是否仍出现。"
+  }
+}

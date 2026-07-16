@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-08T07:05:14.977Z",
+  "generatedAt": "2026-07-12T13:08:05.178Z",
   "evalChannels": [
     "deepseek",
     "moonshot",
@@ -191,7 +191,7 @@
           "docStatusClass": "protocol-doc-badge--verified",
           "docUrl": "https://api-docs.deepseek.com/zh-cn/api/create-chat-completion",
           "localDoc": "docs/api/deepseek.md",
-          "notes": "对照 docs/api/deepseek.md（2026-06-16）。frequency_penalty / presence_penalty 已 deprecated，接受但无效果。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：user。",
+          "notes": "对照官方文档（2026-07-08）。frequency_penalty / presence_penalty 已 deprecated，接受但无效果；reasoning_effort 官方已移入 thinking 对象。 类型字段按该渠道官方 API 原文收录。",
           "inheritsFrom": null
         },
         "requiredParameters": [
@@ -213,7 +213,7 @@
             "thinking"
           ],
           "Reasoning.Intensity": [
-            "reasoning_effort"
+            "thinking.reasoning_effort"
           ],
           "Output.Structure": [
             "response_format"
@@ -240,7 +240,8 @@
             "messages[].reasoning_content"
           ],
           "Observed": [
-            "user"
+            "user",
+            "max_completion_tokens"
           ]
         },
         "specs": {
@@ -255,16 +256,16 @@
           "thinking": {
             "type": "object",
             "nullable": true,
-            "notes": "思考模式开关：`{\"type\":\"enabled\"}` 或 `{\"type\":\"disabled\"}`，默认 `enabled`。OpenAI SDK 请通过 `extra_body` 传入。"
+            "notes": "思考模式控制对象：`type` 取 `enabled` / `disabled`，默认 `enabled`；官方已将 `reasoning_effort` 移入本对象（见下行）。OpenAI SDK 请通过 `extra_body` 传入。"
           },
-          "reasoning_effort": {
+          "thinking.reasoning_effort": {
             "type": "string",
-            "notes": "推理强度：`high`、`max`。普通请求默认 `high`；复杂 Agent 请求可能自动使用 `max`。`low`/`medium` 映射为 `high`，`xhigh` 映射为 `max`。"
+            "notes": "推理强度：`high`、`max`。普通请求默认 `high`；复杂 Agent 请求默认 `max`。`low`/`medium` 映射为 `high`，`xhigh` 映射为 `max`。官方已将其从顶层移入 `thinking` 对象。实测：嵌套写法返回 HTTP 200 被接受（来源：实测（Noctua，2026-07-08，probe=deepseek_reasoning_effort_nested））；顶层遗留写法见「实测补充参数」。"
           },
           "max_tokens": {
             "type": "integer",
             "nullable": true,
-            "notes": "最大补全 token 数。输入与输出合计受上下文窗口限制。"
+            "notes": "最大补全 token 数。输入与输出合计受上下文窗口限制。官方 pricing 页：最大输出 384K（`deepseek-v4-flash` / `deepseek-v4-pro`）。"
           },
           "response_format": {
             "type": "object",
@@ -296,7 +297,7 @@
               "true",
               "false"
             ],
-            "notes": "在 `[DONE]` 前额外返回一块含完整 `usage`、空 `choices` 的数据块。"
+            "notes": "官方原文：在 `data: [DONE]` 之前将会传输一个额外的块，含完整 `usage`，「choices 字段将始终是一个空数组」。实测：块形态不稳定——2026-07-08 观测到 `usage` 与 `finish_reason` 同块（merged）；2026-07-12 同日多轮观测到独立空 choices 块与 merged 两种形态交替出现。判定该行为在原厂侧即不确定，第三方渠道对照时按 P2 波动项对待（来源：实测（Noctua，2026-07-08 probe=deepseek_stream_usage_position；2026-07-12 case=deepseek_protocol_stream_usage_chunk_shape 多轮））。"
           },
           "temperature": {
             "type": "number",
@@ -335,7 +336,7 @@
               "true",
               "false"
             ],
-            "notes": "是否返回输出 token 的对数概率。"
+            "notes": "是否返回输出 token 的对数概率。实测：思考模式下正常生效，`choices[0].logprobs` 非空（来源：实测（Noctua，2026-07-08，probe=deepseek_logprobs_thinking））。"
           },
           "top_logprobs": {
             "type": "integer",
@@ -358,8 +359,16 @@
             "notes": "无效果（已废弃）。"
           },
           "user": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://api-docs.deepseek.com/zh-cn/api/create-chat-completion）检索到该参数，已补录。"
+            "type": "string",
+            "notes": "官方 schema 无此参数（仅有 `user_id`）。HTTP 200 静默接受、无可观测效果（silent_ignore）。来源：实测（Noctua，2026-07-08，probe=deepseek_user_top_level）"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "notes": "顶层遗留写法。官方已移入 `thinking.reasoning_effort`；顶层写法 HTTP 200 仍被接受、无可观测差异。来源：实测（Noctua，2026-07-08，probe=deepseek_reasoning_effort_top_level）"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "notes": "官方 schema 只有 `max_tokens`、无此参数。实测传入被静默忽略、完全不限制输出（cap=64 实际 completion_tokens=919；cap=32 实际 150）。silent_ignore。来源：实测（Noctua，2026-07-12，case=deepseek_length_max_completion_tokens_only_effective）"
           }
         }
       },
@@ -371,7 +380,7 @@
           "docStatusClass": "protocol-doc-badge--verified",
           "docUrl": "https://api-docs.deepseek.com/zh-cn/guides/anthropic_api",
           "localDoc": "docs/api/deepseek-message.md",
-          "notes": "对照 docs/api/deepseek-message.md（2026-06-16）。temperature [0,2]；thinking.budget_tokens Ignored。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：input, user, user_id。",
+          "notes": "对照官方文档（2026-07-08）。temperature [0,2]；thinking.budget_tokens Ignored；顶层 user / input 官方支持表无、实测静默接受。 类型字段按该渠道官方 API 原文收录。",
           "inheritsFrom": null
         },
         "requiredParameters": [
@@ -418,9 +427,8 @@
             "service_tier"
           ],
           "Observed": [
-            "input",
             "user",
-            "user_id"
+            "input"
           ]
         },
         "specs": {
@@ -484,17 +492,13 @@
             "type": "string",
             "notes": "忽略"
           },
-          "input": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://api-docs.deepseek.com/zh-cn/guides/anthropic_api）检索到该参数，已补录。"
-          },
           "user": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://api-docs.deepseek.com/zh-cn/guides/anthropic_api）检索到该参数，已补录。"
+            "type": "string",
+            "notes": "官方 anthropic_api 支持表无此参数。顶层传入 HTTP 200 静默接受、无可观测效果（silent_ignore）。来源：实测（Noctua，2026-07-08，probe=deepseek_msgs_user_top_level）"
           },
-          "user_id": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://api-docs.deepseek.com/zh-cn/guides/anthropic_api）检索到该参数，已补录。"
+          "input": {
+            "type": "string",
+            "notes": "官方 anthropic_api 支持表无此参数。顶层传入 HTTP 200 静默接受、无可观测效果（silent_ignore）。来源：实测（Noctua，2026-07-08，probe=deepseek_msgs_input_top_level）"
           }
         }
       }
@@ -506,9 +510,9 @@
           "docStatus": "verified",
           "docStatusLabel": "已对照文档",
           "docStatusClass": "protocol-doc-badge--verified",
-          "docUrl": "https://platform.moonshot.cn/docs/api/chat",
+          "docUrl": "https://platform.kimi.com/docs/api/chat",
           "localDoc": "docs/api/moonshot-chat.md",
-          "notes": "对照 docs/api/moonshot-chat.md（2026-06-25）。temperature 范围 [0,1]（非 OpenAI [0,2]）；max_tokens 已弃用。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：stream_options, thinking, user。",
+          "notes": "对照官方文档（2026-07-08，platform.kimi.com；旧 platform.moonshot.cn 已 301 迁移）。采样参数仅 moonshot-v1 系列可自定义，k2 系列固定值；temperature 范围 [0,1]（非 OpenAI [0,2]）；max_tokens 已弃用。 类型字段按该渠道官方 API 原文收录。",
           "inheritsFrom": null
         },
         "requiredParameters": [
@@ -528,6 +532,11 @@
             "max_tokens",
             "max_completion_tokens"
           ],
+          "Reasoning": [
+            "thinking",
+            "thinking.type",
+            "thinking.keep"
+          ],
           "Output.Structure": [
             "response_format"
           ],
@@ -543,15 +552,13 @@
             "safety_identifier"
           ],
           "Observed": [
-            "stream_options",
-            "thinking",
             "user"
           ]
         },
         "specs": {
           "model": {
             "type": "string",
-            "notes": "必填。如 `moonshot-v1-128k`、vision-preview 系列、kimi-k2.x 等。"
+            "notes": "必填。如 `kimi-k2.7-code`、`kimi-k2.6`、`kimi-k2.5`、`moonshot-v1-128k`、vision-preview 系列等（见 Models）。"
           },
           "messages": {
             "type": "array<object>",
@@ -566,7 +573,7 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "采样温度，值越高随机性越强。"
+            "notes": "采样温度，值越高随机性越强。官方仅在 `MoonshotV1ChatRequest` schema 定义（moonshot-v1 系列）；k2 系列为固定值，指定其他值会报错，见「采样参数：模型系列差异」实测。"
           },
           "top_p": {
             "type": "float",
@@ -577,7 +584,7 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "核采样概率阈值；`temperature` 与 `top_p` 建议只设其一。"
+            "notes": "核采样概率阈值；`temperature` 与 `top_p` 建议只设其一。官方仅 moonshot-v1 系列可自定义；k2 系列固定值，见「采样参数：模型系列差异」实测。"
           },
           "n": {
             "type": "integer",
@@ -588,7 +595,7 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "每个输入返回的候选回复数；`temperature` 接近 0 时只能为 1。"
+            "notes": "每个输入返回的候选回复数；`temperature` 接近 0 时只能为 1。官方仅 moonshot-v1 系列可自定义；k2 系列固定值，见「采样参数：模型系列差异」实测。"
           },
           "presence_penalty": {
             "type": "float",
@@ -599,7 +606,7 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "存在惩罚，正值降低重复提及已出现内容。"
+            "notes": "存在惩罚，正值降低重复提及已出现内容。官方仅 moonshot-v1 系列可自定义；k2 系列固定值，见「采样参数：模型系列差异」实测。"
           },
           "frequency_penalty": {
             "type": "float",
@@ -610,7 +617,7 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "频率惩罚，正值降低重复用词。"
+            "notes": "频率惩罚，正值降低重复用词。官方仅 moonshot-v1 系列可自定义；k2 系列固定值。"
           },
           "max_tokens": {
             "type": "integer",
@@ -619,8 +626,27 @@
           },
           "max_completion_tokens": {
             "type": "integer",
-            "default": "~1024",
-            "notes": "最大补全 token 数；超出上下文窗口会报错。"
+            "default": "见 Notes",
+            "notes": "最大补全 token 数；超出上下文窗口会报错。默认值官方两页描述矛盾：chat 文档称默认约 1024，K2.6 quickstart 称 `max_tokens` 默认 32768 —— 待实测（2026-07-08 未测）。"
+          },
+          "thinking": {
+            "type": "object",
+            "default": "因模型而异",
+            "notes": "思考模式控制对象；约束因模型系列而异，见「Thinking 参数（按模型系列）」。"
+          },
+          "thinking.type": {
+            "type": "string",
+            "default": "enabled",
+            "enum": [
+              "enabled",
+              "disabled"
+            ],
+            "notes": "k2.7-code 仅允许 `enabled`（默认且唯一合法）；k2.6 / k2.5 可开关。"
+          },
+          "thinking.keep": {
+            "type": "string",
+            "default": "k2.7-code: `all",
+            "notes": "Preserved Thinking。k2.7-code 默认且唯一合法；k2.6 可选；k2.5 不支持。"
           },
           "stop": {
             "type": "string | array",
@@ -655,23 +681,15 @@
           },
           "prompt_cache_key": {
             "type": "string",
-            "notes": "Prompt 缓存键；Kimi Code Plan 相关。"
+            "notes": "Prompt 缓存键。官方 K2.6 quickstart：Kimi Code Plan 下必填以提高缓存命中率。"
           },
           "safety_identifier": {
             "type": "string",
             "notes": "哈希后的稳定用户标识，用于安全与滥用追踪。"
           },
-          "stream_options": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.moonshot.cn/docs/api/chat）检索到该参数，已补录。"
-          },
-          "thinking": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.moonshot.cn/docs/api/chat）检索到该参数，已补录。"
-          },
           "user": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.moonshot.cn/docs/api/chat）检索到该参数，已补录。"
+            "type": "string",
+            "notes": "官方 schema 无此参数。HTTP 200 静默接受、无可观测效果（silent_ignore）。来源：实测（Noctua，2026-07-08，probe=moonshot_k2_user）"
           }
         }
       },
@@ -702,9 +720,9 @@
           "docStatus": "verified",
           "docStatusLabel": "已对照文档",
           "docStatusClass": "protocol-doc-badge--verified",
-          "docUrl": "https://open.bigmodel.cn/dev/api#glm-4",
+          "docUrl": "https://docs.bigmodel.cn/api-reference/%E6%A8%A1%E5%9E%8B-api/%E5%AF%B9%E8%AF%9D%E8%A1%A5%E5%85%A8",
           "localDoc": "docs/api/zhipu-chat.md",
-          "notes": "对照 docs/api/zhipu-chat.md（2026-06-25）。temperature 范围 [0,1]；reasoning_effort 仅 GLM-5.2。 类型字段按该渠道官方 API 原文收录。",
+          "notes": "对照官方文档（2026-07-08，docs.bigmodel.cn；旧 open.bigmodel.cn/dev/api 链接已 301 失效）。temperature 范围 [0,1] 限两位小数、默认值按模型系列；reasoning_effort 仅 GLM-5.2。 类型字段按该渠道官方 API 原文收录。",
           "inheritsFrom": null
         },
         "requiredParameters": [
@@ -745,12 +763,17 @@
           "Metadata": [
             "request_id",
             "user_id"
+          ],
+          "Observed": [
+            "seed",
+            "frequency_penalty",
+            "logprobs"
           ]
         },
         "specs": {
           "model": {
             "type": "string",
-            "notes": "必填。如 `glm-5.2`、`glm-4.7` 等。"
+            "notes": "官方带默认值 `glm-5.2`。如 `glm-5.2`、`glm-4.7` 等，见 Models。"
           },
           "messages": {
             "type": "array",
@@ -767,7 +790,7 @@
           },
           "thinking": {
             "type": "object",
-            "notes": "GLM-4.5+ 思考模式控制对象。"
+            "notes": "GLM-4.5+ 思考模式控制对象。官方：开启后 GLM-5.2/5.1/5/5-Turbo/5V-Turbo/4.6/4.6V/4.5 为模型自动判断是否思考；GLM-4.7、GLM-4.5V 为强制思考。"
           },
           "thinking.type": {
             "type": "string",
@@ -790,7 +813,7 @@
           "reasoning_effort": {
             "type": "string",
             "default": "max",
-            "notes": "推理强度：`max`、`xhigh`、`high`、`medium`、`low`、`minimal`、`none`（仅 GLM-5.2）。"
+            "notes": "推理强度：`max`、`xhigh`、`high`、`medium`、`low`、`minimal`、`none`（仅 GLM-5.2，默认 `max`）。"
           },
           "do_sample": {
             "type": "boolean",
@@ -799,29 +822,29 @@
               "true",
               "false"
             ],
-            "notes": "为 `false` 时忽略 `temperature`/`top_p`。"
+            "notes": "官方原文：「当设置为 false 时…temperature 和 top_p 参数将被忽略」。实测传 `false` → HTTP 200 接受（来源：实测（Noctua，2026-07-08，probe=zhipu_do_sample_false））。"
           },
           "temperature": {
             "type": "float",
-            "default": 1,
+            "default": "按系列",
             "range": {
               "min": 0,
               "max": 1,
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "采样温度；不同模型族默认值不同。"
+            "notes": "限两位小数。官方默认值按系列：GLM-5.2/5.1/5/4.7/4.6 系列 `1.0`；GLM-4.5 系列 `0.6`；GLM-4 系列 `0.75`。实测 `temperature=0.123`（三位小数）→ HTTP 200 接受不报错（来源：实测（Noctua，2026-07-08，probe=zhipu_temperature_precision））。"
           },
           "top_p": {
             "type": "float",
-            "default": 0.95,
+            "default": "按系列",
             "range": {
               "min": 0.01,
               "max": 1,
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "核采样概率阈值。"
+            "notes": "核采样概率阈值。官方默认值：GLM-4 系列 `0.9`，其余系列 `0.95`。"
           },
           "max_tokens": {
             "type": "integer",
@@ -831,7 +854,7 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "最大输出 token；GLM-5.x/4.6 最高 128K。"
+            "notes": "最大输出 token。官方：GLM-5.x/4.7/4.6 系列最大 128K 输出；GLM-4.5 系列最大 96K。"
           },
           "tool_stream": {
             "type": "boolean",
@@ -853,7 +876,7 @@
           },
           "stop": {
             "type": "array<string>",
-            "notes": "停止词；当前仅支持单个停止词。"
+            "notes": "官方原文：「目前仅支持单个停止词」。实测传 `[\"五\",\"六\"]` 两个停止词 → HTTP 200 且实际生效（输出止于停止词前）——文档漏洞（doc_gap），实测多停止词可用且生效。来源：实测（Noctua，2026-07-08，probe=zhipu_stop_multiple）。"
           },
           "response_format": {
             "type": "object",
@@ -868,6 +891,22 @@
           "user_id": {
             "type": "string",
             "notes": "终端用户标识。"
+          },
+          "seed": {
+            "type": "integer",
+            "notes": "官方文档无此参数。传 `seed=42` → HTTP 200 静默接受、无可观测效果（silent_ignore）。来源：实测（Noctua，2026-07-08，probe=zhipu_seed_probe）"
+          },
+          "frequency_penalty": {
+            "type": "float",
+            "notes": "官方文档无此参数。传 `0.5` → HTTP 200 静默接受、无可观测效果（silent_ignore）。来源：实测（Noctua，2026-07-08，probe=zhipu_frequency_penalty_probe）"
+          },
+          "logprobs": {
+            "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "官方文档无此参数。传 `true` → HTTP 200，但响应无 `logprobs` 字段（接受但不生效，accepted_ineffective）。来源：实测（Noctua，2026-07-08，probe=zhipu_logprobs_probe）"
           }
         }
       },
@@ -919,7 +958,7 @@
           "docStatusClass": "protocol-doc-badge--verified",
           "docUrl": "https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions",
           "localDoc": "docs/api/ali-chat.md",
-          "notes": "对照 docs/api/ali-chat.md（2026-06-25）。含百炼 extra_body 与搜索扩展参数。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：function_call, input, service_tier, stream_options, user。",
+          "notes": "对照官方文档（2026-07-08）。含百炼 extra_body 与搜索扩展参数；Observed 组为实测补充（官方文档未定义）。 类型字段按该渠道官方 API 原文收录。",
           "inheritsFrom": null
         },
         "requiredParameters": [
@@ -950,7 +989,8 @@
             "reasoning_effort"
           ],
           "Reasoning.Output": [
-            "preserve_thinking"
+            "preserve_thinking",
+            "clear_thinking"
           ],
           "Output.Structure": [
             "response_format"
@@ -984,11 +1024,10 @@
             "X-DashScope-DataInspection"
           ],
           "Observed": [
-            "function_call",
-            "input",
+            "user",
             "service_tier",
-            "stream_options",
-            "user"
+            "frequency_penalty",
+            "logit_bias"
           ]
         },
         "specs": {
@@ -1103,11 +1142,12 @@
               "true",
               "false"
             ],
-            "notes": "混合思考模式开关；通过 `extra_body` 传入。"
+            "notes": "混合思考模式开关；通过 `extra_body` 传入。适用面：Qwen3.7 Max/Plus 系列混合思考默认开；Qwen3 商业版（qwen-max 等）默认关；开源版默认开；仅思考模型（qwq-plus、deepseek-r1 等）无法关闭。"
           },
           "thinking": {
             "type": "object",
-            "notes": "百炼 MiniMax-M3：`adaptive` 或 `disabled`。"
+            "default": "{\"type\":\"adaptive\"}",
+            "notes": "MiniMax 系列：默认 `{\"type\":\"adaptive\"}`（自适应）或 `disabled`。"
           },
           "preserve_thinking": {
             "type": "boolean",
@@ -1118,9 +1158,19 @@
             ],
             "notes": "多轮对话是否保留历史思考内容；通过 `extra_body` 传入。"
           },
+          "clear_thinking": {
+            "type": "boolean",
+            "default": false,
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "仅 GLM 系列：控制历史轮 `reasoning_content` 是否纳入上下文。"
+          },
           "thinking_budget": {
             "type": "integer",
-            "notes": "思考 token 预算；Qwen3.x / Qwen3-VL。"
+            "default": "模型的最大思维链长度",
+            "notes": "思考 token 预算；Qwen3.x / Qwen3-VL。默认值来源：https://help.aliyun.com/zh/model-studio/deep-thinking"
           },
           "reasoning_effort": {
             "type": "string",
@@ -1222,25 +1272,21 @@
             "type": "header",
             "notes": "内容安全检测请求头，非 body 字段。"
           },
-          "function_call": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions）检索到该参数，已补录。"
-          },
-          "input": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions）检索到该参数，已补录。"
+          "user": {
+            "type": "string",
+            "notes": "官方文档未定义。HTTP 200 静默接受（silent_ignore，生效性未验证）。来源：实测（Noctua，2026-07-08，probe=ali_user_probe）"
           },
           "service_tier": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions）检索到该参数，已补录。"
+            "type": "string",
+            "notes": "官方仅作为响应字段，请求参数未定义。HTTP 200 静默接受（silent_ignore，生效性未验证）。来源：实测（Noctua，2026-07-08，probe=ali_service_tier_probe）"
           },
-          "stream_options": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions）检索到该参数，已补录。"
+          "frequency_penalty": {
+            "type": "number",
+            "notes": "官方文档确认无此参数。传 `0.5` → HTTP 200 静默接受（silent_ignore，生效性未验证）。来源：实测（Noctua，2026-07-08，probe=ali_frequency_penalty_probe）"
           },
-          "user": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions）检索到该参数，已补录。"
+          "logit_bias": {
+            "type": "object",
+            "notes": "官方文档确认无此参数。HTTP 200 静默接受（silent_ignore，生效性未验证）。来源：实测（Noctua，2026-07-08，probe=ali_logit_bias_probe）"
           }
         }
       },
@@ -1252,7 +1298,7 @@
           "docStatusClass": "protocol-doc-badge--verified",
           "docUrl": "https://help.aliyun.com/zh/model-studio/anthropic-api-messages",
           "localDoc": "docs/api/ali-message.md",
-          "notes": "对照 docs/api/ali-message.md（2026-06-25）。temperature 范围 [0,2)（非 Anthropic 官方 [0,1]）。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：input, n, user。",
+          "notes": "对照官方文档（2026-07-08，endpoint 扩至 5 地域、模型清单更新）。temperature 范围 [0,2)（非 Anthropic 官方 [0,1]）。 类型字段按该渠道官方 API 原文收录。",
           "inheritsFrom": null
         },
         "requiredParameters": [
@@ -1289,17 +1335,12 @@
           ],
           "Output.Structure": [
             "output_config"
-          ],
-          "Observed": [
-            "input",
-            "n",
-            "user"
           ]
         },
         "specs": {
           "model": {
             "type": "string",
-            "notes": "Qwen / DeepSeek / Kimi / GLM / MiniMax 等"
+            "notes": "见下方支持模型清单"
           },
           "messages": {
             "type": "array",
@@ -1370,18 +1411,6 @@
           "output_config": {
             "type": "object",
             "notes": "结构化输出；deepseek/glm 严格 schema"
-          },
-          "input": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/anthropic-api-messages）检索到该参数，已补录。"
-          },
-          "n": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/anthropic-api-messages）检索到该参数，已补录。"
-          },
-          "user": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/anthropic-api-messages）检索到该参数，已补录。"
           }
         }
       },
@@ -1393,7 +1422,7 @@
           "docStatusClass": "protocol-doc-badge--verified",
           "docUrl": "https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-responses",
           "localDoc": "docs/api/ali-response.md",
-          "notes": "对照 docs/api/ali-response.md（2026-06-25）。仅文档化参数生效；background 异步不支持。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：enable_thinking, function_call, logprobs, n, parallel_tool_calls, previous_response_id, reasoning, store, user。",
+          "notes": "对照官方文档（2026-07-08）。官方总则：「请求将仅处理本文档明确列出的参数，任何未提及的 OpenAI 参数都会被忽略」「不支持 background（当前仅支持同步调用）」。Observed 组为实测补充。 类型字段按该渠道官方 API 原文收录。",
           "inheritsFrom": null
         },
         "requiredParameters": [
@@ -1403,14 +1432,15 @@
         "parameters": {
           "Core": [
             "model",
-            "input"
+            "input",
+            "instructions"
           ],
           "Sampling": [
             "temperature",
             "top_p"
           ],
-          "Length": [
-            "max_output_tokens"
+          "Reasoning.Switch": [
+            "enable_thinking"
           ],
           "Reasoning.Intensity": [
             "reasoning.effort"
@@ -1422,16 +1452,17 @@
           "Protocol": [
             "stream"
           ],
-          "Observed": [
-            "enable_thinking",
-            "function_call",
-            "logprobs",
-            "n",
-            "parallel_tool_calls",
+          "Metadata": [
+            "conversation",
             "previous_response_id",
-            "reasoning",
-            "store",
-            "user"
+            "store"
+          ],
+          "Extra": [
+            "ocr_options"
+          ],
+          "Observed": [
+            "max_output_tokens",
+            "parallel_tool_calls"
           ]
         },
         "specs": {
@@ -1451,10 +1482,6 @@
             "type": "number",
             "notes": "核采样概率阈值"
           },
-          "max_output_tokens": {
-            "type": "integer",
-            "notes": "最大输出 token 数"
-          },
           "stream": {
             "type": "boolean",
             "enum": [
@@ -1462,6 +1489,44 @@
               "false"
             ],
             "notes": "是否流式返回"
+          },
+          "instructions": {
+            "type": "string",
+            "notes": "系统级指令（可选）"
+          },
+          "conversation": {
+            "type": "string",
+            "notes": "会话 ID，用于会话管理"
+          },
+          "previous_response_id": {
+            "type": "string",
+            "notes": "上一次响应 ID，用于上下文续接"
+          },
+          "store": {
+            "type": "boolean",
+            "default": true,
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "是否存储本次响应"
+          },
+          "enable_thinking": {
+            "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "思考模式开关"
+          },
+          "reasoning.effort": {
+            "type": "string",
+            "default": "medium",
+            "notes": "思考强度控制"
+          },
+          "ocr_options": {
+            "type": "object",
+            "notes": "OCR 相关配置"
           },
           "tools": {
             "type": "array",
@@ -1471,45 +1536,17 @@
             "type": "string",
             "notes": "工具选择策略"
           },
-          "reasoning.effort": {
-            "type": "string",
-            "notes": "思考强度控制"
-          },
-          "enable_thinking": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-responses）检索到该参数，已补录。"
-          },
-          "function_call": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-responses）检索到该参数，已补录。"
-          },
-          "logprobs": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-responses）检索到该参数，已补录。"
-          },
-          "n": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-responses）检索到该参数，已补录。"
+          "max_output_tokens": {
+            "type": "integer",
+            "notes": "官方最新文档未列出。请求传入 → HTTP 200 接受（silent_ignore，生效性未验证）。来源：实测（Noctua，2026-07-08，probe=ali_responses_max_output_tokens）"
           },
           "parallel_tool_calls": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-responses）检索到该参数，已补录。"
-          },
-          "previous_response_id": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-responses）检索到该参数，已补录。"
-          },
-          "reasoning": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-responses）检索到该参数，已补录。"
-          },
-          "store": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-responses）检索到该参数，已补录。"
-          },
-          "user": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-responses）检索到该参数，已补录。"
+            "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "官方两次抓取口径不一（请求参数 vs 仅响应字段）。请求传入 → HTTP 200 接受（silent_ignore，生效性未验证）。来源：实测（Noctua，2026-07-08，probe=ali_responses_parallel_tool_calls）"
           }
         }
       }
@@ -1521,9 +1558,9 @@
           "docStatus": "verified",
           "docStatusLabel": "已对照文档",
           "docStatusClass": "protocol-doc-badge--verified",
-          "docUrl": "https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request",
+          "docUrl": "https://openrouter.ai/openapi.json",
           "localDoc": "docs/api/openrouter-chat.md",
-          "notes": "对照 docs/api/openrouter-chat.md（2026-06-25）。矩阵仅收录文档摘要表参数；model 可选。 类型字段按该渠道官方 API 原文收录。",
+          "notes": "参数以官方 OpenAPI（https://openrouter.ai/openapi.json ，ChatRequest schema）为准；参数说明页 https://openrouter.ai/docs/api/reference/parameters 。旧 doc_url（docs/api/api-reference/chat/send-chat-completion-request）已 404 失效。required 仅 messages。Observed 组为实测补充。类型字段按该渠道官方 API 原文收录。",
           "inheritsFrom": null
         },
         "requiredParameters": [
@@ -1543,7 +1580,13 @@
             "repetition_penalty",
             "min_p",
             "top_a",
-            "logit_bias"
+            "logit_bias",
+            "seed",
+            "stop"
+          ],
+          "Length": [
+            "max_tokens",
+            "max_completion_tokens"
           ],
           "Debug": [
             "logprobs",
@@ -1553,24 +1596,46 @@
             "reasoning"
           ],
           "Reasoning.Intensity": [
+            "reasoning.effort",
             "reasoning_effort"
+          ],
+          "Output.Structure": [
+            "response_format"
+          ],
+          "Output.Modality": [
+            "modalities"
+          ],
+          "Tools": [
+            "tools",
+            "tool_choice",
+            "parallel_tool_calls"
+          ],
+          "Protocol": [
+            "stream",
+            "stream_options.include_usage"
           ],
           "Routing": [
             "models",
             "provider",
-            "plugins"
-          ],
-          "Metadata": [
+            "plugins",
+            "route",
             "session_id"
           ],
-          "Tools": [
-            "parallel_tool_calls"
+          "Metadata": [
+            "user",
+            "metadata",
+            "service_tier",
+            "cache_control"
+          ],
+          "Observed": [
+            "transforms",
+            "verbosity"
           ]
         },
         "specs": {
           "messages": {
             "type": "array<object>",
-            "notes": "对话消息列表，OpenAPI 要求至少一条。"
+            "notes": "对话消息列表。"
           },
           "model": {
             "type": "string",
@@ -1600,13 +1665,7 @@
           },
           "top_k": {
             "type": "integer",
-            "range": {
-              "min": 0,
-              "max": null,
-              "minInclusive": true,
-              "maxInclusive": true
-            },
-            "notes": "采样候选数；取决于底层供应商。"
+            "notes": "schema 描述：1 表示总是选最可能的 token；并非所有 provider 支持。下界口径不一（参数说明页 ≥0 vs schema 描述以 1 为最小语义值），实测见下方实测补充段。"
           },
           "frequency_penalty": {
             "type": "double",
@@ -1633,7 +1692,7 @@
           "repetition_penalty": {
             "type": "double",
             "default": 1,
-            "notes": "重复惩罚；取决于底层供应商。"
+            "notes": "重复惩罚；1.0 表示无惩罚；并非所有 provider 支持。"
           },
           "min_p": {
             "type": "double",
@@ -1643,7 +1702,7 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "最小概率阈值；取决于底层供应商。"
+            "notes": "相对最高概率 token 的最小概率阈值；并非所有 provider 支持。"
           },
           "top_a": {
             "type": "double",
@@ -1653,11 +1712,11 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "自适应核采样；取决于底层供应商。"
+            "notes": "自适应核采样；并非所有 provider 支持。"
           },
           "logit_bias": {
             "type": "object",
-            "notes": "token-id 到数值的偏置映射；取决于底层供应商。"
+            "notes": "token-id 到数值（double）的偏置映射。"
           },
           "logprobs": {
             "type": "boolean",
@@ -1677,13 +1736,94 @@
             },
             "notes": "每步返回 top-N 概率；需 `logprobs=true`。"
           },
-          "reasoning": {
-            "type": "object",
-            "notes": "推理配置对象，含 `effort`、`summary` 等子字段。"
+          "max_tokens": {
+            "type": "integer",
+            "effective": "deprecated",
+            "notes": "Deprecated — 请用 `max_completion_tokens`。官方原文：「some providers enforce a minimum of 16」。"
           },
-          "reasoning_effort": {
+          "max_completion_tokens": {
+            "type": "integer",
+            "notes": "最大补全 token 数。"
+          },
+          "stop": {
+            "type": "string | array<string>",
+            "range": {
+              "min": null,
+              "max": 4,
+              "minInclusive": true,
+              "maxInclusive": true
+            },
+            "notes": "停止序列，最多 4 个。"
+          },
+          "seed": {
+            "type": "integer",
+            "notes": "确定性输出随机种子。"
+          },
+          "stream": {
+            "type": "boolean",
+            "default": false,
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "启用流式响应。"
+          },
+          "stream_options.include_usage": {
+            "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ],
+            "effective": "deprecated",
+            "notes": "Deprecated — 官方原文：「This field has no effect. Full usage details are always included.」（usage 恒返回）。"
+          },
+          "tools": {
+            "type": "array",
+            "notes": "函数工具声明列表（`ChatFunctionTool`）。"
+          },
+          "tool_choice": {
+            "type": "string | object",
+            "notes": "工具选择策略（字符串或指定工具对象，`ChatToolChoice`）。"
+          },
+          "response_format": {
+            "type": "object",
+            "notes": "五种 `type`：`text` / `json_object` / `json_schema` / `grammar` / `python`；其中 `grammar` 与 `python` 为 OpenRouter 渠道特有。"
+          },
+          "user": {
             "type": "string",
-            "notes": "`reasoning.effort` 的简写形式。"
+            "notes": "唯一终端用户标识。"
+          },
+          "metadata": {
+            "type": "object",
+            "notes": "key ≤64 字符、value ≤512 字符。"
+          },
+          "modalities": {
+            "type": "array",
+            "notes": "输出模态：`text` / `image` / `audio`。"
+          },
+          "service_tier": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "default",
+              "flex",
+              "priority",
+              "scale"
+            ],
+            "notes": "处理层级。"
+          },
+          "cache_control": {
+            "type": "object",
+            "notes": "Anthropic 风格缓存指令（`AnthropicCacheControlDirective`）。"
+          },
+          "route": {
+            "type": "string",
+            "effective": "deprecated",
+            "notes": "官方标注 Deprecated；传旧值 `\"fallback\"` → HTTP 200 接受（silent_ignore，生效性未验证）。来源：实测（Noctua，2026-07-08，probe=or_route_legacy）"
+          },
+          "session_id": {
+            "type": "string",
+            "notes": "粘性路由会话 ID：同 session 路由到同一 provider 以最大化缓存命中；body 与 `x-session-id` header 同时提供时以 body 优先。"
           },
           "models": {
             "type": "array<string>",
@@ -1691,15 +1831,41 @@
           },
           "provider": {
             "type": "object",
-            "notes": "路由偏好，如供应商排序、排除列表等。"
+            "notes": "路由偏好；全字段见下方 provider 子表。"
           },
           "plugins": {
             "type": "array",
-            "notes": "插件列表，如 web_search、web_fetch、datetime。"
+            "notes": "插件列表；id 枚举见下方 plugins 说明。"
           },
-          "session_id": {
+          "reasoning": {
+            "type": "object",
+            "notes": "推理配置对象，含 `effort`、`summary`。"
+          },
+          "reasoning.effort": {
             "type": "string",
-            "notes": "粘性路由会话 ID，同会话固定后端。"
+            "enum": [
+              "max",
+              "xhigh",
+              "high",
+              "medium",
+              "low",
+              "minimal",
+              "none"
+            ],
+            "notes": "推理强度。"
+          },
+          "reasoning.summary": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "concise",
+              "detailed"
+            ],
+            "notes": "推理摘要详略。"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "notes": "`reasoning.effort` 的简写；官方原文：与 `reasoning.effort` 同时给出且值不同时不可用（Cannot be used simultaneously with reasoning.effort if they differ）。"
           },
           "parallel_tool_calls": {
             "type": "boolean",
@@ -1708,6 +1874,97 @@
               "false"
             ],
             "notes": "是否并行发起多个工具调用。"
+          },
+          "order": {
+            "type": "array",
+            "notes": "有序 provider slug 列表，依次尝试。"
+          },
+          "allow_fallbacks": {
+            "type": "boolean",
+            "default": true,
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "主 provider（或 order 内自定义 provider）不可用时是否使用次优 provider；false 时直接返回上游错误。"
+          },
+          "require_parameters": {
+            "type": "boolean",
+            "default": false,
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "⚠ 渠道测评必测点：官方原文——省略或 false 时「providers will receive only the parameters they support, and ignore the rest」（provider 只收到它支持的参数，其余静默丢弃）；true 时只路由到支持请求中全部参数的 provider。"
+          },
+          "data_collection": {
+            "type": "string",
+            "default": "allow",
+            "notes": "`allow` / `deny`；deny 时只用不留存用户数据的 provider。"
+          },
+          "only": {
+            "type": "array",
+            "notes": "仅允许的 provider slug 列表（与账户级设置合并）。"
+          },
+          "ignore": {
+            "type": "array",
+            "notes": "排除的 provider slug 列表（与账户级设置合并）。"
+          },
+          "quantizations": {
+            "type": "array",
+            "notes": "按量化等级过滤 provider。"
+          },
+          "sort": {
+            "type": "string | object",
+            "notes": "排序策略：字符串 `price` / `throughput` / `latency` / `exacto`，或对象 `{by, partition}`（`partition`: `model`（默认）/ `none`）。设置后关闭负载均衡。"
+          },
+          "max_price": {
+            "type": "object",
+            "notes": "愿付最高价（USD / 百万 token）：`prompt` / `completion` / `request` / `image` / `audio`。"
+          },
+          "zdr": {
+            "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "true 时仅路由 Zero Data Retention 端点。"
+          },
+          "enforce_distillable_text": {
+            "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "true 时仅路由允许文本蒸馏的模型。"
+          },
+          "preferred_max_latency": {
+            "type": "object",
+            "notes": "最大延迟阈值；不达标端点被降权（移到列表末尾）而非排除。"
+          },
+          "preferred_min_throughput": {
+            "type": "object",
+            "notes": "最小吞吐阈值；不达标端点被降权而非排除。"
+          },
+          "transforms": {
+            "type": "array<string>",
+            "notes": "官方 OpenAPI 已整体移除；传 `[\"middle-out\"]` → HTTP 200 仍被接受（向后兼容，silent_ignore，生效性未验证）。来源：实测（Noctua，2026-07-08，probe=or_transforms_legacy）"
+          },
+          "verbosity": {
+            "type": "string",
+            "notes": "参数说明页有、ChatRequest schema 无（官方文档自相矛盾）；传 `\"low\"` → HTTP 200 接受（silent_ignore，生效性未验证）。来源：实测（Noctua，2026-07-08，probe=or_verbosity_probe）"
+          },
+          "top_k=0": {
+            "type": "integer",
+            "notes": "top_k 下界官方口径不一（0 vs 1）；传 `0` → HTTP 200 接受（生效性未验证）。来源：实测（Noctua，2026-07-08，probe=or_top_k_zero）"
+          },
+          "stream_options.include_usage=false": {
+            "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "传 `false` 时最终块 usage 仍返回，与官方「always included」一致。来源：实测（Noctua，2026-07-08，probe=or_stream_usage_false）"
           }
         }
       },
@@ -1717,15 +1974,14 @@
           "docStatus": "verified",
           "docStatusLabel": "已对照文档",
           "docStatusClass": "protocol-doc-badge--verified",
-          "docUrl": "https://openrouter.ai/docs/api/api-reference/anthropic-messages/create-messages",
+          "docUrl": "https://openrouter.ai/openapi.json",
           "localDoc": "docs/api/openrouter-message.md",
-          "notes": "对照 docs/api/openrouter-message.md（2026-06-25）。 类型字段按该渠道官方 API 原文收录。",
+          "notes": "参数以官方 OpenAPI（https://openrouter.ai/openapi.json ，MessagesRequest schema，2026-07-08）为准；旧 doc_url（docs/api/api-reference/anthropic-messages/create-messages）已 404 失效。官方 required 仅 model、messages（max_tokens 可选）。类型字段按该渠道官方 API 原文收录。",
           "inheritsFrom": null
         },
         "requiredParameters": [
           "model",
-          "messages",
-          "max_tokens"
+          "messages"
         ],
         "parameters": {
           "Core": [
@@ -1787,7 +2043,7 @@
           },
           "max_tokens": {
             "type": "integer",
-            "notes": "最大输出 token"
+            "notes": "最大输出 token（官方 schema 未列为 required）"
           },
           "temperature": {
             "type": "number",
@@ -1811,7 +2067,7 @@
           },
           "thinking": {
             "type": "object",
-            "notes": "扩展思考模式配置"
+            "notes": "扩展思考模式配置；三种类型见下方 `thinking` 子表"
           },
           "tools": {
             "type": "array"
@@ -1848,7 +2104,12 @@
           },
           "speed": {
             "type": "string",
-            "notes": "Anthropic speed 档位"
+            "default": "standard",
+            "enum": [
+              "fast",
+              "standard"
+            ],
+            "notes": "官方原文：`fast` 使用更高速推理配置、溢价计费（premium pricing）；缺省为 `standard`。"
           },
           "models": {
             "type": "array<string>",
@@ -1856,7 +2117,7 @@
           },
           "fallbacks": {
             "type": "array",
-            "notes": "主模型失败时依次尝试，最多 3 项，每项仅 `model`"
+            "notes": "主模型失败/拒答时依次尝试，最多 3 项，每项仅 `model`（per-attempt 覆盖会被拒绝）；不可与 `models` 同用"
           },
           "provider": {
             "type": "object",
@@ -1864,15 +2125,16 @@
           },
           "plugins": {
             "type": "array",
-            "notes": "web_search、web_fetch、datetime 等"
+            "notes": "web、web-fetch 等插件（datetime 已改服务端工具写法）"
           },
           "session_id": {
             "type": "string",
             "notes": "粘性路由会话 ID，≤256 字符；与请求头 `x-session-id` 冲突时以 body 为准"
           },
           "route": {
-            "type": "any",
-            "notes": "路由控制"
+            "type": "string",
+            "effective": "deprecated",
+            "notes": "Deprecated — 官方原文：「Use providers.sort.partition instead. Accepts legacy values: \"fallback\" (maps to \"model\"), \"sort\" (maps to \"none\").」"
           },
           "trace": {
             "type": "object",
@@ -1890,9 +2152,9 @@
           "docStatus": "verified",
           "docStatusLabel": "已对照文档",
           "docStatusClass": "protocol-doc-badge--verified",
-          "docUrl": "https://openrouter.ai/docs/api/reference/responses/overview",
+          "docUrl": "https://openrouter.ai/openapi.json",
           "localDoc": "docs/api/openrouter-response.md",
-          "notes": "对照 docs/api/openrouter-response.md（2026-06-25）。类型字段按 OpenRouter 官方 OpenAPI 原文收录。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：metadata, reasoning。",
+          "notes": "对照官方 OpenAPI（https://openrouter.ai/openapi.json ，ResponsesRequest schema，2026-07-08）。store 为 const false（stateless 设计，只能 false）。类型字段按该渠道官方 API 原文收录。",
           "inheritsFrom": null
         },
         "requiredParameters": [
@@ -1902,25 +2164,65 @@
         "parameters": {
           "Core": [
             "model",
-            "input"
+            "input",
+            "instructions"
           ],
           "Sampling": [
             "temperature",
-            "top_p"
+            "top_p",
+            "top_k",
+            "frequency_penalty",
+            "presence_penalty"
           ],
           "Length": [
             "max_output_tokens"
           ],
+          "Debug": [
+            "top_logprobs"
+          ],
+          "Reasoning.Switch": [
+            "reasoning",
+            "reasoning.enabled"
+          ],
+          "Reasoning.Intensity": [
+            "reasoning.effort",
+            "reasoning.max_tokens"
+          ],
+          "Output.Structure": [
+            "text",
+            "text.verbosity"
+          ],
+          "Output.Modality": [
+            "modalities"
+          ],
           "Tools": [
             "tools",
-            "tool_choice"
+            "tool_choice",
+            "parallel_tool_calls",
+            "max_tool_calls"
           ],
           "Protocol": [
-            "stream"
+            "stream",
+            "background",
+            "include",
+            "truncation"
           ],
-          "Observed": [
+          "Routing": [
+            "models",
+            "provider",
+            "plugins",
+            "session_id"
+          ],
+          "Metadata": [
+            "store",
+            "previous_response_id",
+            "prompt",
+            "prompt_cache_key",
+            "safety_identifier",
             "metadata",
-            "reasoning"
+            "user",
+            "service_tier",
+            "cache_control"
           ]
         },
         "specs": {
@@ -1928,7 +2230,8 @@
             "type": "string"
           },
           "input": {
-            "type": "string | array"
+            "type": "string | array",
+            "notes": "输入文本或消息/条目数组（`Inputs`）"
           },
           "temperature": {
             "type": "double"
@@ -1936,29 +2239,154 @@
           "top_p": {
             "type": "double"
           },
+          "top_k": {
+            "type": "integer"
+          },
+          "frequency_penalty": {
+            "type": "double"
+          },
+          "presence_penalty": {
+            "type": "double"
+          },
+          "top_logprobs": {
+            "type": "integer"
+          },
           "max_output_tokens": {
             "type": "integer"
           },
+          "max_tool_calls": {
+            "type": "integer",
+            "notes": "工具调用次数上限"
+          },
           "stream": {
+            "type": "boolean",
+            "default": false,
+            "enum": [
+              "true",
+              "false"
+            ]
+          },
+          "background": {
+            "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "后台任务开关"
+          },
+          "include": {
+            "type": "array",
+            "notes": "枚举：`file_search_call.results` / `message.input_image.image_url` / `computer_call_output.output.image_url` / `reasoning.encrypted_content` / `code_interpreter_call.outputs`"
+          },
+          "instructions": {
+            "type": "string",
+            "notes": "系统级指令"
+          },
+          "store": {
+            "type": "boolean",
+            "default": false,
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "只能为 `false`（stateless 设计，不支持服务端存储）"
+          },
+          "previous_response_id": {
+            "type": "string",
+            "notes": "上下文续接"
+          },
+          "prompt": {
+            "type": "object",
+            "notes": "存储的 prompt 模板：`{id（必填）, variables}`"
+          },
+          "prompt_cache_key": {
+            "type": "string",
+            "notes": "缓存分桶键"
+          },
+          "safety_identifier": {
+            "type": "string",
+            "notes": "滥用防护标识"
+          },
+          "truncation": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "disabled"
+            ]
+          },
+          "text": {
+            "type": "object",
+            "enum": [
+              "format",
+              "verbosity",
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "notes": "文本输出配置，含 `format` 与 `verbosity`（`low` | `medium` | `high` | `xhigh` | `max`）"
+          },
+          "reasoning": {
+            "type": "object",
+            "notes": "四字段：`effort`（`max`/`xhigh`/`high`/`medium`/`low`/`minimal`/`none`）、`summary`（`auto`/`concise`/`detailed`）、`enabled`（boolean）、`max_tokens`（integer）"
+          },
+          "tools": {
+            "type": "array",
+            "notes": "函数工具与服务端工具"
+          },
+          "tool_choice": {
+            "type": "string | object",
+            "notes": "复合类型：字符串 `auto`/`none`/`required`，或对象（named function、`web_search_preview`、`allowed_tools`、`apply_patch`、`shell` 等）"
+          },
+          "parallel_tool_calls": {
             "type": "boolean",
             "enum": [
               "true",
               "false"
             ]
           },
-          "tools": {
-            "type": "array"
+          "modalities": {
+            "type": "array",
+            "notes": "输出模态：`text` / `image`"
           },
-          "tool_choice": {
-            "type": "string"
+          "plugins": {
+            "type": "array",
+            "notes": "同 Chat Completions 的插件体系"
+          },
+          "provider": {
+            "type": "object",
+            "notes": "路由偏好（`ProviderPreferences`，全字段见 openrouter-chat.md）"
+          },
+          "models": {
+            "type": "array<string>",
+            "notes": "回退路由模型列表"
+          },
+          "session_id": {
+            "type": "string",
+            "notes": "粘性路由会话 ID；body 优先于 `x-session-id` header"
+          },
+          "cache_control": {
+            "type": "object",
+            "notes": "Anthropic 风格缓存指令"
+          },
+          "service_tier": {
+            "type": "string",
+            "default": "auto",
+            "enum": [
+              "auto",
+              "default",
+              "flex",
+              "priority",
+              "scale"
+            ]
           },
           "metadata": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://openrouter.ai/docs/api/reference/responses/overview）检索到该参数，已补录。"
+            "type": "object"
           },
-          "reasoning": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://openrouter.ai/docs/api/reference/responses/overview）检索到该参数，已补录。"
+          "user": {
+            "type": "string",
+            "notes": "终端用户标识"
           }
         }
       }
@@ -1972,7 +2400,7 @@
           "docStatusClass": "protocol-doc-badge--verified",
           "docUrl": "https://platform.minimax.io/docs/api-reference/text-chat-openai",
           "localDoc": "docs/api/minimax-chat.md",
-          "notes": "对照 docs/api/minimax-chat.md（2026-06-25）。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：input, n, stop, stream_options, user。",
+          "notes": "对照官方文档（2026-07-08）。n 官方 schema 未定义、实测 400 拒绝；stop/user/logit_bias/thinking-disable 复测因余额不足待重测。 类型字段按该渠道官方 API 原文收录。",
           "inheritsFrom": null
         },
         "requiredParameters": [
@@ -2006,11 +2434,7 @@
             "service_tier"
           ],
           "Observed": [
-            "input",
-            "n",
-            "stop",
-            "stream_options",
-            "user"
+            "n"
           ]
         },
         "specs": {
@@ -2034,7 +2458,7 @@
               "adaptive",
               "disabled"
             ],
-            "notes": "仅 M3 支持 `disabled`。"
+            "notes": "仅 M3 支持 `disabled`。M2.x 传 `disabled` 的实际行为：2026-07-08 复测因账号余额不足（HTTP 402 insufficient balance 1008）未完成，待重测（probe=minimax_m2x_thinking_disabled）。"
           },
           "reasoning_split": {
             "type": "boolean",
@@ -2106,25 +2530,21 @@
             ],
             "notes": "服务档位；Priority 价格为 Standard 的 1.5 倍。"
           },
-          "input": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。"
-          },
           "n": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。"
+            "type": "integer",
+            "notes": "官方请求 schema 未定义。实测 `n=2` → 400 `invalid params, model[MiniMax-M2.7] does not support n > 1 (2013)`（undocumented_rejected）。来源：实测（Noctua，2026-07-08，probe=minimax_n_probe）"
           },
           "stop": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。"
-          },
-          "stream_options": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。"
+            "type": "string | array",
+            "notes": "2026-07-08 复测因账号余额不足（HTTP 402 insufficient balance 1008）未完成，待重测（probe=minimax_stop_effect）。"
           },
           "user": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。"
+            "type": "string",
+            "notes": "2026-07-08 复测因账号余额不足（HTTP 402 insufficient balance 1008）未完成，待重测（probe=minimax_user_probe）。"
+          },
+          "logit_bias": {
+            "type": "object",
+            "notes": "2026-07-08 复测因账号余额不足（HTTP 402 insufficient balance 1008）未完成，待重测（probe=minimax_logit_bias_probe）。"
           }
         }
       },
@@ -2134,9 +2554,9 @@
           "docStatus": "verified",
           "docStatusLabel": "已对照文档",
           "docStatusClass": "protocol-doc-badge--verified",
-          "docUrl": "https://platform.minimax.io/docs/api-reference/text-chat-openai",
+          "docUrl": "https://platform.minimax.io/docs/api-reference/text-anthropic-api",
           "localDoc": "docs/api/minimax-message.md",
-          "notes": "对照 docs/api/minimax-message.md（2026-06-25）。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：input, max_completion_tokens, n, stop, stream_options, user。",
+          "notes": "对照官方文档（2026-07-08）。max_tokens 官方必填；top_k/stop_sequences/mcp_servers/context_management/container 官方标注忽略（stop_sequences 被忽略属显著非标行为）；thinking 默认 disabled（与 chat 协议默认 adaptive 相反）。 类型字段按该渠道官方 API 原文收录。",
           "inheritsFrom": null
         },
         "requiredParameters": [
@@ -2170,13 +2590,12 @@
             "service_tier",
             "metadata"
           ],
-          "Observed": [
-            "input",
-            "max_completion_tokens",
-            "n",
-            "stop",
-            "stream_options",
-            "user"
+          "Unsupported": [
+            "top_k",
+            "stop_sequences",
+            "mcp_servers",
+            "context_management",
+            "container"
           ]
         },
         "specs": {
@@ -2188,10 +2607,6 @@
             "type": "array",
             "notes": "M3 支持 text / image / video / tool / thinking；M2.x 仅 text / tool"
           },
-          "system": {
-            "type": "string | array",
-            "notes": "数组块支持 `cache_control`"
-          },
           "max_tokens": {
             "type": "integer",
             "range": {
@@ -2200,7 +2615,11 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "M3 推荐 131072，最大 524288；M2.x 推荐 65536，最大 204800"
+            "notes": "官方必填。M3 推荐 131072，最大 524288；M2.x 推荐 65536，最大 204800。缺省行为验证：2026-07-08 复测因账号余额不足（HTTP 402 insufficient balance 1008）未完成，待重测（probe=minimax_msgs_no_max_tokens）。"
+          },
+          "system": {
+            "type": "string | array",
+            "notes": "数组块支持 `cache_control`"
           },
           "stream": {
             "type": "boolean",
@@ -2220,7 +2639,7 @@
               "minInclusive": true,
               "maxInclusive": true
             },
-            "notes": "越界报错"
+            "notes": "官方：范围 [0,2]，建议值 1；越界报错"
           },
           "top_p": {
             "type": "number",
@@ -2235,7 +2654,7 @@
           "thinking": {
             "type": "object",
             "default": "{\"type\":\"disabled\"}",
-            "notes": "M3：`disabled` / `adaptive`；省略时默认 disabled；M2.x 无法关闭 thinking"
+            "notes": "M3：`disabled` / `adaptive`；省略时默认 disabled；M2.x 无法关闭 thinking。双协议差异：本协议默认 `disabled`，与本渠道 Chat Completions 协议默认 `adaptive` 相反。"
           },
           "thinking.type": {
             "type": "string",
@@ -2266,29 +2685,30 @@
             "type": "object",
             "notes": "建议含 `user_id`"
           },
-          "input": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。"
+          "top_k": {
+            "type": "integer",
+            "effective": "ignored",
+            "notes": "官方：「此参数将被忽略」（Ignored）。"
           },
-          "max_completion_tokens": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。"
+          "stop_sequences": {
+            "type": "array<string>",
+            "effective": "ignored",
+            "notes": "官方：「此参数将被忽略」（Ignored）。重点：停止词被忽略属显著非标行为（Anthropic Messages 标准中应生效）。实测验证：2026-07-08 复测因账号余额不足（HTTP 402 insufficient balance 1008）未完成，待重测（probe=minimax_msgs_stop_sequences）。"
           },
-          "n": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。"
+          "mcp_servers": {
+            "type": "array",
+            "effective": "ignored",
+            "notes": "官方：「此参数将被忽略」（Ignored）。"
           },
-          "stop": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。"
+          "context_management": {
+            "type": "object",
+            "effective": "ignored",
+            "notes": "官方：「此参数将被忽略」（Ignored）。"
           },
-          "stream_options": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。"
-          },
-          "user": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。"
+          "container": {
+            "type": "object",
+            "effective": "ignored",
+            "notes": "官方：「此参数将被忽略」（Ignored）。"
           }
         }
       },
@@ -2298,9 +2718,9 @@
           "docStatus": "verified",
           "docStatusLabel": "已对照文档",
           "docStatusClass": "protocol-doc-badge--verified",
-          "docUrl": "https://platform.minimax.io/docs/api-reference/text-chat-openai",
+          "docUrl": "https://platform.minimax.io/docs/api-reference/responses-create",
           "localDoc": "docs/api/minimax-response.md",
-          "notes": "对照 docs/api/minimax-response.md（2026-06-16）。temperature/top_p 范围 (0,1]，非 OpenAI Responses 标准。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：max_completion_tokens, max_tokens, messages, n, stop, stream_options, thinking, user。",
+          "notes": "对照官方文档（2026-07-08）。temperature/top_p 范围 (0,1]，非 OpenAI Responses 标准，且与本渠道 chat 协议 [0,2] 不同；parallel_tool_calls/store/truncation 官方仅定义为响应字段。 类型字段按该渠道官方 API 原文收录。",
           "inheritsFrom": null
         },
         "requiredParameters": [
@@ -2340,20 +2760,7 @@
           "Extra": [
             "service_tier",
             "metadata",
-            "prompt_cache_key",
-            "parallel_tool_calls",
-            "store",
-            "truncation"
-          ],
-          "Observed": [
-            "max_completion_tokens",
-            "max_tokens",
-            "messages",
-            "n",
-            "stop",
-            "stream_options",
-            "thinking",
-            "user"
+            "prompt_cache_key"
           ]
         },
         "specs": {
@@ -2391,7 +2798,7 @@
               "minInclusive": false,
               "maxInclusive": true
             },
-            "notes": "采样温度"
+            "notes": "采样温度。跨协议差异：与本渠道 Chat Completions 协议范围 [0, 2] 不同。"
           },
           "top_p": {
             "type": "number",
@@ -2446,7 +2853,7 @@
           },
           "prompt_cache_key": {
             "type": "string",
-            "notes": "Prompt cache 路由标识"
+            "notes": "Prompt cache 路由标识（官方 Responses 协议请求参数）"
           },
           "text": {
             "type": "object",
@@ -2455,26 +2862,6 @@
           "text.format.type": {
             "type": "string",
             "default": "text"
-          },
-          "parallel_tool_calls": {
-            "type": "boolean",
-            "enum": [
-              "true",
-              "false"
-            ],
-            "notes": "是否支持并行 tool call"
-          },
-          "store": {
-            "type": "boolean",
-            "enum": [
-              "true",
-              "false"
-            ],
-            "notes": "是否持久化响应"
-          },
-          "truncation": {
-            "type": "string",
-            "notes": "上下文截断策略"
           },
           "type": {
             "type": "string",
@@ -2504,37 +2891,25 @@
             "type": "any",
             "notes": "`function_call_output` 工具返回"
           },
-          "max_completion_tokens": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。"
+          "parallel_tool_calls": {
+            "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "仅响应字段；请求 schema 未定义。"
           },
-          "max_tokens": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。"
+          "store": {
+            "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "仅响应字段；请求 schema 未定义。"
           },
-          "messages": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。"
-          },
-          "n": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。"
-          },
-          "stop": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。"
-          },
-          "stream_options": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。"
-          },
-          "thinking": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。"
-          },
-          "user": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。"
+          "truncation": {
+            "type": "string",
+            "notes": "仅响应字段（`disabled`）；请求 schema 未定义。"
           }
         }
       }
@@ -2548,7 +2923,7 @@
           "docStatusClass": "protocol-doc-badge--verified",
           "docUrl": "https://docs.siliconflow.cn/cn/api-reference/chat-completions/chat-completions",
           "localDoc": "docs/api/siliconflow-chat.md",
-          "notes": "对照 docs/api/siliconflow-chat.md（2026-06-16）。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：functions, input, thinking, user。",
+          "notes": "对照官方 OpenAPI schema（2026-07-08）。官方 schema 已撤掉 temperature/top_k/frequency_penalty 的范围声明；Observed 组为实测补充（官方 chat schema 未定义）。 类型字段按该渠道官方 API 原文收录。",
           "inheritsFrom": null
         },
         "requiredParameters": [
@@ -2608,9 +2983,7 @@
             "messages[].content[].audio_url.url"
           ],
           "Observed": [
-            "functions",
-            "input",
-            "thinking",
+            "tool_choice",
             "user"
           ]
         },
@@ -2621,7 +2994,7 @@
           },
           "messages": {
             "type": "array<object>",
-            "notes": "min 1，max 10"
+            "notes": "官方 schema：minItems 1 / maxItems 10。实测第 11 条 messages → HTTP 200 接受，未强制 10 条上限。来源：实测（Noctua，2026-07-08，probe=sf_messages_11_items）"
           },
           "messages[].role": {
             "type": "string",
@@ -2646,7 +3019,7 @@
           },
           "max_tokens": {
             "type": "integer",
-            "notes": "预留约 10k 给输入/系统开销"
+            "notes": "输入 + max_tokens 不得超过模型上下文窗口；官方建议勿设到窗口上限，预留约 10k token 缓冲给输入/系统开销"
           },
           "enable_thinking": {
             "type": "boolean",
@@ -2668,11 +3041,12 @@
           },
           "reasoning_effort": {
             "type": "string",
+            "default": "thinking 模式普通请求默认 `high",
             "enum": [
               "high",
               "max"
             ],
-            "notes": "仅 `deepseek-ai/DeepSeek-V4-Flash`"
+            "notes": "仅 `deepseek-ai/DeepSeek-V4-Flash`。官方原文：thinking 模式下普通请求默认 `high`；对 Claude Code、OpenCode 等复杂 agent 型请求自动设为 `max`；兼容映射 low/medium→high、xhigh→max。⚠ 渠道专属行为：按请求形态自动切档（普通请求 high / 复杂 agent 请求 max），非 OpenAI 标准语义。"
           },
           "min_p": {
             "type": "number",
@@ -2696,12 +3070,7 @@
           },
           "temperature": {
             "type": "number",
-            "range": {
-              "min": null,
-              "max": 2,
-              "minInclusive": true,
-              "maxInclusive": true
-            }
+            "notes": "官方 schema 已撤掉范围声明（存量 `≤ 2` 失据）。实测 `temperature=2.5` → HTTP 200 接受（生效性未验证）。来源：实测（Noctua，2026-07-08，probe=sf_temperature_over_2）"
           },
           "top_p": {
             "type": "number",
@@ -2710,21 +3079,11 @@
           },
           "top_k": {
             "type": "number",
-            "range": {
-              "min": null,
-              "max": 100,
-              "minInclusive": true,
-              "maxInclusive": true
-            }
+            "notes": "官方 schema 已撤掉范围声明（存量 `≤ 100` 失据）"
           },
           "frequency_penalty": {
             "type": "number",
-            "range": {
-              "min": -2,
-              "max": 2,
-              "minInclusive": true,
-              "maxInclusive": true
-            }
+            "notes": "官方 schema 已撤掉范围声明（存量 `[-2, 2]` 失据）"
           },
           "n": {
             "type": "integer",
@@ -2778,21 +3137,21 @@
             ],
             "notes": "严格 JSON Schema 结构化输出子集。"
           },
-          "functions": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://docs.siliconflow.cn/cn/api-reference/chat-completions/chat-completions）检索到该参数，已补录。"
-          },
-          "input": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://docs.siliconflow.cn/cn/api-reference/chat-completions/chat-completions）检索到该参数，已补录。"
-          },
-          "thinking": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://docs.siliconflow.cn/cn/api-reference/chat-completions/chat-completions）检索到该参数，已补录。"
+          "tool_choice": {
+            "type": "string | object",
+            "notes": "官方 chat schema 无此参数（messages 协议才有）。带 `tools` 时传 `\"auto\"` → HTTP 200 接受（silent_ignore，生效性未验证）。来源：实测（Noctua，2026-07-08，probe=sf_tool_choice_probe）"
           },
           "user": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://docs.siliconflow.cn/cn/api-reference/chat-completions/chat-completions）检索到该参数，已补录。"
+            "type": "string",
+            "notes": "官方 schema 无此参数。HTTP 200 静默接受（silent_ignore，生效性未验证）。来源：实测（Noctua，2026-07-08，probe=sf_user_probe）"
+          },
+          "messages[11]": {
+            "type": "array",
+            "notes": "官方 schema maxItems=10；传 11 条 → HTTP 200 接受，实测未强制 10 条上限。来源：实测（Noctua，2026-07-08，probe=sf_messages_11_items）"
+          },
+          "temperature=2.5": {
+            "type": "number",
+            "notes": "官方 schema 未声明范围；传 2.5 → HTTP 200 接受（生效性未验证）。来源：实测（Noctua，2026-07-08，probe=sf_temperature_over_2）"
           }
         }
       },
@@ -2804,13 +3163,12 @@
           "docStatusClass": "protocol-doc-badge--verified",
           "docUrl": "https://docs.siliconflow.cn/cn/api-reference/chat-completions/messages",
           "localDoc": "docs/api/siliconflow-message.md",
-          "notes": "对照 docs/api/siliconflow-message.md（2026-06-16）。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：input, stop, thinking, user。",
+          "notes": "对照官方 OpenAPI schema（2026-07-08）。官方 required 仅 model、messages（max_tokens 非必填）。 类型字段按该渠道官方 API 原文收录。",
           "inheritsFrom": null
         },
         "requiredParameters": [
           "model",
-          "messages",
-          "max_tokens"
+          "messages"
         ],
         "parameters": {
           "Core": [
@@ -2838,18 +3196,12 @@
           ],
           "Protocol": [
             "stream"
-          ],
-          "Observed": [
-            "input",
-            "stop",
-            "thinking",
-            "user"
           ]
         },
         "specs": {
           "model": {
             "type": "string",
-            "notes": "见 [Models](https://cloud.siliconflow.cn/models?types=chat)"
+            "notes": "见 [Models](https://cloud.siliconflow.cn/models?types=chat)；官方 schema 示例/默认值为 `Pro/zai-org/GLM-4.7`（信息性）"
           },
           "messages": {
             "type": "array",
@@ -2942,22 +3294,6 @@
           "text": {
             "type": "string",
             "notes": "文本内容"
-          },
-          "input": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://docs.siliconflow.cn/cn/api-reference/chat-completions/messages）检索到该参数，已补录。"
-          },
-          "stop": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://docs.siliconflow.cn/cn/api-reference/chat-completions/messages）检索到该参数，已补录。"
-          },
-          "thinking": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://docs.siliconflow.cn/cn/api-reference/chat-completions/messages）检索到该参数，已补录。"
-          },
-          "user": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://docs.siliconflow.cn/cn/api-reference/chat-completions/messages）检索到该参数，已补录。"
           }
         }
       }
@@ -2971,7 +3307,7 @@
           "docStatusClass": "protocol-doc-badge--verified",
           "docUrl": "https://www.streamlake.com/document/WANQING/mq6k66r6xgqwnfbd8t",
           "localDoc": "docs/api/streamlake-chat.md",
-          "notes": "对照 docs/api/streamlake-chat.md（2026-06-25）。model 为推理点 ID（ep-xxx）。 类型字段按该渠道官方 API 原文收录。",
+          "notes": "对照官方文档（2026-07-08，全文核对一致）。model 为推理点 ID（ep-xxx）。官方确认无 frequency_penalty、无请求级 thinking 对象；response_format 三种 text/json_object/json_schema。 类型字段按该渠道官方 API 原文收录。",
           "inheritsFrom": null
         },
         "requiredParameters": [
@@ -3187,7 +3523,7 @@
           "docStatusClass": "protocol-doc-badge--verified",
           "docUrl": "https://www.streamlake.com/document/WANQING/mq6k6xfnbs4vn99zggq",
           "localDoc": "docs/api/streamlake-message.md",
-          "notes": "对照 docs/api/streamlake-message.md（2026-06-25）。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：temperature, user, user_id。",
+          "notes": "对照官方文档（2026-07-08）。官方无顶层 temperature/top_p/top_k 请求参数，temperature 已废弃、由 output_config 替代。实测复核需要控制台推理点 ID（ep-xxx），2026-07-08 无可用推理点未实测（待实测）。 类型字段按该渠道官方 API 原文收录。",
           "inheritsFrom": null
         },
         "requiredParameters": [
@@ -3224,11 +3560,6 @@
             "container",
             "inference_geo",
             "output_config"
-          ],
-          "Observed": [
-            "temperature",
-            "user",
-            "user_id"
           ]
         },
         "specs": {
@@ -3263,7 +3594,7 @@
           },
           "thinking": {
             "type": "object",
-            "notes": "扩展思考模式：`enabled` / `disabled` / `adaptive` 等"
+            "notes": "扩展思考模式，三种类型见下方子表"
           },
           "tools": {
             "type": "array",
@@ -3276,7 +3607,7 @@
           },
           "metadata": {
             "type": "object",
-            "notes": "含 `user_id`，≤64KB"
+            "notes": "官方原文：可包含 `user_id` 用于追踪请求，不超过 64KB。`user_id` 是 `metadata.user_id`，不是顶层参数"
           },
           "cache_control": {
             "type": "object",
@@ -3292,24 +3623,12 @@
           },
           "output_config": {
             "type": "object",
-            "notes": "`effort` / `format`；可替代 temperature"
+            "notes": "`effort` / `format`；官方原文：推荐用于替代已废弃的 `temperature` 参数"
           },
           "service_tier": {
             "type": "string",
             "default": "auto",
             "notes": "`auto` / `standard_only`"
-          },
-          "temperature": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://www.streamlake.com/document/WANQING/mq6k6xfnbs4vn99zggq）检索到该参数，已补录。"
-          },
-          "user": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://www.streamlake.com/document/WANQING/mq6k6xfnbs4vn99zggq）检索到该参数，已补录。"
-          },
-          "user_id": {
-            "type": "—",
-            "notes": "来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://www.streamlake.com/document/WANQING/mq6k6xfnbs4vn99zggq）检索到该参数，已补录。"
           }
         }
       },
@@ -3321,7 +3640,7 @@
           "docStatusClass": "protocol-doc-badge--verified",
           "docUrl": "https://www.streamlake.com/document/WANQING/mq6k6jmxvq9ngxkozfl",
           "localDoc": "docs/api/streamlake-response.md",
-          "notes": "对照 docs/api/streamlake-response.md（2026-06-25）。 类型字段按该渠道官方 API 原文收录。",
+          "notes": "对照官方文档（2026-07-08）。enable_thinking 官方标注后续将不再支持，改用 reasoning.effort（reasoning.effort 优先级更高）。 类型字段按该渠道官方 API 原文收录。",
           "inheritsFrom": null
         },
         "requiredParameters": [
@@ -3367,10 +3686,22 @@
             "notes": "输入"
           },
           "temperature": {
-            "type": "number"
+            "type": "number",
+            "range": {
+              "min": 0,
+              "max": 2,
+              "minInclusive": true,
+              "maxInclusive": false
+            }
           },
           "top_p": {
-            "type": "number"
+            "type": "number",
+            "range": {
+              "min": 0,
+              "max": 1,
+              "minInclusive": false,
+              "maxInclusive": true
+            }
           },
           "max_output_tokens": {
             "type": "integer"
@@ -3384,7 +3715,7 @@
           },
           "reasoning": {
             "type": "object",
-            "notes": "推理配置"
+            "notes": "推理配置；官方原文：「reasoning.effort 的优先级高于 enable_thinking」"
           },
           "enable_thinking": {
             "type": "boolean",
@@ -3392,7 +3723,8 @@
               "true",
               "false"
             ],
-            "notes": "思考模式"
+            "effective": "deprecated",
+            "notes": "【Deprecated】 官方原文：「enable_thinking 后续将不再支持」，请改用 `reasoning.effort`"
           },
           "tools": {
             "type": "array"
@@ -3406,11 +3738,11 @@
           },
           "previous_response_id": {
             "type": "string",
-            "notes": "上下文续接"
+            "notes": "上下文续接；官方：有效期 7 天。与 `conversation` 不能同时使用"
           },
           "conversation": {
-            "type": "object",
-            "notes": "会话管理"
+            "type": "string",
+            "notes": "会话 ID。官方互斥规则：`previous_response_id` 与 `conversation` 不能同时使用"
           }
         }
       }
@@ -3589,7 +3921,7 @@
           "docStatusClass": "protocol-doc-badge--verified",
           "docUrl": "https://platform.openai.com/docs/api-reference/chat/create",
           "localDoc": "docs/api/openai.md",
-          "notes": "参考基线渠道；docs/api/openai.md 含更多未列入矩阵的字段。",
+          "notes": "参考基线渠道；docs/api/openai.md 含更多未列入矩阵的字段。2026-07-08 尝试核验，platform.openai.com 反爬 403 未能完整比对全参数表（last_verified 保持 2026-06-16）；developers.openai.com 镜像部分核对（max_tokens deprecated、user 由 safety_identifier + prompt_cache_key 取代、verbosity 仅 GPT-5 系列）。",
           "inheritsFrom": null
         },
         "requiredParameters": [
@@ -3605,7 +3937,8 @@
             "stop",
             "frequency_penalty",
             "presence_penalty",
-            "logit_bias"
+            "logit_bias",
+            "verbosity"
           ],
           "Length": [
             "max_tokens",
@@ -3634,7 +3967,9 @@
           "Metadata": [
             "user",
             "metadata",
-            "store"
+            "store",
+            "safety_identifier",
+            "prompt_cache_key"
           ],
           "Extra": [
             "service_tier",
@@ -3688,7 +4023,7 @@
           },
           "user": {
             "type": "string",
-            "notes": "Legacy stable end-user identifier; docs say use `safety_identifier` and `prompt_cache_key` instead."
+            "notes": "Legacy stable end-user identifier; replaced by `safety_identifier` and `prompt_cache_key`. Official wording: \"Use prompt_cache_key instead.\" (developers.openai.com, cross-checked 2026-07-08)"
           },
           "safety_identifier": {
             "type": "string",
@@ -3704,7 +4039,7 @@
           },
           "prediction": {
             "type": "string",
-            "notes": "array<text part> }`"
+            "notes": "Predicted output for faster regeneration when generated tokens match supplied content."
           },
           "temperature": {
             "type": "number `0` to `2",
@@ -3747,8 +4082,8 @@
             "notes": "Requires `logprobs: true`."
           },
           "verbosity": {
-            "type": "low`, `medium`, `high",
-            "notes": "Controls response verbosity where supported."
+            "type": "low`, `medium` (default), `high",
+            "notes": "Controls response verbosity; GPT-5 series models only. (developers.openai.com, cross-checked 2026-07-08)"
           },
           "id": {
             "type": "string"
@@ -3780,7 +4115,7 @@
           "docStatusClass": "protocol-doc-badge--verified",
           "docUrl": "https://platform.claude.com/docs/en/api/openai-sdk",
           "localDoc": "docs/api/claude.md",
-          "notes": "OpenAI SDK 兼容层；多项参数文档标注为 accepted but ignored。",
+          "notes": "OpenAI SDK 兼容层；多项参数官方文档标注为 accepted but ignored（见 Ignored 组，与正文 Ignored 清单一致；官方明示 reasoning_effort、response_format 为 Ignored）。2026-07-08 全文核对一致。",
           "inheritsFrom": null
         },
         "requiredParameters": [
@@ -3792,10 +4127,7 @@
             "temperature",
             "top_p",
             "n",
-            "stop",
-            "seed",
-            "frequency_penalty",
-            "presence_penalty"
+            "stop"
           ],
           "Length": [
             "max_tokens",
@@ -3804,17 +4136,10 @@
           "Reasoning.Switch": [
             "thinking"
           ],
-          "Reasoning.Intensity": [
-            "reasoning_effort"
-          ],
-          "Output.Structure": [
-            "response_format"
-          ],
           "Tools": [
             "tools",
             "tool_choice",
             "parallel_tool_calls",
-            "tools[].function.strict",
             "functions",
             "function_call"
           ],
@@ -3823,19 +4148,25 @@
             "stream_options",
             "stream_options.include_usage"
           ],
-          "Debug": [
-            "logprobs",
-            "top_logprobs"
-          ],
-          "Metadata": [
-            "metadata",
-            "store",
-            "user"
-          ],
           "Multimodal": [
             "messages[].content[].image_url",
             "messages[].content[].image_url.detail",
             "messages[].content[].input_audio"
+          ],
+          "Ignored": [
+            "logprobs",
+            "top_logprobs",
+            "logit_bias",
+            "seed",
+            "presence_penalty",
+            "frequency_penalty",
+            "response_format",
+            "store",
+            "user",
+            "metadata",
+            "service_tier",
+            "reasoning_effort",
+            "tools[].function.strict"
           ]
         },
         "specs": {

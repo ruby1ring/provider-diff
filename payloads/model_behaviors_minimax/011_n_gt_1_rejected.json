@@ -1,0 +1,35 @@
+{
+  "case_id": "minimax_oem_n_gt_1_rejected",
+  "title": "官方 schema 未定义 n，实测传 n=2 直接报 400（错误码 2013）",
+  "category": "sampling",
+  "case_scope": "oem_reference",
+  "oem_vendor": "minimax",
+  "target_group": "protocol_sampling",
+  "parameters": [
+    "n"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "MiniMax-M2.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句中文打个招呼。"
+      }
+    ],
+    "max_completion_tokens": 1024,
+    "n": 2
+  },
+  "expect": {
+    "http_status": 400,
+    "support_conclusion": "rejected_400",
+    "doc_support": "undocumented",
+    "undocumented_scenario": "reject_on_pass",
+    "evaluation_intent": "observe",
+    "case_scope": "oem_reference",
+    "target_group": "protocol_sampling",
+    "oem_source": "https://platform.minimax.io/docs/api-reference/text-chat-openai",
+    "notes": "MiniMax OEM：官方 schema 无 n；原厂实测 400「invalid params, model[MiniMax-M2.7] does not support n > 1 (2013)」。来源：实测（Noctua，2026-07-08，probe=minimax_n_probe）。传未声明参数直接报错=兼容风险（undocumented_rejected）。"
+  }
+}

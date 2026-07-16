@@ -3,21 +3,18 @@ channel_id: claude
 protocol_id: chat_completions
 doc_status: verified
 doc_url: "https://platform.claude.com/docs/en/api/openai-sdk"
-last_verified: 2026-06-16
+last_verified: 2026-07-08
 compare: false
 required_parameters: [model, messages]
 parameter_groups:
-  Sampling: [temperature, top_p, n, stop, seed, frequency_penalty, presence_penalty]
+  Sampling: [temperature, top_p, n, stop]
   Length: [max_tokens, max_completion_tokens]
   Reasoning.Switch: [thinking]
-  Reasoning.Intensity: [reasoning_effort]
-  Output.Structure: [response_format]
-  Tools: [tools, tool_choice, parallel_tool_calls, tools[].function.strict, functions, function_call]
+  Tools: [tools, tool_choice, parallel_tool_calls, functions, function_call]
   Protocol: [stream, stream_options, stream_options.include_usage]
-  Debug: [logprobs, top_logprobs]
-  Metadata: [metadata, store, user]
-  Multimodal: [messages[].content[].image_url, messages[].content[].image_url.detail, messages[].content[].input_audio]
-notes: OpenAI SDK 兼容层；多项参数文档标注为 accepted but ignored。
+  Multimodal: ["messages[].content[].image_url", "messages[].content[].image_url.detail", "messages[].content[].input_audio"]
+  Ignored: [logprobs, top_logprobs, logit_bias, seed, presence_penalty, frequency_penalty, response_format, store, user, metadata, service_tier, reasoning_effort, "tools[].function.strict"]
+notes: OpenAI SDK 兼容层；多项参数官方文档标注为 accepted but ignored（见 Ignored 组，与正文 Ignored 清单一致；官方明示 reasoning_effort、response_format 为 Ignored）。2026-07-08 全文核对一致。
 ---
 
 # Claude OpenAI SDK Compatibility Support List

@@ -1,0 +1,23 @@
+{
+  "case_id_填我": "<provider>_unknown_<param>_effective",
+  "title": "隐性参数探针：<param>（官方文档无定义，实测生效——文档漏洞）",
+  "category": "unknown",
+  "target_group": "<八个固定分组之一>",
+  "parameters": ["<param>"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "<该目录 manifest 的 default_model>",
+    "messages": [{ "role": "user", "content": "<能暴露参数效果的 prompt，如数数配 stop>" }],
+    "max_tokens": 128,
+    "<param>": "<探针值>"
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "doc_support": "undocumented",
+    "undocumented_scenario": "silent_effective",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "官方文档未声明该参数；实测传参改变了响应行为（描述观测到的差异）——文档漏洞（doc_gap），须回写渠道 API 文档。来源：实测（Noctua，YYYY-MM-DD，probe=<probe_id>）。"
+  }
+}

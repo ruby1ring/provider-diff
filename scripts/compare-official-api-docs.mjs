@@ -40,24 +40,29 @@ function isPlausibleParam(name = "") {
 }
 
 function extractOfficialParams(html = "") {
-  const text = html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+  // 只保留 code/pre/table 里的内容再匹配参数名。此前对全文做 \b 词边界匹配，
+  // 会把正文散文里的普通英文单词（user / input / thinking …）误判为 API 参数，
+  // 导致错误参数被补录进 docs（2026-07-08 曾因此误录 DeepSeek `user`、MiniMax `n/stop` 等）。
+  const codeChunks = [];
+  for (const match of html.matchAll(/<(code|pre|td|th)[^>]*>([\s\S]*?)<\/\1>/gi)) {
+    codeChunks.push(match[2]);
+  }
+  const codeText = codeChunks
+    .join(" ")
     .replace(/<[^>]+>/g, " ")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
     .replace(/\s+/g, " ");
 
   const found = new Set();
   for (const hint of PARAM_HINTS) {
-    const patterns = [
-      new RegExp(`["'\`]${hint}["'\`]`, "g"),
-      new RegExp(`\\b${hint}\\b`, "g")
-    ];
-    for (const pattern of patterns) {
-      if (pattern.test(text)) found.add(hint);
-    }
+    // code/表格上下文里的精确 token：引号包裹，或独立成词（键名、单元格）
+    const quoted = new RegExp(`["'\`]${hint}["'\`]`);
+    const bareToken = new RegExp(`(^| )${hint}( |$|[:=])`);
+    if (quoted.test(codeText) || bareToken.test(codeText)) found.add(hint);
   }
 
-  for (const match of text.matchAll(/["']([a-z][a-z0-9_]{1,40})["']/g)) {
+  for (const match of codeText.matchAll(/["']([a-z][a-z0-9_]{1,40})["']/g)) {
     const name = match[1];
     if (isPlausibleParam(name)) found.add(name);
   }
@@ -103,19 +108,23 @@ function diffSets(local = [], official = []) {
   };
 }
 
-function appendObservedSection(body, entries) {
-  const marker = "## 实测补充参数（来源：实测）";
+// 「实测补充参数（来源：实测）」段只允许由真实跑测的回写脚本
+// （apply-doc-gap-backfill.mjs）写入。本脚本的数据来源是官方文档页面对照，
+// 不是实测，必须写进独立的「官方文档对照」段并标注待实测（规则 1.1.3：实测标注只给实测数据）。
+const DOC_SYNC_MARKER = "## 官方文档对照补充参数（来源：官方文档，待实测）";
+
+function appendDocSyncSection(body, entries) {
   const header = "| Parameter | Type | Required | Default | Range | Notes |";
   const sep = "|---|---|---|---|---|---|";
   const rows = entries.map((entry) => {
-    const note = entry.note || `来源：实测（Noctua，${TODAY}）；官方页面检索到该参数。`;
+    const note = entry.note || `来源：官方文档对照（Noctua doc-sync，${TODAY}）；待实测验证。`;
     return `| \`${entry.parameter}\` | \`${entry.type || "—"}\` | no | — | — | ${note} |`;
   }).join("\n");
-  const block = `${marker}\n\n${header}\n${sep}\n${rows}\n`;
+  const block = `${DOC_SYNC_MARKER}\n\n${header}\n${sep}\n${rows}\n`;
 
-  if (body.includes(marker)) {
+  if (body.includes(DOC_SYNC_MARKER)) {
     return body.replace(
-      new RegExp(`${marker}[\\s\\S]*?(?=\\n## |$)`),
+      new RegExp(`${DOC_SYNC_MARKER.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\\s\\S]*?(?=\\n## |$)`),
       `${block.trim()}\n`
     );
   }
@@ -125,30 +134,28 @@ function appendObservedSection(body, entries) {
 function applyOfficialOnly(relPath, officialOnly, manifestMeta) {
   if (!officialOnly.length) return false;
   const abs = path.join(ROOT, relPath);
-  const { meta, body, raw } = localParams(relPath);
+  const { meta, body } = localParams(relPath);
   const mergedMeta = { ...manifestMeta, ...meta };
   const entries = officialOnly.map((parameter) => ({
     parameter,
     type: "—",
-    note: `来源：实测（Noctua，${TODAY}）；联网对照官方文档（${mergedMeta.doc_url || "—"}）检索到该参数，已补录。`
+    note: `来源：官方文档对照（Noctua doc-sync，${TODAY}）；官方文档（${mergedMeta.doc_url || "—"}）记载该参数、本地未收录，结论待实测验证。`
   }));
-  let newBody = appendObservedSection(body, entries);
+  const newBody = appendDocSyncSection(body, entries);
 
   const groups = { ...(mergedMeta.parameter_groups || {}) };
-  if (!groups.Observed) groups.Observed = [];
+  if (!groups.DocSync) groups.DocSync = [];
   for (const p of officialOnly) {
-    if (!groups.Observed.includes(p)) groups.Observed.push(p);
+    if (!groups.DocSync.includes(p)) groups.DocSync.push(p);
   }
   const newMeta = {
     ...mergedMeta,
     parameter_groups: groups,
     last_verified: TODAY,
-    notes: `${mergedMeta.notes || ""} ${TODAY} 联网对照官方文档已补录参数：${officialOnly.join(", ")}。`.trim()
+    notes: `${mergedMeta.notes || ""} ${TODAY} 联网对照官方文档发现未收录参数（待实测）：${officialOnly.join(", ")}。`.trim()
   };
 
-  const output = `${stringifyFrontmatter(newMeta)}${newBody.startsWith("#") ? "" : ""}${newBody.startsWith("#") ? newBody : newBody}`;
-  const fixed = raw.includes("---\n") ? `${stringifyFrontmatter(newMeta)}${newBody}` : output;
-  fs.writeFileSync(abs, fixed.trimEnd() + "\n");
+  fs.writeFileSync(abs, `${stringifyFrontmatter(newMeta)}${newBody}`.trimEnd() + "\n");
   return true;
 }
 
@@ -209,7 +216,7 @@ async function main() {
   fs.mkdirSync(path.dirname(OUT_PATH), { recursive: true });
   fs.writeFileSync(OUT_PATH, `${JSON.stringify(report, null, 2)}\n`);
   console.log(`\n→ ${path.relative(ROOT, OUT_PATH)}`);
-  if (applyStale) console.log("Applied official-only parameters into local docs (实测补充 section).");
+  if (applyStale) console.log("Applied official-only parameters into local docs（官方文档对照段，待实测；不写入实测段）.");
 }
 
 main().catch((err) => {

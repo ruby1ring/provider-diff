@@ -215,6 +215,19 @@ type RunCaseResult struct {
 	OutputLengthCapPrecedence *string              `json:"output_length_cap_precedence,omitempty"`
 	OutputCapEffective        *bool                `json:"output_cap_effective,omitempty"`
 	ParameterDiagnosis        *ParameterDiagnosis  `json:"parameter_diagnosis,omitempty"`
+	Attempts                  []CaseRunAttempt     `json:"attempts,omitempty"`
+	AttemptsFailed            int                  `json:"attempts_failed,omitempty"`
+	ReproVerdict              string               `json:"repro_verdict,omitempty"`
+}
+
+// CaseRunAttempt 记录失败复跑的每次尝试摘要，供报告区分「必现 / 偶发」。
+type CaseRunAttempt struct {
+	Attempt           int      `json:"attempt"`
+	HTTPStatus        int      `json:"http_status"`
+	LatencyMS         int64    `json:"latency_ms"`
+	SupportConclusion string   `json:"support_conclusion,omitempty"`
+	FailedAssertions  []string `json:"failed_assertions,omitempty"`
+	Error             string   `json:"error,omitempty"`
 }
 
 type ParameterDiagnosis struct {
@@ -836,7 +849,7 @@ func (s *Server) handleRunStream(w http.ResponseWriter, r *http.Request) {
 			if caseBaseURL := strings.TrimSpace(tc.BaseURL); caseBaseURL != "" {
 				caseEndpointURL = buildEndpointURL(caseBaseURL, prepared.Manifest.Endpoint)
 			}
-			result := runProviderCase(r.Context(), prepared.Client, caseEndpointURL, prepared.Req.APIKey, prepared.Req.Model, prepared.Manifest, tc)
+			result := runProviderCaseWithRetry(r.Context(), prepared.Client, caseEndpointURL, prepared.Req.APIKey, prepared.Req.Model, prepared.Manifest, tc)
 			log.Printf("run stream provider=%s case=%s index=%d/%d done status=%d latency_ms=%d conclusion=%s error=%q", prepared.Manifest.Provider, tc.CaseID, index+1, total, result.HTTPStatus, result.LatencyMS, result.SupportConclusion, result.Error)
 			results <- indexedRunCaseResult{Index: index, Result: result}
 		}()
@@ -1143,7 +1156,7 @@ func (s *Server) runBatchStreamTarget(ctx context.Context, item batchRunStreamTa
 			if caseBaseURL := strings.TrimSpace(tc.BaseURL); caseBaseURL != "" {
 				caseEndpointURL = buildEndpointURL(caseBaseURL, prepared.Manifest.Endpoint)
 			}
-			result := runProviderCase(ctx, prepared.Client, caseEndpointURL, prepared.Req.APIKey, prepared.Req.Model, prepared.Manifest, tc)
+			result := runProviderCaseWithRetry(ctx, prepared.Client, caseEndpointURL, prepared.Req.APIKey, prepared.Req.Model, prepared.Manifest, tc)
 			log.Printf("batch stream target=%s case=%s index=%d/%d done status=%d latency_ms=%d conclusion=%s error=%q", item.Label, tc.CaseID, index+1, targetTotal, result.HTTPStatus, result.LatencyMS, result.SupportConclusion, result.Error)
 			results <- indexedRunCaseResult{Index: index, Result: result}
 		}()
@@ -1300,7 +1313,7 @@ func (s *Server) runRequest(ctx context.Context, req RunRequest) (RunResponse, *
 			if caseBaseURL := strings.TrimSpace(tc.BaseURL); caseBaseURL != "" {
 				caseEndpointURL = buildEndpointURL(caseBaseURL, prepared.Manifest.Endpoint)
 			}
-			result := runProviderCase(ctx, prepared.Client, caseEndpointURL, prepared.Req.APIKey, prepared.Req.Model, prepared.Manifest, tc)
+			result := runProviderCaseWithRetry(ctx, prepared.Client, caseEndpointURL, prepared.Req.APIKey, prepared.Req.Model, prepared.Manifest, tc)
 			log.Printf("run provider=%s case=%s index=%d/%d done status=%d latency_ms=%d conclusion=%s error=%q", prepared.Manifest.Provider, tc.CaseID, index+1, len(prepared.Selected), result.HTTPStatus, result.LatencyMS, result.SupportConclusion, result.Error)
 			results[index] = result
 		}()
@@ -1663,6 +1676,77 @@ func buildEndpointURL(baseURL, endpoint string) string {
 		return baseURL
 	}
 	return baseURL + endpointPath
+}
+
+// caseRetryLimit：case 首跑失败（网络错误或任一断言未通过）时的额外复跑次数。
+// 复跑用于区分「必现」（每次都失败）与「偶发」（复跑通过，多为网络/服务端瞬时抖动）。
+const caseRetryLimit = 2
+
+func caseRunFailed(result RunCaseResult) bool {
+	if strings.TrimSpace(result.Error) != "" {
+		return true
+	}
+	for _, assertion := range result.Assertions {
+		if !assertion.Pass {
+			return true
+		}
+	}
+	return false
+}
+
+func caseFailedAssertionNames(result RunCaseResult) []string {
+	names := []string{}
+	for _, assertion := range result.Assertions {
+		if !assertion.Pass {
+			names = append(names, assertion.Name)
+		}
+	}
+	return names
+}
+
+func caseAttemptSummary(attempt int, result RunCaseResult) CaseRunAttempt {
+	return CaseRunAttempt{
+		Attempt:           attempt,
+		HTTPStatus:        result.HTTPStatus,
+		LatencyMS:         result.LatencyMS,
+		SupportConclusion: result.SupportConclusion,
+		FailedAssertions:  caseFailedAssertionNames(result),
+		Error:             result.Error,
+	}
+}
+
+// runProviderCaseWithRetry：首跑通过则原样返回（不带 attempts 元数据）；
+// 失败则最多复跑 caseRetryLimit 次——复跑通过返回通过结果并标 repro_verdict=flaky_recovered（偶发），
+// 全部失败返回末次失败结果并标 repro_verdict=consistent（必现）。
+func runProviderCaseWithRetry(ctx context.Context, client *http.Client, endpointURL, apiKey, model string, manifest Manifest, tc TestCase) RunCaseResult {
+	attempts := []CaseRunAttempt{}
+	var last RunCaseResult
+	for attempt := 1; attempt <= caseRetryLimit+1; attempt++ {
+		result := runProviderCase(ctx, client, endpointURL, apiKey, model, manifest, tc)
+		attempts = append(attempts, caseAttemptSummary(attempt, result))
+		if !caseRunFailed(result) {
+			if attempt > 1 {
+				result.Attempts = attempts
+				result.AttemptsFailed = attempt - 1
+				result.ReproVerdict = "flaky_recovered"
+			}
+			return result
+		}
+		last = result
+		if attempt <= caseRetryLimit {
+			select {
+			case <-ctx.Done():
+				last.Attempts = attempts
+				last.AttemptsFailed = len(attempts)
+				return last
+			case <-time.After(time.Duration(attempt) * 800 * time.Millisecond):
+			}
+		}
+	}
+	last.Attempts = attempts
+	last.AttemptsFailed = len(attempts)
+	last.ReproVerdict = "consistent"
+	return last
 }
 
 func runProviderCase(ctx context.Context, client *http.Client, endpointURL, apiKey, model string, manifest Manifest, tc TestCase) RunCaseResult {

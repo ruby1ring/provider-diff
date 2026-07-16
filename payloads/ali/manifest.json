@@ -102,6 +102,10 @@
     "094_search_strategy_agent_max.json",
     "100_header_data_inspection.json",
     "110_skill_ppt.json",
-    "111_observability_usage_fields.json"
+    "111_observability_usage_fields.json",
+    "120_unknown_user_probe.json",
+    "121_unknown_service_tier_probe.json",
+    "122_unknown_frequency_penalty_probe.json",
+    "123_unknown_logit_bias_probe.json"
   ]
 }

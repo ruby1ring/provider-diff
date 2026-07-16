@@ -1,3 +1,4 @@
+/* global module */
 /**
  * Parameter support policy diagnosis — documented vs undocumented boundary rules.
  * See docs/project/api-doc-update-rules.md

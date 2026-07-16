@@ -1,15 +1,18 @@
-.PHONY: dev test build-icon backend-test bench-test lint lint-js lint-go
+.PHONY: dev test build-icon backend-test bench-test js-test lint lint-js lint-go
 
 dev:
 	npm run dev
 
-test: backend-test bench-test
+test: backend-test bench-test js-test
 
 backend-test:
 	cd backend && go test ./...
 
 bench-test:
 	cd llm-bench && go test ./...
+
+js-test:
+	npm run test:channel-report-intent && npm run test:parameter-diagnosis && npm run test:model-oem-behaviors
 
 lint: lint-js lint-go
 

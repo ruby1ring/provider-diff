@@ -1,0 +1,24 @@
+{
+  "provider": "model_behaviors_moonshot",
+  "base_url": "https://api.moonshot.cn/v1",
+  "endpoint": "/chat/completions",
+  "method": "POST",
+  "source": "../../docs/api/moonshot-chat.md",
+  "default_model": "kimi-k2.5",
+  "reasoning_model": "kimi-k2.6",
+  "vision_model": "",
+  "notes": [
+    "Moonshot (Kimi) OEM 原厂参考 case：仅在 runV02 测评模型为 Kimi 系列时注入到对应分组子区。",
+    "跑批时对用户选择的每一个测评渠道（Baseline + Target）各执行一次。",
+    "原厂行为（2026-07-08 实测）：kimi-k2 系列采样参数锁死，传非默认值直接 400——与 DeepSeek「接受但忽略」相反；第三方渠道应与该行为对照。"
+  ],
+  "common_expect": {},
+  "cases": [
+    "010_k2_temperature_rejected.json",
+    "011_k2_top_p_rejected.json",
+    "012_k2_n_rejected.json",
+    "013_k2_presence_penalty_rejected.json",
+    "020_k25_thinking_keep_rejected.json",
+    "021_k27code_thinking_disable_rejected.json"
+  ]
+}

@@ -91,7 +91,18 @@ npm run build:error-code-catalog
 
 | 文件 | 说明 |
 |------|------|
+| [api-doc-update-rules.md](project/api-doc-update-rules.md) | **API 文档维护 + 用例设计 + 报告解读统一规则**（实测优先） |
 | [protocol-md-template.md](project/protocol-md-template.md) | 协议 md 整理模板 |
 | [protocol-parameter-mapping.md](project/protocol-parameter-mapping.md) | 测评协议参数矩阵维护 |
 | [error-code-mapping.md](project/error-code-mapping.md) | 渠道错误码映射维护 |
 | [capacity-probe-methodology.md](project/capacity-probe-methodology.md) | 容量探测方法论 |
+| [cache-probe-methodology.md](project/cache-probe-methodology.md) | 缓存命中探测方法论 |
+| [performance-benchmark-design.md](project/performance-benchmark-design.md) | 性能测试需求设计（主流程范围外） |
+| [branch-protection.md](project/branch-protection.md) | GitHub 分支保护配置 |
+
+## 归档
+
+| 位置 | 说明 |
+|------|------|
+| [api/archive/openrouter.case.md](api/archive/openrouter.case.md) | OpenRouter 原始 endpoint 测试导出（`payloads/openrouter/130-158` 官方用例的溯源记录） |
+| [errorcode/archive/](errorcode/archive/) | 错误码原始抓取材料（normalize 脚本的输入源） |

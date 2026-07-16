@@ -1,0 +1,37 @@
+{
+  "case_id": "or_top_k_zero_probe",
+  "title": "边界探针：top_k=0（下界口径 0 vs 1 不一致）",
+  "category": "unknown",
+  "target_group": "protocol_sampling",
+  "parameters": [
+    "top_k"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek/deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句中文打个招呼。"
+      }
+    ],
+    "max_tokens": 32,
+    "top_k": 0
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "doc_support": "undocumented",
+    "undocumented_scenario": "silent_ignore",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "官方文档未声明该参数；实测 2xx 静默接受、未观察到行为差异。来源：实测（Noctua，2026-07-08，probe=or_top_k_zero）。实测模型 deepseek/deepseek-v4-flash（openai/gpt-4o-mini 当前区域 403 不可用）。"
+  }
+}

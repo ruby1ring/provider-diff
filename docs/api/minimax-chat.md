@@ -14,8 +14,8 @@ parameter_groups:
   Tools: [tools]
   Protocol: [stream, stream_options.include_usage]
   Extra: [service_tier]
-  Observed: [input, n, stop, stream_options, user]
-notes: 对照 docs/api/minimax-chat.md（2026-06-25）。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：input, n, stop, stream_options, user。
+  Observed: [n]
+notes: 对照官方文档（2026-07-08）。n 官方 schema 未定义、实测 400 拒绝；stop/user/logit_bias/thinking-disable 复测因余额不足待重测。 类型字段按该渠道官方 API 原文收录。
 ---
 # MiniMax Chat Completions API Notes
 
@@ -26,6 +26,18 @@ notes: 对照 docs/api/minimax-chat.md（2026-06-25）。 类型字段按该渠�
 |---|---|
 | China | `POST https://api.minimaxi.com/v1/chat/completions` |
 | International | `POST https://api.minimax.io/v1/chat/completions` |
+
+## Models
+
+来源：官方文档（2026-07-08 核对）。
+
+| Model | Context | Thinking | Notes |
+|---|---|---|---|
+| `MiniMax-M3` | 1M | 可控（`adaptive` / `disabled`） | |
+| `MiniMax-M2.7` / `MiniMax-M2.7-highspeed` | — | 不可关闭 | |
+| `MiniMax-M2.5` / `MiniMax-M2.5-highspeed` | — | 不可关闭 | |
+| `MiniMax-M2.1` / `MiniMax-M2.1-highspeed` | — | 不可关闭 | |
+| `MiniMax-M2` | — | 不可关闭 | |
 
 ## Required Request Fields
 
@@ -39,7 +51,7 @@ notes: 对照 docs/api/minimax-chat.md（2026-06-25）。 类型字段按该渠�
 | Parameter | Type | Required | Default | Range | Notes |
 |---|---|---|---|---|---|
 | `thinking` | `object` | no | `{"type":"adaptive"}` | — | 思考模式：M3 可开关，M2.x 无法关闭。 |
-| `thinking.type` | `string` | no | `adaptive` | `adaptive` \| `disabled` | 仅 M3 支持 `disabled`。 |
+| `thinking.type` | `string` | no | `adaptive` | `adaptive` \| `disabled` | 仅 M3 支持 `disabled`。M2.x 传 `disabled` 的实际行为：2026-07-08 复测因账号余额不足（HTTP 402 insufficient balance 1008）未完成，待重测（probe=minimax_m2x_thinking_disabled）。 |
 | `reasoning_split` | `boolean` | no | — | — | 仅影响输出格式（是否拆分推理与回复），不切换思考模式。 |
 | `stream` | `boolean` | no | `false` | — | 是否流式返回。 |
 | `stream_options.include_usage` | `boolean` | no | `false` | — | 流式最后一个 chunk 是否附带 usage。 |
@@ -61,7 +73,16 @@ notes: 对照 docs/api/minimax-chat.md（2026-06-25）。 类型字段按该渠�
 | `n` | Only `1` supported |
 | Audio input | Not supported via OpenAI-compatible API |
 
-### Not in OpenAPI
+## 实测补充参数（来源：实测）
+
+官方请求 schema 未声明、由边界探针验证的参数（三类边界判定见 docs/project/api-doc-update-rules.md 1.2）：
+
+| Parameter | Type | Required | Default | Range | Notes |
+|---|---|---|---|---|---|
+| `n` | `integer` | no | — | — | 官方请求 schema 未定义。实测 `n=2` → 400 `invalid params, model[MiniMax-M2.7] does not support n > 1 (2013)`（undocumented_rejected）。来源：实测（Noctua，2026-07-08，probe=minimax_n_probe） |
+| `stop` | `string \| array` | — | — | — | 2026-07-08 复测因账号余额不足（HTTP 402 insufficient balance 1008）未完成，待重测（probe=minimax_stop_effect）。 |
+| `user` | `string` | — | — | — | 2026-07-08 复测因账号余额不足（HTTP 402 insufficient balance 1008）未完成，待重测（probe=minimax_user_probe）。 |
+| `logit_bias` | `object` | — | — | — | 2026-07-08 复测因账号余额不足（HTTP 402 insufficient balance 1008）未完成，待重测（probe=minimax_logit_bias_probe）。 |
 
 ## 实测：temperature 字面量
 
@@ -77,13 +98,3 @@ notes: 对照 docs/api/minimax-chat.md（2026-06-25）。 类型字段按该渠�
 > 实测与文档不一致时，在「实测」列记录 HTTP 状态、错误码或实际行为；勿改写「官方文档」列。
 
 ## Raw Archive
-
-## 实测补充参数（来源：实测）
-
-| Parameter | Type | Required | Default | Range | Notes |
-|---|---|---|---|---|---|
-| `input` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。 |
-| `n` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。 |
-| `stop` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。 |
-| `stream_options` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。 |
-| `user` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://platform.minimax.io/docs/api-reference/text-chat-openai）检索到该参数，已补录。 |

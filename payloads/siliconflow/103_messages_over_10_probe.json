@@ -1,0 +1,76 @@
+{
+  "case_id": "sf_messages_over_10_probe",
+  "title": "边界探针：11 条 messages（官方 schema maxItems=10，实测未强制）",
+  "category": "unknown",
+  "target_group": "protocol",
+  "parameters": [
+    "messages"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "max_tokens": 32,
+    "messages": [
+      {
+        "role": "user",
+        "content": "1"
+      },
+      {
+        "role": "assistant",
+        "content": "1"
+      },
+      {
+        "role": "user",
+        "content": "2"
+      },
+      {
+        "role": "assistant",
+        "content": "2"
+      },
+      {
+        "role": "user",
+        "content": "3"
+      },
+      {
+        "role": "assistant",
+        "content": "3"
+      },
+      {
+        "role": "user",
+        "content": "4"
+      },
+      {
+        "role": "assistant",
+        "content": "4"
+      },
+      {
+        "role": "user",
+        "content": "5"
+      },
+      {
+        "role": "assistant",
+        "content": "5"
+      },
+      {
+        "role": "user",
+        "content": "用一句中文打个招呼。"
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "doc_support": "undocumented",
+    "undocumented_scenario": "silent_effective",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "官方 schema messages maxItems=10；实测 11 条返回 200 正常处理——上限未强制，官方 schema 与网关行为不一致（doc_gap）。来源：实测（Noctua，2026-07-08，probe=sf_messages_11_items）。实测模型 Qwen/Qwen3-8B（cn 站）。"
+  }
+}

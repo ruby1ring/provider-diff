@@ -15,11 +15,29 @@
   "common_expect": {
     "http_status": 200,
     "support_conclusion": "ignored",
-    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
-    "choice_required_fields": ["index", "message", "finish_reason"],
-    "usage_required_fields": ["prompt_tokens", "completion_tokens", "total_tokens"]
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage",
+      "system_fingerprint"
+    ],
+    "choice_required_fields": [
+      "index",
+      "message",
+      "finish_reason"
+    ],
+    "usage_required_fields": [
+      "prompt_tokens",
+      "completion_tokens",
+      "total_tokens"
+    ]
   },
   "cases": [
-    "010_thinking_sampling_ignored.json"
+    "010_thinking_sampling_ignored.json",
+    "011_thinking_reasoning_effort_nested.json",
+    "012_thinking_logprobs_effective.json"
   ]
 }

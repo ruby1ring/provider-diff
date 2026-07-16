@@ -1,0 +1,46 @@
+{
+  "case_id": "deepseek_oem_thinking_reasoning_effort_nested",
+  "title": "推理强度新写法 thinking.reasoning_effort（官方已从顶层迁入 thinking 对象）",
+  "category": "reasoning",
+  "case_scope": "oem_reference",
+  "oem_vendor": "deepseek",
+  "target_group": "protocol_thinking",
+  "parameters": [
+    "thinking"
+  ],
+  "requires_model_capability": "thinking",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句中文打个招呼。"
+      }
+    ],
+    "max_tokens": 1024,
+    "thinking": {
+      "type": "enabled",
+      "reasoning_effort": "high"
+    }
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "evaluation_intent": "observe",
+    "case_scope": "oem_reference",
+    "target_group": "protocol_thinking",
+    "oem_source": "https://api-docs.deepseek.com/zh-cn/api/create-chat-completion",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage",
+      "system_fingerprint"
+    ],
+    "notes": "DeepSeek OEM：官方已把 reasoning_effort 移入 thinking 对象（high/max）。嵌套与顶层旧写法实测均返回 200（来源：实测（Noctua，2026-07-08，probe=deepseek_reasoning_effort_nested）；顶层 probe=deepseek_reasoning_effort_top_level）。第三方渠道应验证两种写法的兼容性与 Baseline 一致。"
+  }
+}

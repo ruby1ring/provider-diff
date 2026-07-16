@@ -1,0 +1,22 @@
+{
+  "case_id_填我": "<provider>_unknown_<param>_rejected",
+  "title": "隐性参数探针：<param>（官方文档无定义，传参直接报错——兼容风险）",
+  "category": "unknown",
+  "target_group": "<八个固定分组之一>",
+  "parameters": ["<param>"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "<该目录 manifest 的 default_model>",
+    "messages": [{ "role": "user", "content": "用一句中文打个招呼。" }],
+    "max_tokens": 32,
+    "<param>": "<探针值>"
+  },
+  "expect": {
+    "http_status": 400,
+    "support_conclusion": "rejected_400",
+    "doc_support": "undocumented",
+    "undocumented_scenario": "reject_on_pass",
+    "notes": "官方文档未声明该参数；实测传参直接 4xx（附错误信息原文）——undocumented_rejected，影响 OpenAI 兼容透传，兼容风险。来源：实测（Noctua，YYYY-MM-DD，probe=<probe_id>）。"
+  }
+}

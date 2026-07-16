@@ -2,13 +2,32 @@
   "case_id": "vllm_length_max_tokens",
   "title": "max_tokens length limit",
   "category": "length",
-  "parameters": ["max_tokens"],
+  "parameters": [
+    "max_tokens"
+  ],
   "method": "POST",
   "path": "/chat/completions",
   "payload": {
     "model": "NousResearch/Meta-Llama-3-8B-Instruct",
-    "messages": [{"role": "user", "content": "Return a brief compatibility note."}],
+    "messages": [
+      {
+        "role": "user",
+        "content": "Return a brief compatibility note."
+      }
+    ],
     "max_tokens": 32
   },
-  "expect": {}
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "vLLM OpenAI-compat 官方支持 max_tokens；生效性断言见 033_length_max_tokens_only_effective。"
+  }
 }

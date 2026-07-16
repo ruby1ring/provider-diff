@@ -2,16 +2,24 @@
   "case_id": "deepseek_protocol_stream_basic",
   "title": "stream 基础流式返回",
   "category": "protocol",
-  "parameters": ["stream"],
+  "parameters": [
+    "stream"
+  ],
   "method": "POST",
   "path": "/chat/completions",
   "payload": {
     "model": "deepseek-v4-flash",
     "messages": [
-      {"role": "user", "content": "请用流式方式逐句输出 3 到 5 句简短中文问候，不要一次性全部给出。"}
+      {
+        "role": "user",
+        "content": "请用流式方式逐句输出 3 到 5 句简短中文问候，不要一次性全部给出。"
+      }
     ],
     "stream": true,
-    "max_tokens": 128
+    "max_tokens": 128,
+    "thinking": {
+      "type": "disabled"
+    }
   },
   "expect": {
     "http_status": 200,
@@ -19,7 +27,13 @@
     "response_mode": "sse",
     "stream_incremental": true,
     "stream_probe_attempts": 1,
-    "required_chunk_fields": ["id", "object", "created", "model", "choices"],
-    "notes": "stream=true 时返回 text/event-stream，分片以 data: [DONE] 结束；增量分片按 content 或 reasoning_content 合计至少 2 个 chunk，探测 1 次。"
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ],
+    "notes": "stream=true 时返回 text/event-stream，分片以 data: [DONE] 结束；增量分片按 content 或 reasoning_content 合计至少 2 个 chunk，探测 1 次。显式关闭思考：deepseek-v4-flash 默认开思考，max_tokens=128 会被 reasoning 全部占用导致 0 个 content chunk（2026-07-12 实测必现），本 case 只测基础流式协议。"
   }
 }

@@ -2,14 +2,33 @@
   "case_id": "vllm_sampling_temperature",
   "title": "temperature sampling",
   "category": "sampling",
-  "parameters": ["temperature"],
+  "parameters": [
+    "temperature"
+  ],
   "method": "POST",
   "path": "/chat/completions",
   "payload": {
     "model": "NousResearch/Meta-Llama-3-8B-Instruct",
-    "messages": [{"role": "user", "content": "Return one short sentence about sampling."}],
+    "messages": [
+      {
+        "role": "user",
+        "content": "Return one short sentence about sampling."
+      }
+    ],
     "temperature": 0.2,
     "max_tokens": 64
   },
-  "expect": {}
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "vLLM OpenAI-compat 官方支持 temperature；单次请求无法断言采样效果，验证接受与响应结构。"
+  }
 }

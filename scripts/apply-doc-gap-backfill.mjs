@@ -10,7 +10,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { parseFrontmatter, stringifyFrontmatter } from "./lib/md-parse.mjs";
 import { docPathForChannel, resolveChannelId } from "./lib/channel-doc-map.mjs";
-import { PROTOCOL_DOC_MANIFEST } from "./protocol-doc-manifest.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const AUDIT_PATH = path.join(ROOT, "outputs/doc-gap-audit.json");
@@ -104,7 +103,6 @@ function patchManifest(relPath, parameters) {
   if (!source.includes(entryKey)) return;
 
   for (const param of parameters) {
-    const observedNeedle = `${entryKey}`;
     if (source.includes(`Observed: [${param}]`) || source.includes(`Observed: [${param},`)) continue;
     const re = new RegExp(`("${relPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"[\\s\\S]*?parameter_groups:\\s*\\{)`);
     if (!source.match(re)) continue;

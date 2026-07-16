@@ -1,0 +1,37 @@
+{
+  "case_id": "or_legacy_route_probe",
+  "title": "废弃参数探针：route=fallback（官方标 DEPRECATED，映射 providers.sort.partition）",
+  "category": "unknown",
+  "target_group": "protocol",
+  "parameters": [
+    "route"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek/deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句中文打个招呼。"
+      }
+    ],
+    "max_tokens": 32,
+    "route": "fallback"
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "doc_support": "undocumented",
+    "undocumented_scenario": "silent_ignore",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "官方文档未声明该参数；实测 2xx 静默接受、未观察到行为差异。来源：实测（Noctua，2026-07-08，probe=or_route_legacy）。实测模型 deepseek/deepseek-v4-flash（openai/gpt-4o-mini 当前区域 403 不可用）。"
+  }
+}

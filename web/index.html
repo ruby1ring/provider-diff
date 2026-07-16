@@ -38,7 +38,7 @@
             <div class="sidebar-group">
               <div class="sidebar-group-label">协议兼容性测评</div>
               <div class="sidebar-group-items">
-                <a href="#guide" data-view-link="guide">测评说明</a>
+                <a class="is-active" href="#guide" data-view-link="guide">测评说明</a>
                 <a href="#channels" data-view-link="channels">已支持测评渠道</a>
                 <a href="#protocols" data-view-link="protocols">已支持测评协议</a>
                 <a href="#models" data-view-link="models">已支持测评模型</a>
@@ -46,8 +46,8 @@
                 <a href="#channel-performance" data-view-link="channel-performance">渠道性能测评工具</a>
                 <a href="#channel-reports" data-view-link="channel-reports">渠道参数测评报告</a>
                 <a href="#channel-performance-reports" data-view-link="channel-performance-reports">渠道性能测评报告</a>
-                <a class="is-active" href="#run-v01" data-view-link="run-v01">测评工具 V0.1</a>
-                <a href="#reports" data-view-link="reports">测评报告 V0.1</a>
+                <a href="#run-v01" data-view-link="run-v01" title="历史版本，验证新版后将下线">测评工具 V0.1（旧版）</a>
+                <a href="#reports" data-view-link="reports" title="历史版本，验证新版后将下线">测评报告 V0.1（旧版）</a>
               </div>
             </div>
             <div class="sidebar-group">
@@ -62,7 +62,7 @@
         </aside>
 
         <main class="app-main">
-        <section id="guideView" class="app-view is-hidden" data-view="guide">
+        <section id="guideView" class="app-view" data-view="guide">
           <div class="page-head">
             <div>
               <h1>测评说明</h1>
@@ -73,7 +73,7 @@
           <section class="panel">
             <div class="sec-head">
               <div>
-                <p class="eyebrow">Protocols</p>
+                <p class="eyebrow">协议矩阵</p>
                 <h2>支持的协议类型</h2>
               </div>
             </div>
@@ -111,7 +111,7 @@
           <section class="panel" style="margin-top: var(--space-5)">
             <div class="sec-head">
               <div>
-                <p class="eyebrow">Overview</p>
+                <p class="eyebrow">概览</p>
                 <h2>什么是协议兼容性测评</h2>
               </div>
             </div>
@@ -121,22 +121,22 @@
           <section class="panel" style="margin-top: var(--space-5)">
             <div class="sec-head">
               <div>
-                <p class="eyebrow">Workflow</p>
+                <p class="eyebrow">使用流程</p>
                 <h2>推荐使用流程</h2>
               </div>
             </div>
             <ol class="guide-steps">
-              <li>在<strong>测评工具</strong>中选择渠道与 endpoint，填写 API Key、Base URL、Model。</li>
-              <li>勾选需要验证的参数 case 或组合 case，点击运行测试。</li>
-              <li>查看每个 case 的支持结论、断言明细与结构 diff，必要时导出 JSON / Markdown。</li>
-              <li>在<strong>测评报告 V0.1</strong>中汇总历史跑批，对比供应商兼容性与失败分布。</li>
+              <li>打开<a href="#run-v02" data-view-link="run-v02"><strong>渠道参数测评工具</strong></a>，按页面上的五步向导选好测评模型、协议、Baseline（对照基准）与要测评的渠道——完成后即可准备跑测。</li>
+              <li>填写各渠道的连接信息（Endpoint 接口地址、API Key 访问密钥、API 模型 ID），勾选要验证的 case，点击「运行测试」——工具会向各渠道发出真实请求。</li>
+              <li>等待跑批完成——每个 case 会直接给出「是否达标」结论，以及与 Baseline 的响应差异明细，无需自行判读原始数据。</li>
+              <li>打开<a href="#channel-reports" data-view-link="channel-reports"><strong>渠道参数测评报告</strong></a>查看本次报告——包含各渠道接入建议排序与术语说明，可直接用于结论汇报。</li>
             </ol>
           </section>
 
           <section class="panel" style="margin-top: var(--space-5)">
             <div class="sec-head">
               <div>
-                <p class="eyebrow">Output</p>
+                <p class="eyebrow">测评产出</p>
                 <h2>测评产出</h2>
               </div>
             </div>
@@ -179,7 +179,7 @@
           <div id="modelLookup"></div>
         </section>
 
-        <section id="runView" class="app-view" data-view="run-v01">
+        <section id="runView" class="app-view is-hidden" data-view="run-v01">
           <div class="page-head">
             <div>
               <h1>测评工具 V0.1</h1>
@@ -417,7 +417,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
           <section class="panel run-v02-step">
             <div class="sec-head">
               <div>
-                <p class="eyebrow">Step 1</p>
+                <p class="eyebrow">第 1 步</p>
                 <h2>选择测评模型</h2>
               </div>
             </div>
@@ -448,12 +448,13 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
                 </div>
               </div>
             </div>
+            <aside id="runV02OemRuleBanner" class="oem-rule-banner is-hidden" aria-live="polite"></aside>
           </section>
 
           <section id="runV02ProtocolPanel" class="panel run-v02-step">
             <div class="sec-head">
               <div>
-                <p class="eyebrow">Step 2</p>
+                <p class="eyebrow">第 2 步</p>
                 <h2>选择测评协议</h2>
               </div>
               <span id="runV02ProtocolHint" class="muted mono fs-xs">先选择模型</span>
@@ -465,11 +466,12 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
           <section id="runV02ChannelPanel" class="panel run-v02-step is-hidden">
             <div class="sec-head">
               <div>
-                <p class="eyebrow">Step 3</p>
+                <p class="eyebrow">第 3 步</p>
                 <h2>选择 Baseline 与测评渠道</h2>
               </div>
               <span id="runV02RouteHint" class="muted mono fs-xs">先选择协议</span>
             </div>
+            <p class="muted fs-xs run-v02-step-help">Baseline = 对照基准：以该渠道的响应为标准答案，衡量其他渠道是否一致（一般选原厂官方 API）。</p>
             <div class="fld run-v02-select-field">
               <span class="lbl">Baseline 渠道</span>
               <div id="runV02BaselineSelect" class="search-select">
@@ -532,18 +534,19 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
           <section id="runV02ConfigPanel" class="panel run-v02-step is-hidden">
             <div class="sec-head">
               <div>
-                <p class="eyebrow">Step 4</p>
+                <p class="eyebrow">第 4 步</p>
                 <h2>渠道连接配置</h2>
               </div>
               <span id="runV02SelectedRoute" class="muted mono fs-xs"></span>
             </div>
+            <p class="muted fs-xs run-v02-step-help">Endpoint = 接口地址（服务商提供的 API 域名）· API Key = 访问密钥 · API 模型 ID = 该渠道内此模型的名称。</p>
             <div id="runV02ChannelConfigs" class="run-v02-channel-configs"></div>
           </section>
 
           <section id="runV02CasePanel" class="panel run-v02-step is-hidden">
             <div class="sec-head">
               <div>
-                <p class="eyebrow">Step 5</p>
+                <p class="eyebrow">第 5 步</p>
                 <h2>选择测评 case</h2>
               </div>
               <button id="runV02Tests" class="btn btn-primary btn-lg" type="button" disabled>运行测试</button>
@@ -674,7 +677,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
           <div class="page-head">
             <div>
               <h1>渠道性能测评报告</h1>
-              <p>汇总各渠道 llm-bench 压测结果，横向对比 TTFT、吞吐与 Goodput；点击展开查看指标对比表与原始 JSON。</p>
+              <p>汇总各渠道 llm-bench 压测结果，横向对比 TTFT（首字延迟，越小越好）、吞吐与 Goodput（有效吞吐：满足延迟目标的请求占比）；点击展开查看指标对比表与原始 JSON。</p>
             </div>
             <div class="row gap-2">
               <button id="clearChannelPerfReports" class="btn btn-ghost" type="button">清空历史</button>
@@ -717,7 +720,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
           <div class="page-head">
             <div>
               <h1>渠道性能测评工具</h1>
-              <p>选择模型与协议，对 Baseline 与多个测评渠道执行 llm-bench 压测，对比 TTFT、吞吐与 Goodput。</p>
+              <p>选择模型与协议，对 Baseline 与多个测评渠道执行 llm-bench 压测，对比 TTFT（首字延迟，越小越好）、吞吐与 Goodput（有效吞吐）。</p>
             </div>
             <button id="runChannelPerfBenchmark" class="btn btn-primary btn-lg" type="button" disabled>运行性能测试</button>
           </div>
@@ -725,7 +728,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
           <section class="panel run-v02-step">
             <div class="sec-head">
               <div>
-                <p class="eyebrow">Step 1</p>
+                <p class="eyebrow">第 1 步</p>
                 <h2>选择测评模型</h2>
               </div>
             </div>
@@ -761,7 +764,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
           <section id="channelPerfProtocolPanel" class="panel run-v02-step">
             <div class="sec-head">
               <div>
-                <p class="eyebrow">Step 2</p>
+                <p class="eyebrow">第 2 步</p>
                 <h2>选择测评协议</h2>
               </div>
               <span id="channelPerfProtocolHint" class="muted mono fs-xs">先选择模型</span>
@@ -773,7 +776,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
           <section id="channelPerfChannelPanel" class="panel run-v02-step is-hidden">
             <div class="sec-head">
               <div>
-                <p class="eyebrow">Step 3</p>
+                <p class="eyebrow">第 3 步</p>
                 <h2>选择 Baseline 与测评渠道</h2>
               </div>
               <span id="channelPerfRouteHint" class="muted mono fs-xs">先选择协议</span>
@@ -838,7 +841,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
           <section id="channelPerfConfigPanel" class="panel run-v02-step is-hidden">
             <div class="sec-head">
               <div>
-                <p class="eyebrow">Step 4</p>
+                <p class="eyebrow">第 4 步</p>
                 <h2>配置连接信息</h2>
               </div>
               <span id="channelPerfSelectedRoute" class="muted mono fs-xs"></span>
@@ -849,7 +852,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
           <section id="channelPerfBenchmarkPanel" class="panel run-v02-step is-hidden">
             <div class="sec-head">
               <div>
-                <p class="eyebrow">Step 5</p>
+                <p class="eyebrow">第 5 步</p>
                 <h2>Benchmark 参数</h2>
               </div>
             </div>

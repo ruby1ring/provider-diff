@@ -3,20 +3,21 @@ channel_id: openai
 protocol_id: chat_completions
 doc_status: verified
 doc_url: "https://platform.openai.com/docs/api-reference/chat/create"
+doc_url_alt: "https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create"
 last_verified: 2026-06-16
 compare: false
 required_parameters: [model, messages]
 parameter_groups:
-  Sampling: [temperature, top_p, n, seed, stop, frequency_penalty, presence_penalty, logit_bias]
+  Sampling: [temperature, top_p, n, seed, stop, frequency_penalty, presence_penalty, logit_bias, verbosity]
   Length: [max_tokens, max_completion_tokens]
   Reasoning.Intensity: [reasoning_effort]
   Output.Structure: [response_format]
   Tools: [tools, tool_choice, parallel_tool_calls]
   Protocol: [stream, stream_options, stream_options.include_usage]
   Debug: [logprobs, top_logprobs]
-  Metadata: [user, metadata, store]
+  Metadata: [user, metadata, store, safety_identifier, prompt_cache_key]
   Extra: [service_tier, prediction, audio]
-notes: 参考基线渠道；docs/api/openai.md 含更多未列入矩阵的字段。
+notes: 参考基线渠道；docs/api/openai.md 含更多未列入矩阵的字段。2026-07-08 尝试核验，platform.openai.com 反爬 403 未能完整比对全参数表（last_verified 保持 2026-06-16）；developers.openai.com 镜像部分核对（max_tokens deprecated、user 由 safety_identifier + prompt_cache_key 取代、verbosity 仅 GPT-5 系列）。
 ---
 
 # OpenAI Chat Completions Support List
@@ -33,6 +34,7 @@ Sources:
 - https://platform.openai.com/docs/guides/prompt-caching
 - https://platform.openai.com/docs/guides/vision
 - https://platform.openai.com/docs/guides/audio
+- https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create (备用镜像地址；2026-07-08 用于部分核对，platform.openai.com 当日反爬 403)
 
 This file is a support matrix for compatibility-test design. It intentionally lists supported fields and caveats instead of mirroring the full API reference. OpenAI recommends the Responses API for new projects, but this document only covers the Chat Completions endpoint.
 
@@ -85,8 +87,8 @@ This file is a support matrix for compatibility-test design. It intentionally li
 | Part Type | Support | Shape / Notes |
 |---|---|---|
 | `text` | supported | `{ "type": "text", "text": "..." }`. Only content part supported for `developer`, `system`, and `tool` messages. |
-| `image_url` | supported | `{ "type": "image_url", "image_url": { "url": "...", "detail": "auto|low|high" } }`; URL or base64 image data. Model-dependent. |
-| `input_audio` | supported | `{ "type": "input_audio", "input_audio": { "data": "...", "format": "wav|mp3" } }`; base64 audio input. Model-dependent. |
+| `image_url` | supported | `{ "type": "image_url", "image_url": { "url": "...", "detail": "auto\|low\|high" } }`; URL or base64 image data. Model-dependent. |
+| `input_audio` | supported | `{ "type": "input_audio", "input_audio": { "data": "...", "format": "wav\|mp3" } }`; base64 audio input. Model-dependent. |
 | `file` | supported | `{ "type": "file", "file": { "file_data": "...", "file_id": "...", "filename": "..." } }`; for file/text inputs. |
 | `refusal` | supported for assistant messages | `{ "type": "refusal", "refusal": "..." }`; assistant refusal content part. |
 
@@ -105,11 +107,11 @@ This file is a support matrix for compatibility-test design. It intentionally li
 | `store` | supported | `boolean` | Allows storing output for distillation/evals. Supports text and image inputs; image inputs over 8 MB may be dropped. |
 | `metadata` | supported | object of string pairs | Max 16 pairs; key max 64 chars; value max 512 chars. |
 | `service_tier` | supported | `auto`, `default`, `flex`, `scale`, `priority` | Response may report the actual tier used, which can differ from request value. |
-| `user` | supported but being replaced | `string` | Legacy stable end-user identifier; docs say use `safety_identifier` and `prompt_cache_key` instead. |
+| `user` | supported but being replaced | `string` | Legacy stable end-user identifier; replaced by `safety_identifier` and `prompt_cache_key`. Official wording: "Use prompt_cache_key instead." (developers.openai.com, cross-checked 2026-07-08) |
 | `safety_identifier` | supported | `string`, max 64 | Stable abuse-prevention identifier; should not contain raw private user data. |
 | `prompt_cache_key` | supported | `string` | Replaces `user` for cache bucketing / prompt-cache hit-rate optimization. |
 | `prompt_cache_retention` | supported | `in_memory`, `24h` | `24h` enables extended prompt cache retention up to 24 hours. |
-| `prediction` | supported | `{ "type": "content", "content": string | array<text part> }` | Predicted output for faster regeneration when generated tokens match supplied content. |
+| `prediction` | supported | `{ "type": "content", "content": string \| array<text part> }` | Predicted output for faster regeneration when generated tokens match supplied content. |
 
 ## Sampling And Generation Parameters
 
@@ -124,7 +126,7 @@ This file is a support matrix for compatibility-test design. It intentionally li
 | `stop` | supported with caveat | string or `array<string>` | Up to 4 stop sequences. Not supported with latest reasoning models `o3` and `o4-mini`. |
 | `logprobs` | supported | `boolean` | Returns log probabilities for output tokens in `message.content` when supported. |
 | `top_logprobs` | supported | integer `0` to `20` | Requires `logprobs: true`. |
-| `verbosity` | supported | `low`, `medium`, `high` | Controls response verbosity where supported. |
+| `verbosity` | supported | `low`, `medium` (default), `high` | Controls response verbosity; GPT-5 series models only. (developers.openai.com, cross-checked 2026-07-08) |
 
 ## Reasoning Parameters
 
@@ -156,14 +158,14 @@ This file is a support matrix for compatibility-test design. It intentionally li
 | `tools[].function.strict` | supported | `boolean` | Strict schema adherence; only subset of JSON Schema is supported. |
 | `tools[].type=custom` | supported | custom tool | Custom tool input can be free-form text or grammar-constrained text. |
 | `tools[].custom.format.type=text` | supported | `{ "type": "text" }` | Unconstrained custom-tool input. |
-| `tools[].custom.format.type=grammar` | supported | `{ "type": "grammar", "grammar": { "syntax": "lark|regex", "definition": "..." } }` | Grammar-constrained custom-tool input. |
+| `tools[].custom.format.type=grammar` | supported | `{ "type": "grammar", "grammar": { "syntax": "lark\|regex", "definition": "..." } }` | Grammar-constrained custom-tool input. |
 | `parallel_tool_calls` | supported | `boolean` | Enables parallel tool calls during tool use. |
 | `tool_choice=none` | supported | string | Model must not call tools. Default when no tools are present. |
 | `tool_choice=auto` | supported | string | Model may answer or call one or more tools. Default when tools are present. |
 | `tool_choice=required` | supported | string | Model must call one or more tools. |
 | `tool_choice` named function | supported | `{ "type": "function", "function": { "name": "..." } }` | Forces a specific function tool. |
 | `tool_choice` named custom | supported | `{ "type": "custom", "custom": { "name": "..." } }` | Forces a specific custom tool. |
-| `tool_choice.type=allowed_tools` | supported | `{ "type": "allowed_tools", "allowed_tools": { "mode": "auto|required", "tools": [...] } }` | Restricts tool choices to a predefined set. |
+| `tool_choice.type=allowed_tools` | supported | `{ "type": "allowed_tools", "allowed_tools": { "mode": "auto\|required", "tools": [...] } }` | Restricts tool choices to a predefined set. |
 | `functions` | deprecated | legacy array | Deprecated in favor of `tools`. |
 | `function_call` | deprecated | legacy string/object | Deprecated in favor of `tool_choice`; response `message.function_call` is also deprecated. |
 

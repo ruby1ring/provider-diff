@@ -13,10 +13,23 @@
 3. **实测优先回写**：文档与实测不一致时，同步更新 `docs/api/*.md` 与 `scripts/protocol-doc-manifest.mjs`，并在 Notes / 实测表中**强制标注来源**：
 
    ```text
-   来源：实测（Noctua，YYYY-MM-DD，report_id=…）
+   来源：实测（Noctua，YYYY-MM-DD，report_id=… 或 probe=…）
    ```
 
 4. **禁止覆盖官方列**：`protocol-md-template` 中「官方文档」列只写厂商原文；「实测 (Noctua)」列写 HTTP 状态、结论与行为备注。
+
+5. **两种来源、两个段落，禁止混写**：
+   - `## 实测补充参数（来源：实测）` — 只允许真实跑测的结果写入（`apply-doc-gap-backfill.mjs` 回写报告结论，或人工回写 `probe-param-boundary.mjs` 探针结论）。
+   - `## 官方文档对照补充参数（来源：官方文档，待实测）` — `compare:official-docs --apply-stale` 联网对照官方页面发现的未收录参数写这里（frontmatter 分组 `DocSync`），**必须待实测确认后才能转入实测段或正文**。
+   - 教训（2026-07-08）：曾把联网对照结果直接标成「来源：实测」，且页面正则误匹配普通英文单词（user/input/n/stop），56 行错误补录已全部回滚。对照脚本现只匹配 code/表格上下文。
+
+6. **实测探针工具**：发现文档冲突或隐性参数时，先在 `scripts/probe-param-boundary.mjs` 里登记探针（含 doc_conflict 说明），跑：
+
+   ```bash
+   node scripts/probe-param-boundary.mjs --provider <config.yaml 段名>
+   ```
+
+   结果落 `outputs/param-boundary-probe.json`（三类结论 + HTTP 状态 + 证据），作为回写依据。注意：401/402/403/429 及欠费类错误体会被判为 `blocked_account_or_quota`，不算参数结论。
 
 ### 1.2 隐性参数（文档未声明支持）三类边界
 
@@ -61,12 +74,20 @@ Case `expect` 须设置：
 
 ### 2.2 厂商专属（OEM 参考）case
 
-- 存放：`payloads/model_behaviors_{vendor}/`
-- 标记：`case_scope: "oem_reference"`、`target_group` 指向固定分组
-- 注入：选择对应测评模型时，由 `web/lib/model-oem-behaviors.js` 注入该分组
-- UI：Run v02 与报告内显示 **「原厂参考」** 标记及 `oem_source` 链接
+- 存放：`payloads/model_behaviors_{vendor}/`，已落地四家：
+  `model_behaviors_deepseek`、`model_behaviors_moonshot`、`model_behaviors_zhipu`、`model_behaviors_minimax`
+- 标记：`case_scope: "oem_reference"`、`oem_vendor`、`target_group` 指向固定分组、`expect.oem_source` 指向原厂文档
+- 注入：选择对应测评模型时，由 `web/lib/model-oem-behaviors.js` 注入该分组（厂商识别 `inferEvalModelVendorId`：deepseek*/kimi*/glm*/minimax* 前缀）
+- UI：Run v02 与报告内显示 **「原厂参考」** 标记及 `oem_source` 链接；选中模型后顶部渲染该厂商特殊规则提示条（`vendorRules(vendorId)`）
 
-示例：`deepseek_oem_thinking_sampling_ignored` — DeepSeek v4 flash 在 Thinking 模式下采样参数接受但不生效；第三方渠道须与 Baseline 对齐。
+核心示例（各厂商差异化行为，2026-07-08 实测）：
+
+| 厂商 | 行为 | case |
+|------|------|------|
+| DeepSeek | Thinking 模式采样参数**接受但不生效** | `deepseek_oem_thinking_sampling_ignored` |
+| Kimi k2 系列 | 采样参数锁死，**传非默认值直接 400**（与 DeepSeek 相反） | `moonshot_oem_k2_temperature_rejected` 等 |
+| 智谱 | `do_sample=false` 为采样总开关；官方称 stop 仅单个停止词但**实测多停止词生效** | `zhipu_oem_do_sample_false_sampling_ignored` 等 |
+| MiniMax | M2.x 思考不可关（disabled 被接受但照常思考）；`n>1` 直接 400 | `minimax_oem_m2x_thinking_disable_ineffective` 等 |
 
 ### 2.3 Case 完整性审计
 
@@ -74,7 +95,11 @@ Case `expect` 须设置：
 npm run audit:case-coverage
 ```
 
-输出各分组 case 数、缺失的 `undocumented_scenario` 覆盖、无 `expect.support_conclusion` 的 case 列表。
+审计与后端加载同口径（合并 manifest `common_expect`），输出：
+
+- 各分组 case 数 + 三类隐性边界覆盖状态（按 `target_group` 归组）
+- 可判定性分类：`judged`（有 support_conclusion）/ `observational`（观测型断言）/ `structural`（仅结构断言）/ `empty`（**无效 case，须补断言或删除**）
+- 同目录重复 payload 候选（比对 payload 原文，保留 1 vs 1.0 的 int/float 差异；`include_usage` vs `usage_chunk_shape` 与 `thinking_baseline_no_thinking` vs `thinking_baseline_fixed_prompt` 为有意的同 payload 双角色设计，不删）
 
 ---
 
@@ -117,7 +142,9 @@ npm run scan:doc-gaps -- web/data/channel-reports-export.json
 | 文件 | 用途 |
 |------|------|
 | `web/lib/parameter-diagnosis.js` | 参数支持策略诊断（前后端同源逻辑） |
+| `scripts/probe-param-boundary.mjs` | 隐性参数 / 文档冲突实测探针（结果落 `outputs/param-boundary-probe.json`） |
 | `scripts/scan-report-doc-gaps.mjs` | 批量扫描报告 |
 | `scripts/audit-case-coverage.mjs` | 分组 case 完整性审计 |
+| `payloads/undocumented_boundary/` | 三类隐性边界 case 模板（复制到渠道目录使用） |
 | `docs/project/protocol-parameter-mapping.md` | 协议矩阵与 thinking observed 回写 |
-| `web/lib/model-oem-behaviors.js` | OEM 参考 case 注入 |
+| `web/lib/model-oem-behaviors.js` | OEM 参考 case 注入 + 厂商特殊规则摘要（`vendorRules`） |

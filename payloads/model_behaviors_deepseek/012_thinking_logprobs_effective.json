@@ -1,0 +1,49 @@
+{
+  "case_id": "deepseek_oem_thinking_logprobs_effective",
+  "title": "思考模式下 logprobs 实测正常生效（官方忽略清单不含 logprobs）",
+  "category": "reasoning",
+  "case_scope": "oem_reference",
+  "oem_vendor": "deepseek",
+  "target_group": "protocol_thinking",
+  "parameters": [
+    "thinking",
+    "logprobs",
+    "top_logprobs"
+  ],
+  "requires_model_capability": "thinking",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句中文打个招呼。"
+      }
+    ],
+    "max_tokens": 1024,
+    "thinking": {
+      "type": "enabled"
+    },
+    "logprobs": true,
+    "top_logprobs": 2
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "evaluation_intent": "observe",
+    "case_scope": "oem_reference",
+    "target_group": "protocol_thinking",
+    "oem_source": "https://api-docs.deepseek.com/zh-cn/guides/thinking_mode",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage",
+      "system_fingerprint"
+    ],
+    "notes": "DeepSeek OEM：思考模式忽略清单（temperature/top_p/presence/frequency）不含 logprobs；实测 choices[0].logprobs 非空返回、正常生效。来源：实测（Noctua，2026-07-08，probe=deepseek_logprobs_thinking）。"
+  }
+}

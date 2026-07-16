@@ -3,7 +3,7 @@ channel_id: streamlake
 protocol_id: chat_completions
 doc_status: verified
 doc_url: "https://www.streamlake.com/document/WANQING/mq6k66r6xgqwnfbd8t"
-last_verified: 2026-06-25
+last_verified: 2026-07-08
 compare: true
 required_parameters: [model, messages]
 parameter_groups:
@@ -16,7 +16,7 @@ parameter_groups:
   Tools: [tools, tool_choice, parallel_tool_calls]
   Protocol: [stream, stream_options, stream_options.include_usage]
   Debug: [logprobs, top_logprobs]
-notes: 对照 docs/api/streamlake-chat.md（2026-06-25）。model 为推理点 ID（ep-xxx）。 类型字段按该渠道官方 API 原文收录。
+notes: 对照官方文档（2026-07-08，全文核对一致）。model 为推理点 ID（ep-xxx）。官方确认无 frequency_penalty、无请求级 thinking 对象；response_format 三种 text/json_object/json_schema。 类型字段按该渠道官方 API 原文收录。
 ---
 
 # StreamLake / 快手万擎 Chat Completions API Notes

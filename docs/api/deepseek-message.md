@@ -11,12 +11,12 @@ parameter_groups:
   Sampling: [temperature, top_p, stop_sequences]
   Reasoning.Switch: [thinking]
   Output.Structure: [output_config]
-  Tools: [tools, tools[].name, tools[].description, tools[].input_schema, tool_choice]
+  Tools: [tools, "tools[].name", "tools[].description", "tools[].input_schema", tool_choice]
   Protocol: [stream]
   Metadata: [metadata, metadata.user_id]
   Unsupported: [top_k, container, mcp_servers, service_tier]
-  Observed: [input, user, user_id]
-notes: 对照 docs/api/deepseek-message.md（2026-06-16）。temperature [0,2]；thinking.budget_tokens Ignored。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：input, user, user_id。
+  Observed: [user, input]
+notes: 对照官方文档（2026-07-08）。temperature [0,2]；thinking.budget_tokens Ignored；顶层 user / input 官方支持表无、实测静默接受。 类型字段按该渠道官方 API 原文收录。
 ---
 # DeepSeek Anthropic Messages API Notes
 
@@ -162,14 +162,15 @@ export ANTHROPIC_API_KEY=${YOUR_API_KEY}
 
 > 实测与文档不一致时，在「实测」列记录 HTTP 状态、错误码或实际行为；勿改写「官方文档」列。
 
-## Official Archive
-
-Source page: https://api-docs.deepseek.com/zh-cn/guides/anthropic_api
-
 ## 实测补充参数（来源：实测）
+
+官方 anthropic_api 支持表未列出、由边界探针验证的参数（三类边界判定见 docs/project/api-doc-update-rules.md 1.2）：
 
 | Parameter | Type | Required | Default | Range | Notes |
 |---|---|---|---|---|---|
-| `input` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://api-docs.deepseek.com/zh-cn/guides/anthropic_api）检索到该参数，已补录。 |
-| `user` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://api-docs.deepseek.com/zh-cn/guides/anthropic_api）检索到该参数，已补录。 |
-| `user_id` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://api-docs.deepseek.com/zh-cn/guides/anthropic_api）检索到该参数，已补录。 |
+| `user` | `string` | no | — | — | 官方 anthropic_api 支持表无此参数。顶层传入 HTTP 200 静默接受、无可观测效果（silent_ignore）。来源：实测（Noctua，2026-07-08，probe=deepseek_msgs_user_top_level） |
+| `input` | `string` | no | — | — | 官方 anthropic_api 支持表无此参数。顶层传入 HTTP 200 静默接受、无可观测效果（silent_ignore）。来源：实测（Noctua，2026-07-08，probe=deepseek_msgs_input_top_level） |
+
+## Official Archive
+
+Source page: https://api-docs.deepseek.com/zh-cn/guides/anthropic_api

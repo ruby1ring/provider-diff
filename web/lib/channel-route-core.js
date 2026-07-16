@@ -1,6 +1,7 @@
 /**
  * 渠道测评共享：协议定义、路由选项、连接配置（无 DOM 依赖）。
  */
+/* global PROTOCOL_CATALOG_DEFS */
 window.NOCTUA_CHANNEL_ROUTE_CORE = (() => {
   const SUPPORTED_PROTOCOLS = new Set(["chat_completions", "anthropic_messages"]);
 

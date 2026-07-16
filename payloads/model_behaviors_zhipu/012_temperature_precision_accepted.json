@@ -1,0 +1,43 @@
+{
+  "case_id": "zhipu_oem_temperature_precision_accepted",
+  "title": "官方限 temperature 两位小数，实测传三位小数不报错",
+  "category": "sampling",
+  "case_scope": "oem_reference",
+  "oem_vendor": "zhipu",
+  "target_group": "protocol_sampling",
+  "parameters": [
+    "temperature"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "glm-4.7-flash",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句中文打个招呼。"
+      }
+    ],
+    "max_tokens": 64,
+    "temperature": 0.123
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "doc_support": "undocumented",
+    "undocumented_scenario": "silent_ignore",
+    "evaluation_intent": "observe",
+    "case_scope": "oem_reference",
+    "target_group": "protocol_sampling",
+    "oem_source": "https://docs.bigmodel.cn/api-reference/%E6%A8%A1%E5%9E%8B-api/%E5%AF%B9%E8%AF%9D%E8%A1%A5%E5%85%A8",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "智谱 OEM：官方「temperature 限两位小数」，实测 0.123 返回 200 接受（是否截断精度无法外部观测）。来源：实测（Noctua，2026-07-08，probe=zhipu_temperature_precision）。"
+  }
+}

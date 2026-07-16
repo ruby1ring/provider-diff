@@ -2,7 +2,10 @@
   "case_id": "deepseek_length_max_completion_tokens_stop",
   "title": "max_completion_tokens 与 stop 组合",
   "category": "length",
-  "parameters": ["max_completion_tokens", "stop"],
+  "parameters": [
+    "max_completion_tokens",
+    "stop"
+  ],
   "method": "POST",
   "path": "/chat/completions",
   "payload": {
@@ -19,7 +22,19 @@
   },
   "expect": {
     "http_status": 200,
-    "support_conclusion": "supported",
-    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"]
+    "support_conclusion": "ignored",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage",
+      "system_fingerprint"
+    ],
+    "token_limit_enforced": false,
+    "doc_support": "undocumented",
+    "undocumented_scenario": "silent_ignore",
+    "notes": "max_completion_tokens 与 stop 组合：实测 cap 被静默忽略（cap=48 实际 183）、stop 正常生效。来源：实测（Noctua，2026-07-12，case=deepseek_length_max_completion_tokens_stop）。"
   }
 }

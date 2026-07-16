@@ -4,6 +4,8 @@
 
 # 错误码
 
+> 官方文档：[错误码 | 智谱开放平台](https://docs.bigmodel.cn/cn/api/api-code)（FAQ 目录下 https://docs.bigmodel.cn/cn/faq/api-code 与之逐字一致；**无英文版**，2026-07-12 核查）
+
 调用智谱 AI 开放平台 API 时，接收到的响应码由两部分组成：外层是 HTTP 状态码，内层是响应体正文中的定义的业务错误码，提供了更具体的错误描述。
 
 | 业务错误码 | HTTP 状态码 | 错误信息                                                                                                          |
@@ -63,4 +65,15 @@
 {"error":{"code":"1001","message":"Header 中未收到 Authentication 参数，无法进行身份验证"}}
 ```
 
-> **注：** 使用流式（SSE）调用时，如果 API 在推理过程中异常终止，不会返回上述错误码，而是在响应体的 `finish_reason` 参数中返回异常原因，详情请参考 `finish_reason` 的参数说明。
+## 错误响应形态（解析器注意）
+
+- 错误响应体形态为 `{"error":{"code":"1001","message":"..."}}`：`code` 是**字符串数字**，且无 `type` / `param` 字段（**非 OpenAI 形态**）。来源：官方错误响应示例（https://docs.bigmodel.cn/cn/api/api-code ）。
+- 实测无效 API key 返回**表外 code `"401"`**：`{"error":{"code":"401","message":"令牌已过期或验证不正确"}}`——该值不在官方错误码表中（表中鉴权类为 1000/1001/1003/1005），**解析器需容忍表外 code**。来源：实测（Noctua，2026-07-12）。
+- 实测不带 Authorization 头返回 code `"1001"`，message 为「Header中未收到Authorization参数，无法进行身份验证。」（官方文档示例写的是 Authentication，实际返回写的是 Authorization）。来源：实测（Noctua，2026-07-12）。
+- **欠费走 HTTP 429（业务码 1113），不是 402/403**——三家对比：DeepSeek 余额不足走 402、SiliconFlow 余额不足走 403（30001）。做余额类错误判定时不能只看 HTTP 状态码。
+
+## 流式（SSE）中途异常：不返回错误码
+
+> **官方注记（原文）：** 使用流式（SSE）调用时，如果 API 在推理过程中异常终止，**不会返回上述错误码，而是在响应体的 `finish_reason` 参数中返回异常原因**，详情请参考 `finish_reason` 的参数说明。
+
+**测评/网关做流式错误判定时关键**：SSE 中途异常不能依赖 HTTP 状态码或 error 对象，必须检查 `finish_reason`。

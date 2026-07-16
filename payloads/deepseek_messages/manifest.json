@@ -14,8 +14,16 @@
   ],
   "common_expect": {
     "http_status": 200,
-    "required_response_fields": ["id", "type", "role", "content", "model"],
-    "content_required_fields": ["type"]
+    "required_response_fields": [
+      "id",
+      "type",
+      "role",
+      "content",
+      "model"
+    ],
+    "content_required_fields": [
+      "type"
+    ]
   },
   "cases": [
     "001_messages_minimal.json",
@@ -27,6 +35,8 @@
     "030_stop_sequences.json",
     "040_tools_auto.json",
     "050_stream_basic.json",
-    "060_thinking_budget.json"
+    "060_thinking_budget.json",
+    "090_unknown_user_probe.json",
+    "091_unknown_input_probe.json"
   ]
 }

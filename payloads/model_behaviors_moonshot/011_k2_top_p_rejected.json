@@ -1,0 +1,33 @@
+{
+  "case_id": "moonshot_oem_k2_top_p_rejected",
+  "title": "k2 系列 top_p 锁死：传 0.5 直接报 400",
+  "category": "sampling",
+  "case_scope": "oem_reference",
+  "oem_vendor": "moonshot",
+  "target_group": "protocol_sampling",
+  "parameters": [
+    "top_p"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "kimi-k2.5",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句中文打个招呼。"
+      }
+    ],
+    "max_completion_tokens": 512,
+    "top_p": 0.5
+  },
+  "expect": {
+    "http_status": 400,
+    "support_conclusion": "rejected_400",
+    "evaluation_intent": "observe",
+    "case_scope": "oem_reference",
+    "target_group": "protocol_sampling",
+    "oem_source": "https://platform.kimi.com/docs/guide/kimi-k2-6-quickstart",
+    "notes": "Kimi OEM：官方文档明示 k2 系列该参数不可自定义。原厂实测返回 400「invalid top_p: only 0.95 is allowed for this model」。来源：实测（Noctua，2026-07-08，probe=moonshot_k2_top_p）。第三方渠道应与 Baseline 拒绝行为对照。"
+  }
+}

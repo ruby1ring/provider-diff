@@ -2,14 +2,20 @@
   "case_id": "minimax_unknown_seed_probe",
   "title": "seed parameter probe",
   "category": "unknown",
-  "parameters": ["seed"],
+  "target_group": "protocol_sampling",
+  "parameters": [
+    "seed"
+  ],
   "optional": true,
   "method": "POST",
   "path": "/chat/completions",
   "payload": {
     "model": "MiniMax-M2.7",
     "messages": [
-      {"role": "user", "content": "Return one short sentence about deterministic probes."}
+      {
+        "role": "user",
+        "content": "Return one short sentence about deterministic probes."
+      }
     ],
     "seed": 12345,
     "temperature": 0.7,
@@ -20,7 +26,14 @@
     "support_conclusion": "ignored",
     "doc_support": "undocumented",
     "undocumented_scenario": "silent_ignore",
-    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
     "notes": "seed is not clearly documented for MiniMax OpenAI-compatible endpoint; optional probe."
   }
 }

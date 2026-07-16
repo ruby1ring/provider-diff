@@ -19,9 +19,25 @@
   "common_expect": {
     "http_status": 200,
     "support_conclusion": "supported",
-    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
-    "choice_required_fields": ["index", "message", "finish_reason"],
-    "usage_required_fields": ["prompt_tokens", "completion_tokens", "total_tokens"]
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage",
+      "system_fingerprint"
+    ],
+    "choice_required_fields": [
+      "index",
+      "message",
+      "finish_reason"
+    ],
+    "usage_required_fields": [
+      "prompt_tokens",
+      "completion_tokens",
+      "total_tokens"
+    ]
   },
   "cases": [
     "001_basic_minimal.json",
@@ -88,6 +104,7 @@
     "101_multiturn_json_object.json",
     "102_multiturn_tools.json",
     "110_beta_prefix_completion_optional.json",
-    "111_beta_prefix_reasoning_content_optional.json"
+    "111_beta_prefix_reasoning_content_optional.json",
+    "120_unknown_user_probe.json"
   ]
 }

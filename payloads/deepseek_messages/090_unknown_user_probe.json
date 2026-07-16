@@ -1,0 +1,29 @@
+{
+  "case_id": "dsm_unknown_user_probe",
+  "title": "隐性参数探针：顶层 user（官方 anthropic 支持表无此参数）",
+  "category": "unknown",
+  "target_group": "protocol",
+  "parameters": [
+    "user"
+  ],
+  "method": "POST",
+  "path": "/messages",
+  "payload": {
+    "model": "deepseek-v4-flash",
+    "max_tokens": 64,
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句中文打个招呼。"
+      }
+    ],
+    "user": "noctua-probe"
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "doc_support": "undocumented",
+    "undocumented_scenario": "silent_ignore",
+    "notes": "官方 anthropic_api 支持表无 user；实测 200 静默接受。来源：实测（Noctua，2026-07-08，probe=deepseek_msgs_user_top_level）。"
+  }
+}

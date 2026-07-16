@@ -2,7 +2,9 @@
   "case_id": "deepseek_length_max_completion_tokens_only_effective",
   "title": "仅 max_completion_tokens 生效性",
   "category": "length",
-  "parameters": ["max_completion_tokens"],
+  "parameters": [
+    "max_completion_tokens"
+  ],
   "method": "POST",
   "path": "/chat/completions",
   "payload": {
@@ -18,9 +20,20 @@
   },
   "expect": {
     "http_status": 200,
-    "support_conclusion": "supported",
+    "support_conclusion": "ignored",
     "output_cap_effective": "observed",
-    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
-    "notes": "仅传 max_completion_tokens=64 强制长输出，观测该参数是否真限制输出。与 max_tokens 单参 case 对比可判断两字段是等价别名还是语义不同。"
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage",
+      "system_fingerprint"
+    ],
+    "notes": "仅传 max_completion_tokens 观测生效性：实测 DeepSeek 官方不执行该参数（cap=64 实际 completion_tokens=919，含 reasoning）。来源：实测（Noctua，2026-07-12，case=deepseek_length_max_completion_tokens_only_effective）。",
+    "token_limit_enforced": false,
+    "doc_support": "undocumented",
+    "undocumented_scenario": "silent_ignore"
   }
 }

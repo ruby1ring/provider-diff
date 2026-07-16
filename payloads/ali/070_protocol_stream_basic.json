@@ -16,7 +16,8 @@
       }
     ],
     "stream": true,
-    "max_tokens": 128
+    "max_tokens": 128,
+    "enable_thinking": false
   },
   "expect": {
     "http_status": 200,
@@ -31,6 +32,6 @@
       "model",
       "choices"
     ],
-    "notes": "流式 case 验证 SSE/chunk 结构与增量分片（content 或 reasoning_content 合计至少 2 个增量 chunk）；探测 1 次。Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+    "notes": "流式 case 验证 SSE/chunk 结构与增量分片（content 或 reasoning_content 合计至少 2 个增量 chunk）；探测 1 次。Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation. 显式 enable_thinking=false：百炼 deepseek-v4 系列默认开思考，128 token 预算会被 reasoning 占满导致 0 content chunk（与 deepseek 官方渠道 2026-07-12 实测同款问题），本 case 只测基础流式协议。"
   }
 }

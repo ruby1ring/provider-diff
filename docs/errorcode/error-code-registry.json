@@ -175,15 +175,16 @@
       "channel_id": "deepseek",
       "label": "DeepSeek",
       "logo": "/assets/logos/deepseek.ico",
-      "docStatus": "partial",
+      "docStatus": "verified",
       "localDoc": "docs/errorcode/deepseek.md",
       "docUrl": "https://api-docs.deepseek.com/zh-cn/quick_start/error_codes",
+      "notes": "envelope 形态来源：实测（Noctua，2026-07-12）。官方错误码页全量仅 7 条 HTTP 状态码、无业务子码；官方未公布 content_filter/permission_denied/model_not_found/context_length/timeout/bad_gateway 对应错误码，映射不硬凑，等实测补充",
       "envelope": {
-        "summary": "主要依赖 HTTP 状态码；响应体未必包含 OpenAI 形态 error 对象",
+        "summary": "OpenAI 形态 error 对象（实测 401 含 message/type/param/code 四字段；来源：实测 Noctua 2026-07-12）；网关层无鉴权头时返回纯文本，需容错",
         "httpPath": "(HTTP status)",
-        "codePath": null,
-        "typePath": null,
-        "messagePath": "(response body text)"
+        "codePath": "error.code",
+        "typePath": "error.type",
+        "messagePath": "error.message"
       },
       "entries": [
         {
@@ -232,10 +233,10 @@
       "mappings": {
         "auth_invalid": {
           "http": 401,
-          "nativeCode": "401",
-          "nativeType": null,
-          "nativeMessage": "API key 错误，认证失败",
-          "notes": "HTTP 401，无独立 error.code"
+          "nativeCode": "invalid_request_error",
+          "nativeType": "authentication_error",
+          "nativeMessage": "Authentication Fails, Your api key: ****-key is invalid",
+          "notes": "实测（Noctua，2026-07-12）：error.type=authentication_error 而 error.code=invalid_request_error，两者不一致，按 type 判定更可靠；无 Authorization 头时网关返回非 JSON 纯文本 Authentication Fails (governor)"
         },
         "rate_limit": {
           "http": 429,
@@ -274,11 +275,11 @@
       "channel_id": "zhipu",
       "label": "智谱",
       "logo": "/assets/logos/zhipu.svg",
-      "docStatus": "partial",
+      "docStatus": "verified",
       "localDoc": "docs/errorcode/zhipu.md",
-      "docUrl": "https://docs.bigmodel.cn/cn/guide/develop/error",
+      "docUrl": "https://docs.bigmodel.cn/cn/api/api-code",
       "envelope": {
-        "summary": "HTTP 状态码 + 业务错误码 error.code（字符串数字）",
+        "summary": "HTTP 状态码 + 业务错误码 error.code（字符串数字，无 type/param，非 OpenAI 形态）；SSE 流式中途异常不返回错误码，改经 finish_reason 返回异常原因",
         "httpPath": "(HTTP status)",
         "codePath": "error.code",
         "typePath": null,
@@ -375,7 +376,8 @@
           "http": 401,
           "nativeCode": "1001",
           "nativeType": null,
-          "nativeMessage": "Header 中未收到 Authentication 参数"
+          "nativeMessage": "Header 中未收到 Authentication 参数",
+          "notes": "实测（Noctua，2026-07-12）：无效 key 返回表外 code \"401\"（令牌已过期或验证不正确），解析器需容忍表外 code"
         },
         "rate_limit": {
           "http": 429,
@@ -387,7 +389,8 @@
           "http": 429,
           "nativeCode": "1113",
           "nativeType": null,
-          "nativeMessage": "账户已欠费，请充值后重试"
+          "nativeMessage": "账户已欠费，请充值后重试",
+          "notes": "欠费走 HTTP 429，不是 402/403（对比：DeepSeek 402、SiliconFlow 403）"
         },
         "invalid_parameter": {
           "http": 400,
@@ -424,6 +427,12 @@
           "nativeCode": "1200",
           "nativeType": null,
           "nativeMessage": "API 调用失败"
+        },
+        "engine_overloaded": {
+          "http": 429,
+          "nativeCode": "1305",
+          "nativeType": null,
+          "nativeMessage": "该模型当前访问量过大，请您稍后再试"
         }
       }
     },
@@ -1166,13 +1175,13 @@
       "channel_id": "siliconflow",
       "label": "SiliconFlow",
       "logo": "/assets/logos/siliconflow-mark.svg",
-      "docStatus": "partial",
+      "docStatus": "verified",
       "localDoc": "docs/errorcode/siliconflow.md",
-      "docUrl": "https://docs.siliconflow.cn/en/faqs/error-code",
+      "docUrl": "https://docs.siliconflow.cn/cn/faqs/error-code",
       "mdMerge": false,
-      "envelopeNotes": "完整业务码见 localDoc（136 条）；catalog 仅展示 LLM 网关高频场景代表码",
+      "envelopeNotes": "完整业务码表官方已下线（2026-07-12 核查），localDoc 大表仅作历史参考；entries 为历史高频代表码，catalog 仅展示 LLM 网关高频场景",
       "envelope": {
-        "summary": "HTTP 状态码 + 顶层业务错误码 code（数字）与 message；非 OpenAI error 嵌套形态",
+        "summary": "HTTP + 业务 code（数字）；但 401/403/404/504 返回裸字符串、429 对象无 code——形态按状态码不统一，解析需分支容错",
         "httpPath": "(HTTP status)",
         "codePath": "code",
         "typePath": null,
@@ -1251,15 +1260,15 @@
           "http": 401,
           "nativeCode": null,
           "nativeType": null,
-          "nativeMessage": "API Key 未正确设置",
-          "notes": "文档仅列 HTTP 401，响应体未必含业务 code"
+          "nativeMessage": "Invalid token / Api key is invalid",
+          "notes": "401 响应体为裸 JSON 字符串（非对象），无业务 code；官方 API 参考示例 \"Invalid token\"，实测（Noctua，2026-07-12）无效 key 返回 \"Api key is invalid\""
         },
         "rate_limit": {
           "http": 429,
           "nativeCode": "50601",
           "nativeType": "RPMRateLimitCode",
           "nativeMessage": "已达到 RPM（每分钟请求数）限制，请稍后再试",
-          "notes": "TPM 等见 50602+"
+          "notes": "TPM 等见 50602+（历史码表）；现行官方 API 参考的 429 示例响应体无 code 字段，仅 message + data"
         },
         "insufficient_quota": {
           "http": 403,
@@ -1289,7 +1298,8 @@
           "http": 400,
           "nativeCode": "20012",
           "nativeType": "ModelNotExistCode",
-          "nativeMessage": "所选模型不存在，请重新选择"
+          "nativeMessage": "所选模型不存在，请重新选择",
+          "notes": "20012 经现行官方 FAQ / API 参考确认（2026-07-12）"
         },
         "context_length": {
           "http": 413,
@@ -1309,13 +1319,14 @@
           "nativeCode": "50505",
           "nativeType": "ModelServiceTooBusyErrCode",
           "nativeMessage": "系统当前负载较高，请稍后重试",
-          "notes": "亦可 50603 EconnoisseurBannedCode"
+          "notes": "50505 经现行官方 API 参考确认（503，Model service overloaded）；亦可 50603 EconnoisseurBannedCode（历史码表）"
         },
         "timeout": {
           "http": 504,
           "nativeCode": "50501",
           "nativeType": "ModelServiceTimeoutErrCode",
-          "nativeMessage": "系统超时，请稍后重试"
+          "nativeMessage": "系统超时，请稍后重试",
+          "notes": "现行官方 API 参考的 504 示例响应体为裸字符串，无业务 code；50501 来自历史码表"
         },
         "bad_gateway": {
           "http": 503,

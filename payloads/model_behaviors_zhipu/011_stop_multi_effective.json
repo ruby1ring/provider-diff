@@ -1,0 +1,50 @@
+{
+  "case_id": "zhipu_oem_stop_multi_effective",
+  "title": "官方称 stop 仅支持单个停止词，实测传两个停止词也生效（文档漏洞）",
+  "category": "sampling",
+  "case_scope": "oem_reference",
+  "oem_vendor": "zhipu",
+  "target_group": "protocol_sampling",
+  "parameters": [
+    "stop"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "glm-4.7-flash",
+    "messages": [
+      {
+        "role": "user",
+        "content": "从一数到十，用中文数字，用空格分隔，不要输出其他内容。"
+      }
+    ],
+    "max_tokens": 512,
+    "thinking": {
+      "type": "disabled"
+    },
+    "stop": [
+      "五",
+      "六"
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "doc_support": "undocumented",
+    "undocumented_scenario": "silent_effective",
+    "evaluation_intent": "observe",
+    "case_scope": "oem_reference",
+    "target_group": "protocol_sampling",
+    "oem_source": "https://docs.bigmodel.cn/api-reference/%E6%A8%A1%E5%9E%8B-api/%E5%AF%B9%E8%AF%9D%E8%A1%A5%E5%85%A8",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "assistant_content_non_empty": true,
+    "notes": "智谱 OEM：官方文档「目前仅支持单个停止词」，实测传 [\"五\",\"六\"] 输出止于「四」——多停止词实际生效，属文档漏洞（doc_gap）。来源：实测（Noctua，2026-07-08，probe=zhipu_stop_multiple）。"
+  }
+}

@@ -2072,6 +2072,40 @@ body.protocol-drawer-open { overflow: hidden; }
 
 .run-v02-step + .run-v02-step { margin-top: var(--space-5); }
 .run-v02-select-field { margin: 0; max-width: 640px; }
+.run-v02-step-help { margin: calc(var(--space-2) * -1) 0 var(--space-4); max-width: 72ch; line-height: 1.6; }
+
+/* 测评模型原厂特殊规则提示条（Step 1 下方，随模型切换刷新） */
+.oem-rule-banner {
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--status-warning) 35%, var(--border));
+  border-left: 4px solid var(--status-warning);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--status-warning) 10%, var(--surface));
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+.oem-rule-banner__title {
+  display: block;
+  color: var(--status-warning-text, #9a6700);
+  margin-bottom: var(--space-2);
+}
+.oem-rule-banner__list {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 4px;
+}
+.oem-rule-banner__list a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.oem-rule-banner__footer {
+  margin: var(--space-2) 0 0;
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+}
 
 .run-v02-protocol-picker {
   display: flex;
@@ -3919,3 +3953,109 @@ details.suite > summary .muted { font-weight: 500; }
   border-radius: 4px;
   vertical-align: middle;
 }
+
+/* ---- 原始响应智能展示（问题分片标红 / 无异常折叠 / 展开全部）---- */
+.raw-response__bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 6px;
+}
+.raw-response__bar .grow { flex: 1; }
+.raw-response__toggle {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--fg-muted);
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 2px 10px;
+  cursor: pointer;
+}
+.raw-response__toggle:hover { color: var(--ink); border-color: var(--border-strong); }
+.raw-chunk { display: block; padding: 2px 0; }
+.raw-chunk + .raw-chunk { border-top: 1px dashed var(--border-subtle); margin-top: 6px; padding-top: 8px; }
+.raw-chunk--problem {
+  background: var(--status-danger-subtle);
+  border-left: 3px solid var(--status-danger);
+  padding-left: 8px;
+  border-radius: 4px;
+}
+.raw-chunk--gap {
+  color: var(--fg-muted);
+  font-size: 12px;
+  text-align: center;
+  user-select: none;
+}
+.raw-response__body--clamped {
+  max-height: 340px;
+  overflow: hidden;
+  position: relative;
+}
+.raw-response__body--clamped::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 48px;
+  background: linear-gradient(to bottom, transparent, var(--surface));
+  pointer-events: none;
+}
+
+/* ---- 复跑判定（必现/偶发）徽标 ---- */
+.badge-sm.flaky {
+  background: var(--status-warning-bg);
+  color: var(--status-warning-text);
+}
+.case-attempts {
+  list-style: none;
+  margin: 4px 0 8px;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.case-attempts__item {
+  font-size: 12px;
+  font-family: var(--font-mono, monospace);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--surface-2, var(--surface));
+  border-left: 3px solid var(--status-danger);
+}
+.case-attempts__item.is-pass { border-left-color: var(--status-success, #3a3); }
+.channel-eval-channel-tag__repro {
+  margin-left: 5px;
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--status-danger-text);
+}
+.channel-eval-channel-tag__repro--flaky { color: var(--status-warning-text); }
+
+/* ---- 断言白话解释 & 请求详情折叠 ---- */
+.assertion-item__code {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg-subtle);
+  font-weight: 400;
+  margin-left: 4px;
+}
+.assertion-item__why {
+  display: block;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--border-subtle);
+  color: var(--fg-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.assertion-item__hint {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--status-danger-text);
+}
+.assertion-item__hint::before { content: "◄ "; }
+.hcase-request-details > summary {
+  cursor: pointer;
+  padding: 4px 0;
+  user-select: none;
+}
+.hcase-request-details[open] > summary { margin-bottom: 6px; }

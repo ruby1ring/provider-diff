@@ -1,0 +1,23 @@
+{
+  "case_id_填我": "<provider>_unknown_<param>_probe",
+  "title": "隐性参数探针：<param>（官方文档无定义）",
+  "category": "unknown",
+  "target_group": "<八个固定分组之一，如 protocol / protocol_sampling>",
+  "parameters": ["<param>"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "<该目录 manifest 的 default_model>",
+    "messages": [{ "role": "user", "content": "用一句中文打个招呼。" }],
+    "max_tokens": 32,
+    "<param>": "<探针值>"
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "doc_support": "undocumented",
+    "undocumented_scenario": "silent_ignore",
+    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "notes": "官方文档未声明该参数；实测 2xx 静默接受、未观察到行为差异。来源：实测（Noctua，YYYY-MM-DD，probe=<probe_id>）。"
+  }
+}

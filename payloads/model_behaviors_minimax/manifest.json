@@ -1,0 +1,20 @@
+{
+  "provider": "model_behaviors_minimax",
+  "base_url": "https://api.minimaxi.com/v1",
+  "endpoint": "/chat/completions",
+  "method": "POST",
+  "source": "../../docs/api/minimax-chat.md",
+  "default_model": "MiniMax-M2.7",
+  "reasoning_model": "MiniMax-M3",
+  "vision_model": "",
+  "notes": [
+    "MiniMax OEM 原厂参考 case：仅在 runV02 测评模型为 MiniMax 系列时注入到对应分组子区。",
+    "跑批时对用户选择的每一个测评渠道（Baseline + Target）各执行一次。",
+    "010（M2.x 思考不可关）2026-07-08 原厂复测因账号余额不足（402）未完成，结论以官方文档为准，待重测。"
+  ],
+  "common_expect": {},
+  "cases": [
+    "010_m2x_thinking_disable_ineffective.json",
+    "011_n_gt_1_rejected.json"
+  ]
+}

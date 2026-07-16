@@ -1,0 +1,37 @@
+{
+  "case_id": "sf_unknown_user_probe",
+  "title": "隐性参数探针：user（官方 schema 无定义）",
+  "category": "unknown",
+  "target_group": "protocol",
+  "parameters": [
+    "user"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句中文打个招呼。"
+      }
+    ],
+    "max_tokens": 32,
+    "user": "noctua-probe"
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "doc_support": "undocumented",
+    "undocumented_scenario": "silent_ignore",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "官方文档未声明该参数；实测 2xx 静默接受、未观察到行为差异。来源：实测（Noctua，2026-07-08，probe=sf_user_probe）。实测模型 Qwen/Qwen3-8B（cn 站）。"
+  }
+}

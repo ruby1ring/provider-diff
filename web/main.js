@@ -199,7 +199,7 @@ function renderChannelReportEvaluationSummary(record) {
         </div>
       </header>
 
-      <details class="channel-report-evaluation__glossary">
+      <details class="channel-report-evaluation__glossary" open>
         <summary>术语说明（运营可读）</summary>
         <dl class="channel-eval-glossary">
           <div><dt>推荐接入</dt><dd>该渠道在当前 case 下全部达标，可优先考虑。</dd></div>
@@ -209,6 +209,8 @@ function renderChannelReportEvaluationSummary(record) {
           <div><dt>文档漏洞</dt><dd>渠道文档未声明支持某参数，但实测传参后静默生效，须更新 API 文档。</dd></div>
           <div><dt>未文档化拒绝</dt><dd>文档未声明支持的参数传参后直接报错，可能影响 OpenAI 兼容透传。</dd></div>
           <div><dt>Baseline</dt><dd>对照用的原厂或 OpenAI 标准响应，用于结构 diff。</dd></div>
+          <div><dt>必现</dt><dd>该 case 失败后已自动复跑，多次全部失败——问题稳定存在，属渠道侧问题，可直接反馈渠道。</dd></div>
+          <div><dt>偶发</dt><dd>首跑失败、自动复跑后通过——多为网络或服务端瞬时抖动，无需按渠道缺陷处理。</dd></div>
         </dl>
       </details>
 
@@ -272,7 +274,15 @@ function renderChannelReportEvaluationSummary(record) {
                       ${parts.desc ? `<span class="muted fs-xs channel-eval-issue-case__desc">${escapeHtml(parts.desc)}</span>` : ""}
                     </td>
                     <td class="channel-eval-issue-channels">
-                      ${(item.failed_channels || []).map((name) => `<span class="channel-eval-channel-tag">${escapeHtml(name)}</span>`).join("")}
+                      ${(item.failed_channels || []).map((name) => {
+    const repro = item.failed_channel_repro?.[name] || null;
+    const reproTag = repro?.verdict === "consistent"
+      ? `<b class="channel-eval-channel-tag__repro" title="复跑 ${repro.total} 次全部失败，稳定复现">必现</b>`
+      : repro?.verdict === "flaky_recovered"
+        ? `<b class="channel-eval-channel-tag__repro channel-eval-channel-tag__repro--flaky" title="首跑失败、复跑通过，疑似瞬时抖动">偶发</b>`
+        : "";
+    return `<span class="channel-eval-channel-tag">${escapeHtml(name)}${reproTag}</span>`;
+  }).join("")}
                     </td>
                   </tr>`;
   }).join("")}
@@ -499,6 +509,7 @@ const els = {
   runV02ConfigPanel: document.querySelector("#runV02ConfigPanel"),
   runV02ChannelConfigs: document.querySelector("#runV02ChannelConfigs"),
   runV02CasePanel: document.querySelector("#runV02CasePanel"),
+  runV02OemRuleBanner: document.querySelector("#runV02OemRuleBanner"),
   runV02SelectedRoute: document.querySelector("#runV02SelectedRoute"),
   runV02CaseGroupPicker: document.querySelector("#runV02CaseGroupPicker"),
   runV02CaseGroups: document.querySelector("#runV02CaseGroups"),
@@ -828,21 +839,21 @@ const RUN_V02_PROTOCOL_STREAM_USAGE_TITLE = "流式用量：include_usage=true �
 const RUN_V02_PROTOCOL_STREAM_USAGE_OBSERVED_TITLE = "流式用量：不传 include_usage 时是否仍返回 usage。";
 const RUN_V02_PROTOCOL_STREAM_USAGE_CHUNK_SHAPE_TITLE = "流式用量 chunk 结构：usage 应在独立 chunk（choices:[]）中返回。";
 const RUN_V02_PROTOCOL_STREAM_BASIC_TOOLTIP =
-  "该 Case 在 stream=true 时验证是否返回 SSE 流式数据、chunk 结构是否符合预期（如 choices[].delta），并检查至少 2 个增量 chunk（content 或 reasoning_content，防伪流式）；默认探测 1 次。";
+  "该 Case 在 stream=true 时验证是否返回 SSE（流式推送）数据、chunk（数据块）结构是否符合预期（如 choices[].delta，即增量内容），并检查至少 2 个增量 chunk（content 正文或 reasoning_content 思考过程内容，防伪流式）；默认探测 1 次。";
 const RUN_V02_PROTOCOL_STREAM_FALSE_TOOLTIP =
-  "该 Case 在 stream=false 时验证响应为普通 JSON（非 SSE），结构含 choices / usage 等字段。";
+  "该 Case 在 stream=false 时验证响应为普通 JSON（非 SSE 流式推送），结构含 choices / usage 等字段。";
 const RUN_V02_PROTOCOL_STREAM_USAGE_TOOLTIP =
-  "该 Case 在 stream_options.include_usage=true 时验证流式最后一包必须包含 usage 字段；用于与「不传 include_usage」观测 case 成对对比各渠道行为。";
+  "该 Case 在 stream_options.include_usage=true（让流式响应带 token 用量统计）时验证流式最后一包必须包含 usage（用量统计）字段；用于与「不传 include_usage」观测 case 成对对比各渠道行为。";
 const RUN_V02_PROTOCOL_STREAM_USAGE_OBSERVED_TOOLTIP =
-  "该 Case 在 stream=true 且未传 stream_options.include_usage 时观测 SSE 是否含 usage（始终 pass，结果中查看「流式 usage：有/无」）；用于对比阿里等需显式开启的渠道与始终返回 usage 的渠道。";
+  "该 Case 在 stream=true 且未传 stream_options.include_usage（让流式响应带 token 用量统计的开关）时观测 SSE（流式推送）响应是否含 usage（始终 pass，结果中查看「流式 usage：有/无」）；用于对比阿里等需显式开启的渠道与始终返回 usage 的渠道。";
 const RUN_V02_PROTOCOL_STREAM_USAGE_CHUNK_SHAPE_TOOLTIP =
-  "该 Case 在 stream_options.include_usage=true 时严格验证 usage 分片结构：规范实现应在 finish_reason chunk 之后、data: [DONE] 之前单独返回 choices:[] + usage 的 chunk；若 usage 与 finish_reason 合并在同一 chunk（如 DS 官方 API）则 fail。结果中可查看「流式 usage 分片」分类。";
+  "该 Case 在 stream_options.include_usage=true（让流式响应带 token 用量统计）时严格验证 usage 分片结构：规范实现应在 finish_reason（结束原因）chunk（数据块）之后、data: [DONE] 之前单独返回 choices:[] + usage 的 chunk；若 usage 与 finish_reason 合并在同一 chunk（如 DS 官方 API）则 fail。结果中可查看「流式 usage 分片」分类。";
 
 const RUN_V02_PROTOCOL_SAMPLING_TOOLTIP =
-  "对照该渠道官方文档中 temperature 的类型与取值范围；JSON integer（1、2）与 float（1.0、2.0）是否等价由实测判定，不符请在 docs/api 对应文档「实测：temperature 字面量」表记录。";
+  "对照该渠道官方文档中 temperature 的类型与取值范围；JSON integer（整数写法 1、2）与 float（小数写法 1.0、2.0）是否等价由实测判定。";
 
 const RUN_V02_PROTOCOL_THINKING_TOOLTIP =
-  "对照思考开关字段是否被接受；开启 case 预期响应含 reasoning/thinking 内容且 usage 中 reasoning_tokens 或 thinking_tokens > 0；关闭 case 预期无 thinking 内容与正数 token 计量。";
+  "对照思考开关字段是否被接受；开启 case 预期响应含 reasoning/thinking（思考过程）内容且 usage 中 reasoning_tokens 或 thinking_tokens > 0；关闭 case 预期无 thinking 内容与正数 token 计量。";
 
 const RUN_V02_PROTOCOL_TOOLS_TOOLTIP =
   "探测渠道是否接受 tools 参数并能真正发起工具调用。";
@@ -868,7 +879,7 @@ const RUN_V02_TOOLS_NAMED_FUNCTION_TOOLTIP =
 const RUN_V02_TOOLS_PARALLEL_FALSE_TOOLTIP =
   "在 tools 请求中额外传 parallel_tool_calls=false。验证渠道文档列出的该参数是否被接受。";
 const RUN_V02_TOOLS_REASONING_CONTENT_REPLAY_TOOLTIP =
-  "模拟思考模式下的 Agent 第 2 轮：上一轮 assistant 同时返回 reasoning_content 与 tool_calls，你在后续请求的 messages 里必须原样带回这段 reasoning_content（不能只留 tool_calls）。DeepSeek 等文档明确：缺了会 400；本 case 验证正确回传时接口能否继续生成。";
+  "模拟思考模式下的 Agent 第 2 轮：上一轮 assistant 同时返回 reasoning_content（思考过程内容）与 tool_calls，你在后续请求的 messages 里必须原样带回这段 reasoning_content（不能只留 tool_calls）。DeepSeek 等文档明确：缺了会 400；本 case 验证正确回传时接口能否继续生成。";
 
 const RUN_V02_RESPONSE_FORMAT_TEXT_TITLE = "response_format=text · 渠道应接受 text 输出格式";
 const RUN_V02_RESPONSE_FORMAT_JSON_OBJECT_TITLE = "response_format=json_object · 渠道应接受并返回合法 JSON";
@@ -898,7 +909,7 @@ const RUN_V02_OUTPUT_LENGTH_CAPACITY_OUTPUT_TITLE = "容量：探测最大可接
 const RUN_V02_OUTPUT_LENGTH_CAPACITY_CONTEXT_TITLE = "容量：探测最大总上下文（对照 Context）。";
 const RUN_V02_OUTPUT_LENGTH_ACCEPT_MAX_TOKENS_TOOLTIP = "仅传 max_tokens，验证接口是否正常接受。";
 const RUN_V02_OUTPUT_LENGTH_ACCEPT_MAX_COMPLETION_TOOLTIP = "仅传 max_completion_tokens，验证接口是否正常接受。";
-const RUN_V02_OUTPUT_LENGTH_EFFECTIVE_MAX_TOKENS_TOOLTIP = "仅传 max_tokens=64 强制长输出，验证是否真限制输出（finish_reason=length）。";
+const RUN_V02_OUTPUT_LENGTH_EFFECTIVE_MAX_TOKENS_TOOLTIP = "仅传 max_tokens=64 强制长输出，验证是否真限制输出（finish_reason 结束原因=length，即因达到长度上限被截断）。";
 const RUN_V02_OUTPUT_LENGTH_EFFECTIVE_MAX_COMPLETION_TOOLTIP = "仅传 max_completion_tokens=64 强制长输出，验证是否真限制输出。";
 const RUN_V02_OUTPUT_LENGTH_PRECEDENCE_TOOLTIP = "双参同时传入并强制长输出，观测哪个字段控制输出截断（输出上限字段）。";
 const RUN_V02_OUTPUT_LENGTH_STOP_MAX_TOKENS_TOOLTIP = "同时传 max_tokens 与 stop，验证组合是否被接受。";
@@ -3556,14 +3567,14 @@ function runV02CaseGroupHint(group) {
     return `当前分组：${group.title}。发一句 Hello，验证该协议能否成功请求当前模型。`;
   }
   if (group.key === "protocol") {
-    return `当前分组：${group.title}。验证流式与非流式：stream=true 应增量返回多个 chunk（content 或 reasoning_content，探测 1 次）；不传 include_usage 时观测各渠道是否仍返回 usage；传 include_usage=true 时必须有 usage；stream=false 返回普通 JSON。`;
+    return `当前分组：${group.title}。验证流式与非流式：stream=true 应增量返回多个 chunk（数据块，内容为 content 正文或 reasoning_content 思考过程，探测 1 次）；不传 include_usage（让流式响应带 token 用量统计的开关）时观测各渠道是否仍返回 usage；传 include_usage=true 时必须有 usage；stream=false 返回普通 JSON。`;
   }
   if (group.key === "protocol_sampling") {
     const oemCount = group.cases.filter((testCase) => oemBehaviorsApi().isOemReferenceCase?.(testCase)).length;
     const oemNote = oemCount
       ? ` 下方「原厂参考」子区含 ${oemCount} 个按测评模型 OEM 文档补充的 case，对所有已选渠道各跑一遍。`
       : "";
-    return `当前分组：${group.title}。验证 temperature 在 JSON integer（1、2）与 float（1.0、2.0）字面量下是否与各渠道协议文档一致；不一致请在 docs/api 对应渠道文档「实测：temperature 字面量」表记录。${oemNote}`;
+    return `当前分组：${group.title}。验证 temperature 在 JSON integer（整数写法 1、2）与 float（小数写法 1.0、2.0）下各渠道的实际行为是否与官方文档一致。${oemNote}`;
   }
   if (group.key === "protocol_thinking") {
     return `当前分组：${group.title}。全渠道展示 canonical 思考模式探针（含各枚举档位与多方言字段），不以 protocol-matrix 文档裁剪；以跑批实测发现文档未写或与文档不一致的行为。`;
@@ -6531,16 +6542,59 @@ function renderHistoryResultGroups(record) {
   }).join("");
 }
 
+// 断言名 → 运营可读解释（title=白话标题；detail=这条检查什么、挂了意味着什么）
+const ASSERTION_EXPLANATIONS = {
+  http_status: { title: "HTTP 状态码不符", detail: "接口返回的状态码与预期不一致。2xx=成功，4xx=请求被拒绝，5xx=服务方故障。" },
+  response_mode: { title: "返回模式不对", detail: "预期以流式（SSE 分片逐段推送）返回，实际不是；或相反。" },
+  required_response_fields: { title: "响应缺少标准字段", detail: "OpenAI 标准响应必须包含的顶层字段（id、choices、usage 等）不齐全，下游程序可能解析失败。" },
+  messages_required_response_fields: { title: "响应缺少标准字段（Anthropic 协议）", detail: "Anthropic 协议响应应包含 id、type、role、content、model 等字段。" },
+  required_chunk_fields: { title: "流式分片缺少标准字段", detail: "每个流式分片应包含 id、object、choices 等标准字段。" },
+  choice_required_fields: { title: "回答结构不完整", detail: "choices 里的每条回答应包含 index、message、finish_reason 字段。" },
+  usage_required_fields: { title: "Token 用量统计缺失", detail: "接口没有返回本次调用的 token 消耗（prompt_tokens=输入、completion_tokens=输出、total_tokens=合计）。缺少它将无法核对计费与用量监控。" },
+  "stream_options.include_usage": { title: "流式用量开关未生效", detail: "请求里已要求流式响应附带 token 用量（include_usage），但最终分片没有返回 usage。" },
+  stream_usage_in_sse: { title: "流式响应缺 usage 统计", detail: "流式输出结束前应有一个携带 token 用量的分片，实际没有出现。" },
+  stream_usage_chunk_shape: { title: "usage 分片形态非标", detail: "OpenAI 标准：结束前用一个独立的空 choices 分片单独携带 usage。该渠道把 usage 与结束标记合并在同一分片——部分下游 SDK 会因此取不到用量。" },
+  min_sse_chunks: { title: "流式分片数太少", detail: "流式应逐段推送多个分片；分片过少可能是「伪流式」（一次性返回全部内容）。" },
+  min_content_chunks: { title: "没有正文输出", detail: "整个流式响应没有出现任何正文内容分片——可能被思考过程占满预算，或输出被截断。" },
+  finish_reason: { title: "结束原因不符", detail: "finish_reason 表示回答为何结束：stop=正常说完、length=被长度上限截断、tool_calls=转去调用工具。实际值与预期不符。" },
+  assistant_content_non_empty: { title: "回答内容为空", detail: "模型没有返回任何正文文本。" },
+  content_should_parse_as_json: { title: "JSON 输出不合法", detail: "已通过 response_format 要求输出 JSON，但返回内容无法按 JSON 解析。" },
+  assistant_content_starts_with: { title: "输出开头不符合预期", detail: "校验回答是否按要求的固定开头输出。" },
+  thinking_required: { title: "缺少思考过程", detail: "开启思考模式后应返回 reasoning_content（思考过程），实际没有出现。" },
+  thinking_evidence_required: { title: "无思考痕迹", detail: "响应里既没有思考内容、也没有思考 token 计数，疑似思考模式未生效。" },
+  max_tokens: { title: "输出长度限制未生效", detail: "实际输出 token 数超过了请求设定的上限——该渠道没有执行这个限制参数。" },
+  max_completion_tokens: { title: "输出长度限制未生效", detail: "实际输出 token 数超过了请求设定的上限——该渠道没有执行这个限制参数。" },
+  completion_tokens_max: { title: "输出长度超限", detail: "实际输出 token 数超过了设定上限。" },
+  parameter_acceptance: { title: "长度参数接受性", detail: "验证输出上限参数是否被接受并实际生效。" },
+  n: { title: "多回答数量不符", detail: "请求了 n 条候选回答，实际返回的数量不一致。" },
+  stop_sequence: { title: "停止词未生效", detail: "输出越过了设定的停止词继续生成，说明 stop 参数没有被执行。" },
+  cancel: { title: "已取消", detail: "该 case 的请求被中途取消。" }
+};
+
+function assertionExplanation(name) {
+  return ASSERTION_EXPLANATIONS[String(name || "")] || null;
+}
+
+function assertionDisplayTitle(name) {
+  return assertionExplanation(name)?.title || String(name || "");
+}
+
 function renderAssertionList(assertions = [], { variant = "all" } = {}) {
   if (!assertions.length) return "";
   return `
     <div class="assertion-list assertion-list--${variant}">
-      ${assertions.map((assertion) => `
+      ${assertions.map((assertion) => {
+    const explanation = assertionExplanation(assertion.name);
+    const title = explanation ? explanation.title : assertion.name;
+    const anchored = !assertion.pass && (ASSERTION_RESPONSE_ANCHORS[assertion.name] || []).length > 0;
+    return `
         <span class="assertion-item ${assertion.pass ? "pass" : "fail"}">
-          <strong>${assertion.pass ? "✓" : "✗"} ${escapeHtml(assertion.name)}</strong>
+          <strong>${assertion.pass ? "✓" : "✗"} ${escapeHtml(title)}${explanation ? ` <code class="assertion-item__code">${escapeHtml(assertion.name)}</code>` : ""}</strong>
           <span>${escapeHtml(assertion.message || (assertion.pass ? "通过" : "未通过"))}</span>
-        </span>
-      `).join("")}
+          ${!assertion.pass && explanation?.detail ? `<span class="assertion-item__why">${escapeHtml(explanation.detail)}</span>` : ""}
+          ${anchored ? `<span class="assertion-item__hint">相关位置已在「原始响应」中标红</span>` : ""}
+        </span>`;
+  }).join("")}
     </div>`;
 }
 
@@ -6550,28 +6604,267 @@ function hcaseResponseTabGroupId(result = {}, channelLabel = "") {
   return `${base}-${channel}`.replace(/[^a-zA-Z0-9_-]/g, "_");
 }
 
-function renderHcaseResponseTabs({ tabGroupId, responseBody, rawResponse, responseHeaders }) {
-  const tabs = [];
-  const parsedContent = responseBody !== null
-    ? `<pre class="code-block">${syntaxJson(responseBody)}</pre>`
-    : rawResponse
-      ? `<pre class="code-block">${escapeHtml(rawResponse)}</pre>`
-      : `<pre class="code-block">null</pre>`;
 
-  tabs.push({ id: "parsed", label: "原始响应", content: parsedContent });
+// ---------------------------------------------------------------------------
+// 原始响应智能展示：失败断言 → 响应 JSON 关键键的锚定表。
+// 有失败断言时，把相关键在原始报文里标红；无异常分片默认折叠。
+const ASSERTION_RESPONSE_ANCHORS = {
+  usage_required_fields: ["usage"],
+  "stream_options.include_usage": ["usage"],
+  stream_usage_in_sse: ["usage"],
+  stream_usage_chunk_shape: ["usage", "finish_reason"],
+  min_content_chunks: ["content", "reasoning_content"],
+  finish_reason: ["finish_reason"],
+  choice_required_fields: ["choices"],
+  required_chunk_fields: ["choices"],
+  required_response_fields: ["usage", "choices"],
+  messages_required_response_fields: ["content", "role"],
+  content_should_parse_as_json: ["content"],
+  assistant_content_non_empty: ["content"],
+  assistant_content_starts_with: ["content"],
+  thinking_required: ["reasoning_content", "thinking"],
+  thinking_evidence_required: ["reasoning_content", "reasoning_tokens"],
+  completion_tokens_max: ["completion_tokens"],
+  max_tokens: ["completion_tokens"],
+  max_completion_tokens: ["completion_tokens"],
+  n: ["choices"],
+  parameter_acceptance: ["completion_tokens"],
+  http_status: ["error"]
+};
+
+function responseHighlightKeys(failedAssertions = []) {
+  const keys = new Set();
+  for (const assertion of failedAssertions) {
+    const mapped = ASSERTION_RESPONSE_ANCHORS[assertion.name];
+    if (mapped) mapped.forEach((key) => keys.add(key));
+  }
+  if (failedAssertions.length) keys.add("error");
+  return [...keys];
+}
+
+// 在 escapeHtml 之后的文本里高亮 JSON 键（escapeHtml 会把 " 转成 &quot;）。
+// 键值为 null 时连同 :null 一起标红——「该有值却是 null」正是缺字段类失败的病灶。
+function highlightRawKeys(escapedText, keys = []) {
+  let out = escapedText;
+  for (const key of keys) {
+    out = out.replace(
+      new RegExp(`&quot;${key}&quot;(\\s*:\\s*null)?`, "g"),
+      (match) => `<span class="hl">${match}</span>`
+    );
+  }
+  return out;
+}
+
+function looksLikeSseText(text) {
+  return /^data:\s/m.test(String(text || ""));
+}
+
+// 复跑（偶发/必现）徽标：result 或 matrix summary 均可传入
+function renderReproVerdictBadge(source) {
+  if (!source) return "";
+  const verdict = source.repro_verdict || "";
+  if (!verdict) return "";
+  const total = Array.isArray(source.attempts) ? source.attempts.length : Number(source.attempts_total || 0);
+  const failed = Number(source.attempts_failed || 0);
+  if (verdict === "consistent") {
+    return `<span class="badge-sm no" title="失败后自动复跑，${total} 次全部失败——问题稳定复现，属渠道侧问题">必现 ${failed}/${total}</span>`;
+  }
+  if (verdict === "flaky_recovered") {
+    return `<span class="badge-sm flaky" title="首跑失败、自动复跑后通过——多为网络或服务端瞬时抖动，非稳定问题">偶发 · 复跑通过</span>`;
+  }
+  return "";
+}
+
+function renderCaseAttemptsBlock(result) {
+  const attempts = Array.isArray(result?.attempts) ? result.attempts : [];
+  if (!attempts.length) return "";
+  const verdictLabel = result.repro_verdict === "consistent"
+    ? "每次都失败（必现）"
+    : result.repro_verdict === "flaky_recovered"
+      ? "复跑后通过（偶发，疑似瞬时抖动）"
+      : "复跑记录";
+  return `
+    <div class="pt">自动复跑记录 · ${escapeHtml(verdictLabel)}</div>
+    <ul class="case-attempts">
+      ${attempts.map((attempt) => {
+    const failedNames = (attempt.failed_assertions || []).join("、");
+    const outcome = attempt.error
+      ? `请求失败：${attempt.error}`
+      : failedNames
+        ? `未通过断言：${failedNames}`
+        : "通过";
+    const ok = !attempt.error && !(attempt.failed_assertions || []).length;
+    return `<li class="case-attempts__item ${ok ? "is-pass" : "is-fail"}">第 ${attempt.attempt} 次 · HTTP ${escapeHtml(attempt.http_status || "—")} · ${escapeHtml(attempt.latency_ms ? `${attempt.latency_ms}ms` : "—")} · ${escapeHtml(outcome)}</li>`;
+  }).join("")}
+    </ul>`;
+}
+
+let rawResponseBlockSeq = 0;
+
+// SSE 原文智能视图：问题分片标红、无异常分片默认折叠、可展开全部。
+function renderRawSseBlock(rawResponse, failedAssertions = []) {
+  const raw = String(rawResponse || "");
+  const keys = responseHighlightKeys(failedAssertions);
+  const events = raw.split(/\n{2,}/).map((chunk) => chunk.trim()).filter(Boolean);
+  const hasFailures = failedAssertions.length > 0;
+
+  // 第一遍：键值非 null 才算命中（流式 chunk 里通篇存在的 "usage":null 不算）
+  const keyHitPatterns = keys.map((key) => new RegExp(`"${key}"\\s*:\\s*(?!null[,}\\s])`));
+  const problemFlags = events.map((eventText) => {
+    if (!hasFailures) return false;
+    return keyHitPatterns.some((pattern) => pattern.test(eventText));
+  });
+  let problemCount = problemFlags.filter(Boolean).length;
+
+  // 第二遍（缺字段模式）：失败断言存在但没有任何分片携带非 null 值——
+  // 问题恰恰是「该字段从未有值」。标红最后一个含该键（哪怕是 null）的数据分片；
+  // 键完全没出现时标红最后一个数据分片（按 OpenAI 规范该处应携带数据）。
+  let missingFieldMode = false;
+  if (hasFailures && keys.length && problemCount === 0) {
+    const nullKeyPatterns = keys.map((key) => new RegExp(`"${key}"`));
+    let anchorIndex = -1;
+    for (let i = events.length - 1; i >= 0; i -= 1) {
+      if (events[i].includes("[DONE]")) continue;
+      if (nullKeyPatterns.some((pattern) => pattern.test(events[i]))) { anchorIndex = i; break; }
+    }
+    if (anchorIndex === -1) {
+      for (let i = events.length - 1; i >= 0; i -= 1) {
+        if (!events[i].includes("[DONE]")) { anchorIndex = i; break; }
+      }
+    }
+    if (anchorIndex >= 0) {
+      problemFlags[anchorIndex] = true;
+      problemCount = 1;
+      missingFieldMode = true;
+    }
+  }
+
+  // 多数分片都命中（如思考内容持续输出）时退化为首尾预览，避免"全部标红"失去意义
+  const degenerate = problemCount > 0 && problemCount / events.length > 0.5;
+
+  const renderEvent = (eventText, isProblem) => {
+    // 退化模式下不整块标红，但仍高亮标记键，方便肉眼定位
+    const highlightKeys = isProblem || (degenerate && hasFailures) ? keys : [];
+    const inner = highlightRawKeys(escapeHtml(eventText), highlightKeys);
+    return `<span class="raw-chunk${isProblem ? " raw-chunk--problem" : ""}">${inner}</span>`;
+  };
+
+  const fullView = events.map((eventText, index) => renderEvent(eventText, !degenerate && problemFlags[index])).join("\n");
+
+  // 摘要视图：首分片 + 问题分片 + 末两个分片（usage / [DONE] 通常在末尾），其余折叠
+  const keepIndexes = new Set();
+  if (events.length) keepIndexes.add(0);
+  if (events.length > 1) keepIndexes.add(events.length - 1);
+  if (events.length > 2) keepIndexes.add(events.length - 2);
+  if (!degenerate) problemFlags.forEach((flag, index) => { if (flag) keepIndexes.add(index); });
+  else { if (events.length > 3) { keepIndexes.add(1); keepIndexes.add(2); } }
+
+  const summaryParts = [];
+  let hiddenRun = 0;
+  const flushHidden = () => {
+    if (hiddenRun > 0) {
+      summaryParts.push(`<span class="raw-chunk raw-chunk--gap">⋯ 已折叠 ${hiddenRun} 个无标记分片（点「展开全部」查看）⋯</span>`);
+      hiddenRun = 0;
+    }
+  };
+  events.forEach((eventText, index) => {
+    if (keepIndexes.has(index)) {
+      flushHidden();
+      summaryParts.push(renderEvent(eventText, !degenerate && problemFlags[index]));
+    } else {
+      hiddenRun += 1;
+    }
+  });
+  flushHidden();
+  const summaryView = summaryParts.join("\n");
+
+  const collapsedByDefault = events.length > keepIndexes.size;
+  const blockId = `raw-block-${rawResponseBlockSeq += 1}`;
+  const statLabel = degenerate
+    ? `共 ${events.length} 个分片 · 多数分片命中标记键（${keys.join("、")}），仅显示首尾预览`
+    : missingFieldMode
+      ? `共 ${events.length} 个分片 · 「${keys.join("、")}」字段缺失或始终为 null——已标红本应携带该数据的分片`
+      : problemCount > 0
+        ? `共 ${events.length} 个分片 · ${problemCount} 个分片有标记（已标红并展开）`
+        : hasFailures
+          ? `共 ${events.length} 个分片 · 失败断言未定位到具体分片，展示首尾预览`
+          : `共 ${events.length} 个分片 · 无异常标记，默认折叠`;
+
+  if (!collapsedByDefault) {
+    return `<div class="raw-response" data-raw-block="${blockId}">
+      <div class="raw-response__bar"><span class="muted fs-xs">${escapeHtml(statLabel)}</span></div>
+      <pre class="code-block raw-response__body">${fullView}</pre>
+    </div>`;
+  }
+  return `<div class="raw-response" data-raw-block="${blockId}">
+    <div class="raw-response__bar">
+      <span class="muted fs-xs">${escapeHtml(statLabel)}</span>
+      <span class="grow"></span>
+      <button type="button" class="raw-response__toggle" data-raw-toggle data-label-expand="展开全部" data-label-collapse="收起">展开全部</button>
+    </div>
+    <pre class="code-block raw-response__body" data-raw-view="summary">${summaryView}</pre>
+    <pre class="code-block raw-response__body is-hidden" data-raw-view="full">${fullView}</pre>
+  </div>`;
+}
+
+// 非 SSE 的长文本/JSON：超长默认截断显示，可展开全部
+function renderClampedCodeBlock(html, lineCount) {
+  if (lineCount <= 40) return `<pre class="code-block">${html}</pre>`;
+  return `<div class="raw-response" data-raw-block="raw-block-${rawResponseBlockSeq += 1}">
+    <div class="raw-response__bar">
+      <span class="muted fs-xs">共 ${lineCount} 行 · 默认折叠</span>
+      <span class="grow"></span>
+      <button type="button" class="raw-response__toggle" data-raw-toggle data-label-expand="展开全部" data-label-collapse="收起">展开全部</button>
+    </div>
+    <pre class="code-block raw-response__body raw-response__body--clamped" data-raw-clamp>${html}</pre>
+  </div>`;
+}
+
+function renderJsonResponseBlock(value, failedAssertions = []) {
+  const keys = responseHighlightKeys(failedAssertions);
+  const escaped = highlightRawKeys(escapeHtml(JSON.stringify(value, null, 2)), keys);
+  const lineCount = escaped.split("\n").length;
+  return renderClampedCodeBlock(escaped, lineCount);
+}
+
+function renderPlainRawBlock(rawResponse, failedAssertions = []) {
+  const keys = responseHighlightKeys(failedAssertions);
+  const escaped = highlightRawKeys(escapeHtml(String(rawResponse || "")), keys);
+  const lineCount = escaped.split("\n").length;
+  return renderClampedCodeBlock(escaped, lineCount);
+}
+
+function renderHcaseResponseTabs({ tabGroupId, responseBody, rawResponse, responseHeaders, failedAssertions = [] }) {
+  const tabs = [];
+  let parsedContent;
+  let parsedLabel = "原始响应";
+  if (responseBody !== null) {
+    parsedLabel = "响应内容";
+    parsedContent = renderJsonResponseBlock(responseBody, failedAssertions);
+  } else if (rawResponse) {
+    parsedContent = looksLikeSseText(rawResponse)
+      ? renderRawSseBlock(rawResponse, failedAssertions)
+      : renderPlainRawBlock(rawResponse, failedAssertions);
+  } else {
+    parsedContent = `<pre class="code-block">null</pre>`;
+  }
+
+  tabs.push({ id: "parsed", label: parsedLabel, content: parsedContent });
 
   if (rawResponse && responseBody !== null) {
     tabs.push({
       id: "raw",
-      label: "Raw Response",
-      content: `<pre class="code-block">${escapeHtml(rawResponse)}</pre>`
+      label: "原始报文",
+      content: looksLikeSseText(rawResponse)
+        ? renderRawSseBlock(rawResponse, failedAssertions)
+        : renderPlainRawBlock(rawResponse, failedAssertions)
     });
   }
 
   if (responseHeaders) {
     tabs.push({
       id: "headers",
-      label: "响应 Headers",
+      label: "响应 HEADERS",
       content: `<pre class="code-block">${syntaxJson(responseHeaders)}</pre>`
     });
   }
@@ -6622,10 +6915,11 @@ function renderHistoryRawCase(result, record, options = {}) {
     tabGroupId: hcaseResponseTabGroupId(result, channelLabel),
     responseBody,
     rawResponse,
-    responseHeaders
+    responseHeaders,
+    failedAssertions
   });
   const failedSummary = failedAssertions.length
-    ? failedAssertions.map((assertion) => assertion.name).join(" · ")
+    ? failedAssertions.map((assertion) => assertionDisplayTitle(assertion.name)).join(" · ")
     : "";
   return `
     <details class="hcase ${healthy ? "hcase--pass" : "hcase--fail"}"${defaultOpen ? " open" : ""}>
@@ -6633,42 +6927,49 @@ function renderHistoryRawCase(result, record, options = {}) {
         <span class="hcase-channel">${escapeHtml(channelLabel)}</span>
         ${matrixContext ? "" : `<span class="cid">${escapeHtml(resultTitle(result))}</span>`}
         <span class="badge-sm ${healthy ? "ok" : "no"}">${escapeHtml(healthy ? "达标" : "未达标")}</span>
+        ${renderReproVerdictBadge(result)}
         <span class="muted fs-xs">${escapeHtml(meta.label)}${failedSummary ? ` · ${escapeHtml(failedSummary)}` : ""}</span>
         <span class="grow"></span>
         <span class="mono fs-xs subtle">HTTP ${escapeHtml(result.http_status || meta.httpStatus || "—")} · ${escapeHtml(result.latency_ms ? `${result.latency_ms}ms` : "—")}</span>
       </summary>
       <div class="panes">
         <section class="pane">
-          <div class="pt">请求 Body</div>
-          <pre class="code-block">${syntaxJson(requestBody)}</pre>
-          ${requestHeaders ? `
-            <div class="pt">请求 Headers</div>
-            <pre class="code-block">${syntaxJson(requestHeaders)}</pre>
+          <div class="pt">检查结论</div>
+          ${failedAssertions.length
+    ? renderAssertionList(failedAssertions, { variant: "failed" })
+    : assertions.length
+      ? `<p class="muted fs-xs hcase-all-passed">全部检查项通过</p>`
+      : `<pre class="code-block">[]</pre>`}
+          ${result.message || result.error ? `
+            <div class="pt">运行消息</div>
+            <pre class="code-block">${escapeHtml(result.message || result.error)}</pre>
           ` : ""}
-          ${sourceCase?.expect ? `
-            <div class="pt">预期断言</div>
-            <pre class="code-block">${syntaxJson(sourceCase.expect)}</pre>
+          ${renderCaseAttemptsBlock(result)}
+          ${passedAssertions.length ? `
+            <details class="hcase-passed-assertions">
+              <summary class="muted fs-xs">已通过 ${passedAssertions.length} 项检查（点开查看）</summary>
+              ${renderAssertionList(passedAssertions, { variant: "passed" })}
+            </details>
           ` : ""}
         </section>
         <section class="pane pane--response">
           ${responseTabs}
         </section>
         <section class="pane">
-          <div class="pt">真实断言结果</div>
-          ${failedAssertions.length
-    ? renderAssertionList(failedAssertions, { variant: "failed" })
-    : assertions.length
-      ? `<p class="muted fs-xs hcase-all-passed">全部断言通过</p>`
-      : `<pre class="code-block">[]</pre>`}
-          ${passedAssertions.length ? `
-            <details class="hcase-passed-assertions">
-              <summary class="muted fs-xs">已通过 ${passedAssertions.length} 项断言</summary>
-              ${renderAssertionList(passedAssertions, { variant: "passed" })}
-            </details>
-          ` : ""}
+          <details class="hcase-request-details"${failedAssertions.length ? "" : ""}>
+            <summary class="muted fs-xs">请求与预期（技术详情，点开查看）</summary>
+            <div class="pt">请求 Body</div>
+            <pre class="code-block">${syntaxJson(requestBody)}</pre>
+            ${requestHeaders ? `
+              <div class="pt">请求 Headers</div>
+              <pre class="code-block">${syntaxJson(requestHeaders)}</pre>
+            ` : ""}
+            ${sourceCase?.expect ? `
+              <div class="pt">预期断言</div>
+              <pre class="code-block">${syntaxJson(sourceCase.expect)}</pre>
+            ` : ""}
+          </details>
           ${renderStreamMetricsBlock(result)}
-          <div class="pt">运行消息</div>
-          <pre class="code-block">${escapeHtml(result.message || result.error || "—")}</pre>
         </section>
       </div>
     </details>
@@ -6939,7 +7240,10 @@ function summarizeResultForMatrix(result) {
     diff_count: Number(result.diff_count || 0),
     cache_hit_summary: result.cache_hit_summary || "",
     latency_ms: result.latency_ms || 0,
-    result_uid: result.result_uid || ""
+    result_uid: result.result_uid || "",
+    repro_verdict: result.repro_verdict || "",
+    attempts_total: Array.isArray(result.attempts) ? result.attempts.length : 0,
+    attempts_failed: Number(result.attempts_failed || 0)
   };
 }
 
@@ -7153,7 +7457,7 @@ function renderChannelReportMatrixCell(summary, intent) {
     const extra = summary.cache_hit_summary ? `<span class="channel-matrix-cell__extra">${escapeHtml(summary.cache_hit_summary)}</span>` : "";
     return `
       <div class="channel-matrix-cell channel-matrix-cell--${tone}">
-        <span class="channel-matrix-badge channel-matrix-badge--${tone}">${label}</span>
+        <span class="channel-matrix-badge channel-matrix-badge--${tone}">${label}</span>${renderReproVerdictBadge(summary)}
         <span class="channel-matrix-cell__meta">${metaParts.join(" · ")}</span>
         ${extra}
       </div>`;
@@ -7162,7 +7466,7 @@ function renderChannelReportMatrixCell(summary, intent) {
   const label = tone === "pass" ? "达标" : "未达标";
   return `
     <div class="channel-matrix-cell channel-matrix-cell--${tone}">
-      <span class="channel-matrix-badge channel-matrix-badge--${tone}">${label}</span>
+      <span class="channel-matrix-badge channel-matrix-badge--${tone}">${label}</span>${renderReproVerdictBadge(summary)}
       <span class="channel-matrix-cell__meta">${conclusion} · HTTP ${http}</span>
     </div>`;
 }
@@ -9773,10 +10077,6 @@ function bindChannelPerfEvents() {
       showToast("渠道性能测评报告已删除。");
     }
   });
-}
-
-function formatMetricValue(value) {
-  return CHANNEL_PERF().formatMetricValue(value);
 }
 
 function showToast(message) {
@@ -12398,11 +12698,41 @@ function applyRunV02Model(modelId) {
   });
 }
 
+/**
+ * 选定测评模型后，在 Step 1 下方渲染该模型原厂特殊规则的显著提示条。
+ * 厂商无规则或推断为 other 时隐藏；切换模型时随 renderRunV02ModelSelect 刷新。
+ */
+function renderRunV02OemRuleBanner() {
+  const banner = els.runV02OemRuleBanner;
+  if (!banner) return;
+  const api = oemBehaviorsApi();
+  const modelId = state.runV02.modelId;
+  const vendorId = modelId ? api.inferEvalModelVendorId?.(modelId) || "other" : "other";
+  const rules = vendorId === "other" ? [] : api.vendorRules?.(vendorId) || [];
+  if (!rules.length) {
+    banner.innerHTML = "";
+    banner.classList.add("is-hidden");
+    return;
+  }
+  const label = api.vendorLabel?.(vendorId) || "原厂";
+  banner.innerHTML = `
+    <strong class="oem-rule-banner__title">⚠ ${escapeHtml(label)} 特殊规则</strong>
+    <ul class="oem-rule-banner__list">
+      ${rules.map((item) => `
+        <li>${escapeHtml(item.rule)}${item.source ? `（<a href="${escapeHtml(item.source)}" target="_blank" rel="noopener noreferrer">出处</a>）` : ""}</li>
+      `).join("")}
+    </ul>
+    <p class="oem-rule-banner__footer">已自动注入原厂参考用例，将对所有已选渠道各跑一遍，结果与 Baseline 对照。</p>
+  `;
+  banner.classList.remove("is-hidden");
+}
+
 function renderRunV02ModelSelect() {
   if (!els.runV02ModelOptions) return;
   const lookupApi = window.NOCTUA_MODEL_LOOKUP;
   const evalIds = lookupApi?.getEvalModelIds?.() || [];
   ensureRunV02ModelId();
+  renderRunV02OemRuleBanner();
   const selectedId = state.runV02.modelId;
   const filtered = evalIds.filter((modelId) => matchSearchQuery(state.runV02.modelSearch, modelId));
   if (!filtered.length) {
@@ -12422,10 +12752,6 @@ function renderRunV02ModelSelect() {
 
 function runV02SupportedProtocol(protocolId) {
   return CHANNEL_ROUTE_CORE().supportedProtocol(protocolId);
-}
-
-function runV02ProtocolCatalogDefs() {
-  return CHANNEL_ROUTE_CORE().protocolCatalogDefs();
 }
 
 function runV02ProtocolDef(protocolId) {
@@ -12453,11 +12779,6 @@ function runV02ActiveProtocolId() {
 /** 当前所选协议下的渠道协议组合（不含其他协议）。 */
 function runV02ChannelsForProtocol() {
   return CHANNEL_ROUTE_CORE().channelsForProtocol(state.runV02.routeOptions, runV02ActiveProtocolId());
-}
-
-/** @deprecated 使用 runV02ChannelsForProtocol */
-function runV02ChannelOptions() {
-  return runV02ChannelsForProtocol();
 }
 
 function caseProtocolIdFromTestCase(testCase) {
@@ -12617,7 +12938,10 @@ const casePayloadProviders = new Set([
   "response_format",
   "response_format_messages",
   "vllm",
-  "model_behaviors_deepseek"
+  "model_behaviors_deepseek",
+  "model_behaviors_moonshot",
+  "model_behaviors_zhipu",
+  "model_behaviors_minimax"
 ]);
 
 /** case 模板与 /api/run-stream 的 provider：渠道无专用 payloads 时回退到通用 OpenAI-compatible 库。 */
@@ -14756,11 +15080,29 @@ function initialViewFromHash() {
   if (window.location.hash === "#opencompass" || window.location.hash === "#opencompassView") return "opencompass";
   if (window.location.hash === "#run-v02") return "run-v02";
   if (window.location.hash === "#run-v01" || window.location.hash === "#run" || window.location.hash === "#runView") return "run-v01";
-  return "run";
+  return "guide";
 }
 
 function bindEvents() {
   document.addEventListener("click", (event) => {
+    const rawToggle = event.target.closest("[data-raw-toggle]");
+    if (rawToggle) {
+      const block = rawToggle.closest("[data-raw-block]");
+      if (block) {
+        const summaryView = block.querySelector('[data-raw-view="summary"]');
+        const fullView = block.querySelector('[data-raw-view="full"]');
+        const clamped = block.querySelector("[data-raw-clamp]");
+        let expanded = false;
+        if (summaryView && fullView) {
+          expanded = summaryView.classList.toggle("is-hidden");
+          fullView.classList.toggle("is-hidden", !expanded);
+        } else if (clamped) {
+          expanded = !clamped.classList.toggle("raw-response__body--clamped");
+        }
+        rawToggle.textContent = expanded ? rawToggle.dataset.labelCollapse : rawToggle.dataset.labelExpand;
+      }
+      return;
+    }
     const hcaseTab = event.target.closest("[data-hcase-response-tab]");
     if (hcaseTab) {
       const root = hcaseTab.closest(".hcase-response-tabs");

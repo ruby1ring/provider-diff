@@ -2,14 +2,20 @@
   "case_id": "minimax_unknown_stop_probe",
   "title": "stop parameter probe",
   "category": "unknown",
-  "parameters": ["stop"],
+  "target_group": "protocol_sampling",
+  "parameters": [
+    "stop"
+  ],
   "optional": true,
   "method": "POST",
   "path": "/chat/completions",
   "payload": {
     "model": "MiniMax-M2.7",
     "messages": [
-      {"role": "user", "content": "Count one, two, three, then write END."}
+      {
+        "role": "user",
+        "content": "Count one, two, three, then write END."
+      }
     ],
     "stop": "END",
     "max_completion_tokens": 80
@@ -19,7 +25,14 @@
     "support_conclusion": "ignored",
     "doc_support": "undocumented",
     "undocumented_scenario": "silent_ignore",
-    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
     "notes": "stop is not clearly documented for MiniMax OpenAI-compatible endpoint; optional probe."
   }
 }

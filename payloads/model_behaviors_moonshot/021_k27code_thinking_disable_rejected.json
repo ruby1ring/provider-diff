@@ -1,0 +1,35 @@
+{
+  "case_id": "moonshot_oem_k27code_thinking_disable_rejected",
+  "title": "kimi-k2.7-code 始终开启思考：传 disabled 报 400",
+  "category": "reasoning",
+  "case_scope": "oem_reference",
+  "oem_vendor": "moonshot",
+  "target_group": "protocol_thinking",
+  "parameters": [
+    "thinking"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "kimi-k2.7-code",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句中文打个招呼。"
+      }
+    ],
+    "max_completion_tokens": 512,
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "expect": {
+    "http_status": 400,
+    "support_conclusion": "rejected_400",
+    "evaluation_intent": "observe",
+    "case_scope": "oem_reference",
+    "target_group": "protocol_thinking",
+    "oem_source": "https://platform.kimi.com/docs/api/chat",
+    "notes": "Kimi OEM：官方文档明示 k2 系列该参数不可自定义。原厂实测返回 400「invalid thinking: only type=enabled is allowed for this model」。来源：实测（Noctua，2026-07-08，probe=moonshot_k27code_thinking_disabled）。第三方渠道应与 Baseline 拒绝行为对照。"
+  }
+}

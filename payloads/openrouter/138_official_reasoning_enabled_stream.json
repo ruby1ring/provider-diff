@@ -44,6 +44,6 @@
     "thinking_evidence_required": true,
     "reasoning_tokens_min": 1,
     "assistant_content_non_empty": true,
-    "notes": "Imported from docs/api/openrouter.case.md. Uses the official spelling 'origial' from the exported prompt. OpenRouter baseline requires reasoning_tokens > 0 when reasoning is enabled."
+    "notes": "Imported from docs/api/archive/openrouter.case.md. Uses the official spelling 'origial' from the exported prompt. OpenRouter baseline requires reasoning_tokens > 0 when reasoning is enabled."
   }
 }

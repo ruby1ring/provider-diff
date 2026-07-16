@@ -8,6 +8,9 @@ desktop/bin/
 desktop/services/*/
 build/pyinstaller/
 
+# Compiled backend binary (regenerate via build)
+backend/provider-diff-backend
+
 .od-skills/
 
 config.yaml

@@ -5,14 +5,13 @@ doc_status: verified
 doc_url: "https://docs.siliconflow.cn/cn/api-reference/chat-completions/messages"
 last_verified: 2026-07-08
 compare: true
-required_parameters: [model, messages, max_tokens]
+required_parameters: [model, messages]
 parameter_groups:
-  Core: [model, messages, messages[].role, messages[].content, max_tokens, system, system[].type, system[].text]
+  Core: [model, messages, "messages[].role", "messages[].content", max_tokens, system, "system[].type", "system[].text"]
   Sampling: [temperature, top_p, top_k, stop_sequences]
-  Tools: [tools, tools[].name, tools[].description, tools[].input_schema, tool_choice]
+  Tools: [tools, "tools[].name", "tools[].description", "tools[].input_schema", tool_choice]
   Protocol: [stream]
-  Observed: [input, stop, thinking, user]
-notes: 对照 docs/api/siliconflow-message.md（2026-06-16）。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：input, stop, thinking, user。
+notes: 对照官方 OpenAPI schema（2026-07-08）。官方 required 仅 model、messages（max_tokens 非必填）。 类型字段按该渠道官方 API 原文收录。
 ---
 # SiliconFlow Anthropic Messages API Notes
 
@@ -32,7 +31,7 @@ notes: 对照 docs/api/siliconflow-message.md（2026-06-16）。 类型字段按
 
 | Parameter | Type | Notes |
 |---|---|---|
-| `model` | `string` | 见 [Models](https://cloud.siliconflow.cn/models?types=chat) |
+| `model` | `string` | 见 [Models](https://cloud.siliconflow.cn/models?types=chat)；官方 schema 示例/默认值为 `Pro/zai-org/GLM-4.7`（信息性） |
 | `messages` | `array` | min 1，max 10；`user` / `assistant` 交替（Anthropic 惯例） |
 
 > OpenAPI 未将 `max_tokens` 标为 required，但 Anthropic Messages 语义上应提供输出上限。
@@ -79,15 +78,8 @@ notes: 对照 docs/api/siliconflow-message.md（2026-06-16）。 类型字段按
 | `content[].type` | `text` / `tool_use` / `thinking` 等 |
 | `stop_reason` | `end_turn`, `max_tokens`, `stop_sequence`, `tool_use` |
 | `usage.input_tokens` / `output_tokens` | Token 用量 |
+| `usage.cache_read_input_tokens` | 从缓存读取的输入 token 数 |
+| `usage.cache_creation_input_tokens` | 用于创建缓存条目的输入 token 数 |
 | Header `x-siliconcloud-trace-id` | 请求追踪 ID |
 
 ## Raw Archive
-
-## 实测补充参数（来源：实测）
-
-| Parameter | Type | Required | Default | Range | Notes |
-|---|---|---|---|---|---|
-| `input` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://docs.siliconflow.cn/cn/api-reference/chat-completions/messages）检索到该参数，已补录。 |
-| `stop` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://docs.siliconflow.cn/cn/api-reference/chat-completions/messages）检索到该参数，已补录。 |
-| `thinking` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://docs.siliconflow.cn/cn/api-reference/chat-completions/messages）检索到该参数，已补录。 |
-| `user` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://docs.siliconflow.cn/cn/api-reference/chat-completions/messages）检索到该参数，已补录。 |

@@ -1,0 +1,45 @@
+{
+  "case_id": "zhipu_oem_do_sample_false_sampling_ignored",
+  "title": "do_sample=false 时 temperature/top_p 被忽略（智谱采样总开关）",
+  "category": "sampling",
+  "case_scope": "oem_reference",
+  "oem_vendor": "zhipu",
+  "target_group": "protocol_sampling",
+  "parameters": [
+    "do_sample",
+    "temperature",
+    "top_p"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "glm-4.7-flash",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句中文打个招呼。"
+      }
+    ],
+    "max_tokens": 128,
+    "do_sample": false,
+    "temperature": 0.9,
+    "top_p": 0.5
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "ignored",
+    "evaluation_intent": "observe",
+    "case_scope": "oem_reference",
+    "target_group": "protocol_sampling",
+    "oem_source": "https://docs.bigmodel.cn/api-reference/%E6%A8%A1%E5%9E%8B-api/%E5%AF%B9%E8%AF%9D%E8%A1%A5%E5%85%A8",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "智谱 OEM：官方明文「do_sample=false 时……temperature 和 top_p 参数将被忽略」。请求接受实测确认（来源：实测（Noctua，2026-07-08，probe=zhipu_do_sample_false））。第三方渠道若不支持 do_sample 应观察是拒绝还是透传。"
+  }
+}

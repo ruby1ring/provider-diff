@@ -2,7 +2,9 @@
   "case_id": "deepseek_length_max_completion_tokens",
   "title": "max_completion_tokens 限制输出长度",
   "category": "length",
-  "parameters": ["max_completion_tokens"],
+  "parameters": [
+    "max_completion_tokens"
+  ],
   "method": "POST",
   "path": "/chat/completions",
   "payload": {
@@ -18,8 +20,19 @@
   },
   "expect": {
     "http_status": 200,
-    "support_conclusion": "supported",
-    "required_response_fields": ["id", "object", "created", "model", "choices", "usage", "system_fingerprint"],
-    "notes": "仅传 max_completion_tokens 验证是否接受；生效性见 033 单参 case。"
+    "support_conclusion": "ignored",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage",
+      "system_fingerprint"
+    ],
+    "notes": "官方 schema 只有 max_tokens、无 max_completion_tokens；实测传入被静默忽略（cap=32 实际 completion_tokens=126）。来源：实测（Noctua，2026-07-12，case=deepseek_length_max_completion_tokens）。生效性见 033 单参 case。",
+    "token_limit_enforced": false,
+    "doc_support": "undocumented",
+    "undocumented_scenario": "silent_ignore"
   }
 }

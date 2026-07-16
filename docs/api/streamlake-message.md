@@ -14,8 +14,7 @@ parameter_groups:
   Protocol: [stream]
   Metadata: [metadata, cache_control, service_tier]
   Extra: [container, inference_geo, output_config]
-  Observed: [temperature, user, user_id]
-notes: 对照 docs/api/streamlake-message.md（2026-06-25）。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：temperature, user, user_id。
+notes: 对照官方文档（2026-07-08）。官方无顶层 temperature/top_p/top_k 请求参数，temperature 已废弃、由 output_config 替代。实测复核需要控制台推理点 ID（ep-xxx），2026-07-08 无可用推理点未实测（待实测）。 类型字段按该渠道官方 API 原文收录。
 ---
 # StreamLake / 快手万擎 Anthropic Messages API Notes
 
@@ -55,7 +54,15 @@ Anthropic-compatible Messages endpoint on StreamLake gateway (see official doc).
 
 | Parameter | Type | Notes |
 |---|---|---|
-| `thinking` | `object` | 扩展思考模式：`enabled` / `disabled` / `adaptive` 等 |
+| `thinking` | `object` | 扩展思考模式，三种类型见下方子表 |
+
+#### `thinking` variants
+
+| `type` | Fields | Notes |
+|---|---|---|
+| `enabled` | `budget_tokens`、`type`、`display` | `ThinkingConfigEnabled`：固定预算扩展思考，含 `display` 字段 |
+| `disabled` | `type` | 关闭思考 |
+| `adaptive` | `type`、`display` | 自适应思考 |
 
 ### 工具调用
 
@@ -68,17 +75,15 @@ Anthropic-compatible Messages endpoint on StreamLake gateway (see official doc).
 
 | Parameter | Type | Default | Notes |
 |---|---|---|---|
-| `metadata` | `object` | — | 含 `user_id`，≤64KB |
+| `metadata` | `object` | — | 官方原文：可包含 `user_id` 用于追踪请求，不超过 64KB。`user_id` 是 `metadata.user_id`，**不是**顶层参数 |
 | `cache_control` | `object` | — | `type: ephemeral`，可选 `ttl` |
 | `container` | `string` | — | 跨请求容器标识 |
 | `inference_geo` | `string` | — | 推理地理区域 |
-| `output_config` | `object` | — | `effort` / `format`；可替代 temperature |
+| `output_config` | `object` | — | `effort` / `format`；官方原文：推荐用于替代已废弃的 `temperature` 参数 |
 | `service_tier` | `string` | `auto` | `auto` / `standard_only` |
 
-## 实测补充参数（来源：实测）
+### 采样参数说明（官方口径）
 
-| Parameter | Type | Required | Default | Range | Notes |
-|---|---|---|---|---|---|
-| `temperature` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://www.streamlake.com/document/WANQING/mq6k6xfnbs4vn99zggq）检索到该参数，已补录。 |
-| `user` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://www.streamlake.com/document/WANQING/mq6k6xfnbs4vn99zggq）检索到该参数，已补录。 |
-| `user_id` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://www.streamlake.com/document/WANQING/mq6k6xfnbs4vn99zggq）检索到该参数，已补录。 |
+官方文档无顶层 `temperature` / `top_p` / `top_k` 请求参数；`temperature` 已废弃，官方推荐使用 `output_config` 替代（原文：「推荐用于替代已废弃的 temperature 参数」）。
+
+> 实测复核需要控制台推理点 ID（ep-xxx）；2026-07-08 无可用推理点，未实测（待实测）。

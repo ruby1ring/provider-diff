@@ -1,0 +1,21 @@
+{
+  "provider": "model_behaviors_zhipu",
+  "base_url": "https://open.bigmodel.cn/api/paas/v4",
+  "endpoint": "/chat/completions",
+  "method": "POST",
+  "source": "../../docs/api/zhipu-chat.md",
+  "default_model": "glm-4.7-flash",
+  "reasoning_model": "glm-5.2",
+  "vision_model": "",
+  "notes": [
+    "智谱 OEM 原厂参考 case：仅在 runV02 测评模型为 GLM 系列时注入到对应分组子区。",
+    "跑批时对用户选择的每一个测评渠道（Baseline + Target）各执行一次。",
+    "原厂特有逻辑：do_sample=false 为采样总开关（temperature/top_p 失效）；官方称 stop 仅支持单个停止词但实测多停止词生效（2026-07-08）。"
+  ],
+  "common_expect": {},
+  "cases": [
+    "010_do_sample_false_sampling_ignored.json",
+    "011_stop_multi_effective.json",
+    "012_temperature_precision_accepted.json"
+  ]
+}

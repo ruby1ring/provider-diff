@@ -560,6 +560,18 @@ window.NOCTUA_CHANNEL_REPORT_INTENT = (() => {
       const failedChannels = matrixRowFailedTargets(row, channels);
       if (failedChannels.length) {
         severityCounts[severity].failed += 1;
+        const failedChannelRepro = {};
+        for (const channel of channels) {
+          if (channel.role === "baseline") continue;
+          const summary = row.by_channel?.[channel.key];
+          if (!summary || matrixRowSummaryHealthy(row, summary)) continue;
+          if (!summary.repro_verdict) continue;
+          failedChannelRepro[channel.platformName || channel.key] = {
+            verdict: summary.repro_verdict,
+            total: Number(summary.attempts_total || 0),
+            failed: Number(summary.attempts_failed || 0)
+          };
+        }
         failingCases.push({
           case_id: row.case_id,
           title: row.title || row.case_id,
@@ -568,7 +580,8 @@ window.NOCTUA_CHANNEL_REPORT_INTENT = (() => {
           intent: row.intent,
           severity,
           severity_meta: caseSeverityMeta(severity),
-          failed_channels: failedChannels
+          failed_channels: failedChannels,
+          failed_channel_repro: failedChannelRepro
         });
 
         for (const channel of targetChannels) {

@@ -14,8 +14,7 @@ parameter_groups:
   Tools: [tools, tool_choice]
   Protocol: [stream]
   Output.Structure: [output_config]
-  Observed: [input, n, user]
-notes: 对照 docs/api/ali-message.md（2026-06-25）。temperature 范围 [0,2)（非 Anthropic 官方 [0,1]）。 类型字段按该渠道官方 API 原文收录。 2026-07-08 联网对照官方文档已补录参数：input, n, user。
+notes: 对照官方文档（2026-07-08，endpoint 扩至 5 地域、模型清单更新）。temperature 范围 [0,2)（非 Anthropic 官方 [0,1]）。 类型字段按该渠道官方 API 原文收录。
 ---
 # 阿里云百炼 Anthropic Messages API Notes
 
@@ -27,6 +26,8 @@ notes: 对照 docs/api/ali-message.md（2026-06-25）。temperature 范围 [0,2)
 | 华北2 | `POST https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/apps/anthropic/v1/messages` |
 | 新加坡 | `POST https://{WorkspaceId}.ap-southeast-1.maas.aliyuncs.com/apps/anthropic/v1/messages` |
 | 美国 | `POST https://dashscope-us.aliyuncs.com/apps/anthropic/v1/messages` |
+| 德国（法兰克福） | `POST https://{WorkspaceId}.eu-central-1.maas.aliyuncs.com/apps/anthropic/v1/messages` |
+| 日本（东京） | `POST https://{WorkspaceId}.ap-northeast-1.maas.aliyuncs.com/apps/anthropic/v1/messages` |
 
 ## Authentication
 
@@ -36,9 +37,14 @@ notes: 对照 docs/api/ali-message.md（2026-06-25）。temperature 范围 [0,2)
 
 | Parameter | Type | Notes |
 |---|---|---|
-| `model` | `string` | Qwen / DeepSeek / Kimi / GLM / MiniMax 等 |
+| `model` | `string` | 见下方支持模型清单 |
 | `messages` | `array` | `user` / `assistant` 交替；不含 `system` 角色 |
 | `max_tokens` | `integer` | 回复上限；不限制 thinking token（由 `thinking.budget_tokens` 控制） |
+
+### 支持模型清单（2026-07-08 官方文档）
+
+- 通义千问：`qwen3.7-max`、`qwen3.7-plus`、`qwen3.6-flash`、`qwen-turbo`、`qwen3-coder` 系列、`qwen3-vl` 系列
+- 第三方：`deepseek-v4-pro`、`deepseek-v4-flash`、`kimi-k2.6`、`glm-5.2`、`MiniMax-M2.5`
 
 ## Documented Request Parameters
 
@@ -71,11 +77,3 @@ notes: 对照 docs/api/ali-message.md（2026-06-25）。temperature 范围 [0,2)
 > 实测与文档不一致时，在「实测」列记录 HTTP 状态、错误码或实际行为；勿改写「官方文档」列。
 
 ## Raw Archive
-
-## 实测补充参数（来源：实测）
-
-| Parameter | Type | Required | Default | Range | Notes |
-|---|---|---|---|---|---|
-| `input` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/anthropic-api-messages）检索到该参数，已补录。 |
-| `n` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/anthropic-api-messages）检索到该参数，已补录。 |
-| `user` | `—` | no | — | — | 来源：实测（Noctua，2026-07-08）；联网对照官方文档（https://help.aliyun.com/zh/model-studio/anthropic-api-messages）检索到该参数，已补录。 |

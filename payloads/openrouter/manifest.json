@@ -16,9 +16,24 @@
   ],
   "common_expect": {
     "http_status": 200,
-    "required_response_fields": ["id", "object", "created", "model", "choices", "system_fingerprint"],
-    "choice_required_fields": ["index", "message", "finish_reason"],
-    "usage_required_fields": ["prompt_tokens", "completion_tokens", "total_tokens"]
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "system_fingerprint"
+    ],
+    "choice_required_fields": [
+      "index",
+      "message",
+      "finish_reason"
+    ],
+    "usage_required_fields": [
+      "prompt_tokens",
+      "completion_tokens",
+      "total_tokens"
+    ]
   },
   "cases": [
     "001_basic_minimal.json",
@@ -105,6 +120,11 @@
     "155_official_reasoning_disabled_structured_output.json",
     "156_official_reasoning_disabled_json_object.json",
     "157_official_reasoning_effort_high_stream.json",
-    "158_official_reasoning_effort_xhigh_stream.json"
+    "158_official_reasoning_effort_xhigh_stream.json",
+    "160_legacy_transforms_probe.json",
+    "161_legacy_route_probe.json",
+    "162_verbosity_probe.json",
+    "163_top_k_zero_probe.json",
+    "164_stream_usage_always_included.json"
   ]
 }
