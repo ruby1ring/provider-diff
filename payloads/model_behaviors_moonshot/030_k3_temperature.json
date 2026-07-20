@@ -1,0 +1,34 @@
+{
+  "case_id": "moonshot_oem_k3_temperature_rejected",
+  "title": "k3 的请求 schema 不暴露 temperature：传 0.2 观察真实行为",
+  "category": "sampling",
+  "case_scope": "oem_reference",
+  "oem_vendor": "moonshot",
+  "applicable_models": ["kimi-k3"],
+  "target_group": "protocol_sampling",
+  "parameters": [
+    "temperature"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "kimi-k3",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句中文打个招呼。"
+      }
+    ],
+    "max_completion_tokens": 512,
+    "temperature": 0.2
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "evaluation_intent": "assert",
+    "case_scope": "oem_reference",
+    "target_group": "protocol_sampling",
+    "oem_source": "https://platform.kimi.com/docs/api/chat",
+    "notes": "Kimi OEM：实测 k3 接受 temperature=0.2 不报错（200），与 k2「传非默认值报 400」相反。温度取值范围 0–1，>1 才拒（见协议采样 case）。实测确认（2026-07-17，Noctua，Moonshot 官方 + SiliconFlow COM 一致）。第三方渠道应与 Baseline 一致。"
+  }
+}

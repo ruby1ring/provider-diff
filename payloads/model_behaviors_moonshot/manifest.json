@@ -19,6 +19,11 @@
     "012_k2_n_rejected.json",
     "013_k2_presence_penalty_rejected.json",
     "020_k25_thinking_keep_rejected.json",
-    "021_k27code_thinking_disable_rejected.json"
+    "021_k27code_thinking_disable_rejected.json",
+    "030_k3_temperature.json",
+    "031_k3_top_p.json",
+    "032_k3_n.json",
+    "033_k3_presence_penalty.json",
+    "034_k3_n_with_temperature.json"
   ]
 }

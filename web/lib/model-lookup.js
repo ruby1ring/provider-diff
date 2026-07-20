@@ -65,6 +65,10 @@ window.NOCTUA_MODEL_LOOKUP = (() => {
       }
     },
     moonshot: {
+      "kimi-k3": {
+        apiModelId: "kimi-k3",
+        aliases: ["Kimi-K3", "kimi k3", "kimi-k3"]
+      },
       "kimi-k2.7-coder": {
         apiModelId: "kimi-k2.7-coder",
         aliases: ["kimi k2.7 coder", "Kimi-K2.7-Coder", "kimi-k2-7-coder"]
@@ -171,17 +175,13 @@ window.NOCTUA_MODEL_LOOKUP = (() => {
         apiModelId: "moonshotai/Kimi-K2.6",
         aliases: ["moonshotai/Kimi-K2", "Kimi-K2.6"]
       },
+      "kimi-k3": {
+        apiModelId: "moonshotai/Kimi-K3",
+        aliases: ["Pro/moonshotai/Kimi-K3", "Kimi-K3", "moonshotai/Kimi-K3"]
+      },
       "glm-5.1": {
         apiModelId: "Pro/zai-org/GLM-5.1",
         aliases: ["zai-org/GLM-5.1", "GLM-5.1"]
-      },
-      "glm-5": {
-        apiModelId: "Pro/zai-org/GLM-5",
-        aliases: ["zai-org/GLM-5", "GLM-5"]
-      },
-      "MiniMax-M3": {
-        apiModelId: "MiniMaxAI/MiniMax-M3",
-        aliases: ["minimaxai/MiniMax-M3", "MiniMax-M3"]
       }
     },
     openrouter: {
@@ -200,6 +200,10 @@ window.NOCTUA_MODEL_LOOKUP = (() => {
       "kimi-k2.6": {
         apiModelId: "moonshotai/kimi-k2.6",
         aliases: ["moonshotai/kimi-k2.6", "moonshotai/kimi-k2"]
+      },
+      "kimi-k3": {
+        apiModelId: "moonshotai/kimi-k3",
+        aliases: ["moonshotai/kimi-k3", "Kimi K3", "kimi-k3"]
       },
       "glm-5.1": {
         apiModelId: "z-ai/glm-5.1",
@@ -264,6 +268,10 @@ window.NOCTUA_MODEL_LOOKUP = (() => {
       "kimi-k2.6": {
         apiModelId: "moonshotai/Kimi-K2.6",
         aliases: ["moonshotai/Kimi-K2"]
+      },
+      "kimi-k3": {
+        apiModelId: "moonshotai/Kimi-K3",
+        aliases: ["Pro/moonshotai/Kimi-K3", "moonshotai/Kimi-K3"]
       },
       "glm-5.1": {
         apiModelId: "Pro/zai-org/GLM-5.1",

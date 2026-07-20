@@ -1,0 +1,34 @@
+{
+  "case_id": "moonshot_oem_k3_n_with_temperature",
+  "title": "k3 temperature=0.6 时传 n=2：探测是否放开 n>1",
+  "category": "sampling",
+  "case_scope": "oem_reference",
+  "oem_vendor": "moonshot",
+  "applicable_models": ["kimi-k3"],
+  "target_group": "protocol_sampling",
+  "parameters": [
+    "n",
+    "temperature"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "kimi-k3",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句中文打个招呼。"
+      }
+    ],
+    "max_completion_tokens": 512,
+    "temperature": 0.6,
+    "n": 2
+  },
+  "expect": {
+    "evaluation_intent": "observe",
+    "case_scope": "oem_reference",
+    "target_group": "protocol_sampling",
+    "oem_source": "https://platform.kimi.com/docs/api/chat",
+    "notes": "Kimi OEM 探测：默认 temperature（≤1e-5）下 n=2 报 400「n should not be greater than 1 when temperature is less than or equal to 1e-5」。本 case 显式带 temperature=0.6（>1e-5），探测 k3 是否在 temperature 足够大时放开 n>1。断言为 observe：跑到 200 即证明放开、跑到 400 即证明该上限与 temperature 无关。实测结果待补。"
+  }
+}

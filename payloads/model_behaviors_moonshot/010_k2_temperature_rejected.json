@@ -4,6 +4,7 @@
   "category": "sampling",
   "case_scope": "oem_reference",
   "oem_vendor": "moonshot",
+  "applicable_models": ["kimi-k2.6", "kimi-k2.7-coder"],
   "target_group": "protocol_sampling",
   "parameters": [
     "temperature"

@@ -6,6 +6,7 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
   ];
 
   const evalModelIds = [
+    "kimi-k3",
     "deepseek-v4-flash",
     "deepseek-v4-pro",
     "kimi-k2.7-coder",
@@ -18,6 +19,7 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
 
   /** ISO dates for built-in eval models; used to sort tabs newest-first. */
   const evalModelReleaseAt = {
+    "kimi-k3": "2026-07-15",
     "deepseek-v4-pro": "2026-05-28",
     "deepseek-v4-flash": "2026-05-15",
     "kimi-k2.7-coder": "2026-05-20",

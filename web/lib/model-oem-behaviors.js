@@ -26,6 +26,10 @@
 
   // 各厂商原厂特殊规则摘要：选中该厂商的测评模型时，UI 用它渲染显著提示条。
   // rule 面向运营（一句话说清行为），source 是原厂文档出处。
+  //
+  // 规则可带可选 models 字段（模型 id 数组，支持 "xxx*" 前缀通配），表示该规则只对列出的模型生效；
+  // 不带 models 的规则是厂商通用规则，作为模型级（MODEL_RULES）缺失时的回落来源。
+  // modelOemRules(modelId)：先取 MODEL_RULES[modelId]，再取该厂商通用规则，互斥拼接。
   const VENDOR_RULES = {
     deepseek: [
       {
@@ -40,11 +44,13 @@
     moonshot: [
       {
         rule: "kimi-k2 系列采样参数是锁死的：temperature、top_p、n、presence_penalty 传非默认值会直接报 400（与 DeepSeek「接受但忽略」相反）；实测已确认（2026-07-08）",
-        source: "https://platform.kimi.com/docs/guide/kimi-k2-6-quickstart"
+        source: "https://platform.kimi.com/docs/guide/kimi-k2-6-quickstart",
+        models: ["kimi-k2.6", "kimi-k2.7-coder"]
       },
       {
         rule: "kimi-k2.7-code 始终开启思考，传 thinking:{type:\"disabled\"} 报 400；kimi-k2.5 不支持 thinking.keep 字段（报 400）",
-        source: "https://platform.kimi.com/docs/api/chat"
+        source: "https://platform.kimi.com/docs/api/chat",
+        models: ["kimi-k2.6", "kimi-k2.7-coder"]
       }
     ],
     zhipu: [
@@ -71,6 +77,65 @@
 
   function vendorRules(vendorId) {
     return VENDOR_RULES[String(vendorId || "").trim()] || [];
+  }
+
+  // 模型级专属规则表：与厂商通用规则不同、只属于某个具体模型 id 的规则。
+  // 每出一个新模型，应联网查官方文档把其特殊行为补进这里（再由渠道参数测评工具实测校验）。
+  const MODEL_RULES = {
+    "kimi-k3": [
+      {
+        rule: "kimi-k3 采样参数与 k2 行为不同：temperature（取值范围 0–1，>1 报 400「temperature must not be greater than 1.000000」）、top_p、presence_penalty 均正常接受不报错；n>1 在 temperature≤1e-5（默认）时报 400「n should not be greater than 1 when temperature is less than or equal to 1e-5」。即官方 schema 未列这些参数，但运行时实际接受；实测确认（2026-07-17，Noctua，Moonshot 官方 + SiliconFlow COM 一致）",
+        source: "https://platform.kimi.com/docs/api/chat"
+      },
+      {
+        rule: "kimi-k3 始终启用思考并开启 Preserved Thinking，无法关闭；不用 thinking 对象，而用顶层 reasoning_effort，且 enum 当前仅支持 \"max\"（默认 max）；文档确认（2026-07-17）",
+        source: "https://platform.kimi.com/docs/guide/kimi-k3"
+      },
+      {
+        rule: "kimi-k3 的 max_completion_tokens 默认 131072、最大可设 1048576；文档确认（2026-07-17）",
+        source: "https://platform.kimi.com/docs/api/chat"
+      },
+      {
+        rule: "kimi-k3 拒绝 n>1 的边界依赖 temperature：实测默认（temperature≤1e-5）时 n=2 报 400，提示「n should not be greater than 1 when temperature is less than or equal to 1e-5」——暗示 temperature 足够大时可能放开 n>1，待实测确认（2026-07-17 探测中）",
+        source: "https://platform.kimi.com/docs/api/chat"
+      }
+    ]
+  };
+
+  function ruleAppliesToModel(rule, modelId) {
+    const targets = Array.isArray(rule?.models) ? rule.models : null;
+    if (!targets || !targets.length) return true; // 无 models → 厂商通用，命中
+    const id = String(modelId || "").trim().toLowerCase();
+    return targets.some((target) => {
+      const t = String(target || "").trim().toLowerCase();
+      if (!t) return false;
+      if (t.endsWith("*")) return id.startsWith(t.slice(0, -1));
+      return t === id;
+    });
+  }
+
+  // OEM 原厂参考 case 的模型级限定：case 上的 applicable_models（数组，支持 "xxx*" 通配）。
+  // 无 applicable_models → 该厂商通用 case，对所有该厂商模型注入；有 → 仅对列出的模型注入。
+  function caseAppliesToModel(testCase, modelId) {
+    const targets = Array.isArray(testCase?.applicable_models) ? testCase.applicable_models : null;
+    if (!targets || !targets.length) return true;
+    const id = String(modelId || "").trim().toLowerCase();
+    return targets.some((target) => {
+      const t = String(target || "").trim().toLowerCase();
+      if (!t) return false;
+      if (t.endsWith("*")) return id.startsWith(t.slice(0, -1));
+      return t === id;
+    });
+  }
+
+  function modelOemRules(modelId) {
+    const id = String(modelId || "").trim();
+    if (!id) return [];
+    const vendorId = inferEvalModelVendorId(id);
+    if (vendorId === "other") return [];
+    const modelSpecific = MODEL_RULES[id] || [];
+    const vendorGeneral = (VENDOR_RULES[vendorId] || []).filter((rule) => ruleAppliesToModel(rule, id));
+    return [...modelSpecific, ...vendorGeneral];
   }
 
   function vendorLabel(vendorId) {
@@ -179,8 +244,11 @@
 
   function prepareCaseForRoute(testCase, channelId) {
     if (!isOemReferenceCase(testCase)) return testCase;
-    const { payload, changed } = adaptOemCasePayloadForRoute(testCase, channelId);
-    if (!changed) return testCase;
+    // OEM 原厂参考用例一律按 custom 内联提交（携带本渠道适配后的 payload），
+    // 不再走 case_ids 串号由后端在渠道 provider 里反查——OEM 用例不在任何渠道
+    // payloads 目录里，反查必然 "case xxx not found"。后端 runProviderCase 仍会用
+    // 请求里的 model 覆盖 payload.model，故内联提交不影响目标模型/渠道的选择。
+    const { payload } = adaptOemCasePayloadForRoute(testCase, channelId);
     return {
       ...testCase,
       custom: true,
@@ -206,6 +274,9 @@
     inferEvalModelVendorId,
     modelBehaviorsProviderId,
     vendorRules,
+    ruleAppliesToModel,
+    caseAppliesToModel,
+    modelOemRules,
     vendorLabel,
     isOemReferenceCase,
     oemTargetGroup,

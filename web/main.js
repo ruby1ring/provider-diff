@@ -12707,13 +12707,13 @@ function renderRunV02OemRuleBanner() {
   if (!banner) return;
   const api = oemBehaviorsApi();
   const modelId = state.runV02.modelId;
-  const vendorId = modelId ? api.inferEvalModelVendorId?.(modelId) || "other" : "other";
-  const rules = vendorId === "other" ? [] : api.vendorRules?.(vendorId) || [];
+  const rules = modelId ? (api.modelOemRules?.(modelId) || []) : [];
   if (!rules.length) {
     banner.innerHTML = "";
     banner.classList.add("is-hidden");
     return;
   }
+  const vendorId = modelId ? api.inferEvalModelVendorId?.(modelId) || "other" : "other";
   const label = api.vendorLabel?.(vendorId) || "原厂";
   banner.innerHTML = `
     <strong class="oem-rule-banner__title">⚠ ${escapeHtml(label)} 特殊规则</strong>
@@ -14031,7 +14031,7 @@ function toggleRunV02Target(routeKey) {
   updateRunV02Availability();
 }
 
-async function loadModelOemBehaviorCases(vendorId, protocolId) {
+async function loadModelOemBehaviorCases(vendorId, protocolId, modelId) {
   const api = oemBehaviorsApi();
   if (!vendorId || vendorId === "other" || protocolId !== "chat_completions") return [];
   const providerId = api.modelBehaviorsProviderId?.(vendorId);
@@ -14040,10 +14040,12 @@ async function loadModelOemBehaviorCases(vendorId, protocolId) {
     const response = await fetch(`${API_BASE}/api/providers/${providerId}/cases?endpoint_id=${encodeURIComponent(protocolId)}`);
     if (!response.ok) return [];
     const data = await response.json();
-    return (data.cases || []).filter((testCase) => {
-      const caseVendor = api.oemVendorId?.(testCase) || vendorId;
-      return !caseVendor || caseVendor === vendorId;
-    });
+    return (data.cases || [])
+      .filter((testCase) => {
+        const caseVendor = api.oemVendorId?.(testCase) || vendorId;
+        return !caseVendor || caseVendor === vendorId;
+      })
+      .filter((testCase) => api.caseAppliesToModel?.(testCase, modelId) ?? true);
   } catch {
     return [];
   }
@@ -14122,7 +14124,7 @@ async function loadRunV02Cases() {
     }
     const vendorId = oemBehaviorsApi().inferEvalModelVendorId?.(state.runV02.modelId) || "other";
     if (vendorId && vendorId !== "other") {
-      const oemCases = await loadModelOemBehaviorCases(vendorId, protocolId);
+      const oemCases = await loadModelOemBehaviorCases(vendorId, protocolId, state.runV02.modelId);
       if (oemCases.length) {
         const existingIds = new Set(cases.map((testCase) => testCase.case_id));
         cases = cases.concat(oemCases.filter((testCase) => !existingIds.has(testCase.case_id)));
