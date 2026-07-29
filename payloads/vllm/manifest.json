@@ -18,8 +18,18 @@
   "common_expect": {
     "http_status": 200,
     "support_conclusion": "supported",
-    "required_response_fields": ["id", "object", "created", "model", "choices"],
-    "choice_required_fields": ["index", "message", "finish_reason"]
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ],
+    "choice_required_fields": [
+      "index",
+      "message",
+      "finish_reason"
+    ]
   },
   "cases": [
     "001_basic_minimal.json",
@@ -52,6 +62,8 @@
     "051_tools_parallel_false_optional.json",
     "060_protocol_stream_basic.json",
     "061_protocol_stream_include_usage.json",
+    "061v_protocol_stream_include_usage.json",
+    "061w_protocol_stream_include_chunk_usage.json",
     "071c_protocol_stream_usage_chunk_shape.json",
     "062_protocol_stream_reasoning.json",
     "070_template_continue_final_message.json",

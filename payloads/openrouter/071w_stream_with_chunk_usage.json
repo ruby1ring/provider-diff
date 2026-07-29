@@ -1,0 +1,20 @@
+{
+  "case_id": "or_stream_include_chunk_usage_observed",
+  "title": "include_chunk_usage 流式逐分片 usage 行为对照（观测）",
+  "category": "protocol",
+  "parameters": ["stream", "include_chunk_usage"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "openai/gpt-4o-mini",
+    "messages": [{"role": "user", "content": "流式输出一句关于 usage 的说明。"}],
+    "stream": true, "max_tokens": 80,
+    "include_chunk_usage": true
+  },
+  "expect": {
+    "http_status": 200, "evaluation_intent": "observe", "response_mode": "sse",
+    "stream_usage_in_sse": "observed", "stream_usage_per_chunk": "observed", "stream_usage_chunk_shape": "observed",
+    "usage_required_fields": ["prompt_tokens", "completion_tokens", "total_tokens"],
+    "notes": "对照：百炼白名单私有参数 include_chunk_usage 顶层写法。观测每个 data chunk 是否都携带 usage（per_chunk observed=X/N）。OpenRouter 渠道预期不识别此私参，退化为仅最终 chunk 带 usage（X/N=1/N，不支持）。"
+  }
+}

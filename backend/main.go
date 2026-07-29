@@ -3745,6 +3745,11 @@ func evaluateAssertions(result RunCaseResult, expect map[string]any) []CaseAsser
 				assertions = append(assertions, assertion)
 			}
 		}
+		if mode, _ := expect["stream_usage_per_chunk"].(string); strings.TrimSpace(mode) != "" {
+			if assertion, ok := streamUsagePerChunkAssertion(result.RawResponse, mode); ok {
+				assertions = append(assertions, assertion)
+			}
+		}
 		assertions = appendSSEStreamAssertions(assertions, result, expect)
 		return assertions
 	}
@@ -4578,6 +4583,46 @@ func streamUsageInSSEAssertion(raw string, mode string) (CaseAssertion, bool) {
 			message = "观测：SSE 含 usage chunk"
 		}
 		return CaseAssertion{Name: "stream_usage_in_sse", Pass: true, Message: message}, true
+	default:
+		return CaseAssertion{}, false
+	}
+}
+
+// streamUsagePerChunkAssertion 校验阿里百炼白名单参数 include_chunk_usage 的行为：
+// 设为 true 时流式响应每个 data chunk 都应携带 usage 对象。
+func streamUsagePerChunkAssertion(raw string, mode string) (CaseAssertion, bool) {
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	if mode == "" {
+		return CaseAssertion{}, false
+	}
+	parsed := parseSSEChunks(raw)
+	total := len(parsed.chunks)
+	switch mode {
+	case "required":
+		if total == 0 {
+			return CaseAssertion{Name: "stream_usage_per_chunk", Pass: false, Message: "未解析到任何 SSE data chunk"}, true
+		}
+		missing := 0
+		for _, c := range parsed.chunks {
+			if !c.hasRealUsage {
+				missing++
+			}
+		}
+		if missing == 0 {
+			return CaseAssertion{Name: "stream_usage_per_chunk", Pass: true,
+				Message: fmt.Sprintf("通过：全部 %d 个 chunk 均含 usage", total)}, true
+		}
+		return CaseAssertion{Name: "stream_usage_per_chunk", Pass: false,
+			Message: fmt.Sprintf("预期每个 chunk 都含 usage，%d/%d 个 chunk 缺失", missing, total)}, true
+	case "observed":
+		withUsage := 0
+		for _, c := range parsed.chunks {
+			if c.hasRealUsage {
+				withUsage++
+			}
+		}
+		return CaseAssertion{Name: "stream_usage_per_chunk", Pass: true,
+			Message: fmt.Sprintf("观测：%d/%d 个 chunk 含 usage", withUsage, total)}, true
 	default:
 		return CaseAssertion{}, false
 	}

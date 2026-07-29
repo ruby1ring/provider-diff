@@ -75,6 +75,8 @@
     "067_server_tool_web_search_optional.json",
     "070_stream_basic.json",
     "071_stream_with_usage_deprecated_option.json",
+    "071v_stream_with_usage.json",
+    "071w_stream_with_chunk_usage.json",
     "071c_stream_usage_chunk_shape.json",
     "072_stream_false.json",
     "072_stream_debug_echo_upstream_body.json",

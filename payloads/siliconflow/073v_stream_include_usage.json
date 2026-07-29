@@ -1,0 +1,20 @@
+{
+  "case_id": "sf_stream_include_usage_observed",
+  "title": "stream_options.include_usage 流式 usage 行为对照（观测）",
+  "category": "protocol",
+  "parameters": ["stream", "stream_options"],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "Pro/zai-org/GLM-4.7",
+    "messages": [{"role": "user", "content": "流式输出一句关于 usage 的说明。"}],
+    "stream": true, "max_tokens": 80,
+    "stream_options": {"include_usage": true}
+  },
+  "expect": {
+    "http_status": 200, "evaluation_intent": "observe", "response_mode": "sse",
+    "stream_usage_in_sse": "observed", "stream_usage_per_chunk": "observed", "stream_usage_chunk_shape": "observed",
+    "usage_required_fields": ["prompt_tokens", "completion_tokens", "total_tokens"],
+    "notes": "对照：OpenAI 标准 stream_options.include_usage 用法。观测 SSE 是否含 usage、含 usage 的 chunk 占比（per_chunk observed=X/N）与 usage chunk 形态。与 include_chunk_usage 横向对比各渠道对流式 usage 的支持情况。"
+  }
+}

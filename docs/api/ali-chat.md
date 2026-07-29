@@ -15,12 +15,12 @@ parameter_groups:
   Output.Structure: [response_format]
   Output.Modality: [modalities, vl_high_resolution_images, audio]
   Tools: [tools, tool_choice, parallel_tool_calls, tool_stream, enable_code_interpreter]
-  Protocol: [stream, stream_options.include_usage]
+  Protocol: [stream, stream_options.include_usage, include_chunk_usage]
   Debug: [logprobs, top_logprobs]
   Search: [enable_search, search_options]
   Extra: [skill, X-DashScope-DataInspection]
   Observed: [user, service_tier, frequency_penalty, logit_bias]
-notes: 对照官方文档（2026-07-08）。含百炼 extra_body 与搜索扩展参数；Observed 组为实测补充（官方文档未定义）。 类型字段按该渠道官方 API 原文收录。
+notes: 对照官方文档（2026-07-08）。含百炼 extra_body 与搜索扩展参数；Observed 组为实测补充（官方文档未定义）。 类型字段按该渠道官方 API 原文收录。include_chunk_usage 为白名单 gating 参数（实测补充，官方文档未列），需在百炼平台开通白名单后生效。
 ---
 # 阿里云百炼 Chat Completions API Notes
 
@@ -63,6 +63,7 @@ Content-Type: application/json
 |---|---|---|---|---|---|
 | `stream` | `boolean` | yes | `false` | — | 非流式超时 300s；长输出建议开启流式。 |
 | `stream_options.include_usage` | `boolean` | yes | `false` | — | 仅当 `stream=true` 时生效；最后一个 chunk 附带 usage。 |
+| `include_chunk_usage` | `boolean` | **no** | `false` | — | 百炼白名单 gating 参数（非 OpenAI 标准，请求体顶层传入）。设为 `true` 后流式响应**每个 data chunk** 都携带 `usage` 对象，区别于 `include_usage` 仅在最终 chunk 携带。需在百炼平台开通白名单后才生效；未开通时参数被忽略，行为退化为最终 chunk 携带 usage。 |
 | `temperature` | `float` | yes | 因模型而异 | [0, 2) | 采样温度；各模型默认值见官方文档。 |
 | `top_p` | `float` | yes | 因模型而异 | (0, 1.0] | 核采样概率阈值。 |
 | `top_k` | `integer \| null` | **no** | 因模型而异 | ≥0；null 或 >100 表示不启用 | 通过 `extra_body` 传入；DeepSeek/Kimi/MiniMax 不支持。 |

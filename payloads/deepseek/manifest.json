@@ -87,6 +87,8 @@
     "069_tools_reasoning_content_replay.json",
     "070_protocol_stream_basic.json",
     "071_protocol_stream_include_usage.json",
+    "071v_protocol_stream_include_usage.json",
+    "071e_protocol_stream_include_chunk_usage.json",
     "071c_protocol_stream_usage_chunk_shape.json",
     "071a_protocol_stream_options_null.json",
     "072_protocol_stream_false.json",

@@ -19,9 +19,24 @@
   "common_expect": {
     "http_status": 200,
     "support_conclusion": "supported",
-    "required_response_fields": ["id", "object", "created", "model", "choices", "usage"],
-    "choice_required_fields": ["index", "message", "finish_reason"],
-    "usage_required_fields": ["prompt_tokens", "completion_tokens", "total_tokens"]
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "choice_required_fields": [
+      "index",
+      "message",
+      "finish_reason"
+    ],
+    "usage_required_fields": [
+      "prompt_tokens",
+      "completion_tokens",
+      "total_tokens"
+    ]
   },
   "cases": [
     "001_basic_minimal.json",
@@ -59,6 +74,8 @@
     "054_tools_multiturn_tool_result.json",
     "060_protocol_stream_basic.json",
     "061_protocol_stream_include_usage.json",
+    "061v_protocol_stream_include_usage.json",
+    "061w_protocol_stream_include_chunk_usage.json",
     "071c_protocol_stream_usage_chunk_shape.json",
     "070_multimodal_image_url.json",
     "071_multimodal_image_detail_ignored.json",

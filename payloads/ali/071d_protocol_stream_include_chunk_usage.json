@@ -1,0 +1,43 @@
+{
+  "case_id": "ali_protocol_stream_include_chunk_usage",
+  "title": "include_chunk_usage 应在每个流式 chunk 携带 usage",
+  "category": "protocol",
+  "parameters": [
+    "stream",
+    "include_chunk_usage"
+  ],
+  "method": "POST",
+  "path": "/v1/chat/completions",
+  "payload": {
+    "model": "deepseek-v4-pro",
+    "messages": [
+      {
+        "role": "user",
+        "content": "流式输出一句关于 usage 的说明。"
+      }
+    ],
+    "stream": true,
+    "enable_thinking": false,
+    "max_tokens": 80,
+    "include_chunk_usage": true
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "response_mode": "sse",
+    "stream_usage_per_chunk": "required",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ],
+    "usage_required_fields": [
+      "prompt_tokens",
+      "completion_tokens",
+      "total_tokens"
+    ],
+    "notes": "百炼白名单参数 include_chunk_usage=true，断言每个 data chunk 都携带 usage 对象（区别于 include_usage 仅在最终 chunk 携带）。需在百炼平台开通白名单；未开通时参数被忽略，仅最终 chunk 含 usage，本断言应失败。 Current test config has DashScope access to deepseek-v4-pro with include_chunk_usage whitelisted."
+  }
+}
