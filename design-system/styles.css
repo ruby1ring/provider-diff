@@ -348,7 +348,7 @@ body { color: var(--fg); background: var(--bg); }
 .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-3); }
 .stat-card { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--space-4); background: var(--surface); }
 .stat-card .st-top { display: flex; align-items: center; gap: 8px; font-size: var(--text-xs); color: var(--fg-muted); font-weight: 600; }
-.stat-card .st-val { font-size: var(--text-2xl); font-weight: 750; font-variant-numeric: tabular-nums; margin-top: 6px; letter-spacing: var(--tracking-tight); }
+.stat-card .st-val { font-size: var(--text-2xl); font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 6px; letter-spacing: var(--tracking-tight); }
 .stat-card .marker { width: 9px; height: 9px; border-radius: var(--radius-full); }
 
 /* Result table */
@@ -420,7 +420,7 @@ body { background: var(--bg); color: var(--fg); }
 .app-brand { display: flex; align-items: center; gap: 10px; }
 .app-brand .mk { width: 34px; height: 34px; border-radius: var(--radius-md); border: 1px solid var(--border); overflow: hidden; background: var(--surface); flex: none; }
 .app-brand .mk img { width: 100%; height: 100%; object-fit: cover; }
-.app-brand .nm { font-size: var(--text-lg); font-weight: 750; letter-spacing: var(--tracking-tight); }
+.app-brand .nm { font-size: var(--text-xl); font-weight: 800; letter-spacing: var(--tracking-tight); }
 .app-nav { display: flex; gap: 2px; margin-left: var(--space-4); }
 .app-nav a { color: var(--fg-muted); font-size: var(--text-sm); font-weight: 600; padding: 7px 12px; border-radius: var(--radius-sm); }
 .app-nav a:hover { color: var(--fg); background: var(--surface-2); text-decoration: none; }
@@ -434,7 +434,7 @@ body { background: var(--bg); color: var(--fg); }
 .app-nav .menu .panel a { padding: 7px 10px; }
 .app-header .spacer { flex: 1; }
 .app-acct { display: inline-flex; align-items: center; gap: 8px; color: var(--fg-muted); font-size: var(--text-sm); font-weight: 500; padding: 5px 8px 5px 5px; border-radius: var(--radius-full); border: 1px solid var(--border); }
-.app-acct .av { width: 26px; height: 26px; border-radius: var(--radius-full); background: var(--ink); color: var(--on-ink); display: grid; place-items: center; font-size: 11px; font-weight: 750; font-family: var(--font-mono); }
+.app-acct .av { width: 26px; height: 26px; border-radius: var(--radius-full); background: var(--ink); color: var(--on-ink); display: grid; place-items: center; font-size: 11px; font-weight: 800; font-family: var(--font-mono); }
 
 /* ---- App body + sidebar --------------------------------------------------- */
 .app-body { display: flex; flex: 1; min-height: 0; align-items: stretch; }
@@ -448,12 +448,21 @@ body { background: var(--bg); color: var(--fg); }
 .app-sidebar-nav { display: flex; flex-direction: column; gap: var(--space-4); }
 .sidebar-group { display: flex; flex-direction: column; gap: var(--space-2); }
 .sidebar-group-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 0 12px;
   font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: var(--tracking-wide);
-  color: var(--fg-subtle);
+  color: var(--accent);
   text-transform: none;
+}
+.sidebar-group-icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--accent);
 }
 .sidebar-group-items { display: flex; flex-direction: column; gap: 2px; }
 .app-sidebar-nav a,
@@ -1959,7 +1968,7 @@ body.protocol-drawer-open { overflow: hidden; }
 }
 .model-lookup-summary-stat__value {
   font-size: var(--text-2xl);
-  font-weight: 750;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
   line-height: 1;
   color: var(--fg);
@@ -2881,7 +2890,7 @@ body.protocol-drawer-open { overflow: hidden; }
   padding: var(--space-8) var(--space-6) var(--space-16);
 }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-6); margin-bottom: var(--space-8); }
-.page-head h1 { font-size: var(--text-2xl); font-weight: 750; letter-spacing: var(--tracking-tight); }
+.page-head h1 { font-size: var(--text-2xl); font-weight: 800; letter-spacing: var(--tracking-tight); }
 .page-head p { color: var(--fg-muted); font-size: var(--text-sm); line-height: 1.6; max-width: 72ch; margin-top: 8px; text-wrap: pretty; }
 
 /* ---- Panel + section heading ---------------------------------------------- */
@@ -2958,7 +2967,7 @@ details.suite > summary .muted { font-weight: 500; }
 .rep-card { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); padding: var(--space-4); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .rep-card .lbl { display: inline-flex; align-items: center; gap: 7px; font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); }
 .rep-card .lbl .mk { width: 8px; height: 8px; border-radius: var(--radius-full); flex: none; }
-.rep-card .num { font-size: var(--text-2xl); font-weight: 750; letter-spacing: var(--tracking-tight); font-variant-numeric: tabular-nums; }
+.rep-card .num { font-size: var(--text-2xl); font-weight: 800; letter-spacing: var(--tracking-tight); font-variant-numeric: tabular-nums; }
 .rep-card .sub { font-size: var(--text-2xs); color: var(--fg-subtle); font-family: var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rep-card.pass .num { color: var(--status-success-text); }
 .rep-card.warn .num { color: var(--status-warning-text); }
@@ -3218,7 +3227,7 @@ details.suite > summary .muted { font-weight: 500; }
 .history-raw-case, .hcase { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; margin-bottom: var(--space-2); }
 .report-summary-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--space-3); }
 .report-summary-card { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); padding: var(--space-4); display: flex; flex-direction: column; gap: 6px; }
-.report-summary-card strong, .report-summary-card .num, .rep-card .num { font-size: var(--text-2xl); font-weight: 750; font-variant-numeric: tabular-nums; }
+.report-summary-card strong, .report-summary-card .num, .rep-card .num { font-size: var(--text-2xl); font-weight: 800; font-variant-numeric: tabular-nums; }
 .report-summary-card span:first-child, .rep-card .lbl { font-size: var(--text-xs); font-weight: 600; color: var(--fg-muted); }
 .report-summary-card small, .rep-card .sub { font-size: var(--text-2xs); color: var(--fg-subtle); font-family: var(--font-mono); }
 .report-summary-card--pass .num { color: var(--status-success-text); }

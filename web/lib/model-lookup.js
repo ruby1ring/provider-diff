@@ -50,6 +50,10 @@ window.NOCTUA_MODEL_LOOKUP = (() => {
     streamlake: {
       models_docs_url: "https://www.streamlake.com/document/WANQING/mdptas54hptu5uvllco",
       api_docs_url: "https://www.streamlake.com/document/WANQING/me6z3u08sjus2mzplbj"
+    },
+    baidu: {
+      models_docs_url: "https://cloud.baidu.com/doc/qianfan/s/rmh4stp0j",
+      api_docs_url: "https://cloud.baidu.com/doc/qianfan/s/Hmh4suq26"
     }
   };
 
@@ -310,6 +314,40 @@ window.NOCTUA_MODEL_LOOKUP = (() => {
       "glm-5": {
         apiModelId: "GLM-5",
         aliases: ["glm-5", "GLM 5", "GLM-5-Turbo"]
+      }
+    },
+    "baidu-qifan": {
+      "deepseek-v4-flash": {
+        apiModelId: "deepseek-v4-flash",
+        aliases: ["DeepSeek-V4-Flash", "DeepSeek V4 Flash"]
+      },
+      "deepseek-v4-pro": {
+        apiModelId: "deepseek-v4-pro",
+        aliases: ["DeepSeek-V4-Pro", "DeepSeek V4 Pro"]
+      },
+      "kimi-k2.7-coder": {
+        apiModelId: "kimi-k2.7-coder",
+        aliases: ["Kimi-K2.7-Coder", "kimi k2.7 coder"]
+      },
+      "kimi-k2.6": {
+        apiModelId: "kimi-k2.6",
+        aliases: ["Kimi-K2.6", "Kimi K2.6"]
+      },
+      "glm-5.2": {
+        apiModelId: "glm-5.2",
+        aliases: ["GLM-5.2", "GLM 5.2"]
+      },
+      "glm-5.1": {
+        apiModelId: "glm-5.1",
+        aliases: ["GLM-5.1", "GLM 5.1"]
+      },
+      "glm-5": {
+        apiModelId: "glm-5",
+        aliases: ["GLM-5", "GLM 5"]
+      },
+      "MiniMax-M3": {
+        apiModelId: "MiniMax-M3",
+        aliases: ["minimax-m3", "MiniMax M3"]
       }
     }
   };
@@ -588,6 +626,7 @@ window.NOCTUA_MODEL_LOOKUP = (() => {
     "sf-router-cn": "silinex_china",
     "sf-router-com": "silinex_overseas",
     "streamlake-cn": "streamlake",
+    "baidu-qifan": "baidu",
     moonshot: "moonshot",
     zhipu: "zhipu"
   };
@@ -651,6 +690,9 @@ window.NOCTUA_MODEL_LOOKUP = (() => {
       chat_completions: "https://wanqing.streamlakeapi.com/api/gateway/v1/endpoints",
       anthropic_messages: "https://wanqing.streamlakeapi.com/api/gateway/v1/endpoints",
       responses_api: "https://wanqing.streamlakeapi.com/api/gateway/v1/endpoints"
+    },
+    "baidu-qifan": {
+      chat_completions: "https://qianfan.baidubce.com/v2"
     }
   };
 

@@ -18,7 +18,8 @@ window.NOCTUA_CHANNEL_ROUTE_CORE = (() => {
     openrouter: ["openrouter"],
     "sf-router-cn": ["sf-router-cn", "siliconflow-cn", "siliconflow"],
     "sf-router-com": ["sf-router-com", "siliconflow-com", "siliconflow"],
-    "streamlake-cn": ["streamlake-cn", "streamlake"]
+    "streamlake-cn": ["streamlake-cn", "streamlake"],
+    "baidu-qifan": ["baidu-qifan", "baidu"]
   };
 
   function protocolCatalogDefs() {

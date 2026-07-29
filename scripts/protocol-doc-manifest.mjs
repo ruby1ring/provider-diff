@@ -366,6 +366,28 @@ export const PROTOCOL_DOC_MANIFEST = {
     },
     notes: "对照 docs/api/streamlake-response.md（2026-06-25）。"
   },
+  "docs/api/baidu-chat.md": {
+    channel_id: "baidu",
+    protocol_id: "chat_completions",
+    doc_status: "verified",
+    doc_url: "https://cloud.baidu.com/doc/qianfan-api/s/3m7of64lb",
+    last_verified: "2026-07-28",
+    compare: true,
+    required_parameters: ["model", "messages"],
+    parameter_groups: {
+      Core: ["model", "messages[].role", "messages[].content"],
+      Sampling: ["temperature", "top_p", "penalty_score", "frequency_penalty", "presence_penalty", "repetition_penalty", "seed", "stop"],
+      Length: ["max_tokens", "max_completion_tokens"],
+      "Reasoning.Switch": ["thinking", "thinking.type", "enable_thinking"],
+      "Reasoning.Intensity": ["thinking_budget", "thinking_strategy", "reasoning_effort"],
+      "Output.Structure": ["response_format", "response_format.type", "response_format.json_schema"],
+      Tools: ["tools", "tools[].function.name", "tools[].function.parameters", "tool_choice", "parallel_tool_calls", "messages[].tool_calls", "messages[].tool_call_id"],
+      Protocol: ["stream", "stream_options", "stream_options.include_usage", "stream_options.chunk_include_usage"],
+      Search: ["web_search", "web_search.enable", "web_search.search_mode", "web_search.search_number", "web_search.reference_number"],
+      Metadata: ["metadata", "user", "messages[].name"]
+    },
+    notes: "对照 docs/api/baidu-chat.md（千帆文档 2026-05-08，2026-07-28 核对）。鉴权 Bearer bce-v3。max_tokens（仅最终回答）与 max_completion_tokens（含思维链）同设以 max_completion_tokens 为准；penalty_score/seed/stop/response_format 对部分模型族不支持。文档未提及 top_k/n/logprobs/top_logprobs/modalities。"
+  },
   "docs/api/vllm.md": {
     channel_id: "vllm",
     protocol_id: "chat_completions",

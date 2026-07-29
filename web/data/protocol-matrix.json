@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-12T13:08:05.178Z",
+  "generatedAt": "2026-07-29T03:59:47.817Z",
   "evalChannels": [
     "deepseek",
     "moonshot",
@@ -8,7 +8,8 @@
     "openrouter",
     "minimax",
     "siliconflow",
-    "streamlake"
+    "streamlake",
+    "baidu"
   ],
   "protocolDefaultRequired": {
     "chat_completions": [
@@ -958,7 +959,7 @@
           "docStatusClass": "protocol-doc-badge--verified",
           "docUrl": "https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions",
           "localDoc": "docs/api/ali-chat.md",
-          "notes": "对照官方文档（2026-07-08）。含百炼 extra_body 与搜索扩展参数；Observed 组为实测补充（官方文档未定义）。 类型字段按该渠道官方 API 原文收录。",
+          "notes": "对照官方文档（2026-07-08）。含百炼 extra_body 与搜索扩展参数；Observed 组为实测补充（官方文档未定义）。 类型字段按该渠道官方 API 原文收录。include_chunk_usage 为白名单 gating 参数（实测补充，官方文档未列），需在百炼平台开通白名单后生效。",
           "inheritsFrom": null
         },
         "requiredParameters": [
@@ -1009,7 +1010,8 @@
           ],
           "Protocol": [
             "stream",
-            "stream_options.include_usage"
+            "stream_options.include_usage",
+            "include_chunk_usage"
           ],
           "Debug": [
             "logprobs",
@@ -1056,6 +1058,15 @@
               "false"
             ],
             "notes": "仅当 `stream=true` 时生效；最后一个 chunk 附带 usage。"
+          },
+          "include_chunk_usage": {
+            "type": "boolean",
+            "default": false,
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "百炼白名单 gating 参数（非 OpenAI 标准，请求体顶层传入）。设为 `true` 后流式响应每个 data chunk 都携带 `usage` 对象，区别于 `include_usage` 仅在最终 chunk 携带。需在百炼平台开通白名单后才生效；未开通时参数被忽略，行为退化为最终 chunk 携带 usage。"
           },
           "temperature": {
             "type": "float",
@@ -3743,6 +3754,344 @@
           "conversation": {
             "type": "string",
             "notes": "会话 ID。官方互斥规则：`previous_response_id` 与 `conversation` 不能同时使用"
+          }
+        }
+      }
+    },
+    "baidu": {
+      "chat_completions": {
+        "compare": true,
+        "docMeta": {
+          "docStatus": "verified",
+          "docStatusLabel": "已对照文档",
+          "docStatusClass": "protocol-doc-badge--verified",
+          "docUrl": "https://cloud.baidu.com/doc/qianfan-api/s/3m7of64lb",
+          "localDoc": "docs/api/baidu-chat.md",
+          "notes": ">",
+          "inheritsFrom": null
+        },
+        "requiredParameters": [
+          "model",
+          "messages"
+        ],
+        "parameters": {
+          "Core": [
+            "model",
+            "messages[].role",
+            "messages[].content"
+          ],
+          "Sampling": [
+            "temperature",
+            "top_p",
+            "penalty_score",
+            "frequency_penalty",
+            "presence_penalty",
+            "repetition_penalty",
+            "seed",
+            "stop"
+          ],
+          "Length": [
+            "max_tokens",
+            "max_completion_tokens"
+          ],
+          "Reasoning.Switch": [
+            "thinking",
+            "thinking.type",
+            "enable_thinking"
+          ],
+          "Reasoning.Intensity": [
+            "thinking_budget",
+            "thinking_strategy",
+            "reasoning_effort"
+          ],
+          "Output.Structure": [
+            "response_format",
+            "response_format.type",
+            "response_format.json_schema"
+          ],
+          "Tools": [
+            "tools",
+            "tools[].function.name",
+            "tools[].function.parameters",
+            "tool_choice",
+            "parallel_tool_calls",
+            "messages[].tool_calls",
+            "messages[].tool_call_id"
+          ],
+          "Protocol": [
+            "stream",
+            "stream_options",
+            "stream_options.include_usage",
+            "stream_options.chunk_include_usage"
+          ],
+          "Search": [
+            "web_search",
+            "web_search.enable",
+            "web_search.search_mode",
+            "web_search.search_number",
+            "web_search.reference_number"
+          ],
+          "Metadata": [
+            "metadata",
+            "user",
+            "messages[].name"
+          ]
+        },
+        "specs": {
+          "model": {
+            "type": "string",
+            "notes": "预置服务参考模型列表；sft 部署服务取服务详情中的 API 名称"
+          },
+          "messages": {
+            "type": "array<object>",
+            "notes": "聊天上下文，成员不能为空；1 个成员单轮，多个多轮"
+          },
+          "messages[].role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant",
+              "system"
+            ],
+            "notes": "`user` | `assistant` | `system`（GLM-Z1-Rumination-32B-0414 不支持 system）"
+          },
+          "messages[].content": {
+            "type": "string` | `array` (oneOf)",
+            "notes": "不能为空；最后一个 message 的 content 不能为 blank 字符"
+          },
+          "messages[].name": {
+            "type": "string",
+            "notes": "message 名（可选）"
+          },
+          "messages[].tool_calls": {
+            "type": "array",
+            "notes": "function call 第一轮返回、第二轮作为历史传入"
+          },
+          "messages[].tool_calls[].id": {
+            "type": "string",
+            "notes": "必填，function call 唯一标识，由模型生成"
+          },
+          "messages[].tool_calls[].type": {
+            "type": "string",
+            "notes": "必填"
+          },
+          "messages[].tool_calls[].function.name": {
+            "type": "string",
+            "notes": "函数名"
+          },
+          "messages[].tool_calls[].function.arguments": {
+            "type": "string",
+            "notes": "函数参数"
+          },
+          "messages[].tool_call_id": {
+            "type": "string",
+            "notes": "role=tool 时必填，对应 `tool_calls[].id`"
+          },
+          "stream": {
+            "type": "boolean",
+            "default": false,
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "beam search 模型只能为 false"
+          },
+          "stream_options": {
+            "type": "object"
+          },
+          "stream_options.include_usage": {
+            "type": "boolean",
+            "default": false,
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "最后一个 chunk 输出 usage"
+          },
+          "stream_options.chunk_include_usage": {
+            "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "每个 chunk 都带 usage"
+          },
+          "temperature": {
+            "type": "number",
+            "notes": "较高更随机，较低更确定"
+          },
+          "top_p": {
+            "type": "number",
+            "notes": "影响输出多样性"
+          },
+          "penalty_score": {
+            "type": "number",
+            "default": 1,
+            "notes": "增加惩罚减少重复。不支持 DeepSeek-V3/Reasoner/R1-Distill 系列、QwQ-32B、ERNIE X1 Turbo 系列、ERNIE 4.5 系列部分模型"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "notes": "最大输出 token 数。深度思考模型仅限制最终回答，不含思维链"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "notes": "总输出长度（含回答与思维链）。同时设 max_tokens 时以本参数为准"
+          },
+          "seed": {
+            "type": "integer",
+            "default": "空",
+            "notes": "确定性采样。不支持 ERNIE X1 Turbo 系列、Qwen2.5、Qianfan-Agent-Intent"
+          },
+          "stop": {
+            "type": "array",
+            "notes": "生成停止标识。不支持 ERNIE X1 Turbo 系列"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "notes": "正值按出现频率惩罚新 token"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "notes": "正值按是否出现惩罚，增加谈论新主题可能性"
+          },
+          "repetition_penalty": {
+            "type": "number",
+            "notes": "控制连续序列重复度"
+          },
+          "tools": {
+            "type": "array",
+            "notes": "可触发函数描述列表"
+          },
+          "tools[].type": {
+            "type": "string",
+            "notes": "必填"
+          },
+          "tools[].function.name": {
+            "type": "string",
+            "notes": "必填"
+          },
+          "tools[].function.description": {
+            "type": "string",
+            "notes": "函数描述"
+          },
+          "tools[].function.parameters": {
+            "type": "object",
+            "notes": "函数请求参数"
+          },
+          "tool_choice": {
+            "type": "string` | `object` (oneOf)",
+            "notes": "控制函数调用行为"
+          },
+          "parallel_tool_calls": {
+            "type": "boolean",
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "默认开启并行调用"
+          },
+          "web_search": {
+            "type": "object",
+            "notes": "ernie 系列不支持 `search_mode`"
+          },
+          "web_search.enable": {
+            "type": "boolean",
+            "default": false,
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "是否开启实时搜索"
+          },
+          "web_search.enable_citation": {
+            "type": "boolean",
+            "default": false,
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "是否开启上角标返回"
+          },
+          "web_search.enable_trace": {
+            "type": "boolean",
+            "default": false,
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "是否返回搜索溯源信息"
+          },
+          "web_search.enable_status": {
+            "type": "boolean",
+            "default": false,
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "是否返回搜索信号"
+          },
+          "web_search.search_mode": {
+            "type": "string",
+            "notes": "联网搜索模式（ernie 系列不支持）"
+          },
+          "web_search.search_number": {
+            "type": "integer",
+            "notes": "检索文献数量"
+          },
+          "web_search.reference_number": {
+            "type": "integer",
+            "notes": "给大模型总结的文献数量"
+          },
+          "response_format": {
+            "type": "object",
+            "notes": "不支持 ERNIE X1 Turbo 系列"
+          },
+          "response_format.type": {
+            "type": "string",
+            "default": "text"
+          },
+          "response_format.json_schema": {
+            "type": "object",
+            "notes": "type=`json_schema` 时必填"
+          },
+          "metadata": {
+            "type": "map<string,string>",
+            "notes": "自定义标签，用于日志遴选"
+          },
+          "thinking": {
+            "type": "object",
+            "notes": "思考模式开关"
+          },
+          "thinking.type": {
+            "type": "string",
+            "default": "disabled"
+          },
+          "enable_thinking": {
+            "type": "boolean",
+            "default": false,
+            "enum": [
+              "true",
+              "false"
+            ],
+            "notes": "是否开启思考模式"
+          },
+          "thinking_budget": {
+            "type": "integer",
+            "default": 16384,
+            "notes": "思维链最大长度"
+          },
+          "thinking_strategy": {
+            "type": "string",
+            "notes": "减少思维链输出"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "default": "high",
+            "notes": "控制推理深度与计算强度"
+          },
+          "user": {
+            "type": "string",
+            "notes": "最终用户唯一标识符"
           }
         }
       }

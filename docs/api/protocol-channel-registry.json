@@ -7,7 +7,8 @@
     "openrouter",
     "minimax",
     "siliconflow",
-    "streamlake"
+    "streamlake",
+    "baidu"
   ],
   "protocolDefaultRequired": {
     "chat_completions": ["model", "messages"],

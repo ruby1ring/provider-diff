@@ -168,7 +168,8 @@
     "minimax",
     "ali",
     "openrouter",
-    "streamlake"
+    "streamlake",
+    "baidu"
   ],
   "channels": {
     "deepseek": {
@@ -1335,6 +1336,221 @@
           "nativeMessage": "系统当前负载较高，请稍后重试"
         }
       }
+    },
+    "baidu": {
+      "channel_id": "baidu",
+      "label": "百度千帆",
+      "logo": "/assets/logos/baidu.png",
+      "docStatus": "verified",
+      "localDoc": "docs/errorcode/baidu.md",
+      "docUrl": "https://cloud.baidu.com/doc/qianfan-api/s/Om9b4yj3w",
+      "envelope": {
+        "summary": "OpenAI 形态 error.code + error.type + error.message（type 含 invalid_request_error/unsafe_request/access_denied/rate_limit_exceeded/Internal_error/quota_exceeded）；顶层附带 id 字段（请求 ID，非 requestId）",
+        "httpPath": "(HTTP status)",
+        "codePath": "error.code",
+        "typePath": "error.type",
+        "messagePath": "error.message"
+      },
+      "entries": [
+        {
+          "http": 400,
+          "nativeCode": "malformed_json",
+          "nativeType": "invalid_request_error",
+          "message": "Invalid Argument"
+        },
+        {
+          "http": 400,
+          "nativeCode": "invalid_model",
+          "nativeType": "invalid_request_error",
+          "message": "model is empty"
+        },
+        {
+          "http": 400,
+          "nativeCode": "invalid_messages",
+          "nativeType": "invalid_request_error",
+          "message": "message 格式不符合规范"
+        },
+        {
+          "http": 400,
+          "nativeCode": "characters_too_long",
+          "nativeType": "invalid_request_error",
+          "message": "the max input characters is xxx"
+        },
+        {
+          "http": 400,
+          "nativeCode": "tokens_too_long",
+          "nativeType": "invalid_request_error",
+          "message": "Prompt tokens too long"
+        },
+        {
+          "http": 400,
+          "nativeCode": "invalid_argument",
+          "nativeType": "invalid_request_error",
+          "message": "请求体参数错误，请参考返回的错误信息"
+        },
+        {
+          "http": 400,
+          "nativeCode": "image_url_unsafe",
+          "nativeType": "unsafe_request",
+          "message": "the content of image_url.url field is unsafe"
+        },
+        {
+          "http": 401,
+          "nativeCode": "invalid_model",
+          "nativeType": "invalid_request_error",
+          "message": "The model does not exist or you do not have access to it."
+        },
+        {
+          "http": 401,
+          "nativeCode": "invalid_appid",
+          "nativeType": "invalid_request_error",
+          "message": "No permission to use the appid"
+        },
+        {
+          "http": 401,
+          "nativeCode": "invalid_iam_token",
+          "nativeType": "invalid_request_error",
+          "message": "IAM Certification failed"
+        },
+        {
+          "http": 403,
+          "nativeCode": "system_unsafe",
+          "nativeType": "unsafe_request",
+          "message": "the content of system field is invalid"
+        },
+        {
+          "http": 403,
+          "nativeCode": "user_setting_unsafe",
+          "nativeType": "unsafe_request",
+          "message": "the content of user field is invalid"
+        },
+        {
+          "http": 403,
+          "nativeCode": "functions_unsafe",
+          "nativeType": "unsafe_request",
+          "message": "the content of functions field is invalid"
+        },
+        {
+          "http": 403,
+          "nativeCode": "account_overdue",
+          "nativeType": "access_denied",
+          "message": "Access denied due to overdue account"
+        },
+        {
+          "http": 403,
+          "nativeCode": "model_offline",
+          "nativeType": "access_denied",
+          "message": "The model is offline"
+        },
+        {
+          "http": 405,
+          "nativeCode": "method_not_supported",
+          "nativeType": "invalid_request_error",
+          "message": "Only POST requests are accepted"
+        },
+        {
+          "http": 429,
+          "nativeCode": "rpm_rate_limit_exceeded",
+          "nativeType": "rate_limit_exceeded",
+          "message": "Rate limit reached for RPM"
+        },
+        {
+          "http": 429,
+          "nativeCode": "tpm_rate_limit_exceeded",
+          "nativeType": "rate_limit_exceeded",
+          "message": "Rate limit reached for TPM"
+        },
+        {
+          "http": 429,
+          "nativeCode": "user_rate_limit_exceeded",
+          "nativeType": "rate_limit_exceeded",
+          "message": "qps request limit by APP ID reached"
+        },
+        {
+          "http": 429,
+          "nativeCode": "cluster_rate_limit_exceeded",
+          "nativeType": "rate_limit_exceeded",
+          "message": "request limit by resouce cluster reached"
+        },
+        {
+          "http": 500,
+          "nativeCode": "internal_error",
+          "nativeType": "Internal_error",
+          "message": "Internal error"
+        },
+        {
+          "http": 500,
+          "nativeCode": "dispatch_internal_error",
+          "nativeType": "Internal_error",
+          "message": "Internal error"
+        }
+      ],
+      "mappings": {
+        "auth_invalid": {
+          "http": 401,
+          "nativeCode": "invalid_iam_token",
+          "nativeType": "invalid_request_error",
+          "nativeMessage": "IAM Certification failed",
+          "notes": "bearer token 无效/过期，或 Authorization 未加 Bearer；模型不存在或无权限见 invalid_model (401)"
+        },
+        "rate_limit": {
+          "http": 429,
+          "nativeCode": "rpm_rate_limit_exceeded",
+          "nativeType": "rate_limit_exceeded",
+          "nativeMessage": "Rate limit reached for RPM",
+          "notes": "另有 TPM/输入输出 TPM/集群 RPM/TPM/QPS 等细分限流码"
+        },
+        "insufficient_quota": {
+          "http": 403,
+          "nativeCode": "account_overdue",
+          "nativeType": "access_denied",
+          "nativeMessage": "Access denied due to overdue account",
+          "notes": "账号欠费（余额 <0）"
+        },
+        "invalid_parameter": {
+          "http": 400,
+          "nativeCode": "invalid_argument",
+          "nativeType": "invalid_request_error",
+          "nativeMessage": "请求体参数错误，请参考返回的错误信息",
+          "notes": "JSON 格式错误见 malformed_json；指定 model 见 invalid_model (400)"
+        },
+        "content_filter": {
+          "http": 400,
+          "nativeCode": "image_url_unsafe",
+          "nativeType": "unsafe_request",
+          "nativeMessage": "the content of image_url.url field is unsafe",
+          "notes": "unsafe_request 类型另有 system_unsafe/user_setting_unsafe/functions_unsafe (403)"
+        },
+        "permission_denied": {
+          "http": 401,
+          "nativeCode": "invalid_appid",
+          "nativeType": "invalid_request_error",
+          "nativeMessage": "No permission to use the appid",
+          "notes": "appid 鉴权失败；参数权限见 no_parameter_permission (401/access_denied)"
+        },
+        "model_not_found": {
+          "http": 401,
+          "nativeCode": "invalid_model",
+          "nativeType": "invalid_request_error",
+          "nativeMessage": "The model does not exist or you do not have access to it.",
+          "notes": "401 表为模型不存在或无权限；模型已下线见 model_offline (403/access_denied)"
+        },
+        "context_length": {
+          "http": 400,
+          "nativeCode": "tokens_too_long",
+          "nativeType": "invalid_request_error",
+          "nativeMessage": "Prompt tokens too long",
+          "notes": "超模型内部 token 上限；超字符数限制见 characters_too_long"
+        },
+        "server_error": {
+          "http": 500,
+          "nativeCode": "internal_error",
+          "nativeType": "Internal_error",
+          "nativeMessage": "Internal error",
+          "notes": "type 为 Internal_error（原文首字母大写 I），区别于 OpenAI server_error；调度层见 dispatch_internal_error"
+        }
+      },
+      "notes": "范围：千帆 ModelBuilder v2 OpenAI 兼容接口；错误响应顶层含 id（请求 ID，非 requestId）。type 取值含 Internal_error（首字母大写，区别于 OpenAI 习惯命名）。"
     }
   }
 }

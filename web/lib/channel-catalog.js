@@ -119,6 +119,7 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
   //   (model field references chat model hub)
   // - SiliconFlow COM messages: docs.siliconflow.com OpenAPI enum (eval models not listed)
   // - OpenRouter: openrouter.ai/api/v1/models + responses overview (openrouter.ai/docs/api/reference/responses/overview)
+  // - Baidu Qianfan: cloud.baidu.com/doc/QIANFAN ModelBuilder v2（OpenAI 兼容 /chat/completions + Claude 兼容 /messages）
   const oemProtocols = {
     deepseek: {
       "deepseek-v4-flash": p(true, true),
@@ -184,6 +185,19 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
     "MiniMax-M3": p(true, true, true)
   };
 
+  // Sources: cloud.baidu.com/doc/qianfan ModelBuilder v2 (OpenAI 兼容 /chat/completions；官方声明"完全兼容 OpenAI 标准"，
+  //   未公开逐参数清单，下表仅按 Chat Completions 标注；Anthropic Messages 兼容接口未在公开文档确认，暂标不支持)
+  const baiduQianfanProtocols = {
+    "deepseek-v4-flash": p(true, false),
+    "deepseek-v4-pro": p(true, false),
+    "kimi-k2.7-coder": p(true, false),
+    "kimi-k2.6": p(true, false),
+    "glm-5.2": p(true, false),
+    "glm-5.1": p(true, false),
+    "glm-5": p(true, false),
+    "MiniMax-M3": p(true, false)
+  };
+
   // Sources: streamlake.com/document/WANQING/mdptas54hptu5uvllco (model releases)
   const streamlakeProtocols = {
     "deepseek-v4-flash": p(true, true, true),
@@ -195,6 +209,8 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
     "glm-5": p(true, true, true),
     "MiniMax-M3": p(false, false, false)
   };
+
+  const baiduQianfanPlatformProtocols = p(true, false, false);
 
   const oemPlatformProtocols = p(true, true, false);
 
@@ -300,6 +316,17 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
       protocolScopeNote:
         "平台已接入 OpenAI Chat Completions、Anthropic Messages 与 OpenAI Responses API；API 请求中 model 为控制台推理点 ID（ep-xxx），下表按模型发布公告标注测评模型上架情况。",
       models: modelRows(streamlakeProtocols)
+    },
+    {
+      id: "baidu-qifan",
+      name: "百度千帆（ModelBuilder v2）",
+      logo: "/assets/logos/baidu.png",
+      focus: true,
+      channel_id: "baidu",
+      platformProtocols: baiduQianfanPlatformProtocols,
+      protocolScopeNote:
+        "平台通过 ModelBuilder v2 提供 OpenAI 兼容 /chat/completions 接口（base URL https://qianfan.baidubce.com/v2），官方声明\"完全兼容 OpenAI 标准\"；下表 8 个测评模型按 Chat Completions 标注，Anthropic Messages 兼容接口未在公开文档确认，暂标不支持，实际可用模型请以控制台为准。",
+      models: modelRows(baiduQianfanProtocols)
     }
   ];
 

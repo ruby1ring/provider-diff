@@ -468,6 +468,28 @@ window.LLM_ROSETTA_DATA = (() => {
       api_docs_url: "https://www.streamlake.com/document/WANQING/mq6k6xfnbs4vn99zggq"
     }),
     withEndpoints({
+      channel_id: "baidu",
+      provider_id: "baidu",
+      name: "百度千帆",
+      emoji: "🐻",
+      logo: "/assets/logos/baidu.png",
+      description: "百度千帆 ModelBuilder v2（OpenAI 兼容）",
+      summary: "OpenAI 兼容 v2 接口",
+      default_base_url: "https://qianfan.baidubce.com/v2",
+      default_model: "deepseek-v4-flash",
+      api_docs_url: "https://cloud.baidu.com/doc/qianfan/s/Hmh4suq26",
+      parameters: {
+        Core: ["model", "messages"],
+        Sampling: ["temperature", "top_p", "top_k", "frequency_penalty", "presence_penalty", "seed", "stop", "n"],
+        Length: ["max_tokens", "max_completion_tokens"],
+        Reasoning: ["enable_thinking", "thinking_budget", "reasoning_effort"],
+        Output: ["response_format", "modalities"],
+        Tools: ["tools", "tool_choice", "parallel_tool_calls"],
+        Protocol: ["stream", "stream_options", "stream_options.include_usage"],
+        Debug: ["logprobs", "top_logprobs"]
+      }
+    }),
+    withEndpoints({
       channel_id: "thinking",
       provider_id: "thinking",
       name: "Thinking Probe",

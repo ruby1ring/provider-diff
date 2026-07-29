@@ -17,16 +17,6 @@
           <span class="mk"><img src="/assets/noctua/icon-web.png" alt="" width="32" height="32" /></span>
           <span class="nm">Noctua</span>
         </a>
-        <nav class="app-nav" aria-label="Primary">
-          <details class="menu">
-            <summary>集成 <span aria-hidden="true">⌄</span></summary>
-            <div class="panel">
-              <a href="#feishu" data-view-link="feishu">飞书文档</a>
-              <a href="#evalscope" data-view-link="evalscope">EvalScope</a>
-              <a href="#opencompass" data-view-link="opencompass">OpenCompass</a>
-            </div>
-          </details>
-        </nav>
         <span class="spacer"></span>
         <button id="themeToggle" class="btn btn-secondary btn-sm" type="button"><span id="themeLabel">Dark</span></button>
         <span class="app-acct"><span class="av">Nc</span><span id="accountMode">预览模式</span></span>
@@ -36,26 +26,67 @@
         <aside class="app-sidebar" aria-label="Section navigation">
           <nav class="app-sidebar-nav">
             <div class="sidebar-group">
-              <div class="sidebar-group-label">协议兼容性测评</div>
+              <div class="sidebar-group-label"><!-- Lucide (ISC) -->
+                <svg class="sidebar-group-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5h13"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="M3 10a2 2 0 0 0 2 2h3"/><path d="M3 5v12a2 2 0 0 0 2 2h3"/></svg>
+                <span>渠道测评配置</span>
+              </div>
               <div class="sidebar-group-items">
                 <a class="is-active" href="#guide" data-view-link="guide">测评说明</a>
                 <a href="#channels" data-view-link="channels">已支持测评渠道</a>
                 <a href="#protocols" data-view-link="protocols">已支持测评协议</a>
                 <a href="#models" data-view-link="models">已支持测评模型</a>
-                <a href="#run-v02" data-view-link="run-v02">渠道参数测评工具</a>
-                <a href="#channel-performance" data-view-link="channel-performance">渠道性能测评工具</a>
-                <a href="#channel-reports" data-view-link="channel-reports">渠道参数测评报告</a>
-                <a href="#channel-performance-reports" data-view-link="channel-performance-reports">渠道性能测评报告</a>
+              </div>
+            </div>
+            <div class="sidebar-group">
+              <div class="sidebar-group-label"><!-- Lucide (ISC) -->
+                <svg class="sidebar-group-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg>
+                <span>渠道参数测评</span>
+              </div>
+              <div class="sidebar-group-items">
+                <a href="#run-v02" data-view-link="run-v02">测评工具</a>
+                <a href="#channel-reports" data-view-link="channel-reports">测评报告</a>
+              </div>
+            </div>
+            <div class="sidebar-group">
+              <div class="sidebar-group-label"><!-- Lucide (ISC) -->
+                <svg class="sidebar-group-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>
+                <span>渠道性能测评</span>
+              </div>
+              <div class="sidebar-group-items">
+                <a href="#channel-performance" data-view-link="channel-performance">测评工具</a>
+                <a href="#channel-performance-reports" data-view-link="channel-performance-reports">测评报告</a>
+              </div>
+            </div>
+            <div class="sidebar-group">
+              <div class="sidebar-group-label"><!-- Lucide (ISC) -->
+                <svg class="sidebar-group-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20v-9"/><path d="M14 7a4 4 0 0 1 4 4v3a6 6 0 0 1-12 0v-3a4 4 0 0 1 4-4z"/><path d="M14.12 3.88 16 2"/><path d="M21 21a4 4 0 0 0-3.81-4"/><path d="M21 5a4 4 0 0 1-3.55 3.97"/><path d="M22 13h-4"/><path d="M3 21a4 4 0 0 1 3.81-4"/><path d="M3 5a4 4 0 0 0 3.55 3.97"/><path d="M6 13H2"/><path d="m8 2 1.88 1.88"/><path d="M9 7.13V6a3 3 0 1 1 6 0v1.13"/></svg>
+                <span>渠道错误码映射</span>
+              </div>
+              <div class="sidebar-group-items">
+                <a href="#error-guide" data-view-link="error-guide">映射说明</a>
+                <a href="#error-channels" data-view-link="error-channels">渠道错误码</a>
+                <a href="#error-mapping" data-view-link="error-mapping">错误码映射</a>
+              </div>
+            </div>
+            <div class="sidebar-group">
+              <div class="sidebar-group-label"><!-- Lucide (ISC) -->
+                <svg class="sidebar-group-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+                <span>历史版本</span>
+              </div>
+              <div class="sidebar-group-items">
                 <a href="#run-v01" data-view-link="run-v01" title="历史版本，验证新版后将下线">测评工具 V0.1（旧版）</a>
                 <a href="#reports" data-view-link="reports" title="历史版本，验证新版后将下线">测评报告 V0.1（旧版）</a>
               </div>
             </div>
             <div class="sidebar-group">
-              <div class="sidebar-group-label">渠道错误码映射</div>
+              <div class="sidebar-group-label"><!-- Lucide (ISC) -->
+                <svg class="sidebar-group-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22v-5"/><path d="M15 8V2"/><path d="M17 8a1 1 0 0 1 1 1v4a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1z"/><path d="M9 8V2"/></svg>
+                <span>工具集成</span>
+              </div>
               <div class="sidebar-group-items">
-                <a href="#error-guide" data-view-link="error-guide">映射说明</a>
-                <a href="#error-channels" data-view-link="error-channels">渠道错误码</a>
-                <a href="#error-mapping" data-view-link="error-mapping">错误码映射</a>
+                <a href="#feishu" data-view-link="feishu">飞书文档</a>
+                <a href="#evalscope" data-view-link="evalscope">EvalScope</a>
+                <a href="#opencompass" data-view-link="opencompass">OpenCompass</a>
               </div>
             </div>
           </nav>

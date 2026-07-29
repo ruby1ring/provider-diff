@@ -53,8 +53,9 @@ Channel keys used by **测评模型 → 查询渠道** (live model list lookup).
 | `sf-router-cn` | SF Silinex CN |
 | `sf-router-com` | SF Silinex COM |
 | `streamlake-cn` | 快手万擎（StreamLake） |
+| `baidu-qifan` | 百度千帆（ModelBuilder v2，OpenAI 兼容） |
 
-Legacy section names (`ali`, `siliconflow`, `streamlake`) are still accepted as fallbacks for scripts. Environment variables (e.g. `SILICONFLOW_API_KEY`, `WQ_API_KEY` for StreamLake) are used when no matching section is found.
+Legacy section names (`ali`, `siliconflow`, `streamlake`, `baidu`) are still accepted as fallbacks for scripts. Environment variables (e.g. `SILICONFLOW_API_KEY`, `WQ_API_KEY` for StreamLake, `QIANFAN_API_KEY` for 百度千帆) are used when no matching section is found.
 
 ## Capacity / model-limit probes
 

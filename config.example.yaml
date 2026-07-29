@@ -58,6 +58,11 @@ streamlake-cn:
   https://wanqing.streamlakeapi.com/api/gateway/v1/endpoints
   sk-your-streamlake-api-key
 
+baidu-qifan:
+  # 百度千帆 ModelBuilder v2（OpenAI 兼容 /chat/completions，base 为 /v2；Authorization: Bearer <API Key>）
+  https://qianfan.baidubce.com/v2
+  sk-your-qianfan-api-key
+
 # --- 可选：容量探测 / 基线脚本（非测评渠道页）---
 
 openai:

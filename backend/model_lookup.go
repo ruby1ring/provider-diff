@@ -132,6 +132,14 @@ var channelModelListSources = []channelModelListSource{
 		RequiresAuth: true,
 		PlatformIDs:  []string{"streamlake-cn"},
 	},
+	{
+		Key:          "baidu-qifan",
+		ListURL:      "https://qianfan.baidubce.com/v2/models",
+		ConfigKeys:   []string{"baidu-qifan", "baidu"},
+		AuthEnv:      "QIANFAN_API_KEY",
+		RequiresAuth: true,
+		PlatformIDs:  []string{"baidu-qifan"},
+	},
 }
 
 type modelListCacheEntry struct {
@@ -245,7 +253,8 @@ func lookupModelsAcrossChannels(ctx context.Context, root, query string) (channe
 			"aliyun-cn": 4, "aliyun-us": 5, "aliyun-sg": 6,
 			"siliconflow-cn": 6, "siliconflow-com": 7,
 			"streamlake-cn": 8,
-			"openrouter":    9, "sf-router-cn": 10, "sf-router-com": 11,
+			"baidu-qifan": 9,
+			"openrouter":    10, "sf-router-cn": 11, "sf-router-com": 12,
 		}
 		oi, oj := order[matches[i].PlatformID], order[matches[j].PlatformID]
 		if oi != oj {

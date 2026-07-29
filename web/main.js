@@ -554,8 +554,8 @@ const els = {
 
 const state = {
   activeView: "run",
-  activeViewKey: "run-v01",
-  runToolVersion: "v0.1",
+  activeViewKey: "run-v02",
+  runToolVersion: "v0.2",
   channelCatalogTab: "oem",
   channelCatalogExpanded: false,
   protocolCatalogTab: "chat_completions",
@@ -702,7 +702,8 @@ const runnableProviderByChannel = {
   siliconflow: "siliconflow",
   silinex_overseas: "siliconflow",
   silinex_china: "siliconflow",
-  aliyun: "ali"
+  aliyun: "ali",
+  baidu: "baidu"
 };
 
 const statusMarks = {
@@ -4813,7 +4814,8 @@ function buildCaseCurl(testCase) {
     openrouter: "OPENROUTER_API_KEY",
     openrouter_messages: "OPENROUTER_API_KEY",
     siliconflow: "SILICONFLOW_API_KEY",
-    siliconflow_messages: "SILICONFLOW_API_KEY"
+    siliconflow_messages: "SILICONFLOW_API_KEY",
+    baidu: "QIANFAN_API_KEY"
   };
   const envKey = providerEnvKeys[providerId] || "PROVIDER_API_KEY";
   const authHeaderName = ["ali_messages", "claude_messages", "deepseek_messages", "minimax_messages"].includes(providerId) ? "X-Api-Key" : "Authorization";
@@ -6554,6 +6556,7 @@ const ASSERTION_EXPLANATIONS = {
   "stream_options.include_usage": { title: "流式用量开关未生效", detail: "请求里已要求流式响应附带 token 用量（include_usage），但最终分片没有返回 usage。" },
   stream_usage_in_sse: { title: "流式响应缺 usage 统计", detail: "流式输出结束前应有一个携带 token 用量的分片，实际没有出现。" },
   stream_usage_chunk_shape: { title: "usage 分片形态非标", detail: "OpenAI 标准：结束前用一个独立的空 choices 分片单独携带 usage。该渠道把 usage 与结束标记合并在同一分片——部分下游 SDK 会因此取不到用量。" },
+  stream_usage_per_chunk: { title: "每分片用量统计未生效", detail: "百炼白名单参数 include_chunk_usage 要求每个流式分片都携带 usage；实际有分片未带 usage，说明白名单未生效或参数被忽略，仅最终分片带用量。" },
   min_sse_chunks: { title: "流式分片数太少", detail: "流式应逐段推送多个分片；分片过少可能是「伪流式」（一次性返回全部内容）。" },
   min_content_chunks: { title: "没有正文输出", detail: "整个流式响应没有出现任何正文内容分片——可能被思考过程占满预算，或输出被截断。" },
   finish_reason: { title: "结束原因不符", detail: "finish_reason 表示回答为何结束：stop=正常说完、length=被长度上限截断、tool_calls=转去调用工具。实际值与预期不符。" },
@@ -6613,6 +6616,7 @@ const ASSERTION_RESPONSE_ANCHORS = {
   "stream_options.include_usage": ["usage"],
   stream_usage_in_sse: ["usage"],
   stream_usage_chunk_shape: ["usage", "finish_reason"],
+  stream_usage_per_chunk: ["usage"],
   min_content_chunks: ["content", "reasoning_content"],
   finish_reason: ["finish_reason"],
   choice_required_fields: ["choices"],
@@ -10214,7 +10218,8 @@ const PROTOCOL_CHANNEL_ORDER = [
   "streamlake",
   "openrouter",
   "aliyun",
-  "siliconflow"
+  "siliconflow",
+  "baidu"
 ];
 
 // 协议参数分组展示顺序：常用调参靠前，冷门/平台特有靠后
@@ -11290,8 +11295,8 @@ function bindChannelOpenToolButtons() {
       const channelId = button.dataset.channelId;
       if (!channelId) return;
       state.selectedChannelId = channelId;
-      setActiveView("run-v01");
-      history.replaceState(null, "", "#run-v01");
+      setActiveView("run-v02");
+      history.replaceState(null, "", "#run-v02");
       renderChannels();
       renderSelectedChannel();
       showToast(`已切换到 ${channelId} 渠道模板。`);
@@ -11589,8 +11594,8 @@ function bindProtocolOpenToolButtons() {
       if (!channelId || !endpointId) return;
       state.selectedChannelId = channelId;
       state.selectedEndpointId = endpointId;
-      setActiveView("run-v01");
-      history.replaceState(null, "", "#run-v01");
+      setActiveView("run-v02");
+      history.replaceState(null, "", "#run-v02");
       renderChannels();
       renderEndpointTabs();
       renderSelectedChannel();
@@ -12511,8 +12516,8 @@ function bindModelLookupEvents() {
       const modelName = button.dataset.modelName;
       if (!channelId) return;
       state.selectedChannelId = channelId;
-      setActiveView("run-v01");
-      history.replaceState(null, "", "#run-v01");
+      setActiveView("run-v02");
+      history.replaceState(null, "", "#run-v02");
       renderChannels();
       renderSelectedChannel();
       if (modelName && els.modelName) {
@@ -15021,7 +15026,7 @@ function bindErrorCodeMappingCells() {
 
 function setActiveView(view) {
   let viewKey = view;
-  if (viewKey === "run") viewKey = "run-v01";
+  if (viewKey === "run") viewKey = "run-v02";
   const isRunKey = viewKey === "run-v01" || viewKey === "run-v02";
   if (isRunKey) {
     state.activeView = "run";
@@ -15029,8 +15034,8 @@ function setActiveView(view) {
     state.runToolVersion = viewKey === "run-v02" ? "v0.2" : "v0.1";
   } else {
     state.activeView = ["guide", "channels", "protocols", "models", "run", "channel-reports", "channel-performance-reports", "reports", "channel-performance", "feishu", "evalscope", "opencompass", "error-guide", "error-channels", "error-mapping"].includes(viewKey) ? viewKey : "run";
-    state.activeViewKey = state.activeView === "run" ? "run-v01" : state.activeView;
-    if (state.activeView === "run") state.runToolVersion = "v0.1";
+    state.activeViewKey = state.activeView === "run" ? "run-v02" : state.activeView;
+    if (state.activeView === "run") state.runToolVersion = "v0.2";
   }
 
   els.views.forEach((viewNode) => {
