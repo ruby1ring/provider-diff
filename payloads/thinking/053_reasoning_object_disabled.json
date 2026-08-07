@@ -28,6 +28,14 @@
     "thinking_absent": true,
     "assistant_content_non_empty": true,
     "provider_extension": true,
-    "notes": "OpenRouter-style reasoning.enabled=false 关闭探针；需要与 reasoning.enabled=true 开启 case 成对判断。"
+    "notes": "OpenRouter-style reasoning.enabled=false 关闭探针；需要与 reasoning.enabled=true 开启 case 成对判断。",
+    "provider_expect": {
+      "aliyun": {
+        "evaluation_intent": "observe",
+        "thinking_absent": null,
+        "thinking_location_probe": true,
+        "notes": "阿里不识别 reasoning.enabled（OpenRouter 方言），关闭指令被静默忽略、默认思考保持开启——按观测记录方言不生效，不作失败判定（2026-08-06 华北2/美东实测一致）。"
+      }
+    }
   }
 }

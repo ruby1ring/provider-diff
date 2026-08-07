@@ -40,6 +40,16 @@
   },
   "expect": {
     "axis": "named_function",
-    "notes": "tool_choice 精确指定 compatibility_status 函数名（非 required/auto）；验证渠道按名称路由到正确工具。"
+    "notes": "tool_choice 精确指定 compatibility_status 函数名（非 required/auto）；验证渠道按名称路由到正确工具。",
+    "model_expect": {
+      "qwen3.8-max": {
+        "http_status": 400,
+        "support_conclusion": "rejected_400",
+        "evaluation_intent": "observe",
+        "required_response_fields": null,
+        "choice_required_fields": null,
+        "notes": "qwen3.8-max 默认开启思考，而阿里在思考模式下不支持 tool_choice=required / 指定函数名，服务端按文档返回 400；关闭思考后两者均可用（见 model_behaviors_qwen/040·042 原厂参考用例）。本用例不传 enable_thinking，故对该模型预期为按文档拒绝。实测华北2/美东一致（2026-08-07）。"
+      }
+    }
   }
 }
