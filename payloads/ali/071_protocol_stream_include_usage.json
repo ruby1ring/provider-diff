@@ -1,6 +1,6 @@
 {
   "case_id": "ali_protocol_stream_include_usage",
-  "title": "stream_options.include_usage 应返回 usage chunk",
+  "title": "stream_options.include_usage 每个 chunk 应带 usage 字段，最后一包返回统计值",
   "category": "protocol",
   "parameters": [
     "stream",
@@ -40,6 +40,7 @@
       "completion_tokens",
       "total_tokens"
     ],
-    "notes": "include_usage=true 时最后一个 chunk 应包含 usage，choices 可为空数组。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation."
+    "notes": "OpenAI 规范：include_usage=true 时每个 chunk 都带 usage 字段（中间 chunk 为 null），最后一个专用 chunk（choices:[]）返回统计值。 Current test config has DashScope access to deepseek-v4-pro, so this case uses it for API-level compatibility validation.",
+    "stream_usage_per_chunk": "field_required"
   }
 }
