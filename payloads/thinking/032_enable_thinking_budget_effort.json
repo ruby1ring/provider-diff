@@ -27,6 +27,18 @@
     "thinking_evidence_required": true,
     "assistant_content_non_empty": true,
     "provider_extension": true,
-    "notes": "硅基流动等 Qwen 方言常见三参数组合：enable_thinking + thinking_budget + reasoning_effort（后者为部分模型扩展探针）。"
+    "notes": "硅基流动等 Qwen 方言常见三参数组合：enable_thinking + thinking_budget + reasoning_effort（后者为部分模型扩展探针）。",
+    "provider_expect": {
+      "aliyun": {
+        "http_status": 400,
+        "support_conclusion": "rejected_400",
+        "thinking_location_probe": null,
+        "thinking_evidence_required": null,
+        "assistant_content_non_empty": null,
+        "required_response_fields": null,
+        "choice_required_fields": null,
+        "notes": "阿里文档规定 reasoning_effort 与 thinking_budget 互斥，同传按文档 400 拒绝（2026-08-06 华北2/美东实测一致）。"
+      }
+    }
   }
 }

@@ -95,6 +95,7 @@ type RunRequest struct {
 	CustomCases      []TestCase  `json:"custom_cases"`
 	APIKey           string      `json:"api_key"`
 	ConfigPlatformID string      `json:"config_platform_id,omitempty"`
+	PlatformID       string      `json:"platform_id,omitempty"`
 	BaseURL          string      `json:"base_url"`
 	Model            string      `json:"model"`
 	Proxy            ProxyConfig `json:"proxy"`
@@ -1261,6 +1262,15 @@ func (s *Server) prepareRunRequest(req RunRequest) (preparedRunRequest, *runRequ
 	if err != nil {
 		return preparedRunRequest{}, &runRequestError{status: http.StatusBadRequest, message: err.Error()}
 	}
+	// 解析 expect 覆盖：同一探针套件对不同渠道方言 / 模型系列有不同的合法预期
+	platformID := runRequestPlatformID(req)
+	for i := range selected {
+		model := strings.TrimSpace(req.Model)
+		if model == "" {
+			model, _ = selected[i].Payload["model"].(string)
+		}
+		selected[i].Expect = resolveProviderExpect(selected[i].Expect, platformID, model)
+	}
 	baseURL := strings.TrimSpace(req.BaseURL)
 	if baseURL == "" {
 		baseURL = manifest.BaseURL
@@ -2366,6 +2376,89 @@ func cacheProbeSpec(payload map[string]any) (cacheProbe, bool) {
 	return cacheProbe{Kind: kind, WarmupDelayMS: delayMS, MinHitRate: minHitRate}, true
 }
 
+func runRequestPlatformID(req RunRequest) string {
+	if id := strings.TrimSpace(req.PlatformID); id != "" {
+		return id
+	}
+	return strings.TrimSpace(req.ConfigPlatformID)
+}
+
+// resolveProviderExpect 应用渠道方言与模型系列的 expect 覆盖。
+//   - expect.provider_expect：key 为平台 id 或平台前缀（"aliyun" 匹配 aliyun-cn/us/sg）
+//   - expect.model_expect：key 为模型系列前缀，大小写不敏感，并匹配 "厂商/模型" 的后半段
+//     （"qwen" 同时匹配 qwen3.8-max 与 Qwen/Qwen3.5-397B-A17B）
+//
+// 同一 map 内最长 key 胜出；模型覆盖在渠道覆盖之后应用（更具体者优先）。
+// 覆盖值为 null 表示删除基础 expect 中的该断言键。
+func resolveProviderExpect(expect map[string]any, platformID, model string) map[string]any {
+	if expect == nil {
+		return expect
+	}
+	providerOverrides, hasProvider := expect["provider_expect"].(map[string]any)
+	modelOverrides, hasModel := expect["model_expect"].(map[string]any)
+	if !hasProvider && !hasModel {
+		return expect
+	}
+	resolved := make(map[string]any, len(expect))
+	for k, v := range expect {
+		if k == "provider_expect" || k == "model_expect" {
+			continue
+		}
+		resolved[k] = v
+	}
+	if hasProvider && strings.TrimSpace(platformID) != "" {
+		applyExpectOverride(resolved, pickExpectOverride(providerOverrides, platformID, platformMatchesExpectKey))
+	}
+	if hasModel && strings.TrimSpace(model) != "" {
+		applyExpectOverride(resolved, pickExpectOverride(modelOverrides, model, modelMatchesExpectKey))
+	}
+	return resolved
+}
+
+func platformMatchesExpectKey(platformID, key string) bool {
+	return platformID == key || strings.HasPrefix(platformID, key+"-")
+}
+
+func modelMatchesExpectKey(model, key string) bool {
+	model = strings.ToLower(strings.TrimSpace(model))
+	key = strings.ToLower(strings.TrimSpace(key))
+	if key == "" {
+		return false
+	}
+	if strings.HasPrefix(model, key) {
+		return true
+	}
+	if idx := strings.LastIndex(model, "/"); idx >= 0 {
+		return strings.HasPrefix(model[idx+1:], key)
+	}
+	return false
+}
+
+func pickExpectOverride(overrides map[string]any, subject string, matches func(subject, key string) bool) map[string]any {
+	var best map[string]any
+	bestLen := -1
+	for key, value := range overrides {
+		if !matches(subject, key) {
+			continue
+		}
+		if m, ok := value.(map[string]any); ok && len(key) > bestLen {
+			best = m
+			bestLen = len(key)
+		}
+	}
+	return best
+}
+
+func applyExpectOverride(resolved, override map[string]any) {
+	for k, v := range override {
+		if v == nil {
+			delete(resolved, k)
+			continue
+		}
+		resolved[k] = v
+	}
+}
+
 func cacheKindSupported(kind string) bool {
 	switch kind {
 	case "passive", "prompt_cache_key", "cache_control":
@@ -2376,8 +2469,11 @@ func cacheKindSupported(kind string) bool {
 }
 
 func cacheProbeLongContext() string {
+	// 各渠道隐式缓存最低门槛：阿里百炼/OpenAI ≥1024 prompt tokens（按 1024-token 块对齐）、
+	// SiliconFlow >2048 tokens（2026-08-06 楚杭确认）。不同 tokenizer 计数有差异，
+	// 120 遍 ≈ 4.5k tokens（qwen 口径）留足余量（repeat 12 ≈ 500 tokens 时所有渠道恒 0% 命中）
 	const block = "Provider-diff cache probe. Repeatable context block: compatibility testing records whether request fields are supported, ignored, or rejected. This sentence is repeated to exceed the passive cache threshold. "
-	return strings.Repeat(block, 12)
+	return strings.Repeat(block, 120)
 }
 
 func cacheAttemptPayload(manifest Manifest, probe cacheProbe, model string) map[string]any {
@@ -2497,10 +2593,11 @@ func extractCacheHitMetrics(usage map[string]any) (hit, miss, prompt int, field 
 }
 
 func cacheHitRate(hit, miss, prompt int) float64 {
-	denom := 0
-	if hit > 0 || miss > 0 {
-		denom = hit + miss
-	} else if prompt > 0 {
+	// 分母必须是总 prompt tokens：DeepSeek 风格 hit+miss 本身等于 prompt；
+	// 阿里/OpenAI 风格只报 cached_tokens 而无 miss 字段，若用 hit+miss 作分母
+	// 会塌缩成 hit/hit，任何非零命中都显示 100%（假阳性）
+	denom := hit + miss
+	if prompt > denom {
 		denom = prompt
 	}
 	if denom <= 0 {
@@ -2988,8 +3085,17 @@ func capacitySummary(probe capacityProbe, attempts []capacityAttempt, stoppedByB
 		effective = thinkHighBudget > thinkLowBudget && thinkHighRT > thinkLowRT
 	}
 
+	// max_output 探针只是把 max_tokens 调大，并不真的逼模型吐那么多 token——所以「接受」是廉价的：
+	// 网关不校验上限时，连 4m 这种超出任何真实模型输出上限的值也会返回 200。
+	// 最高档位仍被接受且全程没观测到任何拒绝，说明上限根本没被校验，不能当成 ">= 4m 的能力"来报。
+	limitUnvalidated := probe.Kind == "max_output" && topSupported && nearestHigher == nil
+
 	display := capacityDisplayConclusion(probe.Kind, supportedMax, supportedAttempt, nearestHigher, topSupported)
 	switch probe.Kind {
+	case "max_output":
+		if limitUnvalidated {
+			display = fmt.Sprintf("上限未校验（最高候选 %s 仍返回 200，未观测到任何拒绝；真实上限以上游模型为准）", capacityTierDisplay(topCandidate))
+		}
 	case "max_output_effective":
 		display = capacityOutputEffectiveDisplay(effective, effectiveDetail)
 	case "thinking_budget":
@@ -3009,6 +3115,15 @@ func capacitySummary(probe capacityProbe, attempts []capacityAttempt, stoppedByB
 		"capacity_display": map[string]any{
 			capacityDisplayLabel(probe.Kind): display,
 		},
+	}
+	if probe.Kind == "max_output" {
+		summary["limit_validated"] = !limitUnvalidated
+		if limitUnvalidated {
+			summary["limit_validation"] = "unvalidated"
+			summary["limit_validation_note"] = fmt.Sprintf("网关接受了 %s 的 max_tokens 且未观测到任何拒绝；该值超出常见模型输出上限，supported_max 不可作为真实能力上限", capacityTierDisplay(topCandidate))
+		} else {
+			summary["limit_validation"] = "enforced"
+		}
 	}
 	if probe.Kind == "total_context" {
 		summary["context_safety_margin_ratio"] = probe.ContextSafetyMarginRatio
@@ -3785,7 +3900,20 @@ func evaluateAssertions(result RunCaseResult, expect map[string]any) []CaseAsser
 		if !ok {
 			assertions = append(assertions, CaseAssertion{Name: "content_should_parse_as_json", Pass: false, Message: "未找到 choices[0].message.content"})
 		} else {
-			assertions = append(assertions, CaseAssertion{Name: "content_should_parse_as_json", Pass: json.Valid([]byte(content)), Message: "assistant content 应为合法 JSON 字符串"})
+			pass := json.Valid([]byte(content))
+			message := "assistant content 应为合法 JSON 字符串"
+			// 默认开思考的模型 reasoning 与正文共用输出预算；预算被吃光时正文会被截断成空串或半截 JSON。
+			// 这是用例预算不足，不是渠道不兼容——把原因写进断言，免得又被当成渠道 P0。
+			if !pass {
+				if reason, hasReason := firstStringAt(result.ResponseBody, []string{"choices", "finish_reason"}); hasReason && finishReasonIsLength(reason) {
+					reasoning := ""
+					if result.ReasoningTokens != nil {
+						reasoning = fmt.Sprintf("，reasoning_tokens=%d", *result.ReasoningTokens)
+					}
+					message = fmt.Sprintf("content 因输出预算耗尽被截断（finish_reason=%s%s），属用例预算不足而非渠道不兼容：请调大该 case 的 max_tokens/max_completion_tokens", reason, reasoning)
+				}
+			}
+			assertions = append(assertions, CaseAssertion{Name: "content_should_parse_as_json", Pass: pass, Message: message})
 		}
 	}
 	if nonEmpty, _ := expect["assistant_content_non_empty"].(bool); nonEmpty {
@@ -3850,6 +3978,9 @@ func inferredAssertions(result RunCaseResult, expect map[string]any) []CaseAsser
 		assertions = append(assertions, assertion)
 	}
 	if assertion, ok := finishReasonAssertion(result, expect); ok {
+		assertions = append(assertions, assertion)
+	}
+	if assertion, ok := toolCallsAssertion(result, expect); ok {
 		assertions = append(assertions, assertion)
 	}
 	if assertion, ok := responseFormatAssertion(result); ok {
@@ -3978,6 +4109,103 @@ func lengthParameterAcceptanceAssertion(result RunCaseResult) CaseAssertion {
 		Pass:    true,
 		Message: message,
 	}
+}
+
+// toolCallsAssertion 断言强制工具调用是否真的发生：
+//   - tool_calls_required: true          响应必须带非空 tool_calls（Chat）或 tool_use block（Messages）
+//   - expected_tool_call_name: "fn"      其中必须有一个调用命中该函数名（tool_choice 指定函数名场景）
+//
+// 补齐历史缺口：此前 tools 用例标题写「必须返回 tool_calls」，实际只断言了 HTTP 200 与响应结构。
+func toolCallsAssertion(result RunCaseResult, expect map[string]any) (CaseAssertion, bool) {
+	required, _ := expect["tool_calls_required"].(bool)
+	expectedName, _ := expect["expected_tool_call_name"].(string)
+	expectedName = strings.TrimSpace(expectedName)
+	if !required && expectedName == "" {
+		return CaseAssertion{}, false
+	}
+	names := toolCallNames(result.ResponseBody)
+	if len(names) == 0 {
+		return CaseAssertion{
+			Name:    "tool_calls_required",
+			Pass:    false,
+			Message: "预期返回 tool_calls（强制工具调用），实际响应没有任何工具调用",
+		}, true
+	}
+	if expectedName != "" {
+		for _, name := range names {
+			if strings.EqualFold(name, expectedName) {
+				return CaseAssertion{
+					Name:    "expected_tool_call_name",
+					Pass:    true,
+					Message: fmt.Sprintf("通过：按名称调用 %s", expectedName),
+				}, true
+			}
+		}
+		return CaseAssertion{
+			Name:    "expected_tool_call_name",
+			Pass:    false,
+			Message: fmt.Sprintf("预期调用 %s，实际调用 %s", expectedName, strings.Join(names, ", ")),
+		}, true
+	}
+	return CaseAssertion{
+		Name:    "tool_calls_required",
+		Pass:    true,
+		Message: fmt.Sprintf("通过：返回 %d 个工具调用（%s）", len(names), strings.Join(names, ", ")),
+	}, true
+}
+
+// toolCallNames 提取响应中的工具调用函数名，兼容 Chat Completions 与 Anthropic Messages。
+func toolCallNames(body any) []string {
+	names := make([]string, 0, 2)
+	if choices, ok := choicesArray(body); ok {
+		for _, item := range choices {
+			choice, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			message, ok := choice["message"].(map[string]any)
+			if !ok {
+				continue
+			}
+			calls, ok := message["tool_calls"].([]any)
+			if !ok {
+				continue
+			}
+			for _, raw := range calls {
+				call, ok := raw.(map[string]any)
+				if !ok {
+					continue
+				}
+				if fn, ok := call["function"].(map[string]any); ok {
+					if name, _ := fn["name"].(string); strings.TrimSpace(name) != "" {
+						names = append(names, name)
+					}
+				}
+			}
+		}
+		return names
+	}
+	root, ok := body.(map[string]any)
+	if !ok {
+		return names
+	}
+	content, ok := root["content"].([]any)
+	if !ok {
+		return names
+	}
+	for _, raw := range content {
+		block, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		if blockType, _ := block["type"].(string); blockType != "tool_use" {
+			continue
+		}
+		if name, _ := block["name"].(string); strings.TrimSpace(name) != "" {
+			names = append(names, name)
+		}
+	}
+	return names
 }
 
 func finishReasonAssertion(result RunCaseResult, expect map[string]any) (CaseAssertion, bool) {
@@ -4385,6 +4613,7 @@ func populateStreamUsagePresent(result *RunCaseResult) {
 }
 
 type sseChunk struct {
+	hasUsageField   bool
 	hasRealUsage    bool
 	choicesEmpty    bool
 	hasFinishReason bool
@@ -4416,6 +4645,7 @@ func parseSSEChunks(raw string) sseChunkParseResult {
 		}
 		chunk := sseChunk{}
 		if usage, ok := valueAt(parsed, []string{"usage"}); ok {
+			chunk.hasUsageField = true
 			if _, ok := usage.(map[string]any); ok {
 				chunk.hasRealUsage = true
 			}
@@ -4614,6 +4844,31 @@ func streamUsagePerChunkAssertion(raw string, mode string) (CaseAssertion, bool)
 		}
 		return CaseAssertion{Name: "stream_usage_per_chunk", Pass: false,
 			Message: fmt.Sprintf("预期每个 chunk 都含 usage，%d/%d 个 chunk 缺失", missing, total)}, true
+	case "field_required":
+		// OpenAI 规范：include_usage=true 时每个 chunk 都带 usage 字段（中间为 null），最后专用 chunk 才有统计值
+		if total == 0 {
+			return CaseAssertion{Name: "stream_usage_per_chunk", Pass: false, Message: "未解析到任何 SSE data chunk"}, true
+		}
+		missingField := 0
+		realUsage := 0
+		for _, c := range parsed.chunks {
+			if !c.hasUsageField {
+				missingField++
+			}
+			if c.hasRealUsage {
+				realUsage++
+			}
+		}
+		if missingField > 0 {
+			return CaseAssertion{Name: "stream_usage_per_chunk", Pass: false,
+				Message: fmt.Sprintf("预期每个 chunk 都带 usage 字段（中间可为 null），%d/%d 个 chunk 缺失该字段", missingField, total)}, true
+		}
+		if realUsage == 0 {
+			return CaseAssertion{Name: "stream_usage_per_chunk", Pass: false,
+				Message: fmt.Sprintf("全部 %d 个 chunk 均带 usage 字段，但没有任何 chunk 返回统计值", total)}, true
+		}
+		return CaseAssertion{Name: "stream_usage_per_chunk", Pass: true,
+			Message: fmt.Sprintf("通过：全部 %d 个 chunk 均带 usage 字段，其中 %d 个含统计值", total, realUsage)}, true
 	case "observed":
 		withUsage := 0
 		for _, c := range parsed.chunks {

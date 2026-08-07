@@ -16,7 +16,7 @@
     ],
     "enable_thinking": true,
     "thinking_budget": 4096,
-    "max_completion_tokens": 1200,
+    "max_completion_tokens": 5120,
     "temperature": 0
   },
   "expect": {
@@ -28,6 +28,6 @@
     "thinking_evidence_required": true,
     "assistant_content_non_empty": true,
     "provider_extension": true,
-    "notes": "强度高档 budget；与 thinking_budget=128 配对比较 reasoning_tokens。"
+    "notes": "强度高档 budget；与 thinking_budget=128 配对比较 reasoning_tokens。max_completion_tokens 必须大于 thinking_budget（阿里硬规则，1200<4096 时恒 400），故取 5120。"
   }
 }

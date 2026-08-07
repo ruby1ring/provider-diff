@@ -34,11 +34,11 @@
         }
       }
     },
-    "max_completion_tokens": 120
+    "max_completion_tokens": 1024
   },
   "expect": {
     "axis": "accept",
     "content_should_parse_as_json": true,
-    "notes": "Structured Outputs strict mode 使用 JSON Schema 子集约束输出。"
+    "notes": "Structured Outputs strict mode 使用 JSON Schema 子集约束输出。 预算须留足思考 token：默认开思考的模型（如 qwen3.8-max）reasoning 与正文共用 max_tokens 预算，预算过小会让正文被截断成空串，导致 response_format 断言随机失败——这不是渠道问题，别把这里改小。"
   }
 }

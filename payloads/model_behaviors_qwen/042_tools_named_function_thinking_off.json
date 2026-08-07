@@ -1,0 +1,79 @@
+{
+  "case_id": "qwen_oem_qwen38_tools_named_thinking_off",
+  "title": "思考关闭 + tool_choice 指定函数名 · 应按名称调用",
+  "category": "tools",
+  "case_scope": "oem_reference",
+  "oem_vendor": "qwen",
+  "applicable_models": [
+    "qwen3.8-max"
+  ],
+  "target_group": "protocol_tools",
+  "parameters": [
+    "tools",
+    "tool_choice",
+    "enable_thinking"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "qwen3.8-max",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Get the weather for Beijing."
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_current_weather",
+          "description": "Get current weather for a city.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "location"
+            ]
+          }
+        }
+      }
+    ],
+    "tool_choice": {
+      "type": "function",
+      "function": {
+        "name": "get_current_weather"
+      }
+    },
+    "enable_thinking": false,
+    "max_completion_tokens": 120
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "evaluation_intent": "assert",
+    "case_scope": "oem_reference",
+    "target_group": "protocol_tools",
+    "oem_source": "https://help.aliyun.com/zh/model-studio/qwen-function-calling",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "choice_required_fields": [
+      "index",
+      "message",
+      "finish_reason"
+    ],
+    "expected_tool_call_name": "get_current_weather",
+    "thinking_absent": true,
+    "notes": "Qwen OEM：思考关闭后 tool_choice 指定函数名可用，实测华北2 正确路由到 get_current_weather（2026-08-07）。注意 finish_reason 实测为 stop 而非 tool_calls（与 required 场景不同），故本 case 只断言调用名命中，不约束 finish_reason。"
+  }
+}

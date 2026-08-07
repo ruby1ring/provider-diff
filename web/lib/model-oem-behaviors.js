@@ -14,14 +14,16 @@
     deepseek: "model_behaviors_deepseek",
     moonshot: "model_behaviors_moonshot",
     zhipu: "model_behaviors_zhipu",
-    minimax: "model_behaviors_minimax"
+    minimax: "model_behaviors_minimax",
+    qwen: "model_behaviors_qwen"
   };
 
   const VENDOR_LABEL = {
     deepseek: "DeepSeek 官方",
     moonshot: "Moonshot (Kimi) 官方",
     zhipu: "智谱官方",
-    minimax: "MiniMax 官方"
+    minimax: "MiniMax 官方",
+    qwen: "阿里云百炼 (Qwen) 官方"
   };
 
   // 各厂商原厂特殊规则摘要：选中该厂商的测评模型时，UI 用它渲染显著提示条。
@@ -98,6 +100,20 @@
       {
         rule: "kimi-k3 拒绝 n>1 的边界依赖 temperature：实测默认（temperature≤1e-5）时 n=2 报 400，提示「n should not be greater than 1 when temperature is less than or equal to 1e-5」——暗示 temperature 足够大时可能放开 n>1，待实测确认（2026-07-17 探测中）",
         source: "https://platform.kimi.com/docs/api/chat"
+      }
+    ],
+    "qwen3.8-max": [
+      {
+        rule: "qwen3.8-max 是混合思考模式且默认开启思考：不传 enable_thinking 响应也带 reasoning_content（与同平台 qwen3-max「默认不开启」相反）；enable_thinking 为非 OpenAI 标准参数，可显式传 false 关闭；文档确认（2026-08-06）",
+        source: "https://help.aliyun.com/zh/model-studio/deep-thinking"
+      },
+      {
+        rule: "qwen3.8-max 支持 thinking_budget 限制思考最大 token 数（需配合 enable_thinking=true）；不支持 /think /no_think 提示词控制（仅 Qwen3 开源版和 qwen-plus-2025-04-28 支持）；文档确认（2026-08-06）",
+        source: "https://help.aliyun.com/zh/model-studio/deep-thinking"
+      },
+      {
+        rule: "qwen3.8-max 支持 enable_search 联网搜索（及 search_options）与图像输入（视觉理解，最多 2048 张图，OpenAI 兼容端点用 image_url 格式）；文档确认（2026-08-06）",
+        source: "https://help.aliyun.com/zh/model-studio/vision"
       }
     ]
   };

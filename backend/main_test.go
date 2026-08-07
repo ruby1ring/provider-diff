@@ -2124,8 +2124,10 @@ func TestExtractCacheHitMetricsCachedTokens(t *testing.T) {
 	if hit != 128 || miss != 0 || prompt != 200 {
 		t.Fatalf("unexpected metrics: hit=%d miss=%d prompt=%d", hit, miss, prompt)
 	}
-	if rate := cacheHitRate(hit, miss, prompt); rate != 1.0 {
-		t.Fatalf("expected hit rate 1.0 when only cached_tokens reported, got %f", rate)
+	// 只报 cached_tokens（无 miss 字段）时分母必须用 prompt_tokens：
+	// 128/200=64%，而不是 hit/hit 塌缩出的 100%
+	if rate := cacheHitRate(hit, miss, prompt); rate != 0.64 {
+		t.Fatalf("expected hit rate 0.64 (128/200) when only cached_tokens reported, got %f", rate)
 	}
 }
 
@@ -2366,5 +2368,121 @@ func TestDiagnoseParameterSupportUndocumentedRejected(t *testing.T) {
 	finalizeCaseResult(&result, nil, expect)
 	if result.ParameterDiagnosis == nil || result.ParameterDiagnosis.Flag != "undocumented_rejected" {
 		t.Fatalf("expected undocumented_rejected, got %#v", result.ParameterDiagnosis)
+	}
+}
+
+func TestToolCallsAssertion(t *testing.T) {
+	withCalls := RunCaseResult{ResponseBody: map[string]any{
+		"choices": []any{map[string]any{"message": map[string]any{
+			"tool_calls": []any{map[string]any{"function": map[string]any{"name": "get_current_weather"}}},
+		}}},
+	}}
+	noCalls := RunCaseResult{ResponseBody: map[string]any{
+		"choices": []any{map[string]any{"message": map[string]any{"content": "Beijing is sunny."}}},
+	}}
+
+	if _, ok := toolCallsAssertion(withCalls, map[string]any{}); ok {
+		t.Fatal("未声明断言键时不应产生断言")
+	}
+	if a, _ := toolCallsAssertion(withCalls, map[string]any{"tool_calls_required": true}); !a.Pass {
+		t.Fatalf("有 tool_calls 时应通过: %s", a.Message)
+	}
+	if a, _ := toolCallsAssertion(noCalls, map[string]any{"tool_calls_required": true}); a.Pass {
+		t.Fatal("无 tool_calls 时应失败")
+	}
+	if a, _ := toolCallsAssertion(withCalls, map[string]any{"expected_tool_call_name": "get_current_weather"}); !a.Pass {
+		t.Fatalf("命中函数名应通过: %s", a.Message)
+	}
+	if a, _ := toolCallsAssertion(withCalls, map[string]any{"expected_tool_call_name": "other_fn"}); a.Pass {
+		t.Fatal("函数名不匹配时应失败")
+	}
+	// Anthropic Messages 形态
+	messages := RunCaseResult{ResponseBody: map[string]any{
+		"content": []any{map[string]any{"type": "tool_use", "name": "get_current_weather"}},
+	}}
+	if a, _ := toolCallsAssertion(messages, map[string]any{"tool_calls_required": true}); !a.Pass {
+		t.Fatalf("Messages tool_use 应识别: %s", a.Message)
+	}
+}
+
+func TestCapacitySummaryMaxOutputFlagsUnvalidatedLimit(t *testing.T) {
+	// 网关不校验 max_tokens 上限：最高档位 4m 也返回 200，全程没有任何拒绝
+	probe := capacityProbe{Kind: "max_output", Candidates: []int{4194304, 2097152, 1048576}}
+	attempts := []capacityAttempt{{Candidate: 4194304, Conclusion: "supported", FinishReason: "stop"}}
+	summary := capacitySummary(probe, attempts, false)
+	if summary["limit_validated"] != false {
+		t.Fatalf("expected limit_validated=false, got %#v", summary["limit_validated"])
+	}
+	if summary["limit_validation"] != "unvalidated" {
+		t.Fatalf("expected limit_validation=unvalidated, got %#v", summary["limit_validation"])
+	}
+	display, _ := summary["capacity_display"].(map[string]any)
+	text, _ := display["最大Max Output"].(string)
+	if !strings.Contains(text, "上限未校验") {
+		t.Fatalf("expected display to report 上限未校验, got %q", text)
+	}
+	if strings.Contains(text, ">=") {
+		t.Fatalf("display must not present the unvalidated ceiling as a capability, got %q", text)
+	}
+}
+
+func TestCapacitySummaryMaxOutputEnforcedLimit(t *testing.T) {
+	// 上游会校验：256k 被 400 拒绝，128k 支持 —— 这是真实上限，不该标 unvalidated
+	probe := capacityProbe{Kind: "max_output", Candidates: []int{262144, 131072}}
+	attempts := []capacityAttempt{
+		{Candidate: 262144, Conclusion: "rejected", HTTPStatus: 400, CandidateDisplay: "256k"},
+		{Candidate: 131072, Conclusion: "supported", FinishReason: "stop"},
+	}
+	summary := capacitySummary(probe, attempts, true)
+	if summary["limit_validated"] != true {
+		t.Fatalf("expected limit_validated=true, got %#v", summary["limit_validated"])
+	}
+	if summary["limit_validation"] != "enforced" {
+		t.Fatalf("expected limit_validation=enforced, got %#v", summary["limit_validation"])
+	}
+}
+
+func TestContentShouldParseAsJsonBlamesBudgetOnTruncation(t *testing.T) {
+	reasoning := 120
+	result := RunCaseResult{
+		HTTPStatus:      200,
+		ReasoningTokens: &reasoning,
+		ResponseBody: map[string]any{
+			"choices": []any{map[string]any{
+				"finish_reason": "length",
+				"message":       map[string]any{"content": ""},
+			}},
+		},
+	}
+	assertions := evaluateAssertions(result, map[string]any{"content_should_parse_as_json": true})
+	assertion, ok := findAssertion(assertions, "content_should_parse_as_json")
+	if !ok {
+		t.Fatal("content_should_parse_as_json assertion was not emitted")
+	}
+	if assertion.Pass {
+		t.Fatal("expected assertion to fail on empty content")
+	}
+	if !strings.Contains(assertion.Message, "输出预算耗尽") || !strings.Contains(assertion.Message, "reasoning_tokens=120") {
+		t.Fatalf("expected budget-exhaustion diagnosis in message, got %q", assertion.Message)
+	}
+}
+
+func TestContentShouldParseAsJsonKeepsPlainMessageWhenNotTruncated(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus: 200,
+		ResponseBody: map[string]any{
+			"choices": []any{map[string]any{
+				"finish_reason": "stop",
+				"message":       map[string]any{"content": "not json"},
+			}},
+		},
+	}
+	assertions := evaluateAssertions(result, map[string]any{"content_should_parse_as_json": true})
+	assertion, _ := findAssertion(assertions, "content_should_parse_as_json")
+	if assertion.Pass {
+		t.Fatal("expected assertion to fail on non-JSON content")
+	}
+	if strings.Contains(assertion.Message, "输出预算耗尽") {
+		t.Fatalf("must not blame budget when finish_reason=stop, got %q", assertion.Message)
 	}
 }

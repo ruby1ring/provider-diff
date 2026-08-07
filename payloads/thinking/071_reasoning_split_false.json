@@ -26,6 +26,14 @@
     "thinking_absent": true,
     "assistant_content_non_empty": true,
     "provider_extension": true,
-    "notes": "MiniMax-style reasoning_split=false 对照探针；如果模型仍在 content 中输出 <think>，报告会标记为关闭失败并显示落点。"
+    "notes": "MiniMax-style reasoning_split=false 对照探针；如果模型仍在 content 中输出 <think>，报告会标记为关闭失败并显示落点。",
+    "provider_expect": {
+      "aliyun": {
+        "evaluation_intent": "observe",
+        "thinking_absent": null,
+        "thinking_location_probe": true,
+        "notes": "阿里不识别 reasoning_split（MiniMax 方言），参数被静默忽略、默认思考保持开启——按观测记录方言不生效，不作失败判定（2026-08-06 华北2/美东实测一致）。"
+      }
+    }
   }
 }

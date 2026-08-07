@@ -13,6 +13,16 @@
   "expect": {
     "http_status": 200,
     "support_conclusion": "supported",
-    "notes": "协议/采样：temperature=2.0（JSON float）。对照官方文档类型与取值范围；若与文档不符请在 docs/api 对应渠道文档「实测：temperature」表记录。"
+    "notes": "协议/采样：temperature=2.0（JSON float）。对照官方文档类型与取值范围；若与文档不符请在 docs/api 对应渠道文档「实测：temperature」表记录。",
+    "model_expect": {
+      "qwen": {
+        "http_status": 400,
+        "support_conclusion": "rejected_400",
+        "required_response_fields": null,
+        "choice_required_fields": null,
+        "usage_required_fields": null,
+        "notes": "通义千问系列 temperature 合法区间为左闭右开 [0.0, 2.0)，边界值 2 / 2.0 均按文档 400 拒绝（2026-08-07 华北2/美东实测一致，整数与浮点写法等价，说明服务端统一按 float 解析）。本 case 为边界探针，400 即预期结果。"
+      }
+    }
   }
 }

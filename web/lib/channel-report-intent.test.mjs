@@ -89,7 +89,7 @@ const evaluation = api.channelReportEvaluationSummary([
 ], { assertFail: 1, observeIssue: 1 });
 
 assert(evaluation.verdict === "fail", "p0 failure should block verdict");
-assert(evaluation.version === 2, "evaluation version 2");
+assert(evaluation.version === 3, "evaluation version 3");
 assert(evaluation.failing_cases.length === 2, "two failing cases");
 assert(evaluation.channel_summaries[0].platformName === "阿里云新加坡", "channel issue summary");
 
@@ -148,3 +148,25 @@ assert(multiChannelEvaluation.ranking_comparison_text.includes("快手万擎"), 
 assert(multiChannelEvaluation.ranking_comparison_text.includes("阿里云百炼（新加坡）"), "comparison mentions worst channel");
 
 console.log("channel-report-intent.test.mjs: all passed");
+
+// 预期内的 400 拒绝（provider_expect 方言覆盖）不应被判成「请求异常」
+{
+  const expectedRejection = {
+    case_id: "thinking_object_adaptive",
+    category: "reasoning",
+    http_status: 400,
+    expected_http_status: 400,
+    support_conclusion: "rejected_400",
+    error: "'type' must be in [\"enabled\", \"disabled\", \"auto\"]"
+  };
+  assert(api.observeReportStatus(expectedRejection) === "recorded",
+    "预期内 400 拒绝应记为 recorded");
+
+  const unexpectedFailure = { ...expectedRejection, http_status: 500, error: "upstream boom" };
+  assert(api.observeReportStatus(unexpectedFailure) === "observe_issue",
+    "状态码与预期不符时仍应记为 observe_issue");
+
+  const plainError = { case_id: "x", category: "protocol", http_status: 200, expected_http_status: 200, support_conclusion: "request_failed", error: "timeout" };
+  assert(api.observeReportStatus(plainError) === "observe_issue",
+    "request_failed 仍应记为 observe_issue");
+}

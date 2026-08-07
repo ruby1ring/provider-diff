@@ -1,0 +1,43 @@
+{
+  "case_id": "qwen_oem_qwen38_enable_thinking_false",
+  "title": "enable_thinking=false 关闭默认开启的思考",
+  "category": "reasoning",
+  "case_scope": "oem_reference",
+  "oem_vendor": "qwen",
+  "applicable_models": ["qwen3.8-max"],
+  "target_group": "protocol_thinking",
+  "parameters": [
+    "enable_thinking"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "qwen3.8-max",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用一句话解释 false 配置。"
+      }
+    ],
+    "enable_thinking": false
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "evaluation_intent": "assert",
+    "case_scope": "oem_reference",
+    "target_group": "protocol_thinking",
+    "oem_source": "https://help.aliyun.com/zh/model-studio/deep-thinking",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "thinking_location_probe": true,
+    "thinking_absent": true,
+    "notes": "Qwen OEM：enable_thinking 是非 OpenAI 标准参数（Python SDK 需 extra_body）。qwen3.8-max 默认开启思考，显式传 enable_thinking=false 可关闭。关闭判定要求没有可见 thinking 内容，且 usage 中没有 reasoning_tokens/thinking_tokens > 0。"
+  }
+}

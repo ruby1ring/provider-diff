@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/design-system/tokens.css" />
-    <link rel="stylesheet" href="/design-system/styles.css?v=noctua-param-diagnosis" />
+    <link rel="stylesheet" href="/design-system/styles.css?v=noctua-docs-hub" />
   </head>
   <body>
     <div class="app">
@@ -27,14 +27,20 @@
           <nav class="app-sidebar-nav">
             <div class="sidebar-group">
               <div class="sidebar-group-label"><!-- Lucide (ISC) -->
-                <svg class="sidebar-group-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5h13"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="M3 10a2 2 0 0 0 2 2h3"/><path d="M3 5v12a2 2 0 0 0 2 2h3"/></svg>
-                <span>渠道测评配置</span>
+                <svg class="sidebar-group-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+                <span>文档</span>
               </div>
               <div class="sidebar-group-items">
+                <a href="#docs" data-view-link="docs">文档中心</a>
+                <div class="sidebar-subgroup-label">测评配置</div>
                 <a class="is-active" href="#guide" data-view-link="guide">测评说明</a>
                 <a href="#channels" data-view-link="channels">已支持测评渠道</a>
                 <a href="#protocols" data-view-link="protocols">已支持测评协议</a>
                 <a href="#models" data-view-link="models">已支持测评模型</a>
+                <div class="sidebar-subgroup-label">错误码映射</div>
+                <a href="#error-guide" data-view-link="error-guide">映射说明</a>
+                <a href="#error-channels" data-view-link="error-channels">渠道错误码</a>
+                <a href="#error-mapping" data-view-link="error-mapping">错误码映射</a>
               </div>
             </div>
             <div class="sidebar-group">
@@ -55,17 +61,6 @@
               <div class="sidebar-group-items">
                 <a href="#channel-performance" data-view-link="channel-performance">测评工具</a>
                 <a href="#channel-performance-reports" data-view-link="channel-performance-reports">测评报告</a>
-              </div>
-            </div>
-            <div class="sidebar-group">
-              <div class="sidebar-group-label"><!-- Lucide (ISC) -->
-                <svg class="sidebar-group-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20v-9"/><path d="M14 7a4 4 0 0 1 4 4v3a6 6 0 0 1-12 0v-3a4 4 0 0 1 4-4z"/><path d="M14.12 3.88 16 2"/><path d="M21 21a4 4 0 0 0-3.81-4"/><path d="M21 5a4 4 0 0 1-3.55 3.97"/><path d="M22 13h-4"/><path d="M3 21a4 4 0 0 1 3.81-4"/><path d="M3 5a4 4 0 0 0 3.55 3.97"/><path d="M6 13H2"/><path d="m8 2 1.88 1.88"/><path d="M9 7.13V6a3 3 0 1 1 6 0v1.13"/></svg>
-                <span>渠道错误码映射</span>
-              </div>
-              <div class="sidebar-group-items">
-                <a href="#error-guide" data-view-link="error-guide">映射说明</a>
-                <a href="#error-channels" data-view-link="error-channels">渠道错误码</a>
-                <a href="#error-mapping" data-view-link="error-mapping">错误码映射</a>
               </div>
             </div>
             <div class="sidebar-group">
@@ -93,7 +88,39 @@
         </aside>
 
         <main class="app-main">
+        <section id="docsView" class="app-view is-hidden" data-view="docs">
+          <div class="page-head">
+            <div>
+              <h1>文档</h1>
+              <p>Noctua 的知识类内容集中在这里。这些页面只读、不发起真实请求：<strong>测评配置</strong>说明工具当前覆盖的渠道 / 协议 / 模型范围，跑测前先在这里确认口径；<strong>错误码映射</strong>整理各渠道原生错误与 OpenAI 兼容形态的对应关系，供网关适配与排障参考。</p>
+            </div>
+          </div>
+
+          <section class="panel">
+            <div class="sec-head">
+              <div>
+                <p class="eyebrow">Configuration</p>
+                <h2>测评配置</h2>
+              </div>
+            </div>
+            <p class="guide-copy">测评能力边界的事实来源：哪些协议纳入了评测、哪些渠道与模型可选、同一模型在不同渠道叫什么名字。</p>
+            <div class="doc-card-grid" data-docs-cards="config"></div>
+          </section>
+
+          <section class="panel" style="margin-top: var(--space-6);">
+            <div class="sec-head">
+              <div>
+                <p class="eyebrow">Error mapping</p>
+                <h2>错误码映射</h2>
+              </div>
+            </div>
+            <p class="guide-copy">各上游渠道的错误字段、码值与 HTTP 语义并不一致；这里整理渠道原生错误与建议的 OpenAI <code>error</code> 映射。</p>
+            <div class="doc-card-grid" data-docs-cards="errors"></div>
+          </section>
+        </section>
+
         <section id="guideView" class="app-view" data-view="guide">
+          <nav class="docs-subnav" data-docs-subnav aria-label="文档导航"></nav>
           <div class="page-head">
             <div>
               <h1>测评说明</h1>
@@ -181,6 +208,7 @@
         </section>
 
         <section id="channelsView" class="app-view is-hidden" data-view="channels">
+          <nav class="docs-subnav" data-docs-subnav aria-label="文档导航"></nav>
           <div class="page-head">
             <div>
               <h1>已支持测评渠道</h1>
@@ -191,6 +219,7 @@
         </section>
 
         <section id="protocolsView" class="app-view is-hidden" data-view="protocols">
+          <nav class="docs-subnav" data-docs-subnav aria-label="文档导航"></nav>
           <div class="page-head">
             <div>
               <h1>已支持测评协议</h1>
@@ -201,6 +230,7 @@
         </section>
 
         <section id="modelsView" class="app-view is-hidden" data-view="models">
+          <nav class="docs-subnav" data-docs-subnav aria-label="文档导航"></nav>
           <div class="page-head">
             <div>
               <h1>已支持测评模型</h1>
@@ -675,6 +705,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
         </section>
 
         <section id="errorGuideView" class="app-view is-hidden" data-view="error-guide">
+          <nav class="docs-subnav" data-docs-subnav aria-label="文档导航"></nav>
           <div class="page-head">
             <div>
               <h1>映射说明</h1>
@@ -685,6 +716,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
         </section>
 
         <section id="errorChannelsView" class="app-view is-hidden" data-view="error-channels">
+          <nav class="docs-subnav" data-docs-subnav aria-label="文档导航"></nav>
           <div class="page-head">
             <div>
               <h1>渠道错误码</h1>
@@ -695,6 +727,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
         </section>
 
         <section id="errorMappingView" class="app-view is-hidden" data-view="error-mapping">
+          <nav class="docs-subnav" data-docs-subnav aria-label="文档导航"></nav>
           <div class="page-head">
             <div>
               <h1>错误码映射</h1>
@@ -1179,7 +1212,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
         });
       })();
     </script>
-    <script src="/web/main.js?v=noctua-docs-sync"></script>
+    <script src="/web/main.js?v=noctua-docs-hub"></script>
     <script>
       if (new URLSearchParams(location.search).has("canvas-annotate")) {
         const s = document.createElement("script");

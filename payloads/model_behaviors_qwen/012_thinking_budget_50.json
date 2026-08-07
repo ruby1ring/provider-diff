@@ -1,0 +1,47 @@
+{
+  "case_id": "qwen_oem_qwen38_thinking_budget_50",
+  "title": "enable_thinking=true + thinking_budget=50 限制思考长度",
+  "category": "reasoning",
+  "case_scope": "oem_reference",
+  "oem_vendor": "qwen",
+  "applicable_models": ["qwen3.8-max"],
+  "target_group": "protocol_thinking",
+  "parameters": [
+    "enable_thinking",
+    "thinking_budget"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "qwen3.8-max",
+    "messages": [
+      {
+        "role": "user",
+        "content": "用简短步骤说明 9 * 8 的计算。"
+      }
+    ],
+    "enable_thinking": true,
+    "thinking_budget": 50
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "evaluation_intent": "assert",
+    "case_scope": "oem_reference",
+    "target_group": "protocol_thinking",
+    "oem_source": "https://help.aliyun.com/zh/model-studio/deep-thinking",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "reasoning_tokens_min": 1,
+    "reasoning_tokens_max": 50,
+    "notes": "Qwen OEM：thinking_budget 限制思考过程最大 token 数（Qwen3.8 系列适用，需配合 enable_thinking=true）。预期 reasoning_tokens 落在 1–50 之间：>0 证明思考确实发生，≤50 证明 budget 生效。第三方渠道应与 Baseline 一致。"
+  }
+}

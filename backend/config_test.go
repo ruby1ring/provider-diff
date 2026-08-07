@@ -83,3 +83,60 @@ func TestResolveProviderAPIKeyPrefersConfigFile(t *testing.T) {
 		t.Fatalf("expected config.yaml key, got %q", key)
 	}
 }
+
+func TestResolveProviderExpect(t *testing.T) {
+	base := map[string]any{
+		"http_status":        float64(200),
+		"support_conclusion": "supported",
+		"thinking_absent":    true,
+		"provider_expect": map[string]any{
+			"aliyun": map[string]any{
+				"http_status":        float64(400),
+				"support_conclusion": "rejected_400",
+				"thinking_absent":    nil,
+			},
+		},
+	}
+	resolved := resolveProviderExpect(base, "aliyun-cn", "")
+	if resolved["http_status"] != float64(400) || resolved["support_conclusion"] != "rejected_400" {
+		t.Fatalf("aliyun-cn 应命中 aliyun 前缀覆盖: %v", resolved)
+	}
+	if _, exists := resolved["thinking_absent"]; exists {
+		t.Fatalf("null 覆盖应删除断言键: %v", resolved)
+	}
+	if _, exists := resolved["provider_expect"]; exists {
+		t.Fatalf("provider_expect 元数据不应保留: %v", resolved)
+	}
+	untouched := resolveProviderExpect(base, "deepseek", "")
+	if untouched["http_status"] != float64(200) || untouched["thinking_absent"] != true {
+		t.Fatalf("不匹配的平台应保持基础 expect: %v", untouched)
+	}
+}
+
+func TestResolveProviderExpectModelScoped(t *testing.T) {
+	base := map[string]any{
+		"http_status":        float64(200),
+		"support_conclusion": "supported",
+		"model_expect": map[string]any{
+			"qwen": map[string]any{
+				"http_status":        float64(400),
+				"support_conclusion": "rejected_400",
+			},
+		},
+	}
+	for _, model := range []string{"qwen3.8-max", "Qwen/Qwen3.5-397B-A17B", "QWEN3-MAX"} {
+		resolved := resolveProviderExpect(base, "aliyun-cn", model)
+		if resolved["http_status"] != float64(400) {
+			t.Fatalf("模型 %s 应命中 qwen 覆盖: %v", model, resolved)
+		}
+	}
+	for _, model := range []string{"deepseek-v4-pro", "deepseek-ai/DeepSeek-V4-Flash"} {
+		resolved := resolveProviderExpect(base, "aliyun-cn", model)
+		if resolved["http_status"] != float64(200) {
+			t.Fatalf("非 qwen 模型 %s 不应被覆盖: %v", model, resolved)
+		}
+	}
+	if _, exists := resolveProviderExpect(base, "aliyun-cn", "qwen3.8-max")["model_expect"]; exists {
+		t.Fatal("model_expect 元数据不应保留")
+	}
+}
