@@ -1,0 +1,59 @@
+{
+  "case_id": "qwen_oem_qwen38_tools_required_thinking_on",
+  "title": "思考开启 + tool_choice=required · 按文档 400 拒绝（限制边界）",
+  "category": "tools",
+  "case_scope": "oem_reference",
+  "oem_vendor": "qwen",
+  "applicable_models": [
+    "qwen3.8-max"
+  ],
+  "target_group": "protocol_tools",
+  "parameters": [
+    "tools",
+    "tool_choice",
+    "enable_thinking"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "qwen3.8-max",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Get the weather for Beijing."
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_current_weather",
+          "description": "Get current weather for a city.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "location"
+            ]
+          }
+        }
+      }
+    ],
+    "tool_choice": "required",
+    "enable_thinking": true,
+    "max_completion_tokens": 120
+  },
+  "expect": {
+    "http_status": 400,
+    "support_conclusion": "rejected_400",
+    "evaluation_intent": "observe",
+    "case_scope": "oem_reference",
+    "target_group": "protocol_tools",
+    "oem_source": "https://help.aliyun.com/zh/model-studio/qwen-function-calling",
+    "notes": "Qwen OEM 限制边界：思考模式下 tool_choice 不支持 required / object，服务端返回 400「The tool_choice parameter does not support being set to required or object in thinking mode」。记录该限制本身，网关侧若要透传强制工具调用需先关闭思考（见 040）。实测华北2/美东一致（2026-08-07）。"
+  }
+}

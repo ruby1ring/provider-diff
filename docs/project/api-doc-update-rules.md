@@ -74,10 +74,10 @@ Case `expect` 须设置：
 
 ### 2.2 厂商专属（OEM 参考）case
 
-- 存放：`payloads/model_behaviors_{vendor}/`，已落地四家：
-  `model_behaviors_deepseek`、`model_behaviors_moonshot`、`model_behaviors_zhipu`、`model_behaviors_minimax`
+- 存放：`payloads/model_behaviors_{vendor}/`，已落地五家：
+  `model_behaviors_deepseek`、`model_behaviors_moonshot`、`model_behaviors_zhipu`、`model_behaviors_minimax`、`model_behaviors_qwen`
 - 标记：`case_scope: "oem_reference"`、`oem_vendor`、`target_group` 指向固定分组、`expect.oem_source` 指向原厂文档
-- 注入：选择对应测评模型时，由 `web/lib/model-oem-behaviors.js` 注入该分组（厂商识别 `inferEvalModelVendorId`：deepseek*/kimi*/glm*/minimax* 前缀）
+- 注入：选择对应测评模型时，由 `web/lib/model-oem-behaviors.js` 注入该分组（厂商识别 `inferEvalModelVendorId`：deepseek*/kimi*/glm*/minimax*/qwen* 前缀）
 - UI：Run v02 与报告内显示 **「原厂参考」** 标记及 `oem_source` 链接；选中模型后顶部渲染该厂商特殊规则提示条（`vendorRules(vendorId)`）
 
 核心示例（各厂商差异化行为，2026-07-08 实测）：
@@ -88,6 +88,7 @@ Case `expect` 须设置：
 | Kimi k2 系列 | 采样参数锁死，**传非默认值直接 400**（与 DeepSeek 相反） | `moonshot_oem_k2_temperature_rejected` 等 |
 | 智谱 | `do_sample=false` 为采样总开关；官方称 stop 仅单个停止词但**实测多停止词生效** | `zhipu_oem_do_sample_false_sampling_ignored` 等 |
 | MiniMax | M2.x 思考不可关（disabled 被接受但照常思考）；`n>1` 直接 400 | `minimax_oem_m2x_thinking_disable_ineffective` 等 |
+| Qwen（百炼） | qwen3.8-max **默认开启思考**（不传 `enable_thinking` 也返回 `reasoning_content`，与 qwen3-max 默认关闭相反）；支持 `thinking_budget` / `enable_search` / 视觉 | `qwen_oem_qwen38_default_thinking_enabled` 等 |
 
 ### 2.3 Case 完整性审计
 

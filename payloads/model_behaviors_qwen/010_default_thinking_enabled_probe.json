@@ -1,0 +1,45 @@
+{
+  "case_id": "qwen_oem_qwen38_default_thinking_enabled",
+  "title": "默认开启思考：不传 enable_thinking 也返回 reasoning_content（区别于 qwen3-max 默认关闭）",
+  "category": "reasoning",
+  "case_scope": "oem_reference",
+  "oem_vendor": "qwen",
+  "applicable_models": ["qwen3.8-max"],
+  "target_group": "protocol_thinking",
+  "parameters": [
+    "enable_thinking"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "qwen3.8-max",
+    "messages": [
+      {
+        "role": "user",
+        "content": "计算 17 + 25，并给出简短答案。"
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "evaluation_intent": "assert",
+    "case_scope": "oem_reference",
+    "target_group": "protocol_thinking",
+    "oem_source": "https://help.aliyun.com/zh/model-studio/deep-thinking",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "optional_response_fields": [
+      "choices[].message.reasoning_content"
+    ],
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "notes": "Qwen OEM：qwen3.8-max 为混合思考模式且默认开启思考——不传 enable_thinking 时响应也带 reasoning_content，usage 里有 completion_tokens_details.reasoning_tokens。这是与同平台 qwen3-max「默认不开启思考」最关键的差异，第三方渠道应与 Baseline 一致。判定要求出现 reasoning_content 或 reasoning_tokens 证据。"
+  }
+}

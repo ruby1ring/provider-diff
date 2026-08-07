@@ -1,0 +1,41 @@
+{
+  "case_id": "qwen_oem_qwen38_enable_search",
+  "title": "enable_search=true 联网搜索",
+  "category": "search",
+  "case_scope": "oem_reference",
+  "oem_vendor": "qwen",
+  "applicable_models": ["qwen3.8-max"],
+  "target_group": "protocol",
+  "parameters": [
+    "enable_search"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "qwen3.8-max",
+    "messages": [
+      {
+        "role": "user",
+        "content": "今天日期相关问题如果需要可联网搜索：请回答当前年份。"
+      }
+    ],
+    "enable_search": true
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "evaluation_intent": "assert",
+    "case_scope": "oem_reference",
+    "target_group": "protocol",
+    "oem_source": "https://help.aliyun.com/zh/model-studio/qwen-api-via-dashscope",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "Qwen OEM：enable_search 是非 OpenAI 标准参数，开启联网搜索（另有 search_options 可配置搜索策略）；开启可能增加 token 消耗。第三方渠道应与 Baseline 一致。"
+  }
+}

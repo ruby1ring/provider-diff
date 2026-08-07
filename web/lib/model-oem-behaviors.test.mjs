@@ -21,6 +21,7 @@ const sandbox = {
         if (s.startsWith("kimi")) return "moonshot";
         if (s.startsWith("glm")) return "zhipu";
         if (s.startsWith("minimax")) return "minimax";
+        if (s.startsWith("qwen")) return "qwen";
         return "other";
       }
     }
@@ -51,7 +52,10 @@ assert(api.isOemReferenceCase(oemCase), "oem case detected");
 assert(api.oemTargetGroup(oemCase) === "protocol_sampling", "target group");
 assert(api.oemTargetGroup({ case_id: "deepseek_oem_thinking_sampling_ignored" }) === "protocol_sampling", "target group by case_id fallback");
 assert(api.inferEvalModelVendorId("deepseek-v4-pro") === "deepseek", "vendor infer");
+assert(api.inferEvalModelVendorId("qwen3.8-max") === "qwen", "vendor infer qwen");
 assert(api.modelBehaviorsProviderId("deepseek") === "model_behaviors_deepseek", "provider id");
+assert(api.modelBehaviorsProviderId("qwen") === "model_behaviors_qwen", "provider id qwen");
+assert(api.vendorLabel("qwen") === "阿里云百炼 (Qwen) 官方", "vendor label qwen");
 
 // 模型级特殊规则：kimi-k2 专属规则只对 k2 命中，kimi-k3 不再错套 k2 规则，
 // 而是显示自己的 MODEL_RULES 条目（3 条），不会把 k2 的 2 条算进去（应为 3，不是 5）。
@@ -59,6 +63,8 @@ assert(api.modelOemRules("kimi-k2.6").length === 2, "kimi-k2.6 has 2 k2-specific
 assert(api.modelOemRules("kimi-k2.7-coder").length === 2, "kimi-k2.7-coder has 2 k2-specific rules");
 assert(api.modelOemRules("kimi-k3").length === 4, "kimi-k3 shows its own model rules, no k2 leak (4 not 6)");
 assert(api.modelOemRules("deepseek-v4-pro").length >= 1, "deepseek-v4-pro falls back to vendor general rules");
+assert(api.modelOemRules("qwen3.8-max").length === 3, "qwen3.8-max shows its own model rules");
+assert(api.modelOemRules("qwen3-max").length === 0, "qwen3-max has no qwen vendor general rules yet");
 assert(api.modelOemRules("unknown-model").length === 0, "unknown model (vendor=other) returns empty");
 assert(api.modelOemRules("").length === 0, "empty model id returns empty");
 
@@ -72,6 +78,26 @@ assert(api.caseAppliesToModel({ applicable_models: ["kimi-k3"] }, "kimi-k3") ===
 assert(api.caseAppliesToModel({ applicable_models: ["kimi-k3"] }, "kimi-k2.6") === false, "k3 case does not apply to k2.6");
 assert(api.caseAppliesToModel({ applicable_models: ["kimi-k2*"] }, "kimi-k2.7-coder") === true, "prefix wildcard matches k2 family");
 assert(api.caseAppliesToModel({ applicable_models: ["kimi-k2*"] }, "kimi-k3") === false, "prefix wildcard does not match k3");
+
+// qwen OEM case：applicable_models 限定仅 qwen3.8-max（同平台 qwen3-max 默认不开思考，不能错套）；
+// 注入时一律 custom 提交。
+const qwenCase = {
+  case_id: "qwen_oem_qwen38_default_thinking_enabled",
+  case_scope: "oem_reference",
+  oem_vendor: "qwen",
+  applicable_models: ["qwen3.8-max"],
+  target_group: "protocol_thinking",
+  payload: { model: "qwen3.8-max", messages: [{ role: "user", content: "hi" }] },
+  expect: { http_status: 200 }
+};
+assert(api.isOemReferenceCase(qwenCase), "qwen case is oem reference case");
+assert(api.oemTargetGroup(qwenCase) === "protocol_thinking", "qwen target group");
+assert(api.oemVendorId(qwenCase) === "qwen", "qwen vendor id");
+assert(api.caseAppliesToModel(qwenCase, "qwen3.8-max") === true, "qwen case applies to qwen3.8-max");
+assert(api.caseAppliesToModel(qwenCase, "qwen3-max") === false, "qwen3.8-max case does NOT apply to qwen3-max (default thinking differs)");
+assert(api.caseAppliesToModel({ applicable_models: ["qwen3.8*"] }, "qwen3.8-max") === true, "prefix wildcard matches qwen3.8 family");
+const preparedQwen = api.prepareCaseForRoute(qwenCase, "aliyun");
+assert(preparedQwen.custom === true, "qwen oem case marked custom on aliyun channel");
 
 
 const ali = api.adaptOemCasePayloadForRoute(oemCase, "aliyun");

@@ -1,0 +1,51 @@
+{
+  "case_id": "qwen_oem_qwen38_vision_image_url",
+  "title": "image_url 图像输入（视觉理解）",
+  "category": "multimodal",
+  "case_scope": "oem_reference",
+  "oem_vendor": "qwen",
+  "applicable_models": ["qwen3.8-max"],
+  "target_group": "protocol",
+  "parameters": [
+    "messages"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "qwen3.8-max",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "请用一句话描述图片内容。"
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20241022/emyrja/dog_and_girl.jpeg"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "evaluation_intent": "assert",
+    "case_scope": "oem_reference",
+    "target_group": "protocol",
+    "oem_source": "https://help.aliyun.com/zh/model-studio/vision",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "notes": "Qwen OEM：qwen3.8-max 支持图像输入（视觉理解，单次请求最多 2048 张图），OpenAI 兼容端点使用 image_url 消息格式。示例图取自官方文档。第三方渠道应与 Baseline 一致。"
+  }
+}

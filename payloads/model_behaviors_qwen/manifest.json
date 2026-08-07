@@ -1,0 +1,27 @@
+{
+  "provider": "model_behaviors_qwen",
+  "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "endpoint": "/chat/completions",
+  "method": "POST",
+  "source": "../../docs/api/ali-chat.md",
+  "default_model": "qwen3.8-max",
+  "reasoning_model": "qwen3.8-max",
+  "vision_model": "qwen3.8-max",
+  "notes": [
+    "阿里云百炼 Qwen OEM 原厂参考 case：仅在 runV02 测评模型为 Qwen 系列（qwen3.8-max）时注入到对应分组子区。",
+    "跑批时对用户选择的每一个测评渠道（Baseline + Target）各执行一次。",
+    "原厂行为（2026-08-06 文档确认）：qwen3.8-max 为混合思考模式且默认开启思考——不传 enable_thinking 也返回 reasoning_content，与同平台 qwen3-max「默认不开启」相反；enable_thinking / thinking_budget / enable_search 均为非 OpenAI 标准参数。第三方渠道应与该行为对照。",
+    "思考 × 工具交叉约束（2026-08-07 实测）：qwen3.8-max 默认开思考，思考模式下 tool_choice 不支持 required / 指定函数名（400）；显式 enable_thinking=false 后两者均可用并正确返回 tool_calls。通用 tools 套件不传 enable_thinking，故对本模型会命中该限制。"
+  ],
+  "common_expect": {},
+  "cases": [
+    "010_default_thinking_enabled_probe.json",
+    "011_enable_thinking_false.json",
+    "012_thinking_budget_50.json",
+    "020_enable_search.json",
+    "030_vision_image_url.json",
+    "040_tools_choice_required_thinking_off.json",
+    "041_tools_choice_required_thinking_on.json",
+    "042_tools_named_function_thinking_off.json"
+  ]
+}

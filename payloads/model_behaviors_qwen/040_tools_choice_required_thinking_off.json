@@ -1,0 +1,74 @@
+{
+  "case_id": "qwen_oem_qwen38_tools_required_thinking_off",
+  "title": "思考关闭 + tool_choice=required · 应强制返回 tool_calls",
+  "category": "tools",
+  "case_scope": "oem_reference",
+  "oem_vendor": "qwen",
+  "applicable_models": [
+    "qwen3.8-max"
+  ],
+  "target_group": "protocol_tools",
+  "parameters": [
+    "tools",
+    "tool_choice",
+    "enable_thinking"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "qwen3.8-max",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Get the weather for Beijing."
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_current_weather",
+          "description": "Get current weather for a city.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "location"
+            ]
+          }
+        }
+      }
+    ],
+    "tool_choice": "required",
+    "enable_thinking": false,
+    "max_completion_tokens": 120
+  },
+  "expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "evaluation_intent": "assert",
+    "case_scope": "oem_reference",
+    "target_group": "protocol_tools",
+    "oem_source": "https://help.aliyun.com/zh/model-studio/qwen-function-calling",
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "choice_required_fields": [
+      "index",
+      "message",
+      "finish_reason"
+    ],
+    "tool_calls_required": true,
+    "thinking_absent": true,
+    "notes": "Qwen OEM：qwen3.8-max 默认开启思考，而阿里在思考模式下不支持 tool_choice=required（报 400）。本 case 显式 enable_thinking=false 后验证渠道是否真正支持强制工具调用——实测华北2 返回 tool_calls=get_current_weather、finish_reason=tool_calls（2026-08-07）。与 041 边界 case 成对使用：041 证明限制存在，本 case 证明能力存在。"
+  }
+}
