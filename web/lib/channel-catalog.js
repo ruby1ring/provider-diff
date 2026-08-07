@@ -14,7 +14,8 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
     "glm-5.2",
     "glm-5.1",
     "glm-5",
-    "MiniMax-M3"
+    "MiniMax-M3",
+    "qwen3.8-max"
   ];
 
   /** ISO dates for built-in eval models; used to sort tabs newest-first. */
@@ -27,7 +28,8 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
     "glm-5.2": "2026-06-10",
     "glm-5.1": "2026-04-15",
     "glm-5": "2026-02-20",
-    "MiniMax-M3": "2026-03-18"
+    "MiniMax-M3": "2026-03-18",
+    "qwen3.8-max": "2026-06-25"
   };
 
   function parseModelVersionRank(modelId) {
@@ -59,6 +61,7 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
     { id: "moonshot", label: "Moonshot", logo: "/assets/logos/moonshot.ico" },
     { id: "zhipu", label: "智谱", logo: "/assets/logos/zhipu.svg" },
     { id: "minimax", label: "MiniMax", logo: "/assets/logos/minimax.ico" },
+    { id: "qwen", label: "Qwen", logo: "/assets/logos/aliyun.svg" },
     { id: "other", label: "其他", logo: "" }
   ];
 
@@ -68,6 +71,7 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
     if (id.startsWith("kimi")) return "moonshot";
     if (id.startsWith("glm")) return "zhipu";
     if (id.startsWith("minimax")) return "minimax";
+    if (id.startsWith("qwen")) return "qwen";
     return "other";
   }
 
@@ -147,7 +151,8 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
     "glm-5.2": p(true, true),
     "glm-5.1": p(true, true),
     "glm-5": p(true, true),
-    "MiniMax-M3": p(true, false)
+    "MiniMax-M3": p(true, false),
+    "qwen3.8-max": p(true, true, true)
   };
 
   const aliyunPlatformProtocols = p(true, true, true);
@@ -160,7 +165,9 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
     "glm-5.2": p(true, false),
     "glm-5.1": p(true, false),
     "glm-5": p(true, false),
-    "MiniMax-M3": p(true, false)
+    "MiniMax-M3": p(true, false),
+    // 2026-08-07 上架国际站（仅 SiliconFlow 组织内可见），api id = Qwen/qwen3.8-max；实测 Chat 可用、默认开思考
+    "qwen3.8-max": p(true, false)
   };
 
   const siliconflowCnProtocols = {
@@ -263,7 +270,7 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
       channel_id: "aliyun",
       platformProtocols: aliyunPlatformProtocols,
       protocolScopeNote:
-        "平台已接入 OpenAI Responses API（POST /compatible-mode/v1/responses）；官方支持模型为千问系列，下表 7 个测评模型请使用 Chat Completions 或 Anthropic Messages。",
+        "平台已接入 OpenAI Responses API（POST /compatible-mode/v1/responses）；官方支持模型为千问系列（qwen3.8-max 可用），下表其余 7 个第三方测评模型请使用 Chat Completions 或 Anthropic Messages。",
       models: modelRows(aliyunProtocols)
     },
     {
@@ -274,7 +281,7 @@ window.NOCTUA_CHANNEL_CATALOG = (() => {
       channel_id: "aliyun",
       platformProtocols: aliyunPlatformProtocols,
       protocolScopeNote:
-        "平台已接入 OpenAI Responses API（POST /compatible-mode/v1/responses）；官方支持模型为千问系列，下表 7 个测评模型请使用 Chat Completions 或 Anthropic Messages。",
+        "平台已接入 OpenAI Responses API（POST /compatible-mode/v1/responses）；官方支持模型为千问系列（qwen3.8-max 可用），下表其余 7 个第三方测评模型请使用 Chat Completions 或 Anthropic Messages。",
       models: modelRows(aliyunProtocols)
     },
     {

@@ -12,7 +12,8 @@ const CHANNEL_REPORT_INTENT = window.NOCTUA_CHANNEL_REPORT_INTENT || {};
 function channelReportIntentDeps() {
   return {
     matchesExpectedResult,
-    expectedHTTPStatusForResult
+    expectedHTTPStatusForResult,
+    structureDiffBreakdownForResult
   };
 }
 
@@ -37,11 +38,34 @@ function channelReportStatsForResults(results = []) {
   return historyStats(results);
 }
 
+// 优先用 results 现算（结构差异分级需要原始响应体）；仅在无 results 时回退存量 stats 快照
+function channelReportStatsForRecord(record = {}) {
+  const results = record.results || [];
+  if (results.length) return channelReportStatsForResults(results);
+  return record.stats || channelReportStatsForResults(results);
+}
+
+function structureDiffChipText(stats = {}) {
+  const total = stats.structureDiffs || 0;
+  const totals = stats.structureDiffTotals;
+  if (!total || !totals) return String(total);
+  const parts = [
+    totals.blocking ? `阻断 ${totals.blocking}` : "",
+    totals.notable ? `关注 ${totals.notable}` : "",
+    totals.benign ? `无害 ${totals.benign}` : ""
+  ].filter(Boolean);
+  return parts.length ? `${total}（${parts.join(" · ")}）` : String(total);
+}
+
+function meaningfulStructureDiffs(stats = {}) {
+  return stats.structureDiffsMeaningful ?? stats.structureDiffs ?? 0;
+}
+
 function ensureChannelReportEvaluation(record) {
-  if (record?.evaluation?.version === 2) return record.evaluation;
+  if (record?.evaluation?.version === 3) return record.evaluation;
   const matrix = ensureChannelReportMatrix(record);
   const channels = ensureChannelReportChannels(record);
-  const stats = record.stats || channelReportStatsForResults(record.results || []);
+  const stats = channelReportStatsForRecord(record);
   if (CHANNEL_REPORT_INTENT.channelReportEvaluationSummary) {
     return CHANNEL_REPORT_INTENT.channelReportEvaluationSummary(matrix, channels, stats, channelReportIntentDeps());
   }
@@ -59,7 +83,7 @@ function caseSeverityMetaForRow(row = {}) {
   return CHANNEL_REPORT_INTENT.caseSeverityMeta?.(level) || { level, label: level.toUpperCase(), title: level, css: "extension" };
 }
 
-function renderSeverityLevelBadge(level, { compact = false, description = "", title = "" } = {}) {
+function renderSeverityLevelBadge(level, { compact = false, description = "", title = "", muted = false } = {}) {
   if (!level) return "";
   const meta = CHANNEL_REPORT_INTENT.caseSeverityMeta?.(level) || {
     level,
@@ -68,8 +92,12 @@ function renderSeverityLevelBadge(level, { compact = false, description = "", ti
     description,
     css: "extension"
   };
-  const label = compact ? meta.label : `${meta.label} ${meta.title}`;
-  return `<span class="case-severity case-severity--${meta.css}" title="${escapeHtml(meta.description || description || meta.title)}">${escapeHtml(label)}</span>`;
+  // muted：case 本身的重要性分级，但本次结果已达标——只标等级，不用告警配色/措辞
+  const label = compact ? meta.label : (muted ? `${meta.label} 级` : `${meta.label} ${meta.title}`);
+  const tooltip = muted
+    ? `${meta.label}（${meta.title}）级用例 · 本次已达标`
+    : (meta.description || description || meta.title);
+  return `<span class="case-severity case-severity--${muted ? "muted" : meta.css}" title="${escapeHtml(tooltip)}">${escapeHtml(label)}</span>`;
 }
 
 function splitCaseDisplayTitle(title = "", caseId = "") {
@@ -157,7 +185,7 @@ function activateTabSwitcher(root, tabId, { tabSelector, panelSelector, tabKey, 
 function renderChannelReportEvaluationSummary(record) {
   const evaluation = ensureChannelReportEvaluation(record);
   if (!evaluation) return "";
-  const stats = record.stats || channelReportStatsForResults(record.results || []);
+  const stats = channelReportStatsForRecord(record);
   const verdict = evaluation.verdict_meta || {};
   const failingCases = evaluation.failing_cases || [];
   const channelRankings = evaluation.channel_rankings || [];
@@ -175,7 +203,7 @@ function renderChannelReportEvaluationSummary(record) {
   const statChips = [
     { label: "断言达标", value: `${stats.assertPass || 0}/${stats.assertTotal || 0}`, tone: stats.assertFail ? "warn" : "ok" },
     { label: "观测记录", value: `${stats.observeRecorded || 0}/${stats.observeTotal || 0}`, tone: (stats.observeAssertionFail || stats.observeIssue) ? "warn" : "neutral" },
-    { label: "结构差异", value: String(stats.structureDiffs || 0), tone: stats.structureDiffs ? "warn" : "neutral" },
+    { label: "结构差异", value: structureDiffChipText(stats), tone: meaningfulStructureDiffs(stats) ? "warn" : "neutral" },
     ...(docGapIssues.length ? [{ label: "文档漏洞", value: String(docGapIssues.length), tone: "warn" }] : [])
   ];
 
@@ -216,13 +244,20 @@ function renderChannelReportEvaluationSummary(record) {
 
       ${severityLevels.length ? `
         <div class="channel-eval-severity-bar">
-          ${severityLevels.map(({ meta, counts }) => `
-            <div class="channel-eval-severity-chip channel-eval-severity-chip--${meta.css}${counts.failed ? " has-fail" : ""}">
-              <span class="case-severity case-severity--${meta.css}">${escapeHtml(meta.label)}</span>
-              <span class="channel-eval-severity-chip__title">${escapeHtml(meta.title)}</span>
+          ${severityLevels.map(({ meta, counts }) => {
+    // 无未达标时只标等级：P0/P1 是 case 固有风险分级（失败时的影响），不是本次结果
+    const allPass = !counts.failed;
+    const tooltip = allPass
+      ? `${meta.label}（${meta.title}）级用例：分级表示失败时的业务影响 · 本次全部达标`
+      : (meta.description || meta.title);
+    return `
+            <div class="channel-eval-severity-chip channel-eval-severity-chip--${allPass ? "muted" : meta.css}${counts.failed ? " has-fail" : ""}" title="${escapeHtml(tooltip)}">
+              <span class="case-severity case-severity--${allPass ? "muted" : meta.css}">${escapeHtml(meta.label)}${allPass ? " 级" : ""}</span>
+              ${allPass ? "" : `<span class="channel-eval-severity-chip__title">${escapeHtml(meta.title)}</span>`}
               <span class="channel-eval-severity-chip__stat">${counts.failed ? `${counts.failed} 项未达标` : "全部达标"} · ${counts.total} case</span>
             </div>
-          `).join("")}
+          `;
+  }).join("")}
         </div>
       ` : ""}
 
@@ -344,6 +379,31 @@ const RUN_V02_GROUP_TITLES = {
 function getProtocolMatrix() {
   return window.NOCTUA_PROTOCOL_MATRIX || null;
 }
+
+// 文档入口：知识类页面（只读、不发起真实请求）统一挂在 #docs 下。
+// 这里是唯一的事实来源——侧边栏顺序、文档中心卡片、各文档页顶部的子导航都由它渲染。
+const DOCS_SECTIONS = [
+  {
+    key: "config",
+    label: "测评配置",
+    items: [
+      { view: "guide", hash: "#guide", title: "测评说明", desc: "已纳入评测的协议矩阵，以及五步跑测流程。" },
+      { view: "channels", hash: "#channels", title: "已支持测评渠道", desc: "各 API 平台接入的文本协议，与模型在渠道上的协议覆盖。" },
+      { view: "protocols", hash: "#protocols", title: "已支持测评协议", desc: "同一协议下横向对比各渠道官方文档的参数覆盖与扩展差异。" },
+      { view: "models", hash: "#models", title: "已支持测评模型", desc: "按模型查询各渠道的 API 模型 ID 与模型级协议支持。" }
+    ]
+  },
+  {
+    key: "errors",
+    label: "错误码映射",
+    items: [
+      { view: "error-guide", hash: "#error-guide", title: "映射说明", desc: "渠道原生错误与 OpenAI error 形态的映射口径。" },
+      { view: "error-channels", hash: "#error-channels", title: "渠道错误码", desc: "按渠道浏览错误 envelope 与代表性错误码条目。" },
+      { view: "error-mapping", hash: "#error-mapping", title: "错误码映射", desc: "按统一场景横向对比各渠道错误与建议映射。" }
+    ]
+  }
+];
+const DOCS_VIEW_KEYS = new Set(DOCS_SECTIONS.flatMap((section) => section.items.map((item) => item.view)));
 
 const els = {
   viewLinks: Array.from(document.querySelectorAll("[data-view-link]")),
@@ -787,6 +847,21 @@ const gatewayActionMeta = PROVIDERX_RULES.GATEWAY_ACTIONS || {
   manual_review: { label: "人工确认", copy: "结论不足，需要补充 baseline 或定向 case。" }
 };
 const requiredOpenAiFields = new Set(PROVIDERX_RULES.REQUIRED_BASELINE_FIELDS || ["id", "object", "choices", "usage", "model"]);
+// 结构差异分级：无害 = OpenAI 协议里本就「可省略/可为 null」摇摆的可选字段，SDK 解析不受影响
+const benignOptionalDiffLeaves = new Set(PROVIDERX_RULES.BENIGN_OPTIONAL_DIFF_FIELDS || [
+  "logprobs", "system_fingerprint", "service_tier", "refusal", "annotations", "audio",
+  "prompt_tokens_details", "completion_tokens_details", "cached_tokens", "text_tokens",
+  "reasoning_tokens", "audio_tokens", "accepted_prediction_tokens", "rejected_prediction_tokens"
+]);
+// 阻断 = 标准 SDK 直接依赖的核心路径缺失/变形
+const blockingStructurePaths = new Set(PROVIDERX_RULES.BLOCKING_STRUCTURE_PATHS || [
+  "choices[].message", "choices[].message.content", "choices[].message.role", "choices[].delta"
+]);
+const structureDiffSeverityMeta = {
+  blocking: { label: "阻断", css: "blocking", note: "标准 OpenAI SDK 可能无法处理" },
+  notable: { label: "关注", css: "notable", note: "严格解析或网关转换需显式处理" },
+  benign: { label: "无害", css: "benign", note: "可选字段的有无或空值表示差异，SDK 不受影响" }
+};
 const protocolCompareExcludedParameters = PROVIDERX_RULES.PROTOCOL_COMPARE_EXCLUDED_PARAMETERS || new Set();
 const foundationalCaseParameters = new Set(["model", "messages"]);
 const PINNED_BASELINE_IDS = {
@@ -836,17 +911,20 @@ const RUN_V02_CONNECTIVITY_CASE_TOOLTIP =
 
 const RUN_V02_PROTOCOL_STREAM_BASIC_TITLE = "流式检查：开启流式（stream=true），确认能正常收到流式数据。";
 const RUN_V02_PROTOCOL_STREAM_FALSE_TITLE = "非流式检查：显式关闭流式（stream=false），确认返回普通 JSON。";
-const RUN_V02_PROTOCOL_STREAM_USAGE_TITLE = "流式用量：include_usage=true 时最后一包应返回 usage。";
+const RUN_V02_PROTOCOL_STREAM_USAGE_TITLE = "流式用量：include_usage=true 时每个 chunk 应带 usage 字段，最后一包返回统计值。";
 const RUN_V02_PROTOCOL_STREAM_USAGE_OBSERVED_TITLE = "流式用量：不传 include_usage 时是否仍返回 usage。";
 const RUN_V02_PROTOCOL_STREAM_USAGE_CHUNK_SHAPE_TITLE = "流式用量 chunk 结构：usage 应在独立 chunk（choices:[]）中返回。";
+const RUN_V02_PROTOCOL_STREAM_CHUNK_USAGE_TITLE = "流式逐包用量：传 include_chunk_usage=true 时每个 chunk 都应带 usage 统计值。";
 const RUN_V02_PROTOCOL_STREAM_BASIC_TOOLTIP =
   "该 Case 在 stream=true 时验证是否返回 SSE（流式推送）数据、chunk（数据块）结构是否符合预期（如 choices[].delta，即增量内容），并检查至少 2 个增量 chunk（content 正文或 reasoning_content 思考过程内容，防伪流式）；默认探测 1 次。";
 const RUN_V02_PROTOCOL_STREAM_FALSE_TOOLTIP =
   "该 Case 在 stream=false 时验证响应为普通 JSON（非 SSE 流式推送），结构含 choices / usage 等字段。";
 const RUN_V02_PROTOCOL_STREAM_USAGE_TOOLTIP =
-  "该 Case 在 stream_options.include_usage=true（让流式响应带 token 用量统计）时验证流式最后一包必须包含 usage（用量统计）字段；用于与「不传 include_usage」观测 case 成对对比各渠道行为。";
+  "该 Case 在 stream_options.include_usage=true（让流式响应带 token 用量统计）时按 OpenAI 规范验证两点：每个 chunk 都必须带 usage 字段（中间 chunk 为 null），且最后一个专用 chunk（choices:[]）必须返回统计值；用于与「不传 include_usage」观测 case 成对对比各渠道行为。";
 const RUN_V02_PROTOCOL_STREAM_USAGE_OBSERVED_TOOLTIP =
   "该 Case 在 stream=true 且未传 stream_options.include_usage（让流式响应带 token 用量统计的开关）时观测 SSE（流式推送）响应是否含 usage（始终 pass，结果中查看「流式 usage：有/无」）；用于对比阿里等需显式开启的渠道与始终返回 usage 的渠道。";
+const RUN_V02_PROTOCOL_STREAM_CHUNK_USAGE_TOOLTIP =
+  "该 Case 传百炼白名单私有参数 include_chunk_usage=true（顶层写法，非 OpenAI 标准），验证/观测每个 SSE chunk 是否都携带 usage 统计对象（区别于标准 include_usage 仅最后一包带统计值）。阿里渠道（需开通白名单）为断言型：任一 chunk 缺 usage 即 fail；其他渠道为观测型：预期不识别该私参，退化为仅最终 chunk 带 usage。";
 const RUN_V02_PROTOCOL_STREAM_USAGE_CHUNK_SHAPE_TOOLTIP =
   "该 Case 在 stream_options.include_usage=true（让流式响应带 token 用量统计）时严格验证 usage 分片结构：规范实现应在 finish_reason（结束原因）chunk（数据块）之后、data: [DONE] 之前单独返回 choices:[] + usage 的 chunk；若 usage 与 finish_reason 合并在同一 chunk（如 DS 官方 API）则 fail。结果中可查看「流式 usage 分片」分类。";
 
@@ -954,7 +1032,7 @@ const RUN_V02_CACHE_PASSIVE_TITLE = "被动缓存：长固定前缀重复请求 
 const RUN_V02_CACHE_PROMPT_KEY_TITLE = "显式缓存：prompt_cache_key · 第二次相同键请求 usage 中 cached_tokens 或 prompt_cache_hit_tokens > 0";
 const RUN_V02_CACHE_CONTROL_TITLE = "显式缓存：cache_control ephemeral · 第二次相同请求 usage 中 cached_tokens 或 prompt_cache_hit_tokens > 0";
 const RUN_V02_CACHE_PASSIVE_TOOLTIP =
-  "发送相同的长固定前缀请求 2 次（间隔约 400ms）：第 1 次预热，第 2 次从 usage 读取 cached_tokens / prompt_cache_hit_tokens 并计算命中率；用于对比同一模型在不同渠道的被动缓存效果。";
+  "发送相同的长固定前缀请求 2 次（前缀约 4.5k tokens，覆盖阿里/OpenAI ≥1024、SiliconFlow >2048 的隐式缓存门槛；间隔约 3s，兼容 SiliconFlow 较慢的缓存写入）：第 1 次预热，第 2 次从 usage 读取 cached_tokens / prompt_cache_hit_tokens 并计算命中率；用于对比同一模型在不同渠道的被动缓存效果。";
 const RUN_V02_CACHE_PROMPT_KEY_TOOLTIP =
   "在长前缀请求上附加稳定 prompt_cache_key，重复 2 次后测量命中率；适用于 OpenAI 等支持 prompt cache key 的渠道。";
 const RUN_V02_CACHE_CONTROL_TOOLTIP =
@@ -1893,7 +1971,17 @@ function structuralShape(value, path = "", rows = new Map()) {
   return rows;
 }
 
+// 容量 / 缓存类 case 的 response_body 不是协议响应，而是探针自己的汇总对象
+// （capacity_display + attempts[]、cache_probe 等）。拿它做结构 diff 比的是"探测过程是否相同"
+// ——基线撞到拒绝边界、目标渠道没撞到，就会凭空生出十几条 nearest_higher_non_supported.* 差异。
+// 那是探测结果不同，不是协议结构不同，直接豁免。
+function isProbeSummaryBody(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return false;
+  return Boolean(body.capacity_display || body.cache_probe || body.cache_display);
+}
+
 function compareStructure(baseline, channel) {
+  if (isProbeSummaryBody(baseline) || isProbeSummaryBody(channel)) return [];
   const baseShape = structuralShape(baseline);
   const channelShape = structuralShape(channel);
   const diffs = [];
@@ -1917,6 +2005,7 @@ function compareStructure(baseline, channel) {
         prefix: "~",
         path,
         type: expectedType,
+        actual: actualType,
         note: `类型不一致：预期 ${expectedType}，实际 ${actualType}`
       });
     }
@@ -1934,7 +2023,43 @@ function compareStructure(baseline, channel) {
     }
   }
 
+  for (const diff of diffs) diff.severity = classifyStructureDiff(diff);
   return diffs;
+}
+
+function classifyStructureDiff(diff) {
+  const path = diff.path || "";
+  const leaf = path.split(".").pop().replace(/\[\]$/, "");
+  const isBenignLeaf = benignOptionalDiffLeaves.has(leaf);
+  if (diff.kind === "missing") {
+    if (!path.includes(".") && requiredOpenAiFields.has(path)) return "blocking";
+    if (blockingStructurePaths.has(path)) return "blocking";
+    return isBenignLeaf ? "benign" : "notable";
+  }
+  if (diff.kind === "type") {
+    if (blockingStructurePaths.has(path)) return "blocking";
+    // null ↔ 有值 的摇摆是 OpenAI 可选字段的常见表达差异
+    if (isBenignLeaf || diff.type === "null" || diff.actual === "null") return "benign";
+    return "notable";
+  }
+  return isBenignLeaf ? "benign" : "notable";
+}
+
+function structureDiffBreakdown(diffs = []) {
+  const counts = { blocking: 0, notable: 0, benign: 0 };
+  for (const diff of diffs) {
+    counts[diff.severity || classifyStructureDiff(diff)] += 1;
+  }
+  return counts;
+}
+
+function structureDiffBreakdownForResult(result, results = []) {
+  if (!result || result.is_baseline) return null;
+  const responseBody = hasResponseBody(result) ? result.response_body : null;
+  if (!responseBody || typeof responseBody !== "object" || Array.isArray(responseBody)) return null;
+  const baselineResult = results.find((item) => item && item.is_baseline && item.case_id === result.case_id && hasResponseBody(item));
+  if (!baselineResult) return null;
+  return structureDiffBreakdown(compareStructure(baselineResult.response_body, responseBody));
 }
 
 function hasResponseBody(result) {
@@ -1999,7 +2124,7 @@ function canonicalResultFromRaw(result = {}, fallback = {}) {
     endpoint_label: result.endpoint_label || fallback.endpoint_label || "",
     base_url: result.base_url || fallback.base_url || "",
     model: result.model || fallback.model || "",
-    cache_hit_summary: result.cache_hit_summary || "",
+    cache_hit_summary: resultCacheHitSummary(result),
     case_group_key: result.case_group_key || fallback.case_group_key || "",
     case_group_title: result.case_group_title || fallback.case_group_title || ""
   };
@@ -2057,8 +2182,8 @@ function historyRecordHasBaselinePayload(record) {
 
 function severityForDiffs(diffs, baselineLabel = "OpenAI") {
   const isOpenAiBaseline = /openai/i.test(baselineLabel);
-  const hasMissingRequired = diffs.some((diff) => diff.kind === "missing" && requiredOpenAiFields.has(diff.path.split(".")[0]));
-  if (hasMissingRequired) {
+  const counts = structureDiffBreakdown(diffs);
+  if (counts.blocking) {
     return {
       level: "critical",
       label: "CRITICAL",
@@ -2069,7 +2194,7 @@ function severityForDiffs(diffs, baselineLabel = "OpenAI") {
     };
   }
 
-  if (diffs.some((diff) => diff.kind === "extra" || diff.kind === "type")) {
+  if (counts.notable) {
     return {
       level: "extension",
       label: "EXTENSION",
@@ -2077,6 +2202,15 @@ function severityForDiffs(diffs, baselineLabel = "OpenAI") {
       copy: isOpenAiBaseline
         ? "响应大体兼容，但包含非标准字段或类型变化，客户端需要显式容忍。"
         : `响应和 ${baselineLabel} baseline 存在额外字段或类型变化，网关转换时需要显式处理。`
+    };
+  }
+
+  if (counts.benign) {
+    return {
+      level: "compatible",
+      label: "COMPATIBLE",
+      title: "严重程度：COMPATIBLE",
+      copy: `仅存在 ${counts.benign} 处无害差异（可选字段的有无或空值表示），与 ${baselineLabel} baseline 实质一致，标准 SDK 不受影响。`
     };
   }
 
@@ -3150,13 +3284,19 @@ function isProtocolStreamUsageChunkShapeCase(testCase) {
 
 function isProtocolStreamCaseP1IncludeUsage(testCase) {
   if (testCase?.category !== "protocol") return false;
-  if (isProtocolStreamCaseP0(testCase) || isProtocolStreamCaseP0NonStream(testCase) || isProtocolStreamUsageObservedCase(testCase) || isProtocolStreamUsageChunkShapeCase(testCase)) {
+  if (isProtocolStreamCaseP0(testCase) || isProtocolStreamCaseP0NonStream(testCase) || isProtocolStreamUsageObservedCase(testCase) || isProtocolStreamUsageChunkShapeCase(testCase) || isProtocolStreamChunkUsageCase(testCase)) {
     return false;
   }
   const caseId = String(testCase?.case_id || "");
   return /_(protocol_stream_include_usage|stream_include_usage)$/.test(caseId)
     || caseId === "oa_stream_with_usage"
     || caseId === "or_stream_with_usage_deprecated_option";
+}
+
+function isProtocolStreamChunkUsageCase(testCase) {
+  if (testCase?.category !== "protocol") return false;
+  const caseId = String(testCase?.case_id || "");
+  return /_stream_include_chunk_usage(_observed)?$/.test(caseId);
 }
 
 function isProtocolStreamCaseP1(testCase) {
@@ -3167,7 +3307,8 @@ function isProtocolStreamCase(testCase) {
   return isProtocolStreamCaseP0(testCase)
     || isProtocolStreamCaseP0NonStream(testCase)
     || isProtocolStreamCaseP1(testCase)
-    || isProtocolStreamUsageChunkShapeCase(testCase);
+    || isProtocolStreamUsageChunkShapeCase(testCase)
+    || isProtocolStreamChunkUsageCase(testCase);
 }
 
 function isLengthPrecedenceCase(testCase) {
@@ -4000,7 +4141,8 @@ function cacheCasesForRunV02(protocolId, modelId = "") {
   if (!protocolId || !modelId) return [];
   const model = String(modelId).trim();
   if (!model) return [];
-  const baseProbe = { warmup_delay_ms: 400 };
+  // 3s：阿里 400ms 即可命中，但 SiliconFlow 缓存写入较慢（实测 400ms 恒 miss、3s 可命中 98%）
+  const baseProbe = { warmup_delay_ms: 3000 };
   const defs = [
     {
       case_id: "cache_passive_long_prompt",
@@ -4170,6 +4312,7 @@ function caseTitle(testCase) {
   if (isProtocolStreamCaseP0NonStream(testCase)) return RUN_V02_PROTOCOL_STREAM_FALSE_TITLE;
   if (isProtocolStreamUsageObservedCase(testCase)) return RUN_V02_PROTOCOL_STREAM_USAGE_OBSERVED_TITLE;
   if (isProtocolStreamCaseP1IncludeUsage(testCase)) return RUN_V02_PROTOCOL_STREAM_USAGE_TITLE;
+  if (isProtocolStreamChunkUsageCase(testCase)) return RUN_V02_PROTOCOL_STREAM_CHUNK_USAGE_TITLE;
   if (isProtocolStreamUsageChunkShapeCase(testCase)) return RUN_V02_PROTOCOL_STREAM_USAGE_CHUNK_SHAPE_TITLE;
   if (isOutputLengthCase(testCase)) return outputLengthCaseTitle(testCase) || testCase.title || testCase.case_id;
   if (isProtocolSamplingCase(testCase)) return protocolSamplingCaseTitle(testCase);
@@ -5992,7 +6135,7 @@ function escapeMarkdownCell(value) {
 }
 
 function channelReportMarkdown(record) {
-  const stats = record.stats || channelReportStatsForResults(record.results || []);
+  const stats = channelReportStatsForRecord(record);
   const evaluation = ensureChannelReportEvaluation(record);
   const matrix = ensureChannelReportMatrix(record);
   const lines = [
@@ -6006,7 +6149,7 @@ function channelReportMarkdown(record) {
     `- 整体结论：${evaluation?.verdict_meta?.label || "—"} · ${evaluation?.headline || "—"}`,
     `- 断言达标：${stats.assertPass || 0}/${stats.assertTotal || 0}`,
     `- 观测记录：${stats.observeRecorded || 0}/${stats.observeTotal || 0}`,
-    `- 结构差异：${stats.structureDiffs || 0}`,
+    `- 结构差异：${structureDiffChipText(stats)}`,
     ""
   ];
   if (evaluation?.severity_counts) {
@@ -6015,7 +6158,7 @@ function channelReportMarkdown(record) {
       const meta = CHANNEL_REPORT_INTENT.caseSeverityMeta?.(level);
       const counts = evaluation.severity_counts[level];
       if (!counts?.total) continue;
-      lines.push(`- ${meta?.label || level} ${meta?.title || ""}：${counts.total} case，${counts.failed} 项未达标`);
+      lines.push(`- ${meta?.label || level}${counts.failed ? ` ${meta?.title || ""}` : " 级"}：${counts.total} case，${counts.failed ? `${counts.failed} 项未达标` : "全部达标"}`);
     }
     lines.push("");
   }
@@ -6155,7 +6298,7 @@ function renderChannelReportPdfMatrixSection(record, groupKey, rows, channels) {
 }
 
 function channelReportPdfBodyHtml(record) {
-  const stats = record.stats || channelReportStatsForResults(record.results || []);
+  const stats = channelReportStatsForRecord(record);
   const channels = ensureChannelReportChannels(record);
   const matrix = ensureChannelReportMatrix(record);
   const protocolLabel = channelReportProtocolLabel(record.protocol_id);
@@ -6190,7 +6333,7 @@ function channelReportPdfBodyHtml(record) {
         ${metaRow("测评渠道", (record.target_labels || []).join("、") || "—")}
         ${metaRow("断言达标", `${stats.assertPass || 0}/${stats.assertTotal || 0}`)}
         ${metaRow("观测记录", `${stats.observeRecorded || 0}/${stats.observeTotal || 0}`)}
-        ${metaRow("结构差异", String(stats.structureDiffs || 0))}
+        ${metaRow("结构差异", structureDiffChipText(stats))}
       </table>
       ${sections}${extraSections}
     </div>`;
@@ -7122,10 +7265,31 @@ function renderHistory() {
   `;
 }
 
+// 历史报告里容量/缓存类 case 存着旧口径算出来的 diff_count（探针汇总对象之间的差异）。
+// 读出来时一并清零，否则老报告的头部计数、矩阵单元格和导出 Markdown 还会显示那批伪差异。
+function normalizeProbeDiffCounts(record) {
+  if (!record || typeof record !== "object") return record;
+  const probeCaseIds = new Set();
+  for (const result of record.results || []) {
+    if (result && isProbeSummaryBody(result.response_body)) {
+      probeCaseIds.add(result.case_id);
+      result.diff_count = 0;
+    }
+  }
+  if (!probeCaseIds.size) return record;
+  for (const row of record.case_matrix || []) {
+    if (!probeCaseIds.has(row?.case_id)) continue;
+    for (const summary of Object.values(row.by_channel || {})) {
+      if (summary) summary.diff_count = 0;
+    }
+  }
+  return record;
+}
+
 function readChannelReports() {
   try {
     const parsed = JSON.parse(readStorageItem(CHANNEL_REPORTS_STORAGE_KEY) || "[]");
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.map(normalizeProbeDiffCounts) : [];
   } catch {
     return [];
   }
@@ -7242,7 +7406,7 @@ function summarizeResultForMatrix(result) {
       : (healthy ? "pass" : "fail"),
     failed_assertion_summary: failedAssertionSummary,
     diff_count: Number(result.diff_count || 0),
-    cache_hit_summary: result.cache_hit_summary || "",
+    cache_hit_summary: resultCacheHitSummary(result),
     latency_ms: result.latency_ms || 0,
     result_uid: result.result_uid || "",
     repro_verdict: result.repro_verdict || "",
@@ -7314,6 +7478,10 @@ function buildChannelReportMatrix(results = [], channels = [], selection = []) {
       group_key: meta.group_key,
       group_title: meta.group_title || RUN_V02_GROUP_TITLES[meta.group_key] || meta.group_key,
       intent,
+      category: sourceCase.category || sample.category || "",
+      optional: sourceCase.optional,
+      expect: sourceCase.expect,
+      source_case: sample.source_case || null,
       parameters: sample.parameters || sourceCase.parameters || [],
       by_channel
     };
@@ -7332,9 +7500,25 @@ function ensureChannelReportMatrix(record) {
   const stored = Array.isArray(record?.case_matrix) ? record.case_matrix : [];
   if (stored.length) {
     const hasCells = stored.some((row) => row.by_channel && Object.keys(row.by_channel).length > 0);
-    if (hasCells) return stored;
+    if (hasCells) return refreshMatrixCacheSummaries(stored, record.results || []);
   }
   return buildChannelReportMatrix(record.results || [], channels, selection);
+}
+
+// 存量矩阵快照里的 cache_hit_summary 是旧后端烙进去的（含 100% 假阳性）；有原始结果时重算覆盖
+function refreshMatrixCacheSummaries(matrix, results = []) {
+  if (!results.length) return matrix;
+  for (const row of matrix) {
+    for (const [channelKey, summary] of Object.entries(row.by_channel || {})) {
+      if (!summary || !summary.cache_hit_summary) continue;
+      const result = results.find((item) => item.case_id === row.case_id
+        && ((item.channel_route_key || `${item.channel_name}:${item.is_baseline ? "baseline" : "target"}`) === channelKey));
+      if (!result) continue;
+      const fresh = resultCacheHitSummary(result);
+      if (fresh) summary.cache_hit_summary = fresh;
+    }
+  }
+  return matrix;
 }
 
 function ensureChannelReportChannels(record) {
@@ -7510,11 +7694,27 @@ function renderChannelReportMatrixSection(record, groupKey, rows, channels) {
                 result.channel_route_key || `${result.channel_name}:${result.is_baseline ? "baseline" : "target"}`,
                 result
               ]));
-              const diffParts = targetChannels.map((channel) => {
+              const baselineDiffResult = baselineChannel ? resultsByChannel.get(baselineChannel.key) : null;
+              const diffCellHtml = targetChannels.map((channel) => {
                 const summary = row.by_channel?.[channel.key];
-                if (!summary || summary.diff_count <= 0) return `${channel.platformName} —`;
-                return `${channel.platformName} ${summary.diff_count}`;
-              }).filter((text) => !text.endsWith(" —"));
+                if (!summary || summary.diff_count <= 0) return "";
+                const targetResult = resultsByChannel.get(channel.key);
+                const diffs = baselineDiffResult && targetResult && hasResponseBody(baselineDiffResult) && hasResponseBody(targetResult)
+                  && typeof targetResult.response_body === "object" && !Array.isArray(targetResult.response_body)
+                  ? compareStructure(baselineDiffResult.response_body, targetResult.response_body)
+                  : null;
+                const namePrefix = targetChannels.length > 1 ? `<span class="structure-diff-cell__channel">${escapeHtml(channel.platformName)}</span>` : "";
+                if (!diffs || !diffs.length) {
+                  return `<div class="structure-diff-cell">${namePrefix}<span class="diff-severity-tag">${summary.diff_count} 处差异</span></div>`;
+                }
+                const chips = diffs.slice(0, 3).map((diff) => {
+                  const severity = diff.severity || classifyStructureDiff(diff);
+                  const meta = structureDiffSeverityMeta[severity];
+                  return `<span class="diff-severity-tag diff-severity-tag--${meta.css}" title="${escapeHtml(`${diffNoteZh(diff.note)} · ${meta.note}`)}">${diff.prefix} ${escapeHtml(diff.path)} · ${meta.label}</span>`;
+                }).join("");
+                const more = diffs.length > 3 ? `<span class="diff-severity-tag">+${diffs.length - 3}</span>` : "";
+                return `<div class="structure-diff-cell">${namePrefix}${chips}${more}</div>`;
+              }).filter(Boolean).join("");
               const channelEntries = channels
                 .map((channel) => {
                   const result = resultsByChannel.get(channel.key)
@@ -7545,11 +7745,11 @@ function renderChannelReportMatrixSection(record, groupKey, rows, channels) {
                   <td class="pcell">
                     <div class="channel-report-case-title">${escapeHtml(row.title || row.case_id)}</div>
                   </td>
-                  <td>${renderSeverityLevelBadge(rowSeverity.level)}</td>
+                  <td>${renderSeverityLevelBadge(rowSeverity.level, { muted: !rowHasTargetIssue })}</td>
                   <td><span class="channel-intent-tag channel-intent-tag--${row.intent}">${escapeHtml(CHANNEL_REPORT_INTENT.intentLabel?.(row.intent) || row.intent)}</span></td>
                   ${baselineChannel ? `<td>${renderChannelReportMatrixCell(row.by_channel?.[baselineChannel.key], row.intent)}</td>` : ""}
                   ${targetChannels.map((channel) => `<td>${renderChannelReportMatrixCell(row.by_channel?.[channel.key], row.intent)}</td>`).join("")}
-                  <td class="mono fs-xs">${escapeHtml(diffParts.length ? diffParts.join(" · ") : "—")}</td>
+                  <td class="fs-xs">${diffCellHtml || "—"}</td>
                 </tr>
                 <tr class="channel-report-matrix-detail-row">
                   <td colspan="${(baselineChannel ? 1 : 0) + 4 + targetChannels.length}">
@@ -7577,7 +7777,7 @@ function renderChannelReportMatrixSection(record, groupKey, rows, channels) {
 }
 
 function renderChannelReportDetail(record) {
-  const stats = record.stats || channelReportStatsForResults(record.results || []);
+  const stats = channelReportStatsForRecord(record);
   const channels = ensureChannelReportChannels(record);
   const matrix = ensureChannelReportMatrix(record);
   const selectionText = (record.selection || [])
@@ -7614,7 +7814,7 @@ function renderChannelReportDetail(record) {
             <div class="channel-report-detail__stats">
               <span class="hpill">断言 ${stats.assertPass || 0}/${stats.assertTotal || 0}</span>
               <span class="hpill">观测 ${stats.observeRecorded || 0}/${stats.observeTotal || 0}</span>
-              <span class="hpill ${stats.structureDiffs ? "warn" : "neutral"}">结构差异 ${stats.structureDiffs || 0}</span>
+              <span class="hpill ${meaningfulStructureDiffs(stats) ? "warn" : "neutral"}">结构差异 ${escapeHtml(structureDiffChipText(stats))}</span>
               ${renderChannelReportDownloadMenu(record)}
             </div>
           </div>
@@ -7727,7 +7927,7 @@ function renderChannelReports() {
         </thead>
         <tbody>
           ${items.map((record) => {
-            const stats = record.stats || channelReportStatsForResults(record.results || []);
+            const stats = channelReportStatsForRecord(record);
             const evaluation = ensureChannelReportEvaluation(record);
             const isOpen = state.expandedChannelReportId === record.id;
             const caseCount = record.case_matrix?.length
@@ -8760,14 +8960,18 @@ function renderDiffLines(diffs) {
     return '<span class="diff-line"><span>✓</span><span>structure</span><span>object</span><span>（兼容）</span></span>';
   }
 
-  return diffs.map((diff) => `
+  return diffs.map((diff) => {
+    const severity = diff.severity || classifyStructureDiff(diff);
+    const meta = structureDiffSeverityMeta[severity];
+    return `
     <span class="diff-line ${diff.kind}">
       <span>${diff.prefix}</span>
-      <span>${escapeHtml(diff.path)}</span>
+      <span>${escapeHtml(diff.path)} <span class="diff-severity-tag diff-severity-tag--${meta.css}" title="${escapeHtml(meta.note)}">${meta.label}</span></span>
       <span>${escapeHtml(diff.type)}</span>
       <span>${escapeHtml(diffNoteZh(diff.note))}</span>
     </span>
-  `).join("");
+  `;
+  }).join("");
 }
 
 function diffSummarySentence(diffs) {
@@ -8777,13 +8981,23 @@ function diffSummarySentence(diffs) {
   const missing = diffs.filter((diff) => diff.kind === "missing");
   const extra = diffs.filter((diff) => diff.kind === "extra");
   const type = diffs.filter((diff) => diff.kind === "type");
-  const important = missing.find((diff) => requiredOpenAiFields.has(diff.path.split(".")[0])) || missing[0] || type[0] || extra[0];
+  const counts = structureDiffBreakdown(diffs);
+  const severityOf = (diff) => diff.severity || classifyStructureDiff(diff);
+  const important = diffs.find((diff) => severityOf(diff) === "blocking")
+    || diffs.find((diff) => severityOf(diff) === "notable")
+    || diffs[0];
   const parts = [
     missing.length ? `缺失 ${missing.length} 个字段` : "",
     extra.length ? `新增 ${extra.length} 个字段` : "",
     type.length ? `类型不一致 ${type.length} 个` : ""
   ].filter(Boolean);
-  return `${parts.join("，")}。最重要：${important.prefix} ${important.path}（${diffNoteZh(important.note)}）。`;
+  const gradeParts = [
+    counts.blocking ? `阻断 ${counts.blocking}` : "",
+    counts.notable ? `关注 ${counts.notable}` : "",
+    counts.benign ? `无害 ${counts.benign}` : ""
+  ].filter(Boolean);
+  const importantMeta = structureDiffSeverityMeta[severityOf(important)];
+  return `${parts.join("，")}（${gradeParts.join(" · ")}）。最重要：${important.prefix} ${important.path}（${diffNoteZh(important.note)}，${importantMeta.label}级）。`;
 }
 
 function diffMarkdown(result) {
@@ -12946,7 +13160,8 @@ const casePayloadProviders = new Set([
   "model_behaviors_deepseek",
   "model_behaviors_moonshot",
   "model_behaviors_zhipu",
-  "model_behaviors_minimax"
+  "model_behaviors_minimax",
+  "model_behaviors_qwen"
 ]);
 
 /** case 模板与 /api/run-stream 的 provider：渠道无专用 payloads 时回退到通用 OpenAI-compatible 库。 */
@@ -13059,6 +13274,7 @@ async function streamRunV02ProviderBatch(route, config, providerId, cases, signa
       model: route.apiModelId,
       api_key: config.useLocalKey ? "" : config.apiKey.trim(),
       config_platform_id: config.useLocalKey ? route.platformId : "",
+      platform_id: route.platformId || "",
       case_ids: builtInIds,
       custom_cases: customCases,
       proxy: getProxyConfig(),
@@ -13482,9 +13698,32 @@ function cacheDisplayFromResponseBody(responseBody) {
   if (!display || typeof display !== "object") return null;
   return {
     hitTokens: display["缓存命中 tokens"] || "—",
-    hitRate: display["缓存命中率"] || "—",
+    hitRate: recomputedCacheHitRate(responseBody) ?? (display["缓存命中率"] || "—"),
     hitField: display["命中字段"] || "—"
   };
+}
+
+// 旧后端对「只报 cached_tokens、无 miss 字段」的渠道把命中率算成 hit/hit=100%（假阳性，已修）；
+// 历史报告存有原始 attempts usage，展示时一律按 hit / max(hit+miss, prompt) 重算
+function recomputedCacheHitRate(responseBody) {
+  const attempts = responseBody?.cache_probe?.attempts;
+  if (!Array.isArray(attempts) || !attempts.length) return null;
+  const usage = attempts[attempts.length - 1]?.usage;
+  if (!usage || typeof usage !== "object") return null;
+  const details = usage.prompt_tokens_details || {};
+  const hit = Number(details.cached_tokens ?? usage.prompt_cache_hit_tokens ?? 0) || 0;
+  const miss = Number(usage.prompt_cache_miss_tokens ?? 0) || 0;
+  const prompt = Number(usage.prompt_tokens ?? usage.input_tokens ?? 0) || 0;
+  const denom = Math.max(hit + miss, prompt);
+  if (denom <= 0) return null;
+  if (hit <= 0) return "0%";
+  return `${((hit / denom) * 100).toFixed(1)}%`;
+}
+
+function resultCacheHitSummary(result) {
+  const rebuilt = cacheResultDiffLabel(result);
+  if (rebuilt && rebuilt !== "—") return rebuilt;
+  return result.cache_hit_summary || "";
 }
 
 function cacheResultDiffLabel(result) {
@@ -13496,10 +13735,59 @@ function cacheResultDiffLabel(result) {
   return `${display.hitTokens} tokens · ${display.hitRate}`;
 }
 
+// 与后端 resolveProviderExpect 同语义：按渠道方言（provider_expect）与模型系列（model_expect）
+// 解析 expect 覆盖，最长 key 胜出、模型覆盖后于渠道覆盖应用，null 值表示删键
+function pickExpectOverride(overrides, subject, matches) {
+  let best = null;
+  let bestLen = -1;
+  for (const [key, value] of Object.entries(overrides || {})) {
+    if (!matches(subject, key)) continue;
+    if (value && typeof value === "object" && key.length > bestLen) {
+      best = value;
+      bestLen = key.length;
+    }
+  }
+  return best;
+}
+
+function modelMatchesExpectKey(model, key) {
+  const m = String(model || "").trim().toLowerCase();
+  const k = String(key || "").trim().toLowerCase();
+  if (!k) return false;
+  if (m.startsWith(k)) return true;
+  const slash = m.lastIndexOf("/");
+  return slash >= 0 && m.slice(slash + 1).startsWith(k);
+}
+
+function resolveProviderExpectForCase(testCase, platformId, model = "") {
+  const expect = testCase?.expect;
+  if (!expect || (!expect.provider_expect && !expect.model_expect)) return testCase;
+  const resolved = { ...expect };
+  delete resolved.provider_expect;
+  delete resolved.model_expect;
+  const apply = (override) => {
+    for (const [k, v] of Object.entries(override || {})) {
+      if (v === null) delete resolved[k];
+      else resolved[k] = v;
+    }
+  };
+  if (expect.provider_expect && platformId) {
+    apply(pickExpectOverride(expect.provider_expect, platformId, (p, key) => p === key || p.startsWith(`${key}-`)));
+  }
+  if (expect.model_expect && model) {
+    apply(pickExpectOverride(expect.model_expect, model, modelMatchesExpectKey));
+  }
+  return { ...testCase, expect: resolved };
+}
+
 function mapRunV02Result(result, route, index = 0, { isBaseline = false, baselineResponse = null } = {}) {
   const config = ensureRunV02ChannelConfig(route.key, route);
   const context = runContextForV02(route, config);
-  const testCase = (state.runV02.cases || []).find((item) => item.case_id === result.case_id);
+  const testCase = resolveProviderExpectForCase(
+    (state.runV02.cases || []).find((item) => item.case_id === result.case_id),
+    route?.platformId || "",
+    route?.apiModelId || context.model || ""
+  );
   const groupMeta = runV02GroupMetaForCaseId(result.case_id);
   const parameters = result.parameters?.length ? result.parameters : testCase?.parameters || ["payload"];
   const responseBody = result.response_body || null;
@@ -13807,6 +14095,7 @@ function renderRunV02CaseRow(testCase) {
   const protocolP0NonStream = isProtocolStreamCaseP0NonStream(testCase);
   const protocolP1UsageObserved = isProtocolStreamUsageObservedCase(testCase);
   const protocolP1IncludeUsage = isProtocolStreamCaseP1IncludeUsage(testCase);
+  const protocolChunkUsage = isProtocolStreamChunkUsageCase(testCase);
   const protocolP1UsageChunkShape = isProtocolStreamUsageChunkShapeCase(testCase);
   const protocolSampling = isProtocolSamplingCase(testCase);
   const protocolThinking = isProtocolThinkingCase(testCase);
@@ -13820,6 +14109,7 @@ function renderRunV02CaseRow(testCase) {
   else if (protocolP0NonStream) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_STREAM_FALSE_TOOLTIP);
   else if (protocolP1UsageObserved) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_STREAM_USAGE_OBSERVED_TOOLTIP);
   else if (protocolP1IncludeUsage) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_STREAM_USAGE_TOOLTIP);
+  else if (protocolChunkUsage) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_STREAM_CHUNK_USAGE_TOOLTIP);
   else if (protocolP1UsageChunkShape) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_STREAM_USAGE_CHUNK_SHAPE_TOOLTIP);
   else if (protocolSampling) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_SAMPLING_TOOLTIP);
   else if (protocolThinking) tipHtml = renderRunV02CaseInfoTip(RUN_V02_PROTOCOL_THINKING_TOOLTIP);
@@ -13831,7 +14121,7 @@ function renderRunV02CaseRow(testCase) {
   else if (testCase.case_id === "cache_control_ephemeral") tipHtml = renderRunV02CaseInfoTip(RUN_V02_CACHE_CONTROL_TOOLTIP);
   else if (/_hit_rate_85$/.test(String(testCase.case_id || ""))) tipHtml = renderRunV02CaseInfoTip(RUN_V02_CACHE_HIT_RATE_85_TOOLTIP);
   const cacheHit = isCacheHitCase(testCase);
-  const hideCaseId = connectivity || protocolP0 || protocolP0NonStream || protocolP1UsageObserved || protocolP1IncludeUsage || protocolP1UsageChunkShape || protocolSampling || protocolThinking || protocolTools || protocolResponseFormat || outputLength || cacheHit;
+  const hideCaseId = connectivity || protocolP0 || protocolP0NonStream || protocolP1UsageObserved || protocolP1IncludeUsage || protocolChunkUsage || protocolP1UsageChunkShape || protocolSampling || protocolThinking || protocolTools || protocolResponseFormat || outputLength || cacheHit;
   const oemCase = oemBehaviorsApi().isOemReferenceCase?.(testCase);
   const oemSource = oemCase ? oemBehaviorsApi().oemSource?.(testCase) : "";
   const oemTagHtml = oemCase
@@ -15024,6 +15314,45 @@ function bindErrorCodeMappingCells() {
   });
 }
 
+function renderDocsCards() {
+  DOCS_SECTIONS.forEach((section) => {
+    const host = document.querySelector(`[data-docs-cards="${section.key}"]`);
+    if (!host) return;
+    host.innerHTML = section.items
+      .map(
+        (item) => `<a class="doc-card" href="${item.hash}">
+          <span class="doc-card__title">${escapeHtml(item.title)}</span>
+          <span class="doc-card__desc">${escapeHtml(item.desc)}</span>
+        </a>`
+      )
+      .join("");
+  });
+}
+
+// 每个文档页顶部的同级导航。动态生成的链接不带 data-view-link——
+// 它们不在 els.viewLinks 里，走 hashchange 路由即可，避免与侧边栏的 active 态互相打架。
+function renderDocsSubnav(activeViewKey) {
+  const hosts = Array.from(document.querySelectorAll("[data-docs-subnav]"));
+  if (!hosts.length) return;
+  const html = [
+    '<a class="docs-subnav__home" href="#docs">文档</a>',
+    '<span class="docs-subnav__sep"></span>',
+    ...DOCS_SECTIONS.map((section, index) => {
+      const group = `${index > 0 ? '<span class="docs-subnav__sep"></span>' : ""}<span class="docs-subnav__group">${escapeHtml(section.label)}</span>`;
+      const links = section.items
+        .map((item) => {
+          const active = item.view === activeViewKey ? ' class="is-active" aria-current="page"' : "";
+          return `<a href="${item.hash}"${active}>${escapeHtml(item.title)}</a>`;
+        })
+        .join("");
+      return group + links;
+    })
+  ].join("");
+  hosts.forEach((host) => {
+    host.innerHTML = html;
+  });
+}
+
 function setActiveView(view) {
   let viewKey = view;
   if (viewKey === "run") viewKey = "run-v02";
@@ -15033,7 +15362,7 @@ function setActiveView(view) {
     state.activeViewKey = viewKey;
     state.runToolVersion = viewKey === "run-v02" ? "v0.2" : "v0.1";
   } else {
-    state.activeView = ["guide", "channels", "protocols", "models", "run", "channel-reports", "channel-performance-reports", "reports", "channel-performance", "feishu", "evalscope", "opencompass", "error-guide", "error-channels", "error-mapping"].includes(viewKey) ? viewKey : "run";
+    state.activeView = ["docs", "guide", "channels", "protocols", "models", "run", "channel-reports", "channel-performance-reports", "reports", "channel-performance", "feishu", "evalscope", "opencompass", "error-guide", "error-channels", "error-mapping"].includes(viewKey) ? viewKey : "run";
     state.activeViewKey = state.activeView === "run" ? "run-v02" : state.activeView;
     if (state.activeView === "run") state.runToolVersion = "v0.2";
   }
@@ -15046,6 +15375,8 @@ function setActiveView(view) {
     link.classList.toggle("is-active", active);
     link.classList.toggle("on", active);
   });
+  if (state.activeView === "docs") renderDocsCards();
+  if (DOCS_VIEW_KEYS.has(state.activeViewKey)) renderDocsSubnav(state.activeViewKey);
   if (state.activeView === "reports") renderHistory();
   if (state.activeView === "channel-reports") renderChannelReports();
   if (state.activeView === "channel-performance-reports") renderChannelPerfReports();
@@ -15070,6 +15401,7 @@ function setActiveView(view) {
 
 function initialViewFromHash() {
   syncModelLookupFromHash();
+  if (window.location.hash === "#docs" || window.location.hash === "#docsView") return "docs";
   if (window.location.hash === "#guide" || window.location.hash === "#guideView") return "guide";
   if (window.location.hash === "#channels" || window.location.hash === "#channelsView") return "channels";
   if (window.location.hash === "#protocols" || window.location.hash === "#protocolsView") return "protocols";

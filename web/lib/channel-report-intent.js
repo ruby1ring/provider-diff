@@ -48,12 +48,17 @@ window.NOCTUA_CHANNEL_REPORT_INTENT = (() => {
 
   function isProtocolStreamCaseP1IncludeUsage(testCase) {
     if (testCase?.category !== "protocol") return false;
-    if (isProtocolStreamUsageObservedCase(testCase) || isProtocolStreamUsageChunkShapeCase(testCase)) return false;
+    if (isProtocolStreamUsageObservedCase(testCase) || isProtocolStreamUsageChunkShapeCase(testCase) || isProtocolStreamChunkUsageCase(testCase)) return false;
     if (isProtocolStreamCaseP0(testCase) || isProtocolStreamCaseP0NonStream(testCase)) return false;
     const id = caseId(testCase);
     return /_(protocol_stream_include_usage|stream_include_usage)$/.test(id)
       || id === "oa_stream_with_usage"
       || id === "or_stream_with_usage_deprecated_option";
+  }
+
+  function isProtocolStreamChunkUsageCase(testCase) {
+    if (testCase?.category !== "protocol") return false;
+    return /_stream_include_chunk_usage(_observed)?$/.test(caseId(testCase));
   }
 
   function isLengthPrecedenceCase(testCase) {
@@ -112,7 +117,7 @@ window.NOCTUA_CHANNEL_REPORT_INTENT = (() => {
     if (isConnectivityCase(testCase)) return "connectivity";
     if (testCase.category === "protocol" && isProtocolStreamCaseP0(testCase)) return "protocol";
     if (testCase.category === "protocol" && isProtocolStreamCaseP0NonStream(testCase)) return "protocol";
-    if (testCase.category === "protocol" && (isProtocolStreamUsageObservedCase(testCase) || isProtocolStreamUsageChunkShapeCase(testCase) || isProtocolStreamCaseP1IncludeUsage(testCase))) return "protocol";
+    if (testCase.category === "protocol" && (isProtocolStreamUsageObservedCase(testCase) || isProtocolStreamUsageChunkShapeCase(testCase) || isProtocolStreamCaseP1IncludeUsage(testCase) || isProtocolStreamChunkUsageCase(testCase))) return "protocol";
     if (isProtocolSamplingCase(testCase)) return "protocol_sampling";
     if (isProtocolThinkingCase(testCase)) return "protocol_thinking";
     if (isProtocolToolsCase(testCase)) return "protocol_tools";
@@ -172,7 +177,9 @@ window.NOCTUA_CHANNEL_REPORT_INTENT = (() => {
     const actualStatus = Number(result?.http_status || 0);
     if (expectedStatus && actualStatus !== expectedStatus) return false;
     if (result?.support_conclusion === "request_failed") return false;
-    if (result?.error) return false;
+    // 状态码与预期一致时，error 是预期内拒绝（如按文档 400）的说明文案，不算请求异常；
+    // 状态码对不上或没有预期状态码时，error 仍视为异常
+    if (result?.error && !(expectedStatus && actualStatus === expectedStatus)) return false;
     return true;
   }
 
@@ -217,6 +224,9 @@ window.NOCTUA_CHANNEL_REPORT_INTENT = (() => {
     let observeIssue = 0;
     let observeAssertionFail = 0;
     let structureDiffs = 0;
+    let structureDiffsMeaningful = 0;
+    const structureDiffTotals = { blocking: 0, notable: 0, benign: 0 };
+    let hasDiffBreakdown = false;
 
     for (const raw of results) {
       const result = raw || {};
@@ -234,6 +244,19 @@ window.NOCTUA_CHANNEL_REPORT_INTENT = (() => {
       }
       if (Number(result.diff_count || 0) > 0 && !result.is_baseline) {
         structureDiffs += 1;
+        const breakdown = typeof deps.structureDiffBreakdownForResult === "function"
+          ? deps.structureDiffBreakdownForResult(result, results)
+          : null;
+        if (breakdown) {
+          hasDiffBreakdown = true;
+          structureDiffTotals.blocking += breakdown.blocking || 0;
+          structureDiffTotals.notable += breakdown.notable || 0;
+          structureDiffTotals.benign += breakdown.benign || 0;
+          if ((breakdown.blocking || 0) + (breakdown.notable || 0) > 0) structureDiffsMeaningful += 1;
+        } else {
+          // 无原始响应可复算时按旧口径保守计入
+          structureDiffsMeaningful += 1;
+        }
       }
     }
 
@@ -247,6 +270,8 @@ window.NOCTUA_CHANNEL_REPORT_INTENT = (() => {
       observeAssertionFail,
       observeTotal: observeRecorded + observeIssue + observeAssertionFail,
       structureDiffs,
+      structureDiffsMeaningful,
+      structureDiffTotals: hasDiffBreakdown ? structureDiffTotals : undefined,
       // legacy compat
       expectedPass: assertPass + observeRecorded,
       unexpected: assertFail + observeIssue + observeAssertionFail
@@ -370,7 +395,12 @@ window.NOCTUA_CHANNEL_REPORT_INTENT = (() => {
    */
   function caseSeverityLevel(testCase, groupKey = "") {
     const group = groupKey || inferGroupKey(testCase);
-    const intent = caseEvaluationIntent(testCase, group);
+    // 存量报告的矩阵行不带 category：按分组映射兜底，否则细分判定全部失配、统一落到默认 P1
+    const categoryFallback = { protocol: "protocol", output_length: "length", cache_hit: "cache" }[group];
+    if (testCase && !testCase.category && categoryFallback) {
+      testCase = { ...testCase, category: categoryFallback };
+    }
+    const intent = testCase?.intent || caseEvaluationIntent(testCase, group);
 
     if (group === "connectivity") return "p0";
     if (group === "protocol_tools") return "p0";
@@ -462,6 +492,7 @@ window.NOCTUA_CHANNEL_REPORT_INTENT = (() => {
           category: row.category,
           optional: row.optional,
           expect: row.expect,
+          intent: row.intent,
           source_case: row.source_case
         };
         const severity = caseSeverityLevel(sourceCase, row.group_key);
@@ -552,6 +583,7 @@ window.NOCTUA_CHANNEL_REPORT_INTENT = (() => {
         category: row.category,
         optional: row.optional,
         expect: row.expect,
+        intent: row.intent,
         source_case: row.source_case
       };
       const severity = caseSeverityLevel(sourceCase, row.group_key);
@@ -633,7 +665,7 @@ window.NOCTUA_CHANNEL_REPORT_INTENT = (() => {
     } else if (
       severityCounts.p2.failed > 0
       || (stats.observeIssue || 0) > 0
-      || (stats.structureDiffs || 0) > 0
+      || ((stats.structureDiffsMeaningful ?? stats.structureDiffs) || 0) > 0
       || severityCounts.p3.failed > 0
     ) {
       verdict = "caution";
@@ -644,7 +676,7 @@ window.NOCTUA_CHANNEL_REPORT_INTENT = (() => {
     const passText = channelReportPassSummaryText(stats);
 
     return {
-      version: 2,
+      version: 3,
       verdict,
       verdict_meta: verdictMeta,
       headline: verdictMeta.headline,

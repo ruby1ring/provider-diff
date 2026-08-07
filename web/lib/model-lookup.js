@@ -186,6 +186,11 @@ window.NOCTUA_MODEL_LOOKUP = (() => {
       "glm-5.1": {
         apiModelId: "Pro/zai-org/GLM-5.1",
         aliases: ["zai-org/GLM-5.1", "GLM-5.1"]
+      },
+      // 2026-08-07 上架（仅 SiliconFlow 组织内可见）；/v1/models 实测 id 为 Qwen/qwen3.8-max
+      "qwen3.8-max": {
+        apiModelId: "Qwen/qwen3.8-max",
+        aliases: ["Qwen/Qwen3.8-Max", "qwen3.8-max", "Qwen3.8-Max"]
       }
     },
     openrouter: {
@@ -288,6 +293,12 @@ window.NOCTUA_MODEL_LOOKUP = (() => {
       "MiniMax-M3": {
         apiModelId: "MiniMaxAI/MiniMax-M3",
         aliases: ["minimaxai/MiniMax-M3"]
+      },
+      // 2026-08-07 授权开通。注意：router 用裸名 qwen3.8-max，与国际站的 Qwen/qwen3.8-max 不同名，
+      // 用带前缀的名字调这里会 400 Invalid model
+      "qwen3.8-max": {
+        apiModelId: "qwen3.8-max",
+        aliases: ["Qwen/qwen3.8-max", "Qwen3.8-Max"]
       }
     },
     "streamlake-cn": {
