@@ -104,7 +104,6 @@
     "039_response_format_text.json",
     "040_response_format_json_object.json",
     "041_response_format_json_schema.json",
-    "042_response_format_schema_shortcut.json",
     "050_tools_forced_function.json",
     "051_tools_auto.json",
     "052_tools_none.json",
