@@ -1,0 +1,17 @@
+{
+  "case_id": "tp_chat_models_fallback",
+  "title": "models fallback list without model",
+  "category": "routing",
+  "test_nature": "deterministic",
+  "parameters": ["models[]", "messages"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "models": ["deepseek-chat", "deepseek-reasoner"],
+    "messages": [{"role": "user", "content": "Reply with the word routed."}]
+  },
+  "expect": {
+    "assistant_content_non_empty": true,
+    "notes": "model is intentionally omitted. The OpenAPI permits models or the project default to select a model."
+  }
+}

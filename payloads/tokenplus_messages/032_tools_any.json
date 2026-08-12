@@ -1,0 +1,77 @@
+{
+  "case_id": "tp_messages_tools_any",
+  "title": "tool_choice=any must return a valid requested tool_use block",
+  "category": "tools",
+  "test_nature": "deterministic",
+  "parameters": [
+    "tools[].name",
+    "tools[].description",
+    "tools[].input_schema",
+    "tools[].type",
+    "tool_choice.type"
+  ],
+  "requires_model_capability": "tools",
+  "method": "POST",
+  "path": "/messages",
+  "payload": {
+    "model": "deepseek-chat",
+    "max_tokens": 512,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use get_weather to look up Shanghai weather."
+      }
+    ],
+    "tools": [
+      {
+        "name": "get_weather",
+        "description": "Gets weather for one city.",
+        "type": "custom",
+        "input_schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "city": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "city"
+          ]
+        }
+      }
+    ],
+    "tool_choice": {
+      "type": "any"
+    }
+  },
+  "expect": {
+    "tool_calls_contract": true,
+    "tool_calls_exact_count": 1,
+    "tool_call_required_names": [
+      "get_weather"
+    ],
+    "tool_call_input_required_fields": [
+      "city"
+    ],
+    "tool_call_input_field_types": {
+      "city": "string"
+    },
+    "tool_call_input_no_additional_properties": true,
+    "additional_required_response_paths": [
+      "content[].id",
+      "content[].name",
+      "content[].input"
+    ],
+    "additional_response_path_values": {
+      "content[].name": "get_weather",
+      "stop_reason": "tool_use"
+    },
+    "additional_response_path_types": {
+      "content[].id": "string",
+      "content[].name": "string",
+      "content[].input": "object"
+    },
+    "notes": "tool_choice=any must return exactly one requested tool_use block with an object input."
+  }
+}

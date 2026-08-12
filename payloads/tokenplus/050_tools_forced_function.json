@@ -1,0 +1,62 @@
+{
+  "case_id": "tp_chat_tools_forced_function",
+  "title": "strict function tool with named tool_choice and parallel_tool_calls=false",
+  "category": "tools",
+  "test_nature": "deterministic",
+  "parameters": [
+    "tools[].type", "tools[].function.name", "tools[].function.description", "tools[].function.parameters",
+    "tools[].function.strict", "tool_choice.type", "tool_choice.function.name", "parallel_tool_calls"
+  ],
+  "requires_model_capability": "tools",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-chat",
+    "messages": [{"role": "user", "content": "Call compatibility_status for the parameter messages."}],
+    "tools": [{
+      "type": "function",
+      "function": {
+        "name": "compatibility_status",
+        "description": "Returns an API compatibility status for one parameter.",
+        "strict": true,
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {"parameter": {"type": "string"}},
+          "required": ["parameter"]
+        }
+      }
+    }],
+    "tool_choice": {"type": "function", "function": {"name": "compatibility_status"}},
+    "parallel_tool_calls": false,
+    "max_completion_tokens": 96
+  },
+  "expect": {
+    "tool_calls_contract": true,
+    "tool_calls_exact_count": 1,
+    "tool_call_input_required_fields": ["parameter"],
+    "tool_call_input_field_types": {"parameter": "string"},
+    "tool_call_input_field_values": {"parameter": "messages"},
+    "tool_call_input_no_additional_properties": true,
+    "required_response_paths": [
+      "choices[].message.role", "usage.prompt_tokens", "usage.completion_tokens", "usage.total_tokens"
+    ],
+    "response_path_types": {
+      "id": "string", "object": "string", "created": "number", "model": "string", "choices": "array",
+      "choices[].index": "number", "choices[].message": "object", "choices[].message.role": "string",
+      "choices[].message.content": "string|null", "choices[].finish_reason": "string", "usage": "object",
+      "usage.prompt_tokens": "number", "usage.completion_tokens": "number", "usage.total_tokens": "number"
+    },
+    "additional_required_response_paths": [
+      "choices[].message.tool_calls[].id", "choices[].message.tool_calls[].type",
+      "choices[].message.tool_calls[].function.name", "choices[].message.tool_calls[].function.arguments"
+    ],
+    "additional_response_path_values": {"choices[].message.tool_calls[].type": "function"},
+    "additional_response_path_types": {
+      "choices[].message.tool_calls[].id": "string",
+      "choices[].message.tool_calls[].function.name": "string",
+      "choices[].message.tool_calls[].function.arguments": "string"
+    },
+    "notes": "The runner requires exactly one call with a unique ID, type=function, the requested function name, valid JSON arguments, and the required string parameter."
+  }
+}

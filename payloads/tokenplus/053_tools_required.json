@@ -1,0 +1,50 @@
+{
+  "case_id": "tp_chat_tools_required",
+  "title": "tool_choice=required must return a valid requested tool call",
+  "category": "tools",
+  "test_nature": "deterministic",
+  "parameters": ["tools[].type", "tools[].function.name", "tools[].function.description", "tools[].function.parameters", "tool_choice"],
+  "requires_model_capability": "tools",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-chat",
+    "messages": [{"role": "user", "content": "Use the get_weather tool to look up Shanghai weather."}],
+    "tools": [{
+      "type": "function",
+      "function": {
+        "name": "get_weather",
+        "description": "Gets weather for one city.",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {"city": {"type": "string"}},
+          "required": ["city"]
+        }
+      }
+    }],
+    "tool_choice": "required",
+    "max_completion_tokens": 96
+  },
+  "expect": {
+    "tool_calls_contract": true,
+    "tool_calls_exact_count": 1,
+    "tool_call_required_names": ["get_weather"],
+    "tool_call_input_required_fields": ["city"],
+    "tool_call_input_field_types": {"city": "string"},
+    "tool_call_input_no_additional_properties": true,
+    "required_response_paths": [
+      "choices[].message.role", "usage.prompt_tokens", "usage.completion_tokens", "usage.total_tokens"
+    ],
+    "response_path_types": {
+      "id": "string", "object": "string", "created": "number", "model": "string", "choices": "array",
+      "choices[].index": "number", "choices[].message": "object", "choices[].message.role": "string",
+      "choices[].message.content": "string|null", "choices[].finish_reason": "string", "usage": "object",
+      "usage.prompt_tokens": "number", "usage.completion_tokens": "number", "usage.total_tokens": "number"
+    },
+    "additional_required_response_paths": ["choices[].message.tool_calls[].id", "choices[].message.tool_calls[].type", "choices[].message.tool_calls[].function.name", "choices[].message.tool_calls[].function.arguments"],
+    "additional_response_path_values": {"choices[].message.tool_calls[].type": "function", "choices[].finish_reason": "tool_calls"},
+    "additional_response_path_types": {"choices[].message.tool_calls[].id": "string", "choices[].message.tool_calls[].function.name": "string", "choices[].message.tool_calls[].function.arguments": "string"},
+    "notes": "tool_choice=required must return exactly one requested function call with valid JSON arguments."
+  }
+}

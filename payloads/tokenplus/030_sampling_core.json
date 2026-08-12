@@ -1,0 +1,51 @@
+{
+  "case_id": "tp_chat_sampling_core",
+  "title": "sampling, penalties, seed integer, stop array, and both output limits",
+  "category": "sampling",
+  "test_nature": "deterministic",
+  "parameters": [
+    "max_tokens",
+    "max_completion_tokens",
+    "temperature",
+    "top_p",
+    "top_k",
+    "top_a",
+    "min_p",
+    "frequency_penalty",
+    "presence_penalty",
+    "repetition_penalty",
+    "seed",
+    "stop[]"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-chat",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Write a short protocol test summary, then end with END."
+      }
+    ],
+    "max_tokens": 512,
+    "max_completion_tokens": 512,
+    "temperature": 0.4,
+    "top_p": 0.9,
+    "top_k": 40,
+    "top_a": 0.2,
+    "min_p": 0.1,
+    "frequency_penalty": 0.2,
+    "presence_penalty": 0.1,
+    "repetition_penalty": 1.05,
+    "seed": 42,
+    "stop": [
+      "END",
+      "<END>"
+    ]
+  },
+  "expect": {
+    "assistant_content_non_empty": true,
+    "token_limit_enforced": false,
+    "notes": "This is an acceptance test for the combined sampling shape. Output budget is large enough to leave room for reasoning plus a final text answer."
+  }
+}

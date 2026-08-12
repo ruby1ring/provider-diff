@@ -1,0 +1,30 @@
+{
+  "case_id": "tp_messages_output_config_format_text",
+  "title": "output_config.format=text",
+  "category": "output",
+  "test_nature": "deterministic",
+  "parameters": [
+    "output_config.format.type"
+  ],
+  "method": "POST",
+  "path": "/messages",
+  "payload": {
+    "model": "deepseek-chat",
+    "max_tokens": 512,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with one short plain-text sentence."
+      }
+    ],
+    "output_config": {
+      "format": {
+        "type": "text"
+      }
+    }
+  },
+  "expect": {
+    "assistant_content_non_empty": true,
+    "notes": "Covers the text branch of output_config.format."
+  }
+}

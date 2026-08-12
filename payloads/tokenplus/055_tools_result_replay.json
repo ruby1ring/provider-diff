@@ -1,0 +1,27 @@
+{
+  "case_id": "tp_chat_tools_result_replay",
+  "title": "assistant tool_calls and role=tool result replay",
+  "category": "tools",
+  "test_nature": "deterministic",
+  "parameters": ["messages[].role", "messages[].content", "messages[].tool_calls[].id", "messages[].tool_calls[].type", "messages[].tool_calls[].function.name", "messages[].tool_calls[].function.arguments", "messages[].tool_call_id", "tools", "tool_choice"],
+  "requires_model_capability": "tools",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-chat",
+    "messages": [
+      {"role": "user", "content": "What is the weather in Shanghai?"},
+      {"role": "assistant", "content": "", "tool_calls": [{"id": "call_tokenplus_weather", "type": "function", "function": {"name": "get_weather", "arguments": "{\"city\":\"Shanghai\"}"}}]},
+      {"role": "tool", "tool_call_id": "call_tokenplus_weather", "content": "{\"city\":\"Shanghai\",\"condition\":\"cloudy\",\"marker\":\"TP-TOOL-RESULT-42\"}"},
+      {"role": "user", "content": "Summarize the tool result and include the marker exactly."}
+    ],
+    "tools": [{"type": "function", "function": {"name": "get_weather", "description": "Gets weather for one city.", "parameters": {"type": "object", "properties": {"city": {"type": "string"}}, "required": ["city"]}}}],
+    "tool_choice": "none",
+    "max_completion_tokens": 96
+  },
+  "expect": {
+    "assistant_content_non_empty": true,
+    "assistant_content_contains": "TP-TOOL-RESULT-42",
+    "notes": "Covers the completed two-step Chat tool loop: assistant tool_calls, role=tool tool_call_id correlation, then a textual follow-up."
+  }
+}

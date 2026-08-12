@@ -1,0 +1,122 @@
+{
+  "provider": "tokenplus",
+  "base_url": "https://api.tokenplus.cn/v1",
+  "endpoint": "/chat/completions",
+  "method": "POST",
+  "source": "../../tokflow-docs/apps/docs/openapi.yaml#/paths/~1chat~1completions",
+  "default_model": "deepseek-chat",
+  "reasoning_model": "deepseek-reasoner",
+  "vision_model": "qwen-vl-max",
+  "notes": [
+    "Source of truth: the current TokenPlus OpenAPI contract.",
+    "deterministic cases assert request acceptance or a stable response contract; probabilistic cases depend on the selected model or upstream service capability.",
+    "Optional capability cases are ignored only when the selected model explicitly rejects the feature with 400, 404, or 422; they are not silently treated as supported.",
+    "Every successful JSON response is checked for the TokenPlus response envelope, choice shape, token usage types, token totals, and x-request-id."
+  ],
+  "common_expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_headers": [
+      "x-request-id"
+    ],
+    "response_header_contains": {
+      "content-type": "application/json"
+    },
+    "required_response_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices",
+      "usage"
+    ],
+    "choice_required_fields": [
+      "index",
+      "message",
+      "finish_reason"
+    ],
+    "usage_required_fields": [
+      "prompt_tokens",
+      "completion_tokens",
+      "total_tokens"
+    ],
+    "required_response_paths": [
+      "choices[].message.role",
+      "choices[].message.content",
+      "usage.prompt_tokens",
+      "usage.completion_tokens",
+      "usage.total_tokens"
+    ],
+    "response_path_types": {
+      "id": "string",
+      "object": "string",
+      "created": "number",
+      "model": "string",
+      "choices": "array",
+      "choices[].index": "number",
+      "choices[].message": "object",
+      "choices[].message.role": "string",
+      "choices[].message.content": "string",
+      "choices[].finish_reason": "string",
+      "usage": "object",
+      "usage.prompt_tokens": "number",
+      "usage.completion_tokens": "number",
+      "usage.total_tokens": "number"
+    },
+    "response_non_empty_paths": [
+      "id",
+      "model",
+      "choices[].finish_reason"
+    ],
+    "response_path_values": {
+      "object": "chat.completion",
+      "choices[].message.role": "assistant"
+    },
+    "response_numeric_minimums": {
+      "created": 1,
+      "choices[].index": 0,
+      "usage.prompt_tokens": 0,
+      "usage.completion_tokens": 0,
+      "usage.total_tokens": 0
+    },
+    "response_array_min_items": {
+      "choices": 1
+    },
+    "usage_total_matches": true,
+    "allowed_finish_reasons": [
+      "stop",
+      "length",
+      "tool_calls",
+      "eos",
+      "content_filter"
+    ]
+  },
+  "cases": [
+    "001_basic_model_text.json",
+    "002_models_fallback.json",
+    "011_message_roles_system_user_assistant.json",
+    "020_message_history_tool_replay.json",
+    "021_content_blocks_image_cache.json",
+    "022_content_blocks_source_file.json",
+    "032_length_truncate_finish_reason.json",
+    "030_sampling_core.json",
+    "031_sampling_logprobs.json",
+    "039_response_format_text.json",
+    "040_response_format_json_object.json",
+    "041_response_format_json_schema.json",
+    "042_response_format_schema_shortcut.json",
+    "050_tools_forced_function.json",
+    "051_tools_auto.json",
+    "052_tools_none.json",
+    "053_tools_required.json",
+    "054_tools_parallel.json",
+    "055_tools_result_replay.json",
+    "056_tools_stream.json",
+    "060_reasoning_controls.json",
+    "061_reasoning_thinking_enabled.json",
+    "062_reasoning_thinking_disabled.json",
+    "070_stream_usage.json",
+    "080_gateway_controls.json",
+    "090_error_empty_messages.json"
+  ]
+}

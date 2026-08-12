@@ -1,0 +1,36 @@
+{
+  "case_id": "tp_messages_gateway_controls",
+  "title": "metadata, trace, user, cache, session, provider extra, and service tier",
+  "category": "gateway_controls",
+  "test_nature": "deterministic",
+  "parameters": [
+    "metadata", "trace.trace_id", "user", "cache_control.type", "cache_control.enabled", "cache_control.ttl",
+    "cache_control.breakpoints[].type", "cache_control.breakpoints[].ttl", "session_id",
+    "x-tokenplus-extra.<provider_id>.<native_parameter>", "service_tier"
+  ],
+  "requires_model_capability": "cache",
+  "optional": true,
+  "method": "POST",
+  "path": "/messages",
+  "payload": {
+    "model": "deepseek-chat",
+    "max_tokens": 64,
+    "messages": [{"role": "user", "content": "Reply with the word controlled."}],
+    "metadata": {"suite": "provider-diff", "case": "messages-gateway-controls"},
+    "trace": {"trace_id": "provider-diff-tokenplus-messages"},
+    "user": "provider-diff-test-user",
+    "cache_control": {
+      "type": "ephemeral",
+      "enabled": true,
+      "ttl": "5m",
+      "breakpoints": [{"type": "ephemeral", "ttl": "5m"}]
+    },
+    "session_id": "provider-diff-tokenplus-messages-session",
+    "x-tokenplus-extra": {"provider_id": {"native_parameter": true}},
+    "service_tier": "default"
+  },
+  "expect": {
+    "optional_capability_mismatch": true,
+    "notes": "x-tokenplus-extra is scoped by service-provider ID; standard top-level fields have precedence."
+  }
+}

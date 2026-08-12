@@ -1,0 +1,88 @@
+{
+  "case_id": "tp_messages_tools_stream",
+  "title": "streamed tool_use block with input_json_delta chunks",
+  "category": "tools",
+  "test_nature": "deterministic",
+  "parameters": [
+    "stream",
+    "tools[].name",
+    "tools[].description",
+    "tools[].input_schema",
+    "tools[].type",
+    "tool_choice.type",
+    "tool_choice.name",
+    "tool_choice.disable_parallel_tool_use"
+  ],
+  "requires_model_capability": "tools,streaming",
+  "method": "POST",
+  "path": "/messages",
+  "payload": {
+    "model": "deepseek-chat",
+    "max_tokens": 512,
+    "stream": true,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use get_weather to look up Shanghai weather now."
+      }
+    ],
+    "tools": [
+      {
+        "name": "get_weather",
+        "description": "Gets weather for one city.",
+        "type": "custom",
+        "input_schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "city": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "city"
+          ]
+        }
+      }
+    ],
+    "tool_choice": {
+      "type": "tool",
+      "name": "get_weather",
+      "disable_parallel_tool_use": true
+    }
+  },
+  "expect": {
+    "response_header_contains": {
+      "content-type": "text/event-stream"
+    },
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "type",
+      "message"
+    ],
+    "required_sse_event_types": [
+      "message_start",
+      "content_block_start",
+      "content_block_delta",
+      "content_block_stop",
+      "message_delta",
+      "message_stop"
+    ],
+    "messages_tool_stream_contract": true,
+    "stream_tool_call_min_count": 1,
+    "stream_tool_required_names": [
+      "get_weather"
+    ],
+    "stream_tool_input_required_fields": [
+      "city"
+    ],
+    "stream_tool_input_field_types": {
+      "city": "string"
+    },
+    "stream_tool_input_field_values": {
+      "city": "Shanghai"
+    },
+    "min_sse_chunks": 6,
+    "notes": "Checks the Messages tool stream from message_start through content_block_start, input_json_delta concatenation, content_block_stop, stop_reason=tool_use, output usage, and message_stop."
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "case_id": "tp_messages_output_config_format_json_object",
+  "title": "output_config.format=json_object",
+  "category": "output",
+  "test_nature": "deterministic",
+  "parameters": [
+    "output_config.format.type"
+  ],
+  "method": "POST",
+  "path": "/messages",
+  "payload": {
+    "model": "deepseek-chat",
+    "max_tokens": 512,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Return JSON only: an object with status set to ok."
+      }
+    ],
+    "output_config": {
+      "format": {
+        "type": "json_object"
+      }
+    }
+  },
+  "expect": {
+    "content_should_parse_as_json": true,
+    "notes": "Checks JSON syntax in the Messages text content block."
+  }
+}

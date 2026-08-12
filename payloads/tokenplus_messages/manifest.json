@@ -1,0 +1,97 @@
+{
+  "provider": "tokenplus_messages",
+  "base_url": "https://api.tokenplus.cn/v1",
+  "endpoint": "/messages",
+  "method": "POST",
+  "source": "../../tokflow-docs/apps/docs/openapi.yaml#/paths/~1messages",
+  "default_model": "deepseek-chat",
+  "reasoning_model": "deepseek-reasoner",
+  "vision_model": "qwen-vl-max",
+  "notes": [
+    "TokenPlus Messages requests use X-Api-Key and anthropic-version: 2023-06-01.",
+    "deterministic cases check stable request and response contracts; probabilistic cases depend on model-selected capabilities such as vision, tools, and reasoning.",
+    "The successful response contract is checked in detail: envelope, content blocks, stop fields, usage types, and x-request-id."
+  ],
+  "common_expect": {
+    "http_status": 200,
+    "support_conclusion": "supported",
+    "required_response_headers": [
+      "x-request-id"
+    ],
+    "response_header_contains": {
+      "content-type": "application/json"
+    },
+    "required_response_fields": [
+      "id",
+      "type",
+      "role",
+      "content",
+      "model",
+      "stop_reason",
+      "stop_sequence",
+      "usage"
+    ],
+    "content_required_fields": [
+      "type"
+    ],
+    "required_response_paths": [
+      "content[].type",
+      "usage.input_tokens",
+      "usage.output_tokens"
+    ],
+    "response_path_types": {
+      "id": "string",
+      "type": "string",
+      "role": "string",
+      "model": "string",
+      "content": "array",
+      "content[].type": "string",
+      "stop_reason": "string|null",
+      "stop_sequence": "string|null",
+      "usage": "object",
+      "usage.input_tokens": "number",
+      "usage.output_tokens": "number"
+    },
+    "response_path_values": {
+      "type": "message",
+      "role": "assistant"
+    },
+    "response_numeric_minimums": {
+      "usage.input_tokens": 0,
+      "usage.output_tokens": 0
+    },
+    "response_array_min_items": {
+      "content": 1
+    },
+    "allowed_finish_reasons": [
+      "end_turn",
+      "max_tokens",
+      "stop_sequence",
+      "tool_use",
+      "pause_turn",
+      "refusal"
+    ]
+  },
+  "cases": [
+    "001_basic_model_system.json",
+    "003_message_roles_system_user_assistant.json",
+    "010_content_blocks_image_cache.json",
+    "011_history_thinking_tool_blocks.json",
+    "020_sampling_stop_combo.json",
+    "021_length_truncate_stop_reason.json",
+    "030_tools_named.json",
+    "031_tools_auto.json",
+    "032_tools_any.json",
+    "033_tools_none.json",
+    "034_tools_result_replay.json",
+    "035_tools_stream.json",
+    "040_thinking_output_config.json",
+    "041_output_config_format_text.json",
+    "042_output_config_format_json_object.json",
+    "043_output_config_format_json_schema.json",
+    "044_output_config_format_schema_shortcut.json",
+    "050_gateway_controls.json",
+    "060_stream.json",
+    "090_error_empty_messages.json"
+  ]
+}

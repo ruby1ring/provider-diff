@@ -1,0 +1,19 @@
+{
+  "case_id": "tp_messages_basic_model_system",
+  "title": "model, system string, messages, max_tokens, and stream=false",
+  "category": "basic",
+  "test_nature": "deterministic",
+  "parameters": ["model", "system", "messages[].role", "messages[].content", "max_tokens", "stream"],
+  "method": "POST",
+  "path": "/messages",
+  "payload": {
+    "model": "deepseek-chat",
+    "system": "You are a concise protocol test assistant.",
+    "messages": [{"role": "user", "content": "Reply with one short sentence."}],
+    "max_tokens": 64,
+    "stream": false
+  },
+  "expect": {
+    "notes": "Stable Messages baseline."
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "case_id": "tp_messages_tools_none",
+  "title": "tool_choice=none must return text without tool_use",
+  "category": "tools",
+  "test_nature": "deterministic",
+  "parameters": [
+    "tools[].name",
+    "tools[].description",
+    "tools[].input_schema",
+    "tools[].type",
+    "tool_choice.type"
+  ],
+  "requires_model_capability": "tools",
+  "method": "POST",
+  "path": "/messages",
+  "payload": {
+    "model": "deepseek-chat",
+    "max_tokens": 512,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Do not call a tool. Explain what get_weather does."
+      }
+    ],
+    "tools": [
+      {
+        "name": "get_weather",
+        "description": "Gets weather for one city.",
+        "type": "custom",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "city": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    ],
+    "tool_choice": {
+      "type": "none"
+    }
+  },
+  "expect": {
+    "assistant_content_non_empty": true,
+    "additional_response_path_values": {
+      "stop_reason": "end_turn"
+    },
+    "notes": "Verifies the negative Messages tool-choice branch: no tool_use block and a normal text answer. content[] may include a thinking block alongside the text block."
+  }
+}

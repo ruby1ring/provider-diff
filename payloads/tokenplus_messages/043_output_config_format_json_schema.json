@@ -1,0 +1,58 @@
+{
+  "case_id": "tp_messages_output_config_format_json_schema",
+  "title": "output_config.format=json_schema with all JSONSchemaSpec child fields",
+  "category": "output",
+  "test_nature": "deterministic",
+  "parameters": [
+    "output_config.format.type",
+    "output_config.format.json_schema.name",
+    "output_config.format.json_schema.description",
+    "output_config.format.json_schema.schema",
+    "output_config.format.json_schema.strict"
+  ],
+  "method": "POST",
+  "path": "/messages",
+  "payload": {
+    "model": "deepseek-chat",
+    "max_tokens": 512,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Return JSON only and follow the supplied schema. Report that the messages endpoint accepted this test."
+      }
+    ],
+    "output_config": {
+      "format": {
+        "type": "json_schema",
+        "json_schema": {
+          "name": "messages_protocol_result",
+          "description": "A concise TokenPlus Messages protocol test result.",
+          "strict": true,
+          "schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ok"
+                ]
+              },
+              "endpoint": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "status",
+              "endpoint"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "expect": {
+    "content_should_parse_as_json": true,
+    "notes": "The runner verifies JSON syntax and all required JSON Schema properties in the text block."
+  }
+}

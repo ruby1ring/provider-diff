@@ -1,0 +1,82 @@
+{
+  "case_id": "tp_messages_tools_result_replay",
+  "title": "assistant tool_use and tool_result replay",
+  "category": "tools",
+  "test_nature": "deterministic",
+  "parameters": [
+    "messages[].role",
+    "messages[].content[].type",
+    "messages[].content[].id",
+    "messages[].content[].name",
+    "messages[].content[].input",
+    "messages[].content[].tool_use_id",
+    "messages[].content[].content",
+    "tools",
+    "tool_choice"
+  ],
+  "requires_model_capability": "tools",
+  "method": "POST",
+  "path": "/messages",
+  "payload": {
+    "model": "deepseek-chat",
+    "max_tokens": 512,
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is the weather in Shanghai?"
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "tool_use",
+            "id": "toolu_tokenplus_weather",
+            "name": "get_weather",
+            "input": {
+              "city": "Shanghai"
+            }
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_tokenplus_weather",
+            "content": "{\"city\":\"Shanghai\",\"condition\":\"cloudy\",\"marker\":\"TP-MSG-TOOL-RESULT-42\"}"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": "Summarize the tool result and include the marker exactly."
+      }
+    ],
+    "tools": [
+      {
+        "name": "get_weather",
+        "description": "Gets weather for one city.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "city": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "city"
+          ]
+        }
+      }
+    ],
+    "tool_choice": {
+      "type": "none"
+    }
+  },
+  "expect": {
+    "assistant_content_non_empty": true,
+    "assistant_content_contains": "TP-MSG-TOOL-RESULT-42",
+    "notes": "Covers the completed Messages tool loop: assistant tool_use, user tool_result correlation, then a text follow-up."
+  }
+}

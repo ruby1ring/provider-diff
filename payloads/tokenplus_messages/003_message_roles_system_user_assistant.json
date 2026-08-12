@@ -1,0 +1,39 @@
+{
+  "case_id": "tp_messages_message_roles_system_user_assistant",
+  "title": "messages role=system, user, and assistant history",
+  "category": "messages",
+  "test_nature": "deterministic",
+  "parameters": [
+    "messages[].role",
+    "messages[].content"
+  ],
+  "method": "POST",
+  "path": "/messages",
+  "payload": {
+    "model": "deepseek-chat",
+    "max_tokens": 512,
+    "messages": [
+      {
+        "role": "system",
+        "content": "Answer with the exact project code from the conversation."
+      },
+      {
+        "role": "user",
+        "content": "The project code is TP-MSG-ROLE-42."
+      },
+      {
+        "role": "assistant",
+        "content": "I recorded the project code as TP-MSG-ROLE-42."
+      },
+      {
+        "role": "user",
+        "content": "What is the project code?"
+      }
+    ]
+  },
+  "expect": {
+    "assistant_content_non_empty": true,
+    "assistant_content_contains": "TP-MSG-ROLE-42",
+    "notes": "Covers every documented AnthropicMessage role and verifies the ordered history is used."
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "case_id": "tp_messages_tools_named",
+  "title": "named Anthropic tool with disable_parallel_tool_use",
+  "category": "tools",
+  "test_nature": "deterministic",
+  "parameters": [
+    "tools[].name",
+    "tools[].description",
+    "tools[].input_schema",
+    "tools[].type",
+    "tool_choice.type",
+    "tool_choice.name",
+    "tool_choice.disable_parallel_tool_use"
+  ],
+  "requires_model_capability": "tools",
+  "method": "POST",
+  "path": "/messages",
+  "payload": {
+    "model": "deepseek-chat",
+    "max_tokens": 512,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Call compatibility_status for the parameter messages."
+      }
+    ],
+    "tools": [
+      {
+        "name": "compatibility_status",
+        "description": "Returns compatibility status for one API parameter.",
+        "type": "custom",
+        "input_schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "parameter": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "parameter"
+          ]
+        }
+      }
+    ],
+    "tool_choice": {
+      "type": "tool",
+      "name": "compatibility_status",
+      "disable_parallel_tool_use": true
+    }
+  },
+  "expect": {
+    "tool_calls_contract": true,
+    "tool_calls_exact_count": 1,
+    "tool_call_input_required_fields": [
+      "parameter"
+    ],
+    "tool_call_input_field_types": {
+      "parameter": "string"
+    },
+    "tool_call_input_field_values": {
+      "parameter": "messages"
+    },
+    "tool_call_input_no_additional_properties": true,
+    "additional_required_response_paths": [
+      "content[].id",
+      "content[].name",
+      "content[].input"
+    ],
+    "additional_response_path_values": {
+      "content[].name": "compatibility_status"
+    },
+    "additional_response_path_types": {
+      "content[].id": "string",
+      "content[].name": "string",
+      "content[].input": "object"
+    },
+    "notes": "The runner requires exactly one tool_use block with a unique ID, the requested name, an object input, and the required string parameter."
+  }
+}

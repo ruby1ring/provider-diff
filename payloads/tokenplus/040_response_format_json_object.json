@@ -1,0 +1,22 @@
+{
+  "case_id": "tp_chat_response_format_json_object",
+  "title": "response_format=json_object",
+  "category": "output",
+  "test_nature": "deterministic",
+  "parameters": ["response_format.type"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-chat",
+    "messages": [
+      {"role": "system", "content": "Return JSON only."},
+      {"role": "user", "content": "Return an object with a status field set to ok."}
+    ],
+    "response_format": {"type": "json_object"},
+    "max_completion_tokens": 64
+  },
+  "expect": {
+    "content_should_parse_as_json": true,
+    "notes": "Checks JSON syntax, not an exact text rendering."
+  }
+}

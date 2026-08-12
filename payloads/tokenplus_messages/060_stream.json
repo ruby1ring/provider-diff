@@ -1,0 +1,24 @@
+{
+  "case_id": "tp_messages_stream",
+  "title": "Anthropic Messages SSE event sequence",
+  "category": "streaming",
+  "test_nature": "deterministic",
+  "parameters": ["stream"],
+  "method": "POST",
+  "path": "/messages",
+  "payload": {
+    "model": "deepseek-chat",
+    "max_tokens": 64,
+    "stream": true,
+    "messages": [{"role": "user", "content": "Stream one short sentence about TokenPlus Messages."}]
+  },
+  "expect": {
+    "response_header_contains": {"content-type": "text/event-stream"},
+    "response_mode": "sse",
+    "required_chunk_fields": ["type", "message"],
+    "required_sse_event_types": ["message_start", "content_block_start", "content_block_delta", "message_delta", "message_stop"],
+    "messages_stream_contract": true,
+    "min_sse_chunks": 5,
+    "notes": "Checks the full Anthropic event sequence, message_start envelope and input usage, text delta payload, final output usage and stop reason, and terminal message_stop."
+  }
+}

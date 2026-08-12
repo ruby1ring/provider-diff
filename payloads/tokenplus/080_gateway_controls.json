@@ -1,0 +1,38 @@
+{
+  "case_id": "tp_chat_gateway_controls",
+  "title": "metadata, trace, cache, session, service tier, and provider extra",
+  "category": "gateway_controls",
+  "test_nature": "deterministic",
+  "parameters": [
+    "metadata.<key>", "trace.trace_id", "user", "cache_control.type", "cache_control.enabled",
+    "cache_control.ttl", "cache_control.breakpoints[].type", "cache_control.breakpoints[].ttl", "session_id",
+    "x-tokenplus-extra.<provider_id>.<native_parameter>", "service_tier"
+  ],
+  "requires_model_capability": "cache",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-chat",
+    "messages": [{"role": "user", "content": "Reply with the word controlled."}],
+    "metadata": {"suite": "provider-diff", "case": "gateway-controls"},
+    "trace": {"trace_id": "provider-diff-tokenplus-chat"},
+    "user": "provider-diff-test-user",
+    "cache_control": {
+      "type": "ephemeral",
+      "enabled": true,
+      "ttl": "5m",
+      "breakpoints": [{"type": "ephemeral", "ttl": "5m"}]
+    },
+    "session_id": "provider-diff-tokenplus-session",
+    "x-tokenplus-extra": {
+      "provider_id": {"native_parameter": true}
+    },
+    "service_tier": "default"
+  },
+  "expect": {
+    "optional_capability_mismatch": true,
+    "assistant_content_non_empty": true,
+    "notes": "x-tokenplus-extra is intentionally namespaced by provider_id. Standard top-level fields remain authoritative when the same parameter appears in both places."
+  }
+}

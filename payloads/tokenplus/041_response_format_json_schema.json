@@ -1,0 +1,71 @@
+{
+  "case_id": "tp_chat_response_format_json_schema",
+  "title": "response_format=json_schema with all JSONSchemaSpec child fields",
+  "category": "output",
+  "test_nature": "deterministic",
+  "parameters": [
+    "response_format.type",
+    "response_format.json_schema.name",
+    "response_format.json_schema.description",
+    "response_format.json_schema.schema",
+    "response_format.json_schema.strict"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-chat",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Return JSON only and follow the supplied schema."
+      },
+      {
+        "role": "user",
+        "content": "Report whether the chat endpoint accepted this test."
+      }
+    ],
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "protocol_result",
+        "description": "A concise TokenPlus protocol test result.",
+        "strict": true,
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "ok"
+              ]
+            },
+            "endpoint": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "status",
+            "endpoint"
+          ]
+        }
+      }
+    },
+    "max_completion_tokens": 512
+  },
+  "expect": {
+    "content_should_parse_as_json": true,
+    "parsed_content_required_paths": [
+      "status",
+      "endpoint"
+    ],
+    "parsed_content_path_types": {
+      "status": "string",
+      "endpoint": "string"
+    },
+    "parsed_content_path_values": {
+      "status": "ok"
+    },
+    "notes": "The runner verifies JSON syntax and the required schema properties (status=ok, endpoint string) in the generated object."
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "case_id": "tp_messages_history_thinking_tool_blocks",
+  "title": "thinking, redacted_thinking, tool_use, and tool_result history blocks",
+  "category": "messages",
+  "test_nature": "deterministic",
+  "parameters": [
+    "messages[].content[].type",
+    "messages[].content[].thinking",
+    "messages[].content[].signature",
+    "messages[].content[].data",
+    "messages[].content[].id",
+    "messages[].content[].name",
+    "messages[].content[].input",
+    "messages[].content[].tool_use_id",
+    "messages[].content[].content"
+  ],
+  "requires_model_capability": "tools,reasoning-history",
+  "optional": true,
+  "method": "POST",
+  "path": "/messages",
+  "payload": {
+    "model": "deepseek-reasoner",
+    "max_tokens": 96,
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is the weather in Shanghai?"
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "I should call the weather tool.",
+            "signature": "sig-tokenplus",
+            "data": "opaque-thinking-data"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_tokenplus_weather",
+            "name": "get_weather",
+            "input": {
+              "city": "Shanghai"
+            }
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_tokenplus_weather",
+            "content": "{\"city\":\"Shanghai\",\"condition\":\"cloudy\"}"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": "Summarize the tool result in one sentence."
+      }
+    ]
+  },
+  "expect": {
+    "optional_capability_mismatch": true,
+    "notes": "Exercises every shared ContentBlock field used by the documented thinking and tool-history variants."
+  }
+}

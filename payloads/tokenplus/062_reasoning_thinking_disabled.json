@@ -1,0 +1,23 @@
+{
+  "case_id": "tp_chat_reasoning_thinking_disabled",
+  "title": "thinking.type=disabled must not expose reasoning",
+  "category": "reasoning",
+  "test_nature": "deterministic",
+  "parameters": ["thinking"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-reasoner",
+    "messages": [
+      {"role": "user", "content": "直接给出 19 + 23 的答案。"}
+    ],
+    "thinking": {"type": "disabled"},
+    "max_completion_tokens": 256
+  },
+  "expect": {
+    "optional_capability_mismatch": true,
+    "thinking_location_probe": true,
+    "thinking_absent": true,
+    "notes": "thinking 显式关闭时要求响应不含 reasoning_content/<think>/reasoning_details，且 usage 中无 reasoning_tokens/thinking_tokens > 0；若所选路由/模型不支持 thinking 控制并明确拒绝（400/404/422 且文案匹配）则按 optional 忽略。"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "case_id": "tp_messages_length_truncate_stop_reason",
+  "title": "max_tokens truncation returns stop_reason=max_tokens",
+  "category": "length",
+  "test_nature": "deterministic",
+  "parameters": ["max_tokens", "stop_reason"],
+  "method": "POST",
+  "path": "/messages",
+  "payload": {
+    "model": "deepseek-chat",
+    "max_tokens": 16,
+    "messages": [
+      {"role": "user", "content": "请写一篇关于人工智能发展的长文，至少一千字。"}
+    ]
+  },
+  "expect": {
+    "additional_response_path_values": {
+      "stop_reason": "max_tokens"
+    },
+    "notes": "小 max_tokens 强制截断，断言 stop_reason 为 max_tokens（而非 end_turn）。思考型模型可能将预算全部用于思考、text block 为空，因此不断言文本非空。"
+  }
+}

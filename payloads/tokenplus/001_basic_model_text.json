@@ -1,0 +1,18 @@
+{
+  "case_id": "tp_chat_basic_model_text",
+  "title": "model, messages, and stream=false",
+  "category": "basic",
+  "test_nature": "deterministic",
+  "parameters": ["model", "messages[].role", "messages[].content", "stream"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-chat",
+    "messages": [{"role": "user", "content": "Reply with one short sentence about protocol testing."}],
+    "stream": false
+  },
+  "expect": {
+    "assistant_content_non_empty": true,
+    "notes": "Stable baseline without output-format controls."
+  }
+}

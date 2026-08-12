@@ -1,0 +1,27 @@
+{
+  "case_id": "tp_chat_error_empty_messages",
+  "title": "empty messages returns the TokenPlus gateway error envelope",
+  "category": "errors",
+  "test_nature": "deterministic",
+  "parameters": ["messages", "error.message", "error.code", "error.metadata.error_type"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-chat",
+    "messages": []
+  },
+  "expect": {
+    "http_status": 400,
+    "support_conclusion": "rejected_400",
+    "required_response_headers": ["x-request-id"],
+    "error_required_paths": ["error.message", "error.code", "error.metadata.error_type"],
+    "error_path_types": {
+      "error.message": "string",
+      "error.code": "number",
+      "error.metadata.error_type": "string"
+    },
+    "error_path_values": {"error.code": 400},
+    "error_non_empty_paths": ["error.message"],
+    "notes": "The Chat error contract uses error.code as the numeric copy of the HTTP status and exposes metadata.error_type for request-processing errors. Error responses must still carry the x-request-id header."
+  }
+}

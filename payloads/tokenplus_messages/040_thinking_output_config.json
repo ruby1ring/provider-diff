@@ -1,0 +1,26 @@
+{
+  "case_id": "tp_messages_thinking_output_config",
+  "title": "thinking budget and output_config effort",
+  "category": "reasoning",
+  "test_nature": "probabilistic",
+  "parameters": [
+    "thinking.type", "thinking.budget_tokens", "output_config.effort"
+  ],
+  "requires_model_capability": "reasoning",
+  "optional": true,
+  "method": "POST",
+  "path": "/messages",
+  "payload": {
+    "model": "deepseek-reasoner",
+    "max_tokens": 768,
+    "messages": [{"role": "user", "content": "Return a concise protocol-test result."}],
+    "thinking": {"type": "enabled", "budget_tokens": 256},
+    "output_config": {
+      "effort": "low"
+    }
+  },
+  "expect": {
+    "optional_capability_mismatch": true,
+    "notes": "Reasoning exposure depends on the selected model. Output-format modes are covered by dedicated cases."
+  }
+}

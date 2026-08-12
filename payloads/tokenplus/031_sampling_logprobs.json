@@ -1,0 +1,25 @@
+{
+  "case_id": "tp_chat_sampling_logprobs",
+  "title": "string seed, string stop, logit_bias, logprobs, and top_logprobs",
+  "category": "sampling",
+  "test_nature": "probabilistic",
+  "parameters": ["seed", "stop", "logit_bias", "logit_bias.<token_id>", "logprobs", "top_logprobs"],
+  "requires_model_capability": "logprobs",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-chat",
+    "messages": [{"role": "user", "content": "Reply with one short word."}],
+    "seed": 20260708,
+    "stop": "<STOP>",
+    "logit_bias": {"198": -1.5},
+    "logprobs": true,
+    "top_logprobs": 2,
+    "max_completion_tokens": 32
+  },
+  "expect": {
+    "optional_capability_mismatch": true,
+    "notes": "Log probability output depends on the selected model. When accepted, the runner checks that logprobs and top_logprobs are present and bounded."
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "case_id": "tp_chat_message_roles_system_user_assistant",
+  "title": "messages role=system, user, and assistant history",
+  "category": "messages",
+  "test_nature": "deterministic",
+  "parameters": ["messages[].role", "messages[].content"],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-chat",
+    "messages": [
+      {"role": "system", "content": "Answer with the exact project code from the conversation."},
+      {"role": "user", "content": "The project code is TP-ROLE-42."},
+      {"role": "assistant", "content": "I recorded the project code as TP-ROLE-42."},
+      {"role": "user", "content": "What is the project code?"}
+    ],
+    "max_completion_tokens": 64
+  },
+  "expect": {
+    "assistant_content_non_empty": true,
+    "assistant_content_contains": "TP-ROLE-42",
+    "notes": "Covers every non-tool ChatMessage role with an ordered history and checks that the history was used."
+  }
+}

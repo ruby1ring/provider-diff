@@ -1,0 +1,48 @@
+{
+  "case_id": "tp_chat_message_history_tool_replay",
+  "title": "assistant reasoning history, tool_calls, and tool result replay",
+  "category": "messages",
+  "test_nature": "deterministic",
+  "parameters": [
+    "messages[].role", "messages[].content", "messages[].reasoning", "messages[].reasoning_content",
+    "messages[].reasoning_details[].type", "messages[].reasoning_details[].summary",
+    "messages[].reasoning_details[].text", "messages[].reasoning_details[].data",
+    "messages[].reasoning_details[].signature", "messages[].reasoning_details[].id",
+    "messages[].reasoning_details[].format", "messages[].reasoning_details[].index",
+    "messages[].tool_calls[].id", "messages[].tool_calls[].type", "messages[].tool_calls[].function.name",
+    "messages[].tool_calls[].function.arguments", "messages[].tool_calls[].index", "messages[].tool_call_id", "messages[].name"
+  ],
+  "requires_model_capability": "tools",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-chat",
+    "messages": [
+      {"role": "user", "content": "What is the weather in Shanghai?"},
+      {
+        "role": "assistant",
+        "name": "weather-agent",
+        "content": "I will look up the weather.",
+        "reasoning": "Use the weather tool.",
+        "reasoning_content": "The user needs current weather, so a tool call is appropriate.",
+        "reasoning_details": [{
+          "type": "summary", "summary": "Use weather tool", "text": "Call get_weather for Shanghai.",
+          "data": "opaque-history-data", "signature": "sig-tokenplus", "id": "reasoning-1", "format": "text", "index": 0
+        }],
+        "tool_calls": [{
+          "id": "call_tokenplus_weather", "type": "function", "index": 0,
+          "function": {"name": "get_weather", "arguments": "{\"city\":\"Shanghai\"}"}
+        }]
+      },
+      {
+        "role": "tool", "name": "get_weather", "tool_call_id": "call_tokenplus_weather",
+        "content": "{\"city\":\"Shanghai\",\"condition\":\"cloudy\"}"
+      },
+      {"role": "user", "content": "Summarize the tool result in one sentence."}
+    ]
+  },
+  "expect": {
+    "assistant_content_non_empty": true,
+    "notes": "Tests the complete ChatMessage history shape. reasoning_content takes precedence over the legacy reasoning field by contract."
+  }
+}

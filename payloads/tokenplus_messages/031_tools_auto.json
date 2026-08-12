@@ -1,0 +1,48 @@
+{
+  "case_id": "tp_messages_tools_auto",
+  "title": "Anthropic tool_choice=auto",
+  "category": "tools",
+  "test_nature": "probabilistic",
+  "parameters": [
+    "tools",
+    "tool_choice.type"
+  ],
+  "requires_model_capability": "tools",
+  "optional": true,
+  "method": "POST",
+  "path": "/messages",
+  "payload": {
+    "model": "deepseek-chat",
+    "max_tokens": 512,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use get_weather if it is useful for Shanghai weather."
+      }
+    ],
+    "tools": [
+      {
+        "name": "get_weather",
+        "description": "Gets weather for a city.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "city": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "city"
+          ]
+        }
+      }
+    ],
+    "tool_choice": {
+      "type": "auto"
+    }
+  },
+  "expect": {
+    "optional_capability_mismatch": true,
+    "notes": "The model can respond with text or a tool_use block. Request acceptance and any returned tool block are validated."
+  }
+}

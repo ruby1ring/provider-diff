@@ -1,0 +1,47 @@
+{
+  "case_id": "tp_chat_response_format_schema_shortcut",
+  "title": "response_format schema shortcut",
+  "category": "output",
+  "test_nature": "deterministic",
+  "parameters": [
+    "response_format.type",
+    "response_format.schema"
+  ],
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-chat",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Return JSON only."
+      },
+      {
+        "role": "user",
+        "content": "Return an object with result set to pass."
+      }
+    ],
+    "response_format": {
+      "type": "json_schema",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string",
+            "enum": [
+              "pass"
+            ]
+          }
+        },
+        "required": [
+          "result"
+        ]
+      }
+    },
+    "max_completion_tokens": 512
+  },
+  "expect": {
+    "content_should_parse_as_json": true,
+    "notes": "Top-level schema shorthand is no longer part of the documented contract (OpenAPI now requires the OpenAI-standard json_schema nesting). The gateway adapter normalizes this legacy shorthand into json_schema.schema with a generated name before forwarding upstream; this case verifies backward compatibility."
+  }
+}

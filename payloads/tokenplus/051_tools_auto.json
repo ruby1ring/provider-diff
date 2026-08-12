@@ -1,0 +1,29 @@
+{
+  "case_id": "tp_chat_tools_auto",
+  "title": "tool_choice=auto",
+  "category": "tools",
+  "test_nature": "probabilistic",
+  "parameters": ["tools", "tool_choice"],
+  "requires_model_capability": "tools",
+  "optional": true,
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-chat",
+    "messages": [{"role": "user", "content": "Use get_weather if it is useful for Shanghai weather."}],
+    "tools": [{
+      "type": "function",
+      "function": {
+        "name": "get_weather",
+        "description": "Gets weather for a city.",
+        "parameters": {"type": "object", "properties": {"city": {"type": "string"}}, "required": ["city"]}
+      }
+    }],
+    "tool_choice": "auto",
+    "max_completion_tokens": 96
+  },
+  "expect": {
+    "optional_capability_mismatch": true,
+    "notes": "The model may return text or a tool call. Only request acceptance and any returned tool-call shape are asserted."
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "case_id": "tp_messages_output_config_format_schema_shortcut",
+  "title": "output_config.format schema shortcut",
+  "category": "output",
+  "test_nature": "deterministic",
+  "parameters": [
+    "output_config.format.type",
+    "output_config.format.schema"
+  ],
+  "method": "POST",
+  "path": "/messages",
+  "payload": {
+    "model": "deepseek-chat",
+    "max_tokens": 512,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Return JSON only: an object with result set to pass."
+      }
+    ],
+    "output_config": {
+      "format": {
+        "type": "json_schema",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "result": {
+              "type": "string",
+              "enum": [
+                "pass"
+              ]
+            }
+          },
+          "required": [
+            "result"
+          ]
+        }
+      }
+    }
+  },
+  "expect": {
+    "content_should_parse_as_json": true,
+    "notes": "Covers the documented schema shortcut independently from json_schema."
+  }
+}

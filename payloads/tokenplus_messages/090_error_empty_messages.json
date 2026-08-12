@@ -1,0 +1,21 @@
+{
+  "case_id": "tp_messages_error_empty_messages",
+  "title": "empty messages returns an Anthropic or TokenPlus error envelope",
+  "category": "errors",
+  "test_nature": "deterministic",
+  "parameters": ["messages", "error.type", "error.message", "error.error_type", "error.code"],
+  "method": "POST",
+  "path": "/messages",
+  "payload": {
+    "model": "deepseek-chat",
+    "max_tokens": 64,
+    "messages": []
+  },
+  "expect": {
+    "http_status": 400,
+    "support_conclusion": "rejected_400",
+    "required_response_headers": [],
+    "messages_error_envelope": true,
+    "notes": "The OpenAPI permits either the Anthropic error envelope or the generic TokenPlus gateway error envelope for Messages failures."
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "case_id": "tp_chat_reasoning_thinking_enabled",
+  "title": "thinking.type=enabled exposes reasoning evidence",
+  "category": "reasoning",
+  "test_nature": "deterministic",
+  "parameters": ["thinking"],
+  "requires_model_capability": "thinking",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-reasoner",
+    "messages": [
+      {"role": "user", "content": "用两步计算 19 + 23，然后给出答案。"}
+    ],
+    "thinking": {"type": "enabled"},
+    "max_completion_tokens": 256
+  },
+  "expect": {
+    "optional_capability_mismatch": true,
+    "thinking_location_probe": true,
+    "thinking_evidence_required": true,
+    "notes": "thinking 显式开启时要求响应出现 reasoning_content 或 reasoning_tokens/thinking_tokens 证据，用于识别路由静默吞掉 thinking 参数的情况；若所选路由/模型不支持 thinking 并明确拒绝（400/404/422 且文案匹配）则按 optional 忽略。"
+  }
+}

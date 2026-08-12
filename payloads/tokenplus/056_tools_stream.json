@@ -1,0 +1,91 @@
+{
+  "case_id": "tp_chat_tools_stream",
+  "title": "streamed function tool call with JSON argument chunks and usage",
+  "category": "tools",
+  "test_nature": "deterministic",
+  "parameters": [
+    "stream",
+    "stream_options.include_usage",
+    "tools[].type",
+    "tools[].function.name",
+    "tools[].function.description",
+    "tools[].function.parameters",
+    "tool_choice",
+    "parallel_tool_calls"
+  ],
+  "requires_model_capability": "tools,streaming",
+  "method": "POST",
+  "path": "/chat/completions",
+  "payload": {
+    "model": "deepseek-chat",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Use get_weather to look up Shanghai weather now."
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_weather",
+          "description": "Gets weather for one city.",
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "city": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "city"
+            ]
+          }
+        }
+      }
+    ],
+    "tool_choice": "required",
+    "parallel_tool_calls": false,
+    "stream": true,
+    "stream_options": {
+      "include_usage": true
+    },
+    "max_completion_tokens": 96
+  },
+  "expect": {
+    "response_header_contains": {
+      "content-type": "text/event-stream"
+    },
+    "response_mode": "sse",
+    "required_chunk_fields": [
+      "id",
+      "object",
+      "created",
+      "model",
+      "choices"
+    ],
+    "usage_required_fields": [
+      "prompt_tokens",
+      "completion_tokens",
+      "total_tokens"
+    ],
+    "openai_tool_stream_contract": true,
+    "stream_tool_call_min_count": 1,
+    "stream_tool_required_names": [
+      "get_weather"
+    ],
+    "stream_tool_input_required_fields": [
+      "city"
+    ],
+    "stream_tool_input_field_types": {
+      "city": "string"
+    },
+    "stream_tool_input_field_values": {
+      "city": "Shanghai"
+    },
+    "stream_done_required": true,
+    "min_sse_chunks": 3,
+    "notes": "Checks the streamed tool-call envelope, stable chunk id/model, assistant delta role, function id/name/type, concatenated JSON arguments, finish_reason=tool_calls, final usage arithmetic, and [DONE]."
+  }
+}
