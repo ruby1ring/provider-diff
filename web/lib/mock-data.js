@@ -340,7 +340,7 @@ window.LLM_ROSETTA_DATA = (() => {
       default_model: "openai/gpt-4o-mini",
       api_docs_url: "https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request",
       parameters: {
-        Core: ["model", "models", "messages"],
+        Core: ["model", "models", "messages", "messages[].role", "messages[].content"],
         Sampling: ["temperature", "top_p", "top_k", "top_a", "min_p", "repetition_penalty", "seed", "stop", "frequency_penalty", "presence_penalty", "logit_bias"],
         Length: ["max_tokens", "max_completion_tokens"],
         Reasoning: ["reasoning", "reasoning.effort", "reasoning.summary", "reasoning_effort", "include_reasoning"],
@@ -356,6 +356,60 @@ window.LLM_ROSETTA_DATA = (() => {
       default_base_url: "https://openrouter.ai/api/v1",
       default_model: "anthropic/claude-sonnet-4.5",
       api_docs_url: "https://openrouter.ai/docs/api-reference/messages"
+    }),
+    withEndpoints({
+      channel_id: "tokenplus",
+      provider_id: "tokenplus",
+      name: "TokenPlus",
+      emoji: "T",
+      logo_mark: "TP",
+      description: "TokenPlus API 网关",
+      summary: "Chat 与 Messages 协议测评",
+      default_base_url: "https://api.tokenplus.cn/v1",
+      default_model: "deepseek-chat",
+      api_docs_url: "https://api.tokenplus.cn",
+      parameters: {
+        Core: ["model", "models", "messages", "messages[].role", "messages[].content"],
+        Sampling: ["temperature", "top_p", "top_k", "top_a", "min_p", "repetition_penalty", "seed", "stop", "frequency_penalty", "presence_penalty", "logit_bias"],
+        Length: ["max_tokens", "max_completion_tokens"],
+        Reasoning: ["thinking", "reasoning_effort", "thinking_budget", "verbosity"],
+        Output: [
+          "response_format.type",
+          "response_format.json_schema.name",
+          "response_format.json_schema.description",
+          "response_format.json_schema.schema",
+          "response_format.json_schema.strict",
+          "response_format.schema"
+        ],
+        Tools: ["tools[].type", "tools[].function.name", "tools[].function.description", "tools[].function.parameters", "tools[].function.strict", "tool_choice", "tool_choice.type", "tool_choice.function.name", "parallel_tool_calls"],
+        Protocol: ["stream", "stream_options"],
+        Routing: ["provider"],
+        Observability: ["metadata", "trace", "session_id", "cache_control", "service_tier", "x-tokenplus-extra"]
+      }
+    }, {
+      provider_id: "tokenplus_messages",
+      default_base_url: "https://api.tokenplus.cn/v1",
+      default_model: "deepseek-chat",
+      api_docs_url: "https://api.tokenplus.cn",
+      parameters: {
+        Core: ["model", "models", "messages", "messages[].role", "messages[].content", "system"],
+        Content: ["content[].type=text", "content[].type=tool_use", "content[].type=tool_result", "messages[].content[].type", "messages[].content[].id", "messages[].content[].name", "messages[].content[].input", "messages[].content[].tool_use_id", "messages[].content[].content"],
+        Sampling: ["temperature", "top_p", "top_k", "stop_sequences"],
+        Length: ["max_tokens"],
+        Reasoning: ["thinking.type", "thinking.budget_tokens", "output_config.effort"],
+        Output: [
+          "output_config.format.type",
+          "output_config.format.json_schema.name",
+          "output_config.format.json_schema.description",
+          "output_config.format.json_schema.schema",
+          "output_config.format.json_schema.strict",
+          "output_config.format.schema"
+        ],
+        Tools: ["tools[].name", "tools[].description", "tools[].input_schema", "tools[].type", "tool_choice.type", "tool_choice.name", "tool_choice.disable_parallel_tool_use"],
+        Protocol: ["stream"],
+        Routing: ["provider"],
+        Observability: ["metadata", "trace", "session_id", "cache_control", "service_tier", "x-tokenplus-extra"]
+      }
     }),
     withEndpoints({
       channel_id: "minimax",

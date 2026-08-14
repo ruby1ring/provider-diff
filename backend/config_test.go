@@ -70,6 +70,23 @@ siliconflow:
 	}
 }
 
+func TestResolveLocalProviderConfigTokenPlus(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	content := `tokenplus:
+  https://api.tokenplus.cn/v1
+  sk-tokenplus-test
+`
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	entry, ok := resolveLocalProviderConfig(dir, "tokenplus")
+	if !ok || entry.BaseURL != "https://api.tokenplus.cn/v1" || entry.APIKey != "sk-tokenplus-test" {
+		t.Fatalf("expected tokenplus config to resolve, got %+v ok=%v", entry, ok)
+	}
+}
+
 func TestResolveProviderAPIKeyPrefersConfigFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")

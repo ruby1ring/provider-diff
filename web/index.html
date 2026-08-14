@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/design-system/tokens.css" />
-    <link rel="stylesheet" href="/design-system/styles.css?v=noctua-param-diagnosis" />
+    <link rel="stylesheet" href="/design-system/styles.css?v=layout-stability-20260812b" />
   </head>
   <body>
     <div class="app">
@@ -228,7 +228,7 @@
               <span class="muted mono fs-xs">原厂 / 第三方 endpoint 配置</span>
             </div>
 
-            <div id="endpointTabs" class="endpoint-tabs" role="tablist" aria-label="Endpoint"></div>
+            <div id="endpointTabs" class="endpoint-tabs" aria-label="选择接口协议"></div>
 
             <div id="channelCards" class="chan-grid"></div>
 
@@ -1049,8 +1049,8 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
                 <p class="eyebrow">Local Web</p>
                 <h2 id="opencompass-title">嵌入地址</h2>
               </div>
-              <div class="row gap-2">
-                <input id="opencompassUrl" class="inp mono" type="url" value="http://127.0.0.1:9100/" aria-label="OpenCompass URL" style="min-width: 280px" />
+              <div class="row gap-2 embed-url-control">
+                <input id="opencompassUrl" class="inp mono" type="url" value="http://127.0.0.1:9100/" aria-label="OpenCompass URL" />
                 <button id="saveOpencompassUrl" class="btn btn-secondary btn-sm" type="button">应用地址</button>
               </div>
             </div>
@@ -1146,7 +1146,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
     <script src="/web/lib/thinking-observed-runtime.js?v=noctua-thinking-observed"></script>
     <script src="/web/lib/model-limits-observed-runtime.js?v=noctua-model-limits-observed"></script>
     <script src="/web/lib/error-code-catalog-runtime.js?v=noctua-error-catalog"></script>
-    <script src="/web/lib/mock-data.js?v=noctua-oem-protocol"></script>
+    <script src="/web/lib/mock-data.js?v=noctua-tokenplus-v01"></script>
     <script src="/web/lib/model-lookup.js?v=noctua-streamlake"></script>
     <script src="/web/lib/openrouter-model-detail.js?v=noctua-model-intro"></script>
     <script src="/web/lib/eval-model-capabilities.js?v=noctua-eval-model-capabilities"></script>
@@ -1179,7 +1179,7 @@ https://api.siliconflow.cn/v1 | sk-... | deepseek-ai/DeepSeek-V4-Flash"></textar
         });
       })();
     </script>
-    <script src="/web/main.js?v=noctua-docs-sync"></script>
+    <script src="/web/main.js?v=noctua-v01-channel-cards"></script>
     <script>
       if (new URLSearchParams(location.search).has("canvas-annotate")) {
         const s = document.createElement("script");

@@ -115,6 +115,7 @@ var platformConfigKeyAliases = map[string][]string{
 	"siliconflow-cn":  {"siliconflow-cn", "sf-router-cn", "siliconflow"},
 	"siliconflow-com": {"siliconflow-com", "sf-router-com", "siliconflow"},
 	"openrouter":      {"openrouter"},
+	"tokenplus":       {"tokenplus"},
 	"sf-router-cn":    {"sf-router-cn", "siliconflow-cn", "siliconflow"},
 	"sf-router-com":   {"sf-router-com", "siliconflow-com", "siliconflow"},
 	"streamlake-cn":   {"streamlake-cn", "streamlake"},

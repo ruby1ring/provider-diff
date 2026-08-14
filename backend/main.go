@@ -24,6 +24,7 @@ import (
 
 type Manifest struct {
 	Provider       string         `json:"provider"`
+	Kind           string         `json:"kind"`
 	BaseURL        string         `json:"base_url"`
 	Endpoint       string         `json:"endpoint"`
 	Method         string         `json:"method"`
@@ -40,6 +41,7 @@ type TestCase struct {
 	CaseID                  string            `json:"case_id"`
 	Title                   string            `json:"title"`
 	Category                string            `json:"category"`
+	TestNature              string            `json:"test_nature,omitempty"`
 	CaseScope               string            `json:"case_scope,omitempty"`
 	OemVendor               string            `json:"oem_vendor,omitempty"`
 	TargetGroup             string            `json:"target_group,omitempty"`
@@ -59,6 +61,7 @@ type CaseSummary struct {
 	CaseID                  string   `json:"case_id"`
 	Title                   string   `json:"title"`
 	Category                string   `json:"category"`
+	TestNature              string   `json:"test_nature,omitempty"`
 	Parameters              []string `json:"parameters"`
 	RequiresModelCapability string   `json:"requires_model_capability,omitempty"`
 	Optional                bool     `json:"optional,omitempty"`
@@ -190,6 +193,7 @@ type RunCaseResult struct {
 	CaseID                    string               `json:"case_id"`
 	Title                     string               `json:"title"`
 	Category                  string               `json:"category"`
+	TestNature                string               `json:"test_nature,omitempty"`
 	Parameters                []string             `json:"parameters"`
 	Method                    string               `json:"method"`
 	URL                       string               `json:"url"`
@@ -1371,6 +1375,7 @@ func canceledRunCaseResult(tc TestCase, endpointURL string, err error) RunCaseRe
 		CaseID:                    tc.CaseID,
 		Title:                     tc.Title,
 		Category:                  tc.Category,
+		TestNature:                tc.TestNature,
 		Parameters:                tc.Parameters,
 		Method:                    tc.Method,
 		URL:                       endpointURL,
@@ -1439,6 +1444,11 @@ func (s *Server) handleProviders(w http.ResponseWriter, r *http.Request) {
 	providers := make([]string, 0)
 	for _, entry := range entries {
 		if entry.IsDir() && exists(filepath.Join(payloadRoot, entry.Name(), "manifest.json")) {
+			// agent 类 provider 由本机 CLI（noctua.mjs）执行，Web 后端不展示
+			var m Manifest
+			if readJSONFile(filepath.Join(payloadRoot, entry.Name(), "manifest.json"), &m) == nil && m.Kind == "agent" {
+				continue
+			}
 			providers = append(providers, entry.Name())
 		}
 	}
@@ -1483,6 +1493,7 @@ func (s *Server) handleCases(w http.ResponseWriter, r *http.Request, provider st
 			CaseID:                  tc.CaseID,
 			Title:                   tc.Title,
 			Category:                tc.Category,
+			TestNature:              tc.TestNature,
 			Parameters:              tc.Parameters,
 			RequiresModelCapability: tc.RequiresModelCapability,
 			Optional:                tc.Optional,
@@ -1759,6 +1770,7 @@ func runProviderCase(ctx context.Context, client *http.Client, endpointURL, apiK
 		CaseID:                    tc.CaseID,
 		Title:                     tc.Title,
 		Category:                  tc.Category,
+		TestNature:                tc.TestNature,
 		Parameters:                tc.Parameters,
 		Method:                    tc.Method,
 		URL:                       endpointURL,
@@ -3420,7 +3432,7 @@ func responseHeaders(header http.Header) map[string]any {
 
 func providerAuthHeader(provider string) string {
 	switch provider {
-	case "ali_messages", "claude_messages", "deepseek_messages", "minimax_messages":
+	case "ali_messages", "claude_messages", "deepseek_messages", "minimax_messages", "tokenplus_messages":
 		return "X-Api-Key"
 	}
 	return "Authorization"
@@ -3713,7 +3725,25 @@ func evaluateAssertions(result RunCaseResult, expect map[string]any) []CaseAsser
 			Message: fmt.Sprintf("预期 %d，实际 %d", status, result.HTTPStatus),
 		})
 	}
+	if headers := stringSlice(expect["required_response_headers"]); len(headers) > 0 {
+		assertions = append(assertions, responseHeadersRequiredAssertion(result.ResponseHeaders, headers))
+	}
+	if expectedHeaders, ok := expect["response_header_contains"].(map[string]any); ok && len(expectedHeaders) > 0 {
+		assertions = append(assertions, responseHeadersContainAssertion(result.ResponseHeaders, expectedHeaders))
+	}
 	if result.HTTPStatus >= 400 {
+		if paths := stringSlice(expect["error_required_paths"]); len(paths) > 0 {
+			assertions = append(assertions, responsePathsRequiredAssertion("error_required_paths", result.ResponseBody, paths))
+		}
+		if types, ok := expect["error_path_types"].(map[string]any); ok && len(types) > 0 {
+			assertions = append(assertions, responsePathTypesAssertion("error_path_types", result.ResponseBody, types))
+		}
+		if values, ok := expect["error_path_values"].(map[string]any); ok && len(values) > 0 {
+			assertions = append(assertions, responsePathValuesAssertion("error_path_values", result.ResponseBody, values))
+		}
+		if shape, _ := expect["messages_error_envelope"].(bool); shape {
+			assertions = append(assertions, messagesErrorEnvelopeAssertion(result))
+		}
 		return assertions
 	}
 	if mode, _ := expect["response_mode"].(string); mode == "sse" {
@@ -3750,6 +3780,28 @@ func evaluateAssertions(result RunCaseResult, expect map[string]any) []CaseAsser
 				assertions = append(assertions, assertion)
 			}
 		}
+		if required, _ := expect["stream_done_required"].(bool); required {
+			assertions = append(assertions, CaseAssertion{
+				Name:    "stream_done_required",
+				Pass:    strings.Contains(result.RawResponse, "data: [DONE]"),
+				Message: "预期 SSE 流以 data: [DONE] 结束",
+			})
+		}
+		if eventTypes := stringSlice(expect["required_sse_event_types"]); len(eventTypes) > 0 {
+			assertions = append(assertions, sseEventTypesRequiredAssertion(result.RawResponse, eventTypes))
+		}
+		if required, _ := expect["openai_stream_contract"].(bool); required {
+			assertions = append(assertions, openAIStreamContractAssertion(result.RawResponse, stringSlice(expect["allowed_finish_reasons"])))
+		}
+		if required, _ := expect["openai_tool_stream_contract"].(bool); required {
+			assertions = append(assertions, openAIToolStreamContractAssertion(result, expect))
+		}
+		if required, _ := expect["messages_stream_contract"].(bool); required {
+			assertions = append(assertions, messagesStreamContractAssertion(result.RawResponse, stringSlice(expect["allowed_finish_reasons"])))
+		}
+		if required, _ := expect["messages_tool_stream_contract"].(bool); required {
+			assertions = append(assertions, messagesToolStreamContractAssertion(result, expect))
+		}
 		assertions = appendSSEStreamAssertions(assertions, result, expect)
 		return assertions
 	}
@@ -3780,6 +3832,27 @@ func evaluateAssertions(result RunCaseResult, expect map[string]any) []CaseAsser
 	if fields := stringSlice(expect["content_required_fields"]); len(fields) > 0 {
 		assertions = append(assertions, contentBlockRequiredFieldsAssertion("content_required_fields", result.ResponseBody, fields))
 	}
+	if paths := combinedStringSlice(expect, "required_response_paths", "additional_required_response_paths"); len(paths) > 0 {
+		assertions = append(assertions, responsePathsRequiredAssertion("required_response_paths", result.ResponseBody, paths))
+	}
+	if paths := combinedStringSlice(expect, "response_non_empty_paths", "additional_response_non_empty_paths"); len(paths) > 0 {
+		assertions = append(assertions, responsePathsNonEmptyAssertion(result.ResponseBody, paths))
+	}
+	if types := combinedExpectedMap(expect, "response_path_types", "additional_response_path_types"); len(types) > 0 {
+		assertions = append(assertions, responsePathTypesAssertion("response_path_types", result.ResponseBody, types))
+	}
+	if values := combinedExpectedMap(expect, "response_path_values", "additional_response_path_values"); len(values) > 0 {
+		assertions = append(assertions, responsePathValuesAssertion("response_path_values", result.ResponseBody, values))
+	}
+	if minimums, ok := expect["response_numeric_minimums"].(map[string]any); ok && len(minimums) > 0 {
+		assertions = append(assertions, responseNumericMinimumsAssertion(result.ResponseBody, minimums))
+	}
+	if minimums, ok := expect["response_array_min_items"].(map[string]any); ok && len(minimums) > 0 {
+		assertions = append(assertions, responseArrayMinimumsAssertion(result.ResponseBody, minimums))
+	}
+	if required, _ := expect["usage_total_matches"].(bool); required {
+		assertions = append(assertions, usageTotalMatchesAssertion(result.ResponseBody))
+	}
 	if shouldParse, _ := expect["content_should_parse_as_json"].(bool); shouldParse {
 		content, ok := assistantContent(result.ResponseBody)
 		if !ok {
@@ -3793,7 +3866,15 @@ func evaluateAssertions(result RunCaseResult, expect map[string]any) []CaseAsser
 		assertions = append(assertions, CaseAssertion{
 			Name:    "assistant_content_non_empty",
 			Pass:    ok && strings.TrimSpace(content) != "",
-			Message: "预期 choices[0].message.content 为非空字符串",
+			Message: "预期 assistant 文本内容为非空字符串",
+		})
+	}
+	if expectedText, _ := expect["assistant_content_contains"].(string); strings.TrimSpace(expectedText) != "" {
+		content, ok := assistantContent(result.ResponseBody)
+		assertions = append(assertions, CaseAssertion{
+			Name:    "assistant_content_contains",
+			Pass:    ok && strings.Contains(content, expectedText),
+			Message: fmt.Sprintf("预期 assistant 文本内容包含 %q", expectedText),
 		})
 	}
 	if prefix, _ := expect["assistant_content_starts_with"].(string); strings.TrimSpace(prefix) != "" {
@@ -3860,6 +3941,9 @@ func inferredAssertions(result RunCaseResult, expect map[string]any) []CaseAsser
 	}
 	if assertion, ok := toolCallPayloadAssertion(result); ok {
 		assertions = append(assertions, assertion)
+	}
+	if required, _ := expect["tool_calls_contract"].(bool); required {
+		assertions = append(assertions, toolCallsContractAssertion(result, expect))
 	}
 	if assertion, ok := logprobsAssertion(result); ok {
 		assertions = append(assertions, assertion)
@@ -4010,7 +4094,7 @@ func finishReasonAssertion(result RunCaseResult, expect map[string]any) (CaseAss
 }
 
 func responseFormatAssertion(result RunCaseResult) (CaseAssertion, bool) {
-	responseFormat, ok := result.RequestBody["response_format"].(map[string]any)
+	responseFormat, ok := requestResponseFormat(result.RequestBody)
 	if !ok {
 		return CaseAssertion{}, false
 	}
@@ -4020,7 +4104,7 @@ func responseFormatAssertion(result RunCaseResult) (CaseAssertion, bool) {
 	}
 	content, ok := assistantContent(result.ResponseBody)
 	if !ok {
-		return CaseAssertion{Name: "response_format", Pass: false, Message: "未找到 choices[0].message.content"}, true
+		return CaseAssertion{Name: "response_format", Pass: false, Message: "未找到 assistant 文本内容"}, true
 	}
 	if !json.Valid([]byte(content)) {
 		return CaseAssertion{Name: "response_format", Pass: false, Message: "assistant content 不是合法 JSON"}, true
@@ -4037,6 +4121,19 @@ func responseFormatAssertion(result RunCaseResult) (CaseAssertion, bool) {
 		}
 	}
 	return CaseAssertion{Name: "response_format", Pass: true, Message: "assistant content 是合法 JSON"}, true
+}
+
+func requestResponseFormat(request map[string]any) (map[string]any, bool) {
+	responseFormat, ok := request["response_format"].(map[string]any)
+	if ok {
+		return responseFormat, true
+	}
+	outputConfig, ok := request["output_config"].(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	responseFormat, ok = outputConfig["format"].(map[string]any)
+	return responseFormat, ok
 }
 
 func toolChoiceAssertion(result RunCaseResult) (CaseAssertion, bool) {
@@ -4090,6 +4187,202 @@ func toolCallPayloadAssertion(result RunCaseResult) (CaseAssertion, bool) {
 	return CaseAssertion{Name: "tool_calls.arguments", Pass: len(invalid) == 0, Message: invalidToolArgumentsMessage(invalid)}, true
 }
 
+func toolCallsContractAssertion(result RunCaseResult, expect map[string]any) CaseAssertion {
+	calls, ok := firstToolCalls(result.ResponseBody)
+	if !ok || len(calls) == 0 {
+		return CaseAssertion{Name: "tool_calls_contract", Pass: false, Message: "响应中没有工具调用"}
+	}
+	if count, ok := intFromExpect(expect["tool_calls_exact_count"]); ok && len(calls) != count {
+		return CaseAssertion{Name: "tool_calls_contract", Pass: false, Message: fmt.Sprintf("预期 %d 个工具调用，实际 %d 个", count, len(calls))}
+	}
+
+	requestedNames := requestedToolNames(result.RequestBody)
+	requiredNames := stringSlice(expect["tool_call_required_names"])
+	requiredFields := stringSlice(expect["tool_call_input_required_fields"])
+	expectedTypes, _ := expect["tool_call_input_field_types"].(map[string]any)
+	expectedValues, _ := expect["tool_call_input_field_values"].(map[string]any)
+	allowedValues, _ := expect["tool_call_input_allowed_values"].(map[string]any)
+	distinctFields := stringSlice(expect["tool_call_input_distinct_fields"])
+	noAdditionalProperties, _ := expect["tool_call_input_no_additional_properties"].(bool)
+	allowedInputFields := requestedToolInputFields(result.RequestBody)
+	seenIDs := map[string]bool{}
+	seenNames := map[string]bool{}
+	seenFieldValues := map[string]map[string]bool{}
+	problems := make([]string, 0)
+	for index, item := range calls {
+		call, ok := item.(map[string]any)
+		if !ok {
+			problems = append(problems, fmt.Sprintf("tool_call[%d] 不是对象", index))
+			continue
+		}
+		id, ok := call["id"].(string)
+		if !ok || strings.TrimSpace(id) == "" {
+			problems = append(problems, fmt.Sprintf("tool_call[%d].id 不是非空字符串", index))
+		} else if seenIDs[id] {
+			problems = append(problems, fmt.Sprintf("tool_call[%d].id 重复", index))
+		} else {
+			seenIDs[id] = true
+		}
+
+		name := ""
+		input := map[string]any(nil)
+		if function, ok := call["function"].(map[string]any); ok {
+			if call["type"] != "function" {
+				problems = append(problems, fmt.Sprintf("tool_call[%d].type 不是 function", index))
+			}
+			name, _ = function["name"].(string)
+			arguments, ok := function["arguments"].(string)
+			if !ok || strings.TrimSpace(arguments) == "" {
+				problems = append(problems, fmt.Sprintf("tool_call[%d].function.arguments 不是非空 JSON 字符串", index))
+			} else if err := json.Unmarshal([]byte(arguments), &input); err != nil {
+				problems = append(problems, fmt.Sprintf("tool_call[%d].function.arguments 不是 JSON object", index))
+			}
+		} else {
+			if call["type"] != "tool_use" {
+				problems = append(problems, fmt.Sprintf("tool_call[%d].type 不是 tool_use", index))
+			}
+			name, _ = call["name"].(string)
+			input, _ = call["input"].(map[string]any)
+			if input == nil {
+				problems = append(problems, fmt.Sprintf("tool_call[%d].input 不是 JSON object", index))
+			}
+		}
+		if !containsString(requestedNames, name) {
+			problems = append(problems, fmt.Sprintf("tool_call[%d] 返回未请求的工具 %q", index, name))
+		}
+		seenNames[name] = true
+		if input == nil {
+			continue
+		}
+		for _, field := range requiredFields {
+			if _, ok := valueAt(input, strings.Split(field, ".")); !ok {
+				problems = append(problems, fmt.Sprintf("tool_call[%d] 参数缺少 %s", index, field))
+			}
+		}
+		for field, expectedTypeValue := range expectedTypes {
+			expectedType, ok := expectedTypeValue.(string)
+			if !ok {
+				problems = append(problems, fmt.Sprintf("工具参数 %s 的期望类型不是字符串", field))
+				continue
+			}
+			value, ok := valueAt(input, strings.Split(field, "."))
+			if !ok || !responseValueHasType(value, expectedType) {
+				problems = append(problems, fmt.Sprintf("tool_call[%d] 参数 %s 类型不正确", index, field))
+			}
+		}
+		for field, expectedValue := range expectedValues {
+			value, ok := valueAt(input, strings.Split(field, "."))
+			if !ok || !responseValueEquals(value, expectedValue) {
+				problems = append(problems, fmt.Sprintf("tool_call[%d] 参数 %s 的值不正确", index, field))
+			}
+		}
+		for field, expectedAllowedValues := range allowedValues {
+			values, ok := expectedAllowedValues.([]any)
+			if !ok || len(values) == 0 {
+				problems = append(problems, fmt.Sprintf("工具参数 %s 的允许值不是非空数组", field))
+				continue
+			}
+			value, ok := valueAt(input, strings.Split(field, "."))
+			if !ok {
+				problems = append(problems, fmt.Sprintf("tool_call[%d] 参数缺少 %s", index, field))
+				continue
+			}
+			matched := false
+			for _, expectedAllowedValue := range values {
+				if responseValueEquals(value, expectedAllowedValue) {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				problems = append(problems, fmt.Sprintf("tool_call[%d] 参数 %s 的值不在允许范围内", index, field))
+			}
+		}
+		for _, field := range distinctFields {
+			value, ok := valueAt(input, strings.Split(field, "."))
+			if !ok {
+				problems = append(problems, fmt.Sprintf("tool_call[%d] 参数缺少 %s", index, field))
+				continue
+			}
+			if seenFieldValues[field] == nil {
+				seenFieldValues[field] = map[string]bool{}
+			}
+			valueKey := fmt.Sprintf("%T:%v", value, value)
+			if seenFieldValues[field][valueKey] {
+				problems = append(problems, fmt.Sprintf("tool_call[%d] 参数 %s 与前一调用重复", index, field))
+				continue
+			}
+			seenFieldValues[field][valueKey] = true
+		}
+		if noAdditionalProperties {
+			if len(allowedInputFields) == 0 {
+				problems = append(problems, "工具 schema 未定义允许的参数字段")
+			}
+			for field := range input {
+				if !allowedInputFields[field] {
+					problems = append(problems, fmt.Sprintf("tool_call[%d] 参数包含未声明字段 %s", index, field))
+				}
+			}
+		}
+	}
+	for _, name := range requiredNames {
+		if !seenNames[name] {
+			problems = append(problems, fmt.Sprintf("响应没有调用必需工具 %q", name))
+		}
+	}
+	return CaseAssertion{Name: "tool_calls_contract", Pass: len(problems) == 0, Message: strings.Join(problems, "；")}
+}
+
+func requestedToolNames(request map[string]any) []string {
+	tools, ok := request["tools"].([]any)
+	if !ok {
+		return nil
+	}
+	names := make([]string, 0, len(tools))
+	for _, item := range tools {
+		tool, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		if function, ok := tool["function"].(map[string]any); ok {
+			if name, ok := function["name"].(string); ok {
+				names = append(names, name)
+			}
+			continue
+		}
+		if name, ok := tool["name"].(string); ok {
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
+func requestedToolInputFields(request map[string]any) map[string]bool {
+	tools, ok := request["tools"].([]any)
+	if !ok {
+		return nil
+	}
+	fields := map[string]bool{}
+	for _, item := range tools {
+		tool, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		schema, _ := tool["input_schema"].(map[string]any)
+		if function, ok := tool["function"].(map[string]any); ok {
+			schema, _ = function["parameters"].(map[string]any)
+		}
+		properties, ok := schema["properties"].(map[string]any)
+		if !ok {
+			continue
+		}
+		for name := range properties {
+			fields[name] = true
+		}
+	}
+	return fields
+}
+
 func logprobsAssertion(result RunCaseResult) (CaseAssertion, bool) {
 	enabled, ok := boolFromMap(result.RequestBody, "logprobs")
 	if !ok || !enabled {
@@ -4126,6 +4419,1042 @@ func stopSequenceAssertion(result RunCaseResult) (CaseAssertion, bool) {
 		allowed = []string{"end_turn", "max_tokens", "stop_sequence", "tool_use", "pause_turn", "refusal"}
 	}
 	return CaseAssertion{Name: "stop", Pass: containsString(allowed, reason), Message: "实际 finish_reason/stop_reason=" + reason}, true
+}
+
+func responseHeadersRequiredAssertion(headers map[string]any, required []string) CaseAssertion {
+	missing := make([]string, 0)
+	for _, name := range required {
+		if _, ok := responseHeaderValue(headers, name); !ok {
+			missing = append(missing, name)
+		}
+	}
+	return CaseAssertion{
+		Name:    "required_response_headers",
+		Pass:    len(missing) == 0,
+		Message: missingMessage(missing),
+	}
+}
+
+func responseHeadersContainAssertion(headers map[string]any, expected map[string]any) CaseAssertion {
+	mismatches := make([]string, 0)
+	for name, expectedValue := range expected {
+		expectedText, ok := expectedValue.(string)
+		if !ok {
+			mismatches = append(mismatches, name+" 期望值不是字符串")
+			continue
+		}
+		actual, ok := responseHeaderValue(headers, name)
+		if !ok || !strings.Contains(headerText(actual), expectedText) {
+			mismatches = append(mismatches, fmt.Sprintf("%s 未包含 %q", name, expectedText))
+		}
+	}
+	return CaseAssertion{
+		Name:    "response_header_contains",
+		Pass:    len(mismatches) == 0,
+		Message: strings.Join(mismatches, "；"),
+	}
+}
+
+func responseHeaderValue(headers map[string]any, wanted string) (any, bool) {
+	for name, value := range headers {
+		if strings.EqualFold(name, wanted) {
+			return value, true
+		}
+	}
+	return nil, false
+}
+
+func headerText(value any) string {
+	switch typed := value.(type) {
+	case string:
+		return typed
+	case []string:
+		return strings.Join(typed, ", ")
+	case []any:
+		parts := make([]string, 0, len(typed))
+		for _, item := range typed {
+			parts = append(parts, fmt.Sprint(item))
+		}
+		return strings.Join(parts, ", ")
+	default:
+		return fmt.Sprint(value)
+	}
+}
+
+func responsePathsRequiredAssertion(name string, value any, paths []string) CaseAssertion {
+	missing := make([]string, 0)
+	for _, path := range paths {
+		values, ok := responseValuesAtPath(value, path)
+		if !ok || len(values) == 0 {
+			missing = append(missing, path)
+		}
+	}
+	return CaseAssertion{Name: name, Pass: len(missing) == 0, Message: missingMessage(missing)}
+}
+
+func combinedStringSlice(expect map[string]any, primary, additional string) []string {
+	values := stringSlice(expect[primary])
+	values = append(values, stringSlice(expect[additional])...)
+	return values
+}
+
+func combinedExpectedMap(expect map[string]any, primary, additional string) map[string]any {
+	combined := map[string]any{}
+	for _, name := range []string{primary, additional} {
+		values, ok := expect[name].(map[string]any)
+		if !ok {
+			continue
+		}
+		for key, value := range values {
+			combined[key] = value
+		}
+	}
+	return combined
+}
+
+func responsePathsNonEmptyAssertion(value any, paths []string) CaseAssertion {
+	invalid := make([]string, 0)
+	for _, path := range paths {
+		values, ok := responseValuesAtPath(value, path)
+		if !ok || len(values) == 0 {
+			invalid = append(invalid, path+" 不存在")
+			continue
+		}
+		for _, item := range values {
+			text, ok := item.(string)
+			if !ok || strings.TrimSpace(text) == "" {
+				invalid = append(invalid, path+" 为空或不是字符串")
+				break
+			}
+		}
+	}
+	return CaseAssertion{Name: "response_non_empty_paths", Pass: len(invalid) == 0, Message: strings.Join(invalid, "；")}
+}
+
+func responsePathTypesAssertion(name string, value any, expected map[string]any) CaseAssertion {
+	mismatches := make([]string, 0)
+	for path, expectedTypeValue := range expected {
+		expectedType, ok := expectedTypeValue.(string)
+		if !ok {
+			mismatches = append(mismatches, path+" 的期望类型不是字符串")
+			continue
+		}
+		values, ok := responseValuesAtPath(value, path)
+		if !ok || len(values) == 0 {
+			mismatches = append(mismatches, path+" 不存在")
+			continue
+		}
+		for _, item := range values {
+			if !responseValueHasType(item, expectedType) {
+				mismatches = append(mismatches, fmt.Sprintf("%s 类型为 %s，期望 %s", path, responseValueType(item), expectedType))
+				break
+			}
+		}
+	}
+	return CaseAssertion{Name: name, Pass: len(mismatches) == 0, Message: strings.Join(mismatches, "；")}
+}
+
+func responsePathValuesAssertion(name string, value any, expected map[string]any) CaseAssertion {
+	mismatches := make([]string, 0)
+	for path, expectedValue := range expected {
+		values, ok := responseValuesAtPath(value, path)
+		if !ok || len(values) == 0 {
+			mismatches = append(mismatches, path+" 不存在")
+			continue
+		}
+		for _, item := range values {
+			if !responseValueEquals(item, expectedValue) {
+				mismatches = append(mismatches, fmt.Sprintf("%s 实际 %v，期望 %v", path, item, expectedValue))
+				break
+			}
+		}
+	}
+	return CaseAssertion{Name: name, Pass: len(mismatches) == 0, Message: strings.Join(mismatches, "；")}
+}
+
+func responseNumericMinimumsAssertion(value any, minimums map[string]any) CaseAssertion {
+	mismatches := make([]string, 0)
+	for path, minimumValue := range minimums {
+		minimum, ok := numberValue(minimumValue)
+		if !ok {
+			mismatches = append(mismatches, path+" 的最小值不是数字")
+			continue
+		}
+		values, ok := responseValuesAtPath(value, path)
+		if !ok || len(values) == 0 {
+			mismatches = append(mismatches, path+" 不存在")
+			continue
+		}
+		for _, item := range values {
+			actual, ok := numberValue(item)
+			if !ok || actual < minimum {
+				mismatches = append(mismatches, fmt.Sprintf("%s 实际 %v，小于 %v", path, item, minimum))
+				break
+			}
+		}
+	}
+	return CaseAssertion{Name: "response_numeric_minimums", Pass: len(mismatches) == 0, Message: strings.Join(mismatches, "；")}
+}
+
+func responseArrayMinimumsAssertion(value any, minimums map[string]any) CaseAssertion {
+	mismatches := make([]string, 0)
+	for path, minimumValue := range minimums {
+		minimum, ok := intFromExpect(minimumValue)
+		if !ok {
+			mismatches = append(mismatches, path+" 的最小数组长度不是整数")
+			continue
+		}
+		values, ok := responseValuesAtPath(value, path)
+		if !ok || len(values) == 0 {
+			mismatches = append(mismatches, path+" 不存在")
+			continue
+		}
+		for _, item := range values {
+			array, ok := item.([]any)
+			if !ok || len(array) < minimum {
+				mismatches = append(mismatches, fmt.Sprintf("%s 长度不足 %d", path, minimum))
+				break
+			}
+		}
+	}
+	return CaseAssertion{Name: "response_array_min_items", Pass: len(mismatches) == 0, Message: strings.Join(mismatches, "；")}
+}
+
+func usageTotalMatchesAssertion(value any) CaseAssertion {
+	promptValues, promptOK := responseValuesAtPath(value, "usage.prompt_tokens")
+	completionValues, completionOK := responseValuesAtPath(value, "usage.completion_tokens")
+	totalValues, totalOK := responseValuesAtPath(value, "usage.total_tokens")
+	if !promptOK || !completionOK || !totalOK || len(promptValues) != 1 || len(completionValues) != 1 || len(totalValues) != 1 {
+		return CaseAssertion{Name: "usage_total_matches", Pass: false, Message: "响应缺少可校验的 usage token 三字段"}
+	}
+	prompt, promptOK := numberValue(promptValues[0])
+	completion, completionOK := numberValue(completionValues[0])
+	total, totalOK := numberValue(totalValues[0])
+	if !promptOK || !completionOK || !totalOK {
+		return CaseAssertion{Name: "usage_total_matches", Pass: false, Message: "usage token 字段不是数字"}
+	}
+	return CaseAssertion{
+		Name:    "usage_total_matches",
+		Pass:    prompt+completion == total,
+		Message: fmt.Sprintf("预期 prompt_tokens + completion_tokens = total_tokens，实际 %v + %v = %v", prompt, completion, total),
+	}
+}
+
+func messagesErrorEnvelopeAssertion(result RunCaseResult) CaseAssertion {
+	object, ok := result.ResponseBody.(map[string]any)
+	if !ok {
+		return CaseAssertion{Name: "messages_error_envelope", Pass: false, Message: "错误响应不是 JSON object"}
+	}
+	errorValue, ok := object["error"].(map[string]any)
+	if !ok {
+		return CaseAssertion{Name: "messages_error_envelope", Pass: false, Message: "错误响应缺少 error object"}
+	}
+	if _, ok := errorValue["message"].(string); !ok {
+		return CaseAssertion{Name: "messages_error_envelope", Pass: false, Message: "错误响应缺少 error.message 字符串"}
+	}
+	if objectType, _ := object["type"].(string); objectType == "error" {
+		if _, ok := errorValue["type"].(string); !ok {
+			return CaseAssertion{Name: "messages_error_envelope", Pass: false, Message: "Anthropic 错误响应缺少 error.type"}
+		}
+		if _, ok := errorValue["error_type"].(string); !ok {
+			return CaseAssertion{Name: "messages_error_envelope", Pass: false, Message: "Anthropic 错误响应缺少 error.error_type"}
+		}
+		return CaseAssertion{Name: "messages_error_envelope", Pass: true, Message: "返回 Anthropic 兼容错误信封"}
+	}
+	code, ok := numberValue(errorValue["code"])
+	if !ok {
+		return CaseAssertion{Name: "messages_error_envelope", Pass: false, Message: "网关错误响应缺少 error.code 数字"}
+	}
+	if int(code) != result.HTTPStatus {
+		return CaseAssertion{Name: "messages_error_envelope", Pass: false, Message: fmt.Sprintf("error.code=%v 与 HTTP 状态 %d 不一致", code, result.HTTPStatus)}
+	}
+	return CaseAssertion{Name: "messages_error_envelope", Pass: true, Message: "返回网关错误信封"}
+}
+
+func responseValuesAtPath(value any, path string) ([]any, bool) {
+	if strings.TrimSpace(path) == "" {
+		return nil, false
+	}
+	current := []any{value}
+	for _, part := range strings.Split(path, ".") {
+		isArray := strings.HasSuffix(part, "[]")
+		key := strings.TrimSuffix(part, "[]")
+		next := make([]any, 0)
+		for _, item := range current {
+			object, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			child, ok := object[key]
+			if !ok {
+				continue
+			}
+			if !isArray {
+				next = append(next, child)
+				continue
+			}
+			array, ok := child.([]any)
+			if !ok {
+				continue
+			}
+			next = append(next, array...)
+		}
+		if len(next) == 0 {
+			return nil, false
+		}
+		current = next
+	}
+	return current, true
+}
+
+func responseValueHasType(value any, expected string) bool {
+	for _, kind := range strings.Split(expected, "|") {
+		if responseValueType(value) == strings.TrimSpace(kind) {
+			return true
+		}
+	}
+	return false
+}
+
+func responseValueType(value any) string {
+	switch value.(type) {
+	case nil:
+		return "null"
+	case string:
+		return "string"
+	case bool:
+		return "boolean"
+	case float64, float32, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		return "number"
+	case []any:
+		return "array"
+	case map[string]any:
+		return "object"
+	default:
+		return fmt.Sprintf("%T", value)
+	}
+}
+
+func responseValueEquals(actual, expected any) bool {
+	if actual == nil || expected == nil {
+		return actual == nil && expected == nil
+	}
+	if actualNumber, ok := numberValue(actual); ok {
+		expectedNumber, ok := numberValue(expected)
+		return ok && actualNumber == expectedNumber
+	}
+	switch expectedValue := expected.(type) {
+	case string:
+		actualValue, ok := actual.(string)
+		return ok && actualValue == expectedValue
+	case bool:
+		actualValue, ok := actual.(bool)
+		return ok && actualValue == expectedValue
+	default:
+		return fmt.Sprint(actual) == fmt.Sprint(expected)
+	}
+}
+
+func numberValue(value any) (float64, bool) {
+	switch typed := value.(type) {
+	case float64:
+		return typed, true
+	case float32:
+		return float64(typed), true
+	case int:
+		return float64(typed), true
+	case int8:
+		return float64(typed), true
+	case int16:
+		return float64(typed), true
+	case int32:
+		return float64(typed), true
+	case int64:
+		return float64(typed), true
+	case uint:
+		return float64(typed), true
+	case uint8:
+		return float64(typed), true
+	case uint16:
+		return float64(typed), true
+	case uint32:
+		return float64(typed), true
+	case uint64:
+		return float64(typed), true
+	default:
+		return 0, false
+	}
+}
+
+func sseEventTypesRequiredAssertion(raw string, required []string) CaseAssertion {
+	found := map[string]bool{}
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "event:") {
+			found[strings.TrimSpace(strings.TrimPrefix(line, "event:"))] = true
+			continue
+		}
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		parsed, ok := parseJSON([]byte(data))
+		if !ok {
+			continue
+		}
+		object, ok := parsed.(map[string]any)
+		if !ok {
+			continue
+		}
+		if eventType, ok := object["type"].(string); ok {
+			found[eventType] = true
+		}
+	}
+	missing := make([]string, 0)
+	for _, eventType := range required {
+		if !found[eventType] {
+			missing = append(missing, eventType)
+		}
+	}
+	return CaseAssertion{Name: "required_sse_event_types", Pass: len(missing) == 0, Message: missingMessage(missing)}
+}
+
+type sseJSONEvent struct {
+	Name string
+	Data map[string]any
+}
+
+func parseSSEJSONEvents(raw string) []sseJSONEvent {
+	events := make([]sseJSONEvent, 0)
+	eventName := ""
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "event:") {
+			eventName = strings.TrimSpace(strings.TrimPrefix(line, "event:"))
+			continue
+		}
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if data == "" || data == "[DONE]" {
+			continue
+		}
+		parsed, ok := parseJSON([]byte(data))
+		if !ok {
+			continue
+		}
+		object, ok := parsed.(map[string]any)
+		if !ok {
+			continue
+		}
+		name := eventName
+		if name == "" {
+			name, _ = object["type"].(string)
+		}
+		events = append(events, sseJSONEvent{Name: name, Data: object})
+		eventName = ""
+	}
+	return events
+}
+
+func openAIStreamContractAssertion(raw string, allowedFinishReasons []string) CaseAssertion {
+	events := parseSSEJSONEvents(raw)
+	problems := make([]string, 0)
+	if len(events) == 0 {
+		return CaseAssertion{Name: "openai_stream_contract", Pass: false, Message: "未解析到 JSON SSE chunk"}
+	}
+
+	streamID := ""
+	streamModel := ""
+	usageChunks := 0
+	hasAssistantRole := false
+	hasContentDelta := false
+	hasFinishReason := false
+	for eventIndex, event := range events {
+		id, ok := event.Data["id"].(string)
+		if !ok || strings.TrimSpace(id) == "" {
+			problems = append(problems, fmt.Sprintf("chunk[%d].id 不是非空字符串", eventIndex))
+		} else if streamID == "" {
+			streamID = id
+		} else if id != streamID {
+			problems = append(problems, fmt.Sprintf("chunk[%d].id 与首个 chunk 不一致", eventIndex))
+		}
+
+		if event.Data["object"] != "chat.completion.chunk" {
+			problems = append(problems, fmt.Sprintf("chunk[%d].object 不是 chat.completion.chunk", eventIndex))
+		}
+		created, ok := numberValue(event.Data["created"])
+		if !ok || created < 1 {
+			problems = append(problems, fmt.Sprintf("chunk[%d].created 不是正数", eventIndex))
+		}
+		model, ok := event.Data["model"].(string)
+		if !ok || strings.TrimSpace(model) == "" {
+			problems = append(problems, fmt.Sprintf("chunk[%d].model 不是非空字符串", eventIndex))
+		} else if streamModel == "" {
+			streamModel = model
+		} else if model != streamModel {
+			problems = append(problems, fmt.Sprintf("chunk[%d].model 与首个 chunk 不一致", eventIndex))
+		}
+
+		choices, ok := event.Data["choices"].([]any)
+		if !ok {
+			problems = append(problems, fmt.Sprintf("chunk[%d].choices 不是数组", eventIndex))
+			continue
+		}
+		usage, hasUsage := event.Data["usage"].(map[string]any)
+		if hasUsage {
+			usageChunks++
+			if len(choices) != 0 {
+				problems = append(problems, fmt.Sprintf("usage chunk[%d] 的 choices 应为空数组", eventIndex))
+			}
+			if eventIndex != len(events)-1 {
+				problems = append(problems, fmt.Sprintf("usage chunk[%d] 不是最后一个 JSON chunk", eventIndex))
+			}
+			promptTokens, promptOK := numberValue(usage["prompt_tokens"])
+			completionTokens, completionOK := numberValue(usage["completion_tokens"])
+			totalTokens, totalOK := numberValue(usage["total_tokens"])
+			if !promptOK || !completionOK || !totalOK || promptTokens < 1 || completionTokens < 1 || totalTokens < 1 {
+				problems = append(problems, "最终 usage 的 token 字段必须是正数")
+			} else if promptTokens+completionTokens != totalTokens {
+				problems = append(problems, "最终 usage 的 prompt_tokens + completion_tokens 不等于 total_tokens")
+			}
+		}
+		if len(choices) == 0 && !hasUsage {
+			problems = append(problems, fmt.Sprintf("chunk[%d] 的 choices 为空但没有 usage", eventIndex))
+		}
+
+		for choiceIndex, item := range choices {
+			choice, ok := item.(map[string]any)
+			if !ok {
+				problems = append(problems, fmt.Sprintf("chunk[%d].choices[%d] 不是对象", eventIndex, choiceIndex))
+				continue
+			}
+			index, ok := numberValue(choice["index"])
+			if !ok || index < 0 {
+				problems = append(problems, fmt.Sprintf("chunk[%d].choices[%d].index 不是非负数字", eventIndex, choiceIndex))
+			}
+			delta, ok := choice["delta"].(map[string]any)
+			if !ok {
+				problems = append(problems, fmt.Sprintf("chunk[%d].choices[%d].delta 不是对象", eventIndex, choiceIndex))
+				continue
+			}
+			if role, exists := delta["role"]; exists {
+				if role != "assistant" {
+					problems = append(problems, fmt.Sprintf("chunk[%d].choices[%d].delta.role 不是 assistant", eventIndex, choiceIndex))
+				} else {
+					hasAssistantRole = true
+				}
+			}
+			if content, exists := delta["content"]; exists {
+				text, ok := content.(string)
+				if !ok {
+					problems = append(problems, fmt.Sprintf("chunk[%d].choices[%d].delta.content 不是字符串", eventIndex, choiceIndex))
+				} else if strings.TrimSpace(text) != "" {
+					hasContentDelta = true
+				}
+			}
+			finishReason, exists := choice["finish_reason"]
+			if !exists || finishReason == nil {
+				continue
+			}
+			finishText, ok := finishReason.(string)
+			if !ok || !containsString(allowedFinishReasons, finishText) {
+				problems = append(problems, fmt.Sprintf("chunk[%d].choices[%d].finish_reason 不在允许范围内", eventIndex, choiceIndex))
+				continue
+			}
+			hasFinishReason = true
+		}
+	}
+	if usageChunks != 1 {
+		problems = append(problems, fmt.Sprintf("预期恰好 1 个 usage chunk，实际 %d 个", usageChunks))
+	}
+	if !hasAssistantRole {
+		problems = append(problems, "未找到 delta.role=assistant")
+	}
+	if !hasContentDelta {
+		problems = append(problems, "未找到非空文本 content delta")
+	}
+	if !hasFinishReason {
+		problems = append(problems, "未找到有效 finish_reason")
+	}
+	return CaseAssertion{Name: "openai_stream_contract", Pass: len(problems) == 0, Message: strings.Join(problems, "；")}
+}
+
+func openAIToolStreamContractAssertion(result RunCaseResult, expect map[string]any) CaseAssertion {
+	events := parseSSEJSONEvents(result.RawResponse)
+	if len(events) == 0 {
+		return CaseAssertion{Name: "openai_tool_stream_contract", Pass: false, Message: "未解析到 JSON SSE chunk"}
+	}
+
+	type toolCallStreamState struct {
+		id        string
+		name      string
+		arguments string
+	}
+
+	requestedNames := requestedToolNames(result.RequestBody)
+	requiredNames := stringSlice(expect["stream_tool_required_names"])
+	minimumCalls, ok := intFromExpect(expect["stream_tool_call_min_count"])
+	if !ok || minimumCalls < 1 {
+		minimumCalls = 1
+	}
+	allowedFinishReasons := stringSlice(expect["allowed_finish_reasons"])
+	states := map[int]*toolCallStreamState{}
+	problems := make([]string, 0)
+	streamID := ""
+	streamModel := ""
+	hasAssistantRole := false
+	hasToolFinishReason := false
+	usageChunks := 0
+
+	for eventIndex, event := range events {
+		id, ok := event.Data["id"].(string)
+		if !ok || strings.TrimSpace(id) == "" {
+			problems = append(problems, fmt.Sprintf("chunk[%d].id 不是非空字符串", eventIndex))
+		} else if streamID == "" {
+			streamID = id
+		} else if streamID != id {
+			problems = append(problems, fmt.Sprintf("chunk[%d].id 与首个 chunk 不一致", eventIndex))
+		}
+		if event.Data["object"] != "chat.completion.chunk" {
+			problems = append(problems, fmt.Sprintf("chunk[%d].object 不是 chat.completion.chunk", eventIndex))
+		}
+		created, ok := numberValue(event.Data["created"])
+		if !ok || created < 1 {
+			problems = append(problems, fmt.Sprintf("chunk[%d].created 不是正数", eventIndex))
+		}
+		model, ok := event.Data["model"].(string)
+		if !ok || strings.TrimSpace(model) == "" {
+			problems = append(problems, fmt.Sprintf("chunk[%d].model 不是非空字符串", eventIndex))
+		} else if streamModel == "" {
+			streamModel = model
+		} else if streamModel != model {
+			problems = append(problems, fmt.Sprintf("chunk[%d].model 与首个 chunk 不一致", eventIndex))
+		}
+
+		choices, ok := event.Data["choices"].([]any)
+		if !ok {
+			problems = append(problems, fmt.Sprintf("chunk[%d].choices 不是数组", eventIndex))
+			continue
+		}
+		if usage, ok := event.Data["usage"].(map[string]any); ok {
+			usageChunks++
+			if len(choices) != 0 {
+				problems = append(problems, fmt.Sprintf("usage chunk[%d] 的 choices 应为空数组", eventIndex))
+			}
+			promptTokens, promptOK := numberValue(usage["prompt_tokens"])
+			completionTokens, completionOK := numberValue(usage["completion_tokens"])
+			totalTokens, totalOK := numberValue(usage["total_tokens"])
+			if !promptOK || !completionOK || !totalOK || promptTokens < 1 || completionTokens < 1 || totalTokens != promptTokens+completionTokens {
+				problems = append(problems, "最终 usage 的 token 字段或总数不正确")
+			}
+		}
+
+		for choiceIndex, item := range choices {
+			choice, ok := item.(map[string]any)
+			if !ok {
+				problems = append(problems, fmt.Sprintf("chunk[%d].choices[%d] 不是对象", eventIndex, choiceIndex))
+				continue
+			}
+			if index, ok := numberValue(choice["index"]); !ok || index < 0 {
+				problems = append(problems, fmt.Sprintf("chunk[%d].choices[%d].index 不是非负数字", eventIndex, choiceIndex))
+			}
+			delta, ok := choice["delta"].(map[string]any)
+			if !ok {
+				problems = append(problems, fmt.Sprintf("chunk[%d].choices[%d].delta 不是对象", eventIndex, choiceIndex))
+				continue
+			}
+			if role, exists := delta["role"]; exists {
+				if role != "assistant" {
+					problems = append(problems, fmt.Sprintf("chunk[%d].choices[%d].delta.role 不是 assistant", eventIndex, choiceIndex))
+				} else {
+					hasAssistantRole = true
+				}
+			}
+			if calls, exists := delta["tool_calls"]; exists {
+				toolCalls, ok := calls.([]any)
+				if !ok {
+					problems = append(problems, fmt.Sprintf("chunk[%d].choices[%d].delta.tool_calls 不是数组", eventIndex, choiceIndex))
+				} else {
+					for callIndex, item := range toolCalls {
+						call, ok := item.(map[string]any)
+						if !ok {
+							problems = append(problems, fmt.Sprintf("chunk[%d] tool_call[%d] 不是对象", eventIndex, callIndex))
+							continue
+						}
+						streamIndex, ok := intValue(call["index"])
+						if !ok || streamIndex < 0 {
+							problems = append(problems, fmt.Sprintf("chunk[%d] tool_call[%d].index 不是非负整数", eventIndex, callIndex))
+							continue
+						}
+						state := states[streamIndex]
+						if state == nil {
+							state = &toolCallStreamState{}
+							states[streamIndex] = state
+						}
+						if id, exists := call["id"]; exists {
+							text, ok := id.(string)
+							if !ok || strings.TrimSpace(text) == "" {
+								problems = append(problems, fmt.Sprintf("tool_call[%d].id 不是非空字符串", streamIndex))
+							} else if state.id != "" && state.id != text {
+								problems = append(problems, fmt.Sprintf("tool_call[%d].id 在流中变化", streamIndex))
+							} else {
+								state.id = text
+							}
+						}
+						if kind, exists := call["type"]; exists && kind != "function" {
+							problems = append(problems, fmt.Sprintf("tool_call[%d].type 不是 function", streamIndex))
+						}
+						if function, exists := call["function"]; exists {
+							functionObject, ok := function.(map[string]any)
+							if !ok {
+								problems = append(problems, fmt.Sprintf("tool_call[%d].function 不是对象", streamIndex))
+								continue
+							}
+							if name, exists := functionObject["name"]; exists {
+								text, ok := name.(string)
+								if !ok || strings.TrimSpace(text) == "" {
+									problems = append(problems, fmt.Sprintf("tool_call[%d].function.name 不是非空字符串", streamIndex))
+								} else if state.name != "" && state.name != text {
+									problems = append(problems, fmt.Sprintf("tool_call[%d].function.name 在流中变化", streamIndex))
+								} else {
+									state.name = text
+								}
+							}
+							if arguments, exists := functionObject["arguments"]; exists {
+								text, ok := arguments.(string)
+								if !ok {
+									problems = append(problems, fmt.Sprintf("tool_call[%d].function.arguments 不是字符串", streamIndex))
+								} else {
+									state.arguments += text
+								}
+							}
+						}
+					}
+				}
+			}
+			if reason, exists := choice["finish_reason"]; exists && reason != nil {
+				text, ok := reason.(string)
+				if !ok || !containsString(allowedFinishReasons, text) {
+					problems = append(problems, fmt.Sprintf("chunk[%d].choices[%d].finish_reason 不在允许范围内", eventIndex, choiceIndex))
+				} else if text == "tool_calls" {
+					hasToolFinishReason = true
+				}
+			}
+		}
+	}
+	if usageChunks != 1 {
+		problems = append(problems, fmt.Sprintf("预期恰好 1 个 usage chunk，实际 %d 个", usageChunks))
+	}
+	if !hasAssistantRole {
+		problems = append(problems, "未找到 delta.role=assistant")
+	}
+	if !hasToolFinishReason {
+		problems = append(problems, "未找到 finish_reason=tool_calls")
+	}
+	if len(states) < minimumCalls {
+		problems = append(problems, fmt.Sprintf("工具调用数量不足：预期 >= %d，实际 %d", minimumCalls, len(states)))
+	}
+	seenNames := map[string]bool{}
+	seenIDs := map[string]bool{}
+	for index, state := range states {
+		if state.id == "" {
+			problems = append(problems, fmt.Sprintf("tool_call[%d] 缺少 id", index))
+		} else if seenIDs[state.id] {
+			problems = append(problems, fmt.Sprintf("tool_call[%d].id 重复", index))
+		} else {
+			seenIDs[state.id] = true
+		}
+		if !containsString(requestedNames, state.name) {
+			problems = append(problems, fmt.Sprintf("tool_call[%d] 返回未请求的工具 %q", index, state.name))
+		}
+		seenNames[state.name] = true
+		var input map[string]any
+		if strings.TrimSpace(state.arguments) == "" || json.Unmarshal([]byte(state.arguments), &input) != nil || input == nil {
+			problems = append(problems, fmt.Sprintf("tool_call[%d].function.arguments 不能重组为 JSON object", index))
+			continue
+		}
+		problems = append(problems, streamToolInputProblems(input, expect, index)...)
+	}
+	for _, name := range requiredNames {
+		if !seenNames[name] {
+			problems = append(problems, fmt.Sprintf("响应没有调用必需工具 %q", name))
+		}
+	}
+	return CaseAssertion{Name: "openai_tool_stream_contract", Pass: len(problems) == 0, Message: strings.Join(problems, "；")}
+}
+
+func messagesStreamContractAssertion(raw string, allowedFinishReasons []string) CaseAssertion {
+	events := parseSSEJSONEvents(raw)
+	problems := make([]string, 0)
+	if len(events) == 0 {
+		return CaseAssertion{Name: "messages_stream_contract", Pass: false, Message: "未解析到 JSON SSE event"}
+	}
+
+	findEvent := func(name string) (int, map[string]any, bool) {
+		for index, event := range events {
+			if event.Name == name {
+				return index, event.Data, true
+			}
+		}
+		return 0, nil, false
+	}
+	startIndex, start, hasStart := findEvent("message_start")
+	blockStartIndex, blockStart, hasBlockStart := findEvent("content_block_start")
+	blockDeltaIndex, blockDelta, hasBlockDelta := findEvent("content_block_delta")
+	messageDeltaIndex, messageDelta, hasMessageDelta := findEvent("message_delta")
+	stopIndex, stop, hasStop := findEvent("message_stop")
+	if !hasStart || !hasBlockStart || !hasBlockDelta || !hasMessageDelta || !hasStop {
+		return CaseAssertion{Name: "messages_stream_contract", Pass: false, Message: "缺少 Anthropic 流式必需事件"}
+	}
+	if startIndex != 0 || !(startIndex < blockStartIndex && blockStartIndex < blockDeltaIndex && blockDeltaIndex < messageDeltaIndex && messageDeltaIndex < stopIndex) {
+		problems = append(problems, "事件顺序必须为 message_start -> content_block_start -> content_block_delta -> message_delta -> message_stop")
+	}
+	if stopIndex != len(events)-1 {
+		problems = append(problems, "message_stop 必须是最后一个 JSON SSE event")
+	}
+
+	message, ok := start["message"].(map[string]any)
+	if !ok {
+		problems = append(problems, "message_start.message 不是对象")
+	} else {
+		if id, ok := message["id"].(string); !ok || strings.TrimSpace(id) == "" {
+			problems = append(problems, "message_start.message.id 不是非空字符串")
+		}
+		if message["type"] != "message" || message["role"] != "assistant" {
+			problems = append(problems, "message_start.message 的 type 或 role 不正确")
+		}
+		if _, ok := message["content"].([]any); !ok {
+			problems = append(problems, "message_start.message.content 不是数组")
+		}
+		if stopReason, exists := message["stop_reason"]; !exists || stopReason != nil {
+			problems = append(problems, "message_start.message.stop_reason 应为 null")
+		}
+		if stopSequence, exists := message["stop_sequence"]; !exists || stopSequence != nil {
+			problems = append(problems, "message_start.message.stop_sequence 应为 null")
+		}
+		if model, ok := message["model"].(string); !ok || strings.TrimSpace(model) == "" {
+			problems = append(problems, "message_start.message.model 不是非空字符串")
+		}
+		usage, ok := message["usage"].(map[string]any)
+		inputTokens, inputOK := numberValue(usage["input_tokens"])
+		if !ok || !inputOK || inputTokens < 1 {
+			problems = append(problems, "message_start.message.usage.input_tokens 必须是正数")
+		}
+	}
+
+	blockIndex, blockIndexOK := numberValue(blockStart["index"])
+	contentBlock, blockOK := blockStart["content_block"].(map[string]any)
+	if !blockIndexOK || blockIndex < 0 || !blockOK {
+		problems = append(problems, "content_block_start 缺少有效 index 或 content_block")
+	} else if blockType, ok := contentBlock["type"].(string); !ok || strings.TrimSpace(blockType) == "" {
+		problems = append(problems, "content_block_start.content_block.type 不是非空字符串")
+	}
+	deltaIndex, deltaIndexOK := numberValue(blockDelta["index"])
+	delta, deltaOK := blockDelta["delta"].(map[string]any)
+	if !deltaIndexOK || deltaIndex != blockIndex || !deltaOK {
+		problems = append(problems, "content_block_delta 的 index 或 delta 不正确")
+	} else {
+		if delta["type"] != "text_delta" {
+			problems = append(problems, "content_block_delta.delta.type 不是 text_delta")
+		}
+		if text, ok := delta["text"].(string); !ok || strings.TrimSpace(text) == "" {
+			problems = append(problems, "content_block_delta.delta.text 不是非空字符串")
+		}
+	}
+
+	messageDeltaObject, deltaOK := messageDelta["delta"].(map[string]any)
+	usage, usageOK := messageDelta["usage"].(map[string]any)
+	outputTokens, outputOK := numberValue(usage["output_tokens"])
+	if !deltaOK || !usageOK || !outputOK || outputTokens < 1 {
+		problems = append(problems, "message_delta 的 delta 或 usage.output_tokens 不正确")
+	} else if reason, ok := messageDeltaObject["stop_reason"].(string); !ok || !containsString(allowedFinishReasons, reason) {
+		problems = append(problems, "message_delta.delta.stop_reason 不在允许范围内")
+	}
+	if stopSequence, exists := messageDeltaObject["stop_sequence"]; !exists || stopSequence != nil {
+		problems = append(problems, "message_delta.delta.stop_sequence 应为 null")
+	}
+	if start["type"] != "message_start" || blockStart["type"] != "content_block_start" || blockDelta["type"] != "content_block_delta" || messageDelta["type"] != "message_delta" || stop["type"] != "message_stop" {
+		problems = append(problems, "SSE data.type 与 event 名称不一致")
+	}
+	return CaseAssertion{Name: "messages_stream_contract", Pass: len(problems) == 0, Message: strings.Join(problems, "；")}
+}
+
+func messagesToolStreamContractAssertion(result RunCaseResult, expect map[string]any) CaseAssertion {
+	events := parseSSEJSONEvents(result.RawResponse)
+	if len(events) == 0 {
+		return CaseAssertion{Name: "messages_tool_stream_contract", Pass: false, Message: "未解析到 JSON SSE event"}
+	}
+
+	requestedNames := requestedToolNames(result.RequestBody)
+	requiredNames := stringSlice(expect["stream_tool_required_names"])
+	minimumCalls, ok := intFromExpect(expect["stream_tool_call_min_count"])
+	if !ok || minimumCalls < 1 {
+		minimumCalls = 1
+	}
+	problems := make([]string, 0)
+	if events[0].Name != "message_start" {
+		problems = append(problems, "首个 SSE event 必须是 message_start")
+	}
+	if events[len(events)-1].Name != "message_stop" {
+		problems = append(problems, "最后一个 SSE event 必须是 message_stop")
+	}
+
+	messageStarted := false
+	messageDeltaIndex := -1
+	toolStates := map[int]map[string]any{}
+	partialInputs := map[int]string{}
+	toolStops := map[int]bool{}
+	seenNames := map[string]bool{}
+	seenIDs := map[string]bool{}
+	for eventIndex, event := range events {
+		switch event.Name {
+		case "message_start":
+			if messageStarted {
+				problems = append(problems, "message_start 只能出现一次")
+				continue
+			}
+			messageStarted = true
+			message, ok := event.Data["message"].(map[string]any)
+			if !ok {
+				problems = append(problems, "message_start.message 不是对象")
+				continue
+			}
+			if message["type"] != "message" || message["role"] != "assistant" {
+				problems = append(problems, "message_start.message 的 type 或 role 不正确")
+			}
+			if id, ok := message["id"].(string); !ok || strings.TrimSpace(id) == "" {
+				problems = append(problems, "message_start.message.id 不是非空字符串")
+			}
+			if model, ok := message["model"].(string); !ok || strings.TrimSpace(model) == "" {
+				problems = append(problems, "message_start.message.model 不是非空字符串")
+			}
+			usage, ok := message["usage"].(map[string]any)
+			inputTokens, inputOK := numberValue(usage["input_tokens"])
+			if !ok || !inputOK || inputTokens < 1 {
+				problems = append(problems, "message_start.message.usage.input_tokens 必须是正数")
+			}
+		case "content_block_start":
+			index, indexOK := intValue(event.Data["index"])
+			block, blockOK := event.Data["content_block"].(map[string]any)
+			if !indexOK || index < 0 || !blockOK || block["type"] != "tool_use" {
+				problems = append(problems, fmt.Sprintf("content_block_start[%d] 不是有效的 tool_use block", eventIndex))
+				continue
+			}
+			id, idOK := block["id"].(string)
+			name, nameOK := block["name"].(string)
+			_, inputOK := block["input"].(map[string]any)
+			if !idOK || strings.TrimSpace(id) == "" || !nameOK || strings.TrimSpace(name) == "" || !inputOK {
+				problems = append(problems, fmt.Sprintf("content_block_start[%d] 缺少有效 id、name 或 input", eventIndex))
+				continue
+			}
+			if _, exists := toolStates[index]; exists {
+				problems = append(problems, fmt.Sprintf("tool_use index %d 重复开始", index))
+				continue
+			}
+			toolStates[index] = block
+			if seenIDs[id] {
+				problems = append(problems, fmt.Sprintf("tool_use id %q 重复", id))
+			}
+			seenIDs[id] = true
+			seenNames[name] = true
+			if !containsString(requestedNames, name) {
+				problems = append(problems, fmt.Sprintf("tool_use 返回未请求的工具 %q", name))
+			}
+		case "content_block_delta":
+			index, indexOK := intValue(event.Data["index"])
+			delta, deltaOK := event.Data["delta"].(map[string]any)
+			if !indexOK || !deltaOK || toolStates[index] == nil {
+				problems = append(problems, fmt.Sprintf("content_block_delta[%d] 没有对应 tool_use block", eventIndex))
+				continue
+			}
+			if delta["type"] != "input_json_delta" {
+				problems = append(problems, fmt.Sprintf("content_block_delta[%d].delta.type 不是 input_json_delta", eventIndex))
+				continue
+			}
+			partialJSON, ok := delta["partial_json"].(string)
+			if !ok {
+				problems = append(problems, fmt.Sprintf("content_block_delta[%d].delta.partial_json 不是字符串", eventIndex))
+				continue
+			}
+			partialInputs[index] += partialJSON
+		case "content_block_stop":
+			index, indexOK := intValue(event.Data["index"])
+			if !indexOK || toolStates[index] == nil {
+				problems = append(problems, fmt.Sprintf("content_block_stop[%d] 没有对应 tool_use block", eventIndex))
+				continue
+			}
+			toolStops[index] = true
+		case "message_delta":
+			messageDeltaIndex = eventIndex
+			delta, deltaOK := event.Data["delta"].(map[string]any)
+			usage, usageOK := event.Data["usage"].(map[string]any)
+			outputTokens, outputOK := numberValue(usage["output_tokens"])
+			if !deltaOK || !usageOK || !outputOK || outputTokens < 1 || delta["stop_reason"] != "tool_use" {
+				problems = append(problems, "message_delta 必须包含 stop_reason=tool_use 和正数 output_tokens")
+			}
+		}
+	}
+	if !messageStarted {
+		problems = append(problems, "缺少 message_start")
+	}
+	if messageDeltaIndex < 0 {
+		problems = append(problems, "缺少 message_delta")
+	}
+	if len(toolStates) < minimumCalls {
+		problems = append(problems, fmt.Sprintf("工具调用数量不足：预期 >= %d，实际 %d", minimumCalls, len(toolStates)))
+	}
+	for index := range toolStates {
+		if !toolStops[index] {
+			problems = append(problems, fmt.Sprintf("tool_use index %d 缺少 content_block_stop", index))
+		}
+		if strings.TrimSpace(partialInputs[index]) == "" {
+			problems = append(problems, fmt.Sprintf("tool_use index %d 缺少 input_json_delta", index))
+			continue
+		}
+		var input map[string]any
+		if err := json.Unmarshal([]byte(partialInputs[index]), &input); err != nil || input == nil {
+			problems = append(problems, fmt.Sprintf("tool_use index %d 的 partial_json 不能重组为 JSON object", index))
+			continue
+		}
+		problems = append(problems, streamToolInputProblems(input, expect, index)...)
+	}
+	for _, name := range requiredNames {
+		if !seenNames[name] {
+			problems = append(problems, fmt.Sprintf("响应没有调用必需工具 %q", name))
+		}
+	}
+	return CaseAssertion{Name: "messages_tool_stream_contract", Pass: len(problems) == 0, Message: strings.Join(problems, "；")}
+}
+
+func streamToolInputProblems(input map[string]any, expect map[string]any, index int) []string {
+	problems := make([]string, 0)
+	for _, field := range stringSlice(expect["stream_tool_input_required_fields"]) {
+		if _, ok := valueAt(input, strings.Split(field, ".")); !ok {
+			problems = append(problems, fmt.Sprintf("tool_call[%d] 参数缺少 %s", index, field))
+		}
+	}
+	expectedTypes, _ := expect["stream_tool_input_field_types"].(map[string]any)
+	for field, expectedTypeValue := range expectedTypes {
+		expectedType, ok := expectedTypeValue.(string)
+		if !ok {
+			problems = append(problems, fmt.Sprintf("工具参数 %s 的期望类型不是字符串", field))
+			continue
+		}
+		value, ok := valueAt(input, strings.Split(field, "."))
+		if !ok || !responseValueHasType(value, expectedType) {
+			problems = append(problems, fmt.Sprintf("tool_call[%d] 参数 %s 类型不正确", index, field))
+		}
+	}
+	expectedValues, _ := expect["stream_tool_input_field_values"].(map[string]any)
+	for field, expectedValue := range expectedValues {
+		value, ok := valueAt(input, strings.Split(field, "."))
+		if !ok || !responseValueEquals(value, expectedValue) {
+			problems = append(problems, fmt.Sprintf("tool_call[%d] 参数 %s 的值不正确", index, field))
+		}
+	}
+	return problems
 }
 
 func requiredFieldsAssertion(name string, value any, fields []string) CaseAssertion {
@@ -5181,15 +6510,15 @@ func containsString(values []string, needle string) bool {
 }
 
 func schemaRequiredFields(responseFormat map[string]any) []string {
-	jsonSchema, ok := responseFormat["json_schema"].(map[string]any)
-	if !ok {
-		return nil
+	if jsonSchema, ok := responseFormat["json_schema"].(map[string]any); ok {
+		if schema, ok := jsonSchema["schema"].(map[string]any); ok {
+			return stringSlice(schema["required"])
+		}
 	}
-	schema, ok := jsonSchema["schema"].(map[string]any)
-	if !ok {
-		return nil
+	if schema, ok := responseFormat["schema"].(map[string]any); ok {
+		return stringSlice(schema["required"])
 	}
-	return stringSlice(schema["required"])
+	return nil
 }
 
 func responseHasToolCalls(value any) bool {
@@ -5630,20 +6959,38 @@ func assistantContent(value any) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	choices, ok := object["choices"].([]any)
-	if !ok || len(choices) == 0 {
-		return "", false
+	if choices, ok := object["choices"].([]any); ok && len(choices) > 0 {
+		choice, ok := choices[0].(map[string]any)
+		if !ok {
+			return "", false
+		}
+		message, ok := choice["message"].(map[string]any)
+		if !ok {
+			return "", false
+		}
+		content, ok := message["content"].(string)
+		return content, ok
 	}
-	choice, ok := choices[0].(map[string]any)
+
+	contentBlocks, ok := object["content"].([]any)
 	if !ok {
 		return "", false
 	}
-	message, ok := choice["message"].(map[string]any)
-	if !ok {
+	parts := make([]string, 0, len(contentBlocks))
+	for _, item := range contentBlocks {
+		block, ok := item.(map[string]any)
+		if !ok || block["type"] != "text" {
+			continue
+		}
+		text, ok := block["text"].(string)
+		if ok {
+			parts = append(parts, text)
+		}
+	}
+	if len(parts) == 0 {
 		return "", false
 	}
-	content, ok := message["content"].(string)
-	return content, ok
+	return strings.Join(parts, ""), true
 }
 
 func providerErrorMessage(responseBody any, rawResponse, status string) string {

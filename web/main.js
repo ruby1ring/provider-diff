@@ -585,6 +585,9 @@ const state = {
   completedResults: [],
   batchRunRecords: [],
   batchModeEnabled: false,
+  caseProviderCatalog: new Set(),
+  caseProviderCatalogLoaded: false,
+  caseProviderCatalogError: "",
   providerCases: {},
   selectedBaselineReportId: "",
   customCases: [],
@@ -601,6 +604,8 @@ const state = {
     endpoint: "all"
   },
   isCaseLoading: false,
+  caseLoadRequestId: 0,
+  caseLoadAbortController: null,
   timer: null,
   currentRunAbortController: null,
   isRunning: false,
@@ -1427,7 +1432,12 @@ function initTheme() {
 
 function renderEndpointTabs() {
   els.endpointTabs.innerHTML = ENDPOINT_TEMPLATES.map((endpoint) => `
-    <button class="${endpoint.endpoint_id === state.selectedEndpointId ? "on" : ""}" type="button" data-endpoint-id="${escapeHtml(endpoint.endpoint_id)}">
+    <button
+      class="${endpoint.endpoint_id === state.selectedEndpointId ? "on" : ""}"
+      type="button"
+      data-endpoint-id="${escapeHtml(endpoint.endpoint_id)}"
+      aria-pressed="${endpoint.endpoint_id === state.selectedEndpointId}"
+    >
       ${escapeHtml(endpoint.label)}
     </button>
   `).join("");
@@ -1443,6 +1453,23 @@ function getSelectedEndpointTemplate() {
 
 function getChannelEndpoint(channel = getSelectedChannel()) {
   return channel.endpoints?.[state.selectedEndpointId] || null;
+}
+
+function documentationUrlForChannel(channel, endpoint) {
+  const value = String(endpoint?.api_docs_url || channel?.api_docs_url || "").trim();
+  return /^https?:\/\//i.test(value) ? value : "";
+}
+
+function isCaseProviderAvailable(providerId) {
+  if (!providerId || !state.caseProviderCatalogLoaded) return null;
+  return state.caseProviderCatalog.has(providerId);
+}
+
+function canRunChannel(channel, endpointId = state.selectedEndpointId) {
+  const endpoint = channel?.endpoints?.[endpointId];
+  if (!endpoint || endpoint.supported === false) return false;
+  const providerId = endpoint.provider_id || channel.provider_id || runnableProviderByChannel[channel.channel_id] || null;
+  return isCaseProviderAvailable(providerId) !== false;
 }
 
 function normalizeBaseUrlOption(option) {
@@ -1775,7 +1802,11 @@ function currentRunTargets(providerId, apiKey) {
 }
 
 function currentCaseCacheKey(providerId = currentProviderId()) {
-  return providerId ? `${state.selectedEndpointId}:${providerId}` : "";
+  return caseCacheKey(state.selectedEndpointId, providerId);
+}
+
+function caseCacheKey(endpointId, providerId) {
+  return providerId ? `${endpointId}:${providerId}` : "";
 }
 
 function endpointQuery() {
@@ -3616,6 +3647,57 @@ function foundationalParametersForCase(testCase) {
   return (testCase.parameters || []).filter((param) => foundationalCaseParameters.has(param));
 }
 
+// V0.1 presents the public OpenAPI parameter catalog. The case manifests keep
+// their full leaf paths so a case can still exercise every child field, but the
+// UI must not turn those implementation paths into extra catalog entries.
+function v01CatalogParameters(channel = getSelectedChannel()) {
+  return flattenParameters(channel).map(({ parameter }) => parameter);
+}
+
+function isParameterPathPrefix(prefix, value) {
+  return value === prefix || value.startsWith(`${prefix}.`) || value.startsWith(`${prefix}[`);
+}
+
+function v01DisplayParameter(rawParameter, catalogParameters = v01CatalogParameters()) {
+  const raw = String(rawParameter || "");
+  if (!raw) return null;
+  if (catalogParameters.includes(raw)) return raw;
+
+  // Prefer the most specific catalog parent: content children should stay
+  // under messages[].content instead of being folded into messages.
+  const parents = catalogParameters
+    .filter((parameter) => isParameterPathPrefix(parameter, raw))
+    .sort((left, right) => right.length - left.length);
+  if (parents.length) return parents[0];
+
+  // A manifest may name an object root (for example tools), while the public
+  // catalog only exposes its documented child fields. Keep it on the first
+  // catalog child in declaration order rather than introducing a new field.
+  return catalogParameters.find((parameter) =>
+    parameter.startsWith(`${raw}.`) || parameter.startsWith(`${raw}[`)
+  ) || null;
+}
+
+function v01DisplayParametersForCase(testCase, channel = getSelectedChannel()) {
+  if (isCapacityCase(testCase)) return [];
+  const catalogParameters = v01CatalogParameters(channel);
+  return Array.from(new Set(
+    (testCase.parameters || [])
+      .map((parameter) => v01DisplayParameter(parameter, catalogParameters))
+      .filter(Boolean)
+  ));
+}
+
+function v01FocusParametersForCase(testCase, channel = getSelectedChannel()) {
+  return v01DisplayParametersForCase(testCase, channel)
+    .filter((parameter) => !foundationalCaseParameters.has(parameter));
+}
+
+function v01FoundationalParametersForCase(testCase, channel = getSelectedChannel()) {
+  return v01DisplayParametersForCase(testCase, channel)
+    .filter((parameter) => foundationalCaseParameters.has(parameter));
+}
+
 function capacityCaseDisplay(testCase) {
   const probe = testCase.payload?.__capacity_probe || {};
   const candidates = Array.isArray(probe.candidates) ? probe.candidates : [];
@@ -3668,7 +3750,7 @@ function capacityCaseDisplay(testCase) {
   };
 }
 
-function partitionCases(cases = []) {
+function partitionCases(cases = [], channel = getSelectedChannel()) {
   const singles = new Map();
   const combos = [];
   const scenarios = [];
@@ -3684,7 +3766,7 @@ function partitionCases(cases = []) {
       optional.push(testCase);
       continue;
     }
-    const focusParams = focusParametersForCase(testCase);
+    const focusParams = v01FocusParametersForCase(testCase, channel);
     if (focusParams.length === 1) {
       const param = focusParams[0];
       if (!singles.has(param)) singles.set(param, []);
@@ -4089,14 +4171,16 @@ function caseIdsForCases(cases = []) {
   return cases.map((testCase) => testCase.case_id);
 }
 
-function caseIdsForParameter(parameter, cases = allProviderCases()) {
-  return caseIdsForCases(cases.filter((testCase) => focusParametersForCase(testCase).includes(parameter)));
+function caseIdsForParameter(parameter, cases = allProviderCases(), channel = getSelectedChannel()) {
+  return caseIdsForCases(cases.filter((testCase) =>
+    v01DisplayParametersForCase(testCase, channel).includes(parameter)
+  ));
 }
 
-function caseIdsForParameters(parameters = [], cases = allProviderCases()) {
+function caseIdsForParameters(parameters = [], cases = allProviderCases(), channel = getSelectedChannel()) {
   const parameterSet = new Set(parameters);
   return caseIdsForCases(cases.filter((testCase) =>
-    focusParametersForCase(testCase).some((parameter) => parameterSet.has(parameter))
+    v01DisplayParametersForCase(testCase, channel).some((parameter) => parameterSet.has(parameter))
   ));
 }
 
@@ -4161,7 +4245,7 @@ function refreshCaseSelectionUi() {
 
 function selectedFocusParameterCount(data) {
   const selectedCases = selectedProviderCases();
-  return new Set(selectedCases.flatMap(focusParametersForCase)).size;
+  return new Set(selectedCases.flatMap((testCase) => v01DisplayParametersForCase(testCase))).size;
 }
 
 function caseTitle(testCase) {
@@ -4839,8 +4923,9 @@ function buildCaseCurl(testCase) {
 }
 
 function ensureSelectedChannelSupportsEndpoint() {
-  if (providerIdForChannel()) return;
-  const fallback = CHANNEL_TEMPLATES.find((channel) => providerIdForChannel(channel.channel_id));
+  const selected = getSelectedChannel();
+  if (canRunChannel(selected)) return;
+  const fallback = CHANNEL_TEMPLATES.find((channel) => canRunChannel(channel));
   if (fallback) state.selectedChannelId = fallback.channel_id;
 }
 
@@ -4865,20 +4950,35 @@ function renderChannels() {
   els.channelCards.innerHTML = CHANNEL_TEMPLATES.map((channel) => {
     const endpoint = channel.endpoints?.[state.selectedEndpointId];
     const isSupported = endpoint?.supported !== false;
+    const providerId = endpoint?.provider_id || channel.provider_id || runnableProviderByChannel[channel.channel_id] || null;
+    const caseProviderAvailable = isCaseProviderAvailable(providerId);
+    const runnable = isSupported && caseProviderAvailable !== false;
     const count = flattenParameters(channel).length;
-    const modeText = isSupported
-      ? (providerIdForChannel(channel.channel_id) ? "真实测试" : "预览")
-      : "不支持该端点";
+    const modeText = !isSupported
+      ? "不支持该接口"
+      : caseProviderAvailable === false
+        ? "用例未接入"
+        : caseProviderAvailable === null
+          ? "正在检查用例"
+          : "可运行";
+    const docsUrl = documentationUrlForChannel(channel, endpoint);
+    const logo = channel.logo
+      ? `<img src="${escapeHtml(channel.logo)}" alt="" />`
+      : `<span class="logo-mark" aria-hidden="true">${escapeHtml(channel.logo_mark || channel.emoji || channel.name.slice(0, 2))}</span>`;
     return `
       <div class="chan-wrap">
-        <button type="button" class="chan-card ${channel.channel_id === state.selectedChannelId ? "sel" : ""} ${isSupported ? "" : "is-disabled"}" data-channel-id="${channel.channel_id}" aria-label="选择 ${escapeHtml(channel.name)}" ${isSupported ? "" : "disabled"}>
-          <span class="pick"></span>
-          <span class="logo"><img src="${escapeHtml(channel.logo)}" alt="${escapeHtml(channel.name)} logo" /></span>
-          <span class="cname">${escapeHtml(channel.name)}</span>
-          <span class="cdesc">${escapeHtml(channel.summary)}</span>
-          <span class="cparams">${escapeHtml(modeText)}${isSupported ? ` · ${count} 个参数` : ""}</span>
-        </button>
-        <a class="chan-card__docs" href="${escapeHtml(endpoint?.api_docs_url || channel.api_docs_url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(channel.name)} 官方 API 文档">API 文档</a>
+        <article class="chan-card ${channel.channel_id === state.selectedChannelId ? "sel" : ""} ${runnable ? "" : "is-disabled"}">
+          <button type="button" class="chan-card__select" data-channel-id="${escapeHtml(channel.channel_id)}" aria-pressed="${channel.channel_id === state.selectedChannelId}" aria-label="选择 ${escapeHtml(channel.name)}" ${runnable ? "" : "disabled"}>
+            <span class="pick" aria-hidden="true"></span>
+            <span class="logo">${logo}</span>
+            <span class="cname">${escapeHtml(channel.name)}</span>
+            <span class="cdesc">${escapeHtml(channel.summary)}</span>
+          </button>
+          <footer class="chan-card__footer">
+            <span class="cparams">${escapeHtml(modeText)}${isSupported ? ` · ${count} 个字段` : ""}</span>
+            ${docsUrl ? `<a class="chan-card__docs" href="${escapeHtml(docsUrl)}" target="_blank" rel="noopener noreferrer" aria-label="打开 ${escapeHtml(channel.name)} API 文档" title="打开 API 文档">${renderIcon("external-link", { size: 14 })}</a>` : ""}
+          </footer>
+        </article>
       </div>
     `;
   }).join("");
@@ -4900,7 +5000,7 @@ function renderSelectedChannel() {
   }
   setBaseUrlValue(endpoint.default_base_url || channel.default_base_url);
   els.modelName.value = endpoint.default_model || channel.default_model;
-  els.suiteTitle.textContent = `测试套件：${channel.name} / ${getSelectedEndpointTemplate().label}（${flattenParameters(channel).length} 个重点参数）`;
+  els.suiteTitle.textContent = `测试套件：${channel.name} / ${getSelectedEndpointTemplate().label}（${flattenParameters(channel).length} 个文档字段）`;
   if (els.accountMode) els.accountMode.textContent = providerIdForChannel(channel.channel_id) ? "真实测试" : "预览模式";
   renderParameterCatalog(channel);
 
@@ -4913,7 +5013,7 @@ function renderParameterCatalog(channel, data = null) {
   const availableCases = data?.cases || [];
   if (data?.cases) {
     for (const testCase of data.cases) {
-      const focusParams = focusParametersForCase(testCase);
+      const focusParams = v01FocusParametersForCase(testCase, channel);
       for (const param of focusParams) {
         caseCounts.set(param, (caseCounts.get(param) || 0) + 1);
         if (focusParams.length > 1) comboCounts.set(param, (comboCounts.get(param) || 0) + 1);
@@ -4936,7 +5036,7 @@ function renderParameterCatalog(channel, data = null) {
     <div class="parameter-group">
       <div class="parameter-group__name">
         <span>${escapeHtml(groupLabel(group))}</span>
-        ${renderBulkSelect(caseIdsForParameters(parameters, availableCases), "本组", "suite-bulk-select")}
+        ${renderBulkSelect(caseIdsForParameters(parameters, availableCases, channel), "本组", "suite-bulk-select")}
       </div>
       <div class="coverage-grid">
         ${parameters.map((parameter) => {
@@ -4944,7 +5044,7 @@ function renderParameterCatalog(channel, data = null) {
           const origin = MOCK_PARAMETER_ORIGINS[parameter] || "provider-private";
           const count = caseCounts.get(parameter) || 0;
           const comboCount = comboCounts.get(parameter) || 0;
-          const parameterCaseIds = caseIdsForParameter(parameter, availableCases);
+          const parameterCaseIds = caseIdsForParameter(parameter, availableCases, channel);
           const stats = selectionStats(parameterCaseIds);
           const countText = data ? `${count} 个 case${comboCount ? ` · ${comboCount} 个组合` : ""}` : "等待 case 统计";
           return `
@@ -4990,19 +5090,25 @@ function renderParameterCatalog(channel, data = null) {
 async function loadCaseSelectorForChannel() {
   const channel = getSelectedChannel();
   const channelId = channel.channel_id;
+  const endpointId = state.selectedEndpointId;
   const providerId = providerIdForChannel(channelId);
-  const cacheKey = currentCaseCacheKey(providerId);
+  const cacheKey = caseCacheKey(endpointId, providerId);
+  const requestId = ++state.caseLoadRequestId;
+  state.caseLoadAbortController?.abort();
+  state.caseLoadAbortController = null;
   state.selectedCaseIds = new Set();
   state.expandedCaseId = null;
 
-  if (!providerId) {
+  if (!providerId || isCaseProviderAvailable(providerId) === false) {
     state.isCaseLoading = false;
     els.caseSelector.classList.add("is-hidden");
-    els.caseSelectorHint.textContent = getChannelEndpoint(channel)?.unavailable_reason || "当前渠道不支持这个 endpoint。";
+    els.caseSelectorHint.textContent = getChannelEndpoint(channel)?.unavailable_reason || "当前渠道尚未接入该接口的测试用例。";
     updateRunAvailability();
     return;
   }
 
+  const abortController = new AbortController();
+  state.caseLoadAbortController = abortController;
   els.caseSelector.classList.remove("is-hidden");
   state.isCaseLoading = true;
   els.caseGroups.innerHTML = '<div class="case-loading">正在从后端加载 cases...</div>';
@@ -5011,10 +5117,12 @@ async function loadCaseSelectorForChannel() {
   updateRunAvailability();
 
   try {
-    const response = await fetch(`${API_BASE}/api/providers/${providerId}/cases?${endpointQuery()}`);
+    const response = await fetch(`${API_BASE}/api/providers/${providerId}/cases?endpoint_id=${encodeURIComponent(endpointId)}`, {
+      signal: abortController.signal
+    });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
-    if (state.selectedChannelId !== channelId) return;
+    if (requestId !== state.caseLoadRequestId || state.selectedChannelId !== channelId || state.selectedEndpointId !== endpointId) return;
     state.providerCases[cacheKey] = data;
     state.selectedCaseIds = new Set(data.cases.filter(isDefaultSelectedCase).map((testCase) => testCase.case_id));
     const endpoint = getChannelEndpoint(channel);
@@ -5026,13 +5134,13 @@ async function loadCaseSelectorForChannel() {
     const optionalText = optionalCount ? ` · 扩展 ${optionalCount} 个可选 case` : "";
     const capacityCount = capacityCasesForProvider(providerId).length;
     const capacityText = capacityCount ? ` · 模型限制实测（输入/输出/上下文/思考预算） ${capacityCount} 个可选 case` : "";
-    els.suiteTitle.textContent = `测试套件：${channel.name} / ${getSelectedEndpointTemplate().label}（${flattenParameters(channel).length} 个重点参数 · ${data.cases.length} 个 case${optionalText}${vlmText}${capacityText}）`;
+    els.suiteTitle.textContent = `测试套件：${channel.name} / ${getSelectedEndpointTemplate().label}（${flattenParameters(channel).length} 个文档字段 · ${data.cases.length} 个 case${optionalText}${vlmText}${capacityText}）`;
     els.caseSelectorHint.textContent = "默认勾选常规 case，扩展、VLM 和 模型限制实测（输入/输出/上下文/思考预算）按需开启。";
     state.isCaseLoading = false;
     renderParameterCatalog(channel, data);
     renderCaseSelector(data);
   } catch (error) {
-    if (state.selectedChannelId !== channelId) return;
+    if (error?.name === "AbortError" || requestId !== state.caseLoadRequestId || state.selectedChannelId !== channelId || state.selectedEndpointId !== endpointId) return;
     state.isCaseLoading = false;
     state.providerCases[cacheKey] = null;
     els.caseGroups.innerHTML = `
@@ -5044,11 +5152,32 @@ async function loadCaseSelectorForChannel() {
     els.caseSelectorHint.textContent = `测试用例加载失败：${error.message}`;
     renderSelectedCaseCount();
   } finally {
-    if (state.selectedChannelId === channelId) {
+    if (requestId === state.caseLoadRequestId && state.selectedChannelId === channelId && state.selectedEndpointId === endpointId) {
       state.isCaseLoading = false;
+      state.caseLoadAbortController = null;
       updateRunAvailability();
     }
   }
+}
+
+async function loadCaseProviderCatalog() {
+  try {
+    const response = await fetch(`${API_BASE}/api/providers`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    state.caseProviderCatalog = new Set((data.providers || []).map((provider) => String(provider)));
+    state.caseProviderCatalogLoaded = true;
+    state.caseProviderCatalogError = "";
+  } catch (error) {
+    state.caseProviderCatalog = new Set();
+    state.caseProviderCatalogLoaded = false;
+    state.caseProviderCatalogError = error.message || "后端未连接";
+  }
+
+  const previousChannelId = state.selectedChannelId;
+  ensureSelectedChannelSupportsEndpoint();
+  renderChannels();
+  if (state.selectedChannelId !== previousChannelId) renderSelectedChannel();
 }
 
 function renderCaseSelector(data) {
@@ -5058,7 +5187,7 @@ function renderCaseSelector(data) {
     renderSelectedCaseCount();
     return;
   }
-  const partition = partitionCases(data.cases || []);
+  const partition = partitionCases(data.cases || [], getSelectedChannel());
   const capacityCases = capacityCasesForProvider();
   els.caseGroups.innerHTML = [
     renderCaseOverview(data, partition),
@@ -5125,7 +5254,7 @@ function renderContextualCaseTable(cases, context = {}) {
 
 function renderCaseOverview(data, partition) {
   const singleCount = Array.from(partition.singles.values()).reduce((sum, cases) => sum + cases.length, 0);
-  const focusParamCount = new Set((data.cases || []).flatMap(focusParametersForCase)).size;
+  const documentedFieldCount = new Set((data.cases || []).flatMap((testCase) => v01DisplayParametersForCase(testCase))).size;
   const vlmText = partition.vlm.length ? `，VLM ${partition.vlm.length} 个可选` : "";
   return `
     <div class="case-overview">
@@ -5133,7 +5262,7 @@ function renderCaseOverview(data, partition) {
         <strong>先选参数，再微调用例</strong>
         <p>单参数 ${singleCount} 个，组合 ${partition.combos.length} 个，基础场景 ${partition.scenarios.length} 个${vlmText}；默认勾选常规 case，VLM 和 模型限制实测（输入/输出/上下文/思考预算）按需开启。</p>
       </div>
-      <span class="mono">${focusParamCount} 个重点参数有对应 case</span>
+      <span class="mono">${documentedFieldCount} 个文档字段有对应 case</span>
     </div>
   `;
 }
@@ -5193,8 +5322,8 @@ function renderCaseSection(title, description, cases) {
 function renderCaseItem(testCase, context = {}) {
   const checked = state.selectedCaseIds.has(testCase.case_id) ? "checked" : "";
   const capacityDisplay = isCapacityCase(testCase) ? capacityCaseDisplay(testCase) : null;
-  const focusParams = focusParametersForCase(testCase);
-  const foundationalParams = foundationalParametersForCase(testCase);
+  const focusParams = v01FocusParametersForCase(testCase);
+  const foundationalParams = v01FoundationalParametersForCase(testCase);
   const displayParams = capacityDisplay
     ? testCase.parameters || []
     : [...focusParams, ...foundationalParams];
@@ -5205,6 +5334,9 @@ function renderCaseItem(testCase, context = {}) {
   const parameterChips = params;
   const title = contextualCaseTitle(capacityDisplay?.title || caseTitle(testCase), context);
   const intent = caseIntentText(testCase, context, capacityDisplay, title);
+  const testNature = testCase.test_nature === "probabilistic"
+    ? '<span class="case-row__nature case-row__nature--probabilistic">概率性</span>'
+    : '<span class="case-row__nature case-row__nature--deterministic">确定性</span>';
 
   return `
     <div class="case-row" role="listitem">
@@ -5213,8 +5345,11 @@ function renderCaseItem(testCase, context = {}) {
       </label>
       <div class="case-row__main">
         <div class="case-row__case">
-          <strong class="case-row__title" title="${escapeHtml(title)}">${escapeHtml(title)}</strong>
-          ${intent ? `<span class="case-row__intent">${escapeHtml(intent)}</span>` : ""}
+          <div class="case-row__heading">
+            <strong class="case-row__title" title="${escapeHtml(title)}">${escapeHtml(title)}</strong>
+            ${testNature}
+          </div>
+          ${intent ? `<p class="case-row__intent">${escapeHtml(intent)}</p>` : ""}
           ${parameterChips ? `<div class="case-row__chips">
             ${parameterChips}
           </div>` : ""}
@@ -5241,9 +5376,9 @@ function renderSelectedCaseCount() {
   const total = cases.length;
   const selected = cases.filter((testCase) => state.selectedCaseIds.has(testCase.case_id)).length;
   const focusCount = selectedFocusParameterCount(data);
-  const focusTotal = new Set(cases.flatMap(focusParametersForCase)).size;
+  const focusTotal = new Set(cases.flatMap((testCase) => v01DisplayParametersForCase(testCase))).size;
   const customText = state.customCases.length ? ` · 自定义 ${state.customCases.length} 个` : "";
-  els.selectedCaseCount.textContent = `已选 ${selected} / ${total} 个 case · 覆盖 ${focusCount} / ${focusTotal} 个重点参数${customText}`;
+  els.selectedCaseCount.textContent = `已选 ${selected} / ${total} 个 case · 覆盖 ${focusCount} / ${focusTotal} 个文档字段${customText}`;
   updateRunAvailability();
 }
 
@@ -15161,7 +15296,7 @@ function bindEvents() {
 
   els.channelCards.addEventListener("click", (event) => {
     if (event.target.closest(".chan-card__docs")) return;
-    const button = event.target.closest(".chan-card[data-channel-id]");
+    const button = event.target.closest(".chan-card__select[data-channel-id]");
     if (!button || state.isRunning || button.disabled) return;
     state.selectedChannelId = button.dataset.channelId;
     state.selectedBaselineReportId = "";
@@ -15517,6 +15652,7 @@ renderChannels();
 renderEndpointTabs();
 renderSelectedChannel();
 bindEvents();
+loadCaseProviderCatalog();
 bindModelLookupAddTabModalEvents();
 bindProtocolParamDrawer();
 bindErrorCodeMappingDrawer();

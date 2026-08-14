@@ -45,6 +45,10 @@ openrouter:
   https://openrouter.ai/api/v1
   sk-your-openrouter-api-key
 
+tokenplus:
+  https://api.tokenplus.cn/v1
+  sk-your-tokenplus-api-key
+
 sf-router-cn:
   https://api.sr.silinex.work
   sk-your-sf-router-api-key

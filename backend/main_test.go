@@ -77,6 +77,32 @@ func TestLoadResponseFormatProvider(t *testing.T) {
 	}
 }
 
+func TestLoadTokenPlusProviderCases(t *testing.T) {
+	root, err := findProjectRoot()
+	if err != nil {
+		t.Fatalf("find project root: %v", err)
+	}
+	server := &Server{root: root}
+	manifest, cases, err := server.loadProvider("tokenplus")
+	if err != nil {
+		t.Fatalf("load tokenplus chat cases: %v", err)
+	}
+	if manifest.Endpoint != "/chat/completions" || len(cases) != 24 {
+		t.Fatalf("unexpected tokenplus chat manifest endpoint=%q cases=%d", manifest.Endpoint, len(cases))
+	}
+	if cases[0].TestNature != "deterministic" || cases[5].TestNature != "probabilistic" {
+		t.Fatalf("expected test_nature metadata to load, got first=%q sixth=%q", cases[0].TestNature, cases[5].TestNature)
+	}
+
+	manifest, cases, err = server.loadProviderForEndpoint("tokenplus", "anthropic_messages")
+	if err != nil {
+		t.Fatalf("load tokenplus messages cases: %v", err)
+	}
+	if manifest.Endpoint != "/messages" || len(cases) != 20 {
+		t.Fatalf("unexpected tokenplus messages manifest endpoint=%q cases=%d", manifest.Endpoint, len(cases))
+	}
+}
+
 func TestLoadToolsMessagesProviderForEndpoint(t *testing.T) {
 	root, err := findProjectRoot()
 	if err != nil {
@@ -773,6 +799,141 @@ func TestAssistantContentStartsWithAssertionFails(t *testing.T) {
 	}
 }
 
+func TestDetailedResponseAssertions(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus: 200,
+		ResponseHeaders: map[string]any{
+			"Content-Type": "application/json; charset=utf-8",
+			"X-Request-Id": "req-tokenplus-test",
+		},
+		ResponseBody: map[string]any{
+			"id":      "chatcmpl-tokenplus-test",
+			"object":  "chat.completion",
+			"created": float64(1710000000),
+			"model":   "deepseek-chat",
+			"choices": []any{
+				map[string]any{
+					"index": float64(0),
+					"message": map[string]any{
+						"role":    "assistant",
+						"content": "ok",
+					},
+					"finish_reason": "stop",
+				},
+			},
+			"usage": map[string]any{
+				"prompt_tokens":     float64(3),
+				"completion_tokens": float64(2),
+				"total_tokens":      float64(5),
+			},
+		},
+	}
+
+	assertions := evaluateAssertions(result, map[string]any{
+		"required_response_headers": []any{"x-request-id"},
+		"response_header_contains": map[string]any{
+			"content-type": "application/json",
+		},
+		"required_response_paths": []any{
+			"id",
+			"choices[].message.role",
+			"usage.total_tokens",
+		},
+		"response_non_empty_paths": []any{"id", "model", "choices[].message.content"},
+		"response_path_types": map[string]any{
+			"id":                        "string",
+			"created":                   "number",
+			"choices[].message":         "object",
+			"usage.prompt_tokens":       "number",
+			"choices[].finish_reason":   "string",
+			"choices[].message.content": "string",
+		},
+		"response_path_values": map[string]any{
+			"object":                 "chat.completion",
+			"choices[].message.role": "assistant",
+		},
+		"additional_required_response_paths": []any{"choices[].finish_reason"},
+		"additional_response_path_types": map[string]any{
+			"choices[].finish_reason": "string",
+		},
+		"additional_response_path_values": map[string]any{
+			"choices[].finish_reason": "stop",
+		},
+		"response_numeric_minimums": map[string]any{
+			"created":                 float64(1),
+			"usage.prompt_tokens":     float64(0),
+			"usage.completion_tokens": float64(0),
+			"usage.total_tokens":      float64(0),
+			"choices[].index":         float64(0),
+		},
+		"response_array_min_items": map[string]any{"choices": float64(1)},
+		"usage_total_matches":      true,
+	})
+
+	for _, assertion := range assertions {
+		if !assertion.Pass {
+			t.Fatalf("expected assertion %q to pass: %s", assertion.Name, assertion.Message)
+		}
+	}
+}
+
+func TestMessagesErrorEnvelopeAssertionAcceptsAnthropicShape(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus: 400,
+		ResponseBody: map[string]any{
+			"type": "error",
+			"error": map[string]any{
+				"type":       "invalid_request_error",
+				"message":    "messages must be a non-empty array",
+				"error_type": "invalid_request",
+			},
+		},
+	}
+	assertions := evaluateAssertions(result, map[string]any{
+		"http_status":             400,
+		"messages_error_envelope": true,
+		"error_required_paths":    []any{"type", "error.type", "error.message", "error.error_type"},
+		"error_path_types": map[string]any{
+			"type":             "string",
+			"error.type":       "string",
+			"error.message":    "string",
+			"error.error_type": "string",
+		},
+		"error_path_values": map[string]any{"type": "error"},
+	})
+	for _, assertion := range assertions {
+		if !assertion.Pass {
+			t.Fatalf("expected assertion %q to pass: %s", assertion.Name, assertion.Message)
+		}
+	}
+
+	result = RunCaseResult{
+		HTTPStatus: 400,
+		ResponseBody: map[string]any{
+			"error": map[string]any{
+				"message": "messages must be a non-empty array",
+				"code":    float64(400),
+			},
+		},
+	}
+	assertion := messagesErrorEnvelopeAssertion(result)
+	if !assertion.Pass {
+		t.Fatalf("expected gateway error envelope to pass: %s", assertion.Message)
+	}
+
+	result.HTTPStatus = 429
+	assertion = messagesErrorEnvelopeAssertion(result)
+	if assertion.Pass {
+		t.Fatal("expected gateway error envelope to reject an error.code that differs from HTTP status")
+	}
+}
+
+func TestProviderAuthHeaderTokenPlusMessages(t *testing.T) {
+	if got := providerAuthHeader("tokenplus_messages"); got != "X-Api-Key" {
+		t.Fatalf("expected TokenPlus Messages to use X-Api-Key, got %q", got)
+	}
+}
+
 func TestSSEUsageRequiredFieldsAssertionPasses(t *testing.T) {
 	result := RunCaseResult{
 		HTTPStatus: 200,
@@ -818,6 +979,329 @@ data: [DONE]`,
 	}
 	if assertion.Pass {
 		t.Fatal("expected assertion to fail for missing nested usage field")
+	}
+}
+
+func TestOpenAIStreamContractAssertion(t *testing.T) {
+	raw := `data: {"id":"chatcmpl_123","object":"chat.completion.chunk","created":1710000000,"model":"deepseek-chat","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
+
+data: {"id":"chatcmpl_123","object":"chat.completion.chunk","created":1710000000,"model":"deepseek-chat","choices":[{"index":0,"delta":{"content":"TokenPlus "},"finish_reason":null}]}
+
+data: {"id":"chatcmpl_123","object":"chat.completion.chunk","created":1710000000,"model":"deepseek-chat","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+data: {"id":"chatcmpl_123","object":"chat.completion.chunk","created":1710000000,"model":"deepseek-chat","choices":[],"usage":{"prompt_tokens":3,"completion_tokens":2,"total_tokens":5}}
+
+data: [DONE]`
+	result := RunCaseResult{HTTPStatus: 200, RawResponse: raw}
+	assertions := evaluateAssertions(result, map[string]any{
+		"response_mode":             "sse",
+		"openai_stream_contract":    true,
+		"stream_usage_chunk_shape":  "openai_dedicated",
+		"allowed_finish_reasons":    []any{"stop", "length", "tool_calls"},
+		"stream_done_required":      true,
+		"required_response_headers": []any{},
+	})
+	assertion, ok := findAssertion(assertions, "openai_stream_contract")
+	if !ok || !assertion.Pass {
+		t.Fatalf("expected OpenAI stream contract to pass, got %#v", assertion)
+	}
+
+	result.RawResponse = `data: {"id":"chatcmpl_123","object":"chat.completion.chunk","created":1710000000,"model":"deepseek-chat","choices":[{"index":0,"delta":{"role":"assistant","content":"TokenPlus"},"finish_reason":"stop"}]}
+
+data: {"id":"chatcmpl_123","object":"chat.completion.chunk","created":1710000000,"model":"deepseek-chat","choices":[],"usage":{"prompt_tokens":3,"completion_tokens":2,"total_tokens":99}}
+
+data: [DONE]`
+	assertions = evaluateAssertions(result, map[string]any{
+		"response_mode":          "sse",
+		"openai_stream_contract": true,
+		"allowed_finish_reasons": []any{"stop"},
+	})
+	assertion, ok = findAssertion(assertions, "openai_stream_contract")
+	if !ok || assertion.Pass {
+		t.Fatalf("expected mismatched stream usage to fail, got %#v", assertion)
+	}
+}
+
+func TestMessagesStreamContractAssertion(t *testing.T) {
+	raw := `event: message_start
+data: {"type":"message_start","message":{"id":"msg_123","type":"message","role":"assistant","content":[],"model":"deepseek-chat","stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":3}}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"TokenPlus"}}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"output_tokens":2}}
+
+event: message_stop
+data: {"type":"message_stop"}`
+	result := RunCaseResult{HTTPStatus: 200, RawResponse: raw}
+	assertions := evaluateAssertions(result, map[string]any{
+		"response_mode":             "sse",
+		"messages_stream_contract":  true,
+		"allowed_finish_reasons":    []any{"end_turn", "max_tokens", "tool_use"},
+		"required_response_headers": []any{},
+	})
+	assertion, ok := findAssertion(assertions, "messages_stream_contract")
+	if !ok || !assertion.Pass {
+		t.Fatalf("expected Messages stream contract to pass, got %#v", assertion)
+	}
+
+	result.RawResponse = `event: message_start
+data: {"type":"message_start","message":{"id":"msg_123","type":"message","role":"assistant","content":[],"model":"deepseek-chat","usage":{"input_tokens":3}}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"text"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","text":"TokenPlus"}}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":2}}
+
+event: message_stop
+data: {"type":"message_stop"}`
+	assertions = evaluateAssertions(result, map[string]any{
+		"response_mode":            "sse",
+		"messages_stream_contract": true,
+		"allowed_finish_reasons":   []any{"end_turn"},
+	})
+	assertion, ok = findAssertion(assertions, "messages_stream_contract")
+	if !ok || assertion.Pass {
+		t.Fatalf("expected invalid Messages delta to fail, got %#v", assertion)
+	}
+}
+
+func TestToolStreamContractAssertions(t *testing.T) {
+	chatRaw := `data: {"id":"chatcmpl_123","object":"chat.completion.chunk","created":1710000000,"model":"deepseek-chat","choices":[{"index":0,"delta":{"role":"assistant","tool_calls":[{"index":0,"id":"call_123","type":"function","function":{"name":"get_weather","arguments":""}}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl_123","object":"chat.completion.chunk","created":1710000000,"model":"deepseek-chat","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"city\":\"Shanghai\"}"}}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl_123","object":"chat.completion.chunk","created":1710000000,"model":"deepseek-chat","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}
+
+data: {"id":"chatcmpl_123","object":"chat.completion.chunk","created":1710000000,"model":"deepseek-chat","choices":[],"usage":{"prompt_tokens":3,"completion_tokens":2,"total_tokens":5}}
+
+data: [DONE]`
+	chatResult := RunCaseResult{
+		HTTPStatus:  200,
+		RawResponse: chatRaw,
+		RequestBody: map[string]any{
+			"tools": []any{map[string]any{
+				"type": "function",
+				"function": map[string]any{
+					"name": "get_weather",
+				},
+			}},
+		},
+	}
+	chatExpect := map[string]any{
+		"response_mode":                     "sse",
+		"openai_tool_stream_contract":       true,
+		"stream_tool_call_min_count":        float64(1),
+		"stream_tool_required_names":        []any{"get_weather"},
+		"stream_tool_input_required_fields": []any{"city"},
+		"stream_tool_input_field_types":     map[string]any{"city": "string"},
+		"stream_tool_input_field_values":    map[string]any{"city": "Shanghai"},
+		"allowed_finish_reasons":            []any{"tool_calls"},
+		"stream_done_required":              true,
+	}
+	assertions := evaluateAssertions(chatResult, chatExpect)
+	assertion, ok := findAssertion(assertions, "openai_tool_stream_contract")
+	if !ok || !assertion.Pass {
+		t.Fatalf("expected Chat tool stream contract to pass, got %#v", assertion)
+	}
+
+	messagesRaw := `event: message_start
+data: {"type":"message_start","message":{"id":"msg_123","type":"message","role":"assistant","content":[],"model":"deepseek-chat","usage":{"input_tokens":3}}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_123","name":"get_weather","input":{}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"city\":\"Shanghai\"}"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"stop_reason":"tool_use","stop_sequence":null},"usage":{"output_tokens":2}}
+
+event: message_stop
+data: {"type":"message_stop"}`
+	messagesResult := RunCaseResult{
+		HTTPStatus:  200,
+		RawResponse: messagesRaw,
+		RequestBody: map[string]any{
+			"tools": []any{map[string]any{
+				"name": "get_weather",
+			}},
+		},
+	}
+	messagesExpect := map[string]any{
+		"response_mode":                     "sse",
+		"messages_tool_stream_contract":     true,
+		"stream_tool_call_min_count":        float64(1),
+		"stream_tool_required_names":        []any{"get_weather"},
+		"stream_tool_input_required_fields": []any{"city"},
+		"stream_tool_input_field_types":     map[string]any{"city": "string"},
+		"stream_tool_input_field_values":    map[string]any{"city": "Shanghai"},
+	}
+	assertions = evaluateAssertions(messagesResult, messagesExpect)
+	assertion, ok = findAssertion(assertions, "messages_tool_stream_contract")
+	if !ok || !assertion.Pass {
+		t.Fatalf("expected Messages tool stream contract to pass, got %#v", assertion)
+	}
+
+	messagesResult.RawResponse = strings.Replace(messagesRaw, `\"city\":\"Shanghai\"`, `\"city\":42`, 1)
+	assertions = evaluateAssertions(messagesResult, messagesExpect)
+	assertion, ok = findAssertion(assertions, "messages_tool_stream_contract")
+	if !ok || assertion.Pass {
+		t.Fatalf("expected invalid Messages tool stream argument to fail, got %#v", assertion)
+	}
+}
+
+func TestToolCallsContractAssertion(t *testing.T) {
+	chatResult := RunCaseResult{
+		HTTPStatus: 200,
+		RequestBody: map[string]any{
+			"tools": []any{map[string]any{
+				"type": "function",
+				"function": map[string]any{
+					"name": "compatibility_status",
+					"parameters": map[string]any{
+						"type":       "object",
+						"properties": map[string]any{"parameter": map[string]any{"type": "string"}},
+					},
+				},
+			}},
+		},
+		ResponseBody: map[string]any{
+			"choices": []any{map[string]any{
+				"message": map[string]any{
+					"tool_calls": []any{map[string]any{
+						"id":   "call_123",
+						"type": "function",
+						"function": map[string]any{
+							"name":      "compatibility_status",
+							"arguments": "{\"parameter\":\"messages\"}",
+						},
+					}},
+				},
+			}},
+		},
+	}
+	expect := map[string]any{
+		"tool_calls_contract":                      true,
+		"tool_calls_exact_count":                   float64(1),
+		"tool_call_input_required_fields":          []any{"parameter"},
+		"tool_call_input_field_types":              map[string]any{"parameter": "string"},
+		"tool_call_input_field_values":             map[string]any{"parameter": "messages"},
+		"tool_call_input_no_additional_properties": true,
+	}
+	assertions := evaluateAssertions(chatResult, expect)
+	assertion, ok := findAssertion(assertions, "tool_calls_contract")
+	if !ok || !assertion.Pass {
+		t.Fatalf("expected Chat tool contract to pass, got %#v", assertion)
+	}
+
+	messagesResult := RunCaseResult{
+		HTTPStatus: 200,
+		RequestBody: map[string]any{
+			"tools": []any{map[string]any{
+				"name": "compatibility_status",
+				"input_schema": map[string]any{
+					"type":       "object",
+					"properties": map[string]any{"parameter": map[string]any{"type": "string"}},
+				},
+			}},
+		},
+		ResponseBody: map[string]any{
+			"content": []any{map[string]any{
+				"type":  "tool_use",
+				"id":    "toolu_123",
+				"name":  "compatibility_status",
+				"input": map[string]any{"parameter": "messages"},
+			}},
+		},
+	}
+	assertions = evaluateAssertions(messagesResult, expect)
+	assertion, ok = findAssertion(assertions, "tool_calls_contract")
+	if !ok || !assertion.Pass {
+		t.Fatalf("expected Messages tool contract to pass, got %#v", assertion)
+	}
+
+	messagesResult.ResponseBody = map[string]any{
+		"content": []any{map[string]any{
+			"type":  "tool_use",
+			"id":    "toolu_123",
+			"name":  "compatibility_status",
+			"input": map[string]any{"parameter": "other", "unexpected": true},
+		}},
+	}
+	assertions = evaluateAssertions(messagesResult, expect)
+	assertion, ok = findAssertion(assertions, "tool_calls_contract")
+	if !ok || assertion.Pass {
+		t.Fatalf("expected invalid tool argument type to fail, got %#v", assertion)
+	}
+}
+
+func TestToolCallsContractAssertionChecksParallelArguments(t *testing.T) {
+	result := RunCaseResult{
+		HTTPStatus: 200,
+		RequestBody: map[string]any{
+			"tools": []any{map[string]any{
+				"type": "function",
+				"function": map[string]any{
+					"name": "get_weather",
+					"parameters": map[string]any{
+						"type":       "object",
+						"properties": map[string]any{"city": map[string]any{"type": "string"}},
+					},
+				},
+			}},
+		},
+		ResponseBody: map[string]any{
+			"choices": []any{map[string]any{
+				"message": map[string]any{
+					"tool_calls": []any{
+						map[string]any{"id": "call_shanghai", "type": "function", "function": map[string]any{"name": "get_weather", "arguments": `{"city":"Shanghai"}`}},
+						map[string]any{"id": "call_beijing", "type": "function", "function": map[string]any{"name": "get_weather", "arguments": `{"city":"Beijing"}`}},
+					},
+				},
+			}},
+		},
+	}
+
+	expect := map[string]any{
+		"tool_calls_contract":                      true,
+		"tool_calls_exact_count":                   float64(2),
+		"tool_call_required_names":                 []any{"get_weather"},
+		"tool_call_input_required_fields":          []any{"city"},
+		"tool_call_input_field_types":              map[string]any{"city": "string"},
+		"tool_call_input_allowed_values":           map[string]any{"city": []any{"Shanghai", "Beijing"}},
+		"tool_call_input_distinct_fields":          []any{"city"},
+		"tool_call_input_no_additional_properties": true,
+	}
+	assertions := evaluateAssertions(result, expect)
+	assertion, ok := findAssertion(assertions, "tool_calls_contract")
+	if !ok || !assertion.Pass {
+		t.Fatalf("expected parallel tool contract to pass, got %#v", assertion)
+	}
+
+	response := result.ResponseBody.(map[string]any)
+	choices := response["choices"].([]any)
+	choice := choices[0].(map[string]any)
+	message := choice["message"].(map[string]any)
+	calls := message["tool_calls"].([]any)
+	secondCall := calls[1].(map[string]any)
+	secondFunction := secondCall["function"].(map[string]any)
+	secondFunction["arguments"] = `{"city":"Shanghai"}`
+	assertions = evaluateAssertions(result, expect)
+	assertion, ok = findAssertion(assertions, "tool_calls_contract")
+	if !ok || assertion.Pass {
+		t.Fatalf("expected duplicate parallel argument to fail, got %#v", assertion)
 	}
 }
 
@@ -2334,9 +2818,9 @@ func TestCacheAttemptPayloadKinds(t *testing.T) {
 
 func TestDiagnoseParameterSupportDocGap(t *testing.T) {
 	expect := map[string]any{
-		"doc_support":            "undocumented",
-		"undocumented_scenario":  "silent_ignore",
-		"support_conclusion":     "ignored",
+		"doc_support":           "undocumented",
+		"undocumented_scenario": "silent_ignore",
+		"support_conclusion":    "ignored",
 	}
 	result := RunCaseResult{
 		HTTPStatus:        200,
