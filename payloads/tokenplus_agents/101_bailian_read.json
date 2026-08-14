@@ -1,0 +1,22 @@
+{
+  "case_id": "tp_agent_bailian_read",
+  "title": "阿里百炼（claude code Read 阅读代码）经网关",
+  "category": "channel",
+  "agent": "claude",
+  "channel": "bailian",
+  "prompt": "Read the file greeting.js in this directory and explain in one sentence what the function 'greet' does.",
+  "model": "glm-5.2",
+  "args": ["--max-turns", "3", "--dangerously-skip-permissions"],
+  "setup_files": [
+    {
+      "path": "greeting.js",
+      "content": "// A simple greeting utility\nexport function greet(name) {\n  const hour = new Date().getHours();\n  const prefix = hour < 12 ? 'Good morning' : 'Good evening';\n  return `${prefix}, ${name}!`;\n}\n"
+    }
+  ],
+  "expect": {
+    "exit_code": 0,
+    "no_error": true,
+    "output_non_empty": true,
+    "output_contains": "greet"
+  }
+}

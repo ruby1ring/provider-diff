@@ -1,0 +1,18 @@
+{
+  "case_id": "tp_agent_baidu_create",
+  "title": "百度千帆（kilo Write 创建文件）经网关",
+  "category": "channel",
+  "agent": "kilo",
+  "channel": "baidu",
+  "prompt": "Create a new file named hello.txt in this directory with the exact content: hello noctua. Then confirm the file was created.",
+  "model": "baidu-deepseek-v4-pro",
+  "setup_files": [],
+  "expect": {
+    "exit_code": 0,
+    "no_error": true,
+    "output_non_empty": true,
+    "ndjson_text_event": true,
+    "file_created": ["hello.txt"],
+    "file_content_contains": [{ "path": "hello.txt", "contains": "hello noctua" }]
+  }
+}

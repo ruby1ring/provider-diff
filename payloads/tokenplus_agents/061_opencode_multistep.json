@@ -1,0 +1,25 @@
+{
+  "case_id": "tp_agent_opencode_multistep",
+  "title": "opencode 多步任务（读文件→改代码→建测试文件）",
+  "category": "multistep",
+  "agent": "opencode",
+  "prompt": "Read calculator.js, fix the divide function so it guards against division by zero, then create a file named FIXED.txt containing the word 'fixed'. Do all three steps.",
+  "model": "DeepSeek-V4-Pro",
+  "setup_files": [
+    {
+      "path": "calculator.js",
+      "content": "// simple calculator\nexport function divide(a, b) {\n  return a / b; // BUG: no zero guard\n}\n"
+    }
+  ],
+  "expect": {
+    "exit_code": 0,
+    "no_error": true,
+    "output_non_empty": true,
+    "ndjson_text_event": true,
+    "file_created": ["FIXED.txt"],
+    "file_content_contains": [
+      { "path": "FIXED.txt", "contains": "fixed" },
+      { "path": "calculator.js", "contains": "0" }
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "case_id": "tp_agent_kilo_basic",
+  "title": "kilo 基本对话（临时 kilo.jsonc provider, NDJSON events）",
+  "category": "basic",
+  "agent": "kilo",
+  "prompt": "Reply with exactly one word: ok",
+  "model": "DeepSeek-V4-Pro",
+  "expect": {
+    "exit_code": 0,
+    "no_error": true,
+    "output_non_empty": true,
+    "ndjson_text_event": true
+  }
+}

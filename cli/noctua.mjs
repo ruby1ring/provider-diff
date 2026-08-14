@@ -8,13 +8,19 @@
 //   node noctua.mjs -p siliconflow -k sk-xxx --category sampling
 //   node noctua.mjs -p claude_messages -k sk-xxx --cases all
 //   node noctua.mjs -p deepseek --config ../config.yaml --cases 010_sampling_temperature.json
+//   # Agent 测试（真实启动本地 CLI agent：claude / opencode / kilo）
+//   node noctua.mjs -p tokenplus --endpoint-id agent_test --list-cases
+//   node noctua.mjs -p tokenplus --endpoint-id agent_test --cases all -k sk-xxx -u http://127.0.0.1:8899/v1
+//   node noctua.mjs -p tokenplus --endpoint-id agent_test --agents claude,kilo -k sk-xxx -u <base-url>
+//   node noctua.mjs -p tokenplus --endpoint-id agent_test --category channel -k sk-xxx -u <base-url>
+//   详见 docs/project/agent-test-methodology.md
 import { Command } from "commander";
 import chalk from "chalk";
 import Table from "cli-table3";
 import prompts from "prompts";
 import fs from "node:fs";
 import path from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -349,6 +355,43 @@ function toolCallsContractAssertion(result, expect) {
 }
 
 // ---------- SSE 契约断言（复刻 Go）----------
+
+// Anthropic 原生 SSE：event: message_start / content_block_delta / message_stop（无 [DONE]）
+function parseAnthropicSSE(raw) {
+  const events = [];
+  let currentEvent = null;
+  for (const line of String(raw).split("\n")) {
+    const t = line.trim();
+    if (t.startsWith("event:")) {
+      currentEvent = t.slice(6).trim();
+      continue;
+    }
+    if (t.startsWith("data:")) {
+      const d = t.slice(5).trim();
+      if (!d || d === "[DONE]") continue;
+      try {
+        events.push({ event: currentEvent, data: JSON.parse(d) });
+      } catch {}
+    }
+  }
+  return events;
+}
+
+function anthropicSSEAssertions(raw, expect) {
+  const events = parseAnthropicSSE(raw);
+  const assertions = [];
+  assertions.push({ name: "anthropic_sse_start", pass: events.some((e) => e.event === "message_start"), message: "预期 message_start 事件" });
+  assertions.push({ name: "anthropic_sse_stop", pass: events.some((e) => e.event === "message_stop"), message: "预期 message_stop 事件结束" });
+  const textDelta = events.filter((e) => e.event === "content_block_delta" && typeof e.data?.delta?.text === "string" && e.data.delta.text !== "");
+  const toolUse = events.filter((e) => e.event === "content_block_start" && e.data?.content_block?.type === "tool_use");
+  const hasTools = (expect.stream_tool_call_min_count ?? 0) > 0;
+  if (hasTools) {
+    assertions.push({ name: "anthropic_sse_tool_use", pass: toolUse.length > 0, message: "预期流中出现 tool_use content block" });
+  } else {
+    assertions.push({ name: "anthropic_sse_content", pass: textDelta.length > 0, message: "预期流中出现 text 增量" });
+  }
+  return assertions;
+}
 
 // OpenAI 流式契约：chunk id/model 非空且跨 chunk 一致、usage 独立 final chunk、role/content/finish_reason 必须出现
 function openAIStreamContractAssertion(raw, allowedFinishReasons) {
@@ -861,7 +904,8 @@ const AGENT_ADAPTERS = {
       };
     },
     buildArgs({ prompt, model, args }) {
-      return ["run", "-m", `tokenplus/${model}`, "--format", "json", "--auto", ...(args ?? []), prompt];
+      // --title 跳过 title 预请求（省一个请求，减少上游限流触发）；--pure 跳过外部插件
+      return ["run", "-m", `tokenplus/${model}`, "--format", "json", "--auto", "--title", "noctua-agent-test", "--pure", ...(args ?? []), prompt];
     },
     parseOutput(stdout, stderr) {
       return parseNdjsonAgentOutput(stdout, stderr, "opencode");
@@ -886,7 +930,7 @@ const AGENT_ADAPTERS = {
       };
     },
     buildArgs({ prompt, model, args }) {
-      return ["run", "-m", `tokenplus/${model}`, "--format", "json", "--auto", ...(args ?? []), prompt];
+      return ["run", "-m", `tokenplus/${model}`, "--format", "json", "--auto", "--title", "noctua-agent-test", "--pure", ...(args ?? []), prompt];
     },
     parseOutput(stdout, stderr) {
       return parseNdjsonAgentOutput(stdout, stderr, "kilo");
@@ -932,6 +976,12 @@ function agentConfigFor(agentName, { baseURL, apiKey, model }) {
   return adapter;
 }
 
+// 检测 agent 可执行文件是否在本机 PATH 上（agent 测试的前置检测，缺失则跳过对应用例）
+function isExecutableAvailable(bin) {
+  const r = spawnSync("sh", ["-c", `command -v "${bin}"`], { encoding: "utf8", timeout: 5000 });
+  return r.status === 0 && String(r.stdout ?? "").trim() !== "";
+}
+
 function spawnAgentRun({ agentName, baseURL, apiKey, model, prompt, args, timeoutMs, dryRun, workDir }) {
   const adapter = agentConfigFor(agentName, { baseURL, apiKey, model });
   // claude 的 base_url 是网关根地址（agent 自行拼 /v1/messages），其余用原样 baseURL
@@ -948,6 +998,8 @@ function spawnAgentRun({ agentName, baseURL, apiKey, model, prompt, args, timeou
   }
 
   const env = { ...process.env };
+  // 关键：opencode/kilo 用 PWD 环境变量而非进程 cwd 定位工作目录；不覆盖 PWD 会导致工具在错误目录读写文件
+  env.PWD = workDir;
   if (agentName === "claude") {
     env[adapter.baseUrlEnv] = baseForAgent;
     env[adapter.apiKeyEnv] = apiKey;
@@ -1172,6 +1224,11 @@ function evaluateAssertions(result, expect) {
 
   if (expect.response_mode === "sse") {
     assertions.push({ name: "response_mode", pass: looksLikeSSE(result.raw), message: "预期 text/event-stream 风格的 data: 分片" });
+    // Anthropic 原生 SSE（event: message_start）与 OpenAI SSE（data: chunk + [DONE]）契约不同
+    if (String(result.raw ?? "").includes("event: message_start")) {
+      assertions.push(...anthropicSSEAssertions(result.raw, expect));
+      return assertions;
+    }
     const chunks = parseSSEChunks(result.raw);
     const fields = stringSlice(expect.required_chunk_fields);
     if (fields.length > 0 && chunks.length > 0) {
@@ -1598,7 +1655,11 @@ async function runAgentCaseWithRetry(ctx, tc) {
         }
         return result;
       }
-      if (attempt < 3) await new Promise((r) => setTimeout(r, attempt * 800));
+      if (attempt < 3) {
+        // 上游限流（429）时等待更久再重试，避免连续触发
+        const rateLimited = /rate\s*limit|429|too\s*many\s*requests/i.test(String(result.error ?? "") + " " + String(result.raw ?? ""));
+        await new Promise((r) => setTimeout(r, rateLimited ? attempt * 15000 : attempt * 800));
+      }
     }
     last.reproVerdict = "consistent";
     last.attempts = attempts;
@@ -1636,6 +1697,7 @@ async function runCaseWithRetry(ctx, tc) {
       optional: tc.optional,
       requiresModelCapability: tc.requires_model_capability,
       requestBody: body,
+      endpointURL,
       status: resp.status ?? 0,
       latencyMs: resp.latencyMs,
       error: resp.error,
@@ -1926,6 +1988,50 @@ function writeMarkdownReport(results, outputPath, meta) {
   return outputPath;
 }
 
+// 人工 review 证据文档：每个 case 的输入 curl + 原始输出（SSE/JSON 全量）+ 标题
+function writeEvidenceReport(results, outputPath, meta) {
+  const lines = [];
+  lines.push(`# ${meta.provider} 渠道测试证据`);
+  lines.push("");
+  lines.push(`> 端点: \`${meta.endpoint_url}\` · 模型: \`${meta.modelLabel}\` · 用例: ${meta.total} · 时间: ${new Date().toLocaleString("zh-CN", { hour12: false })}`);
+  lines.push("");
+
+  results.forEach((r, i) => {
+    if (r.dryRun) return;
+    const consistent = resultConsistent(r);
+    lines.push(`---`);
+    lines.push("");
+    lines.push(`## ${i + 1}. ${r.file}`);
+    lines.push(`**${r.title}**`);
+    lines.push("");
+    lines.push(`- HTTP: ${r.status ?? "-"} · 结论: ${r.supportConclusion} · 耗时: ${r.latencyMs}ms · ${consistent ? "✓ 与预期一致" : "⚠️ 与预期不符"}`);
+    if (r.error) lines.push(`- 请求错误: ${r.error}`);
+    lines.push("");
+    lines.push("**请求**");
+    lines.push("");
+    lines.push("```bash");
+    lines.push(`curl -sS ${r.method ?? "POST"} ${r.endpointURL}`);
+    const isMessagesEP = String(r.endpointURL ?? "").includes("/messages");
+    lines.push(`  -H 'Content-Type: application/json'`);
+    lines.push(`  -H 'Accept: application/json, text/event-stream'`);
+    if (isMessagesEP) lines.push(`  -H 'anthropic-version: 2023-06-01'`);
+    lines.push(isMessagesEP ? `  -H 'X-Api-Key: <redacted>'` : `  -H 'Authorization: Bearer <redacted>'`);
+    lines.push(`  -d '${JSON.stringify(r.requestBody)}'`);
+    lines.push("```");
+    lines.push("");
+    lines.push(`**响应（原始${r.raw && r.raw.includes("data:") ? " SSE 流" : " JSON"}）**`);
+    lines.push("");
+    lines.push("```");
+    lines.push(r.raw || JSON.stringify(r.body ?? {}, null, 2) || "(空)");
+    lines.push("```");
+    lines.push("");
+  });
+
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, lines.join("\n"));
+  return outputPath;
+}
+
 function writeReport(results, outputPath, meta) {
   const report = {
     ...meta,
@@ -1980,9 +2086,12 @@ program
   .option("-x, --config <path>", `config.yaml 路径，默认 ${DEFAULT_CONFIG}`)
   .option("-o, --output <path>", "JSON 报告输出路径", "outputs/noctua-cli-report.json")
   .option("--md [path]", "输出 Markdown 报告（可粘贴到飞书文档）；不给路径则写 outputs/noctua-cli-report.md")
+  .option("--evidence [path]", "输出人工 review 证据文档（每 case 输入 curl + 原始输出）；不给路径则写 outputs/evidence/<provider>.md")
+  .option("--variants <list>", "测试变体：json（仅非流）/ sse（额外 stream:true 变体）/ all（两者）。默认 json")
   .option("--list", "显示全部 case 明细（默认只显示矩阵 + 异常）")
   .option("-t, --timeout <ms>", "单请求超时（毫秒）", "90000")
-  .option("-n, --concurrency <n>", "并发数", "5")
+  .option("--case-delay <ms>", "agent 测试：用例间固定间隔（毫秒），缓解上游限流", "3000")
+  .option("-n, --concurrency <n>", "并发数（agent 测试默认 1，HTTP 测试默认 5）")
   .option("-l, --list-cases", "仅列出该 provider 的用例清单后退出")
   .option("--providers", "列出所有可用 provider 后退出")
   .option("--dry-run", "只打印请求，不真正发送")
@@ -2054,6 +2163,61 @@ try {
   process.exit(1);
 }
 
+// 流式变体：为每个 case 生成 stream:true 版本，断言 SSE 契约（内容/工具增量 + [DONE]）
+function buildSseVariants(cases) {
+  const variants = [];
+  for (const tc of cases) {
+    if (tc.payload?.stream === true) {
+      variants.push({ ...tc, variant: "sse" });
+      continue;
+    }
+    const payload = { ...(tc.payload ?? {}), stream: true };
+    // 错误契约 case（预期非 200）响应非流，跳过流变体
+    if ((tc.expect?.http_status ?? 200) >= 400) continue;
+    const expect = { ...(tc.expect ?? {}) };
+    expect.response_mode = "sse";
+    expect.stream_done_required = true;
+    const toolNames = stringSlice((payload.tools ?? []).map((t) => t?.function?.name).filter(Boolean));
+    const hasTools = payload.tools !== undefined || payload.tool_choice !== undefined;
+    const toolChoiceNone = payload.tool_choice === "none" || payload.tool_choice?.type === "none";
+    if (hasTools && !toolChoiceNone) {
+      // 工具流契约需要 usage chunk，主动请求 include_usage
+      payload.stream_options = { include_usage: true, ...(payload.stream_options ?? {}) };
+      expect.openai_tool_stream_contract = true;
+      expect.stream_tool_call_min_count = 1;
+      expect.usage_required_fields = ["prompt_tokens", "completion_tokens", "total_tokens"];
+      if (toolNames.length) expect.stream_tool_required_names = toolNames;
+      if (!expect.allowed_finish_reasons) expect.allowed_finish_reasons = ["stop", "length", "tool_calls"];
+    } else {
+      expect.min_content_chunks = 1;
+    }
+    expect.response_header_contains = { "content-type": "text/event-stream" };
+    delete expect.assistant_content_non_empty;
+    delete expect.assistant_content_contains;
+    delete expect.content_should_parse_as_json;
+    delete expect.parsed_content_required_paths;
+    delete expect.parsed_content_path_types;
+    delete expect.parsed_content_path_values;
+    delete expect.thinking_evidence_required;
+    delete expect.thinking_absent;
+    if (!payload.stream_options?.include_usage) {
+      delete expect.usage_required_fields;
+    }
+    variants.push({ ...tc, payload, expect, variant: "sse", title: tc.title + "（流式）", file: tc.file + "·stream" });
+  }
+  return variants;
+}
+
+const variantsArg = opts.variants ?? "json";
+if (variantsArg === "sse" || variantsArg === "all") {
+  const sseVariants = buildSseVariants(selected);
+  if (variantsArg === "all") {
+    selected = [...selected, ...sseVariants];
+  } else {
+    selected = sseVariants;
+  }
+}
+
 // agent 测试专用：--agents 过滤
 if (isAgentTest && opts.agents) {
   const wanted = String(opts.agents).split(",").map((s) => s.trim()).filter(Boolean);
@@ -2063,6 +2227,25 @@ if (isAgentTest && opts.agents) {
     process.exit(1);
   }
   selected = filtered;
+}
+
+// agent 测试：检测本机 agent 可用性，未安装的 agent 用例跳过（优雅降级，非 dry-run 才检测）
+if (isAgentTest && !opts.dryRun) {
+  const missingAgents = new Set();
+  const runnable = selected.filter((tc) => {
+    const adapter = AGENT_ADAPTERS[tc.agent];
+    const ok = adapter && isExecutableAvailable(adapter.bin);
+    if (!ok) missingAgents.add(tc.agent);
+    return ok;
+  });
+  if (missingAgents.size > 0) {
+    console.log(chalk.yellow(`未安装 agent：${[...missingAgents].join(", ")}，跳过 ${selected.length - runnable.length} 个用例。安装指引：node scripts/check-agents.mjs`));
+  }
+  selected = runnable;
+  if (selected.length === 0) {
+    console.error(chalk.red(`选中的 agent 均未安装，无法运行 agent 测试。请先运行 node scripts/check-agents.mjs 查看安装指引。`));
+    process.exit(1);
+  }
 }
 
 const baseURL = baseUrl || manifest.base_url || "";
@@ -2142,6 +2325,10 @@ for (let w = 0; w < Math.min(concurrency, selected.length); w++) {
         const statusText = isAgentTest ? `exit ${r.exitCode ?? "-"}` : String(r.status ?? "-");
         console.log(`${mark} [${String(i + 1).padStart(3)}/${selected.length}] ${tc.file}  ${statusText}  ${Date.now() - started}ms  ${r.supportConclusion}`);
         results[i] = r;
+        // agent 测试串行执行时，用例间保持间隔，避免触发上游渠道限流
+        if (isAgentTest && i < selected.length - 1 && opts.caseDelay) {
+          await new Promise((res) => setTimeout(res, parseInt(opts.caseDelay, 10) || 0));
+        }
       }
     })()
   );
@@ -2175,6 +2362,10 @@ console.log(chalk.gray(`\nJSON 报告: ${path.resolve(outputPath)}`));
 if (opts.md !== undefined) {
   const mdPath = writeMarkdownReport(results, opts.md === true ? "outputs/noctua-cli-report.md" : opts.md, meta);
   console.log(chalk.gray(`Markdown 报告: ${path.resolve(mdPath)}`));
+}
+if (opts.evidence !== undefined) {
+  const evPath = writeEvidenceReport(results, opts.evidence === true ? `outputs/evidence/${dirName}.md` : opts.evidence, meta);
+  console.log(chalk.gray(`证据文档: ${path.resolve(evPath)}`));
 }
 
 const mismatchCount = results.filter((r) => !r.dryRun && !resultConsistent(r)).length;

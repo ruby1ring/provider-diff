@@ -1,0 +1,15 @@
+{
+  "case_id": "tp_agent_opencode_bash",
+  "title": "opencode 调用 Bash 工具（执行命令并返回输出）",
+  "category": "tools_bash",
+  "agent": "opencode",
+  "prompt": "Use the Bash tool to run the command: echo NOCTUA_BASH_OK. Then tell me the exact output of the command.",
+  "model": "DeepSeek-V4-Pro",
+  "expect": {
+    "exit_code": 0,
+    "no_error": true,
+    "output_non_empty": true,
+    "ndjson_text_event": true,
+    "output_contains": "NOCTUA_BASH_OK"
+  }
+}

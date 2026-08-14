@@ -50,6 +50,7 @@ Channel keys used by **测评模型 → 查询渠道** (live model list lookup).
 | `siliconflow-cn` | SiliconFlow CN |
 | `siliconflow-com` | SiliconFlow COM |
 | `openrouter` | OpenRouter |
+| `tokenplus` | TokenPlus |
 | `sf-router-cn` | SF Silinex CN |
 | `sf-router-com` | SF Silinex COM |
 | `streamlake-cn` | 快手万擎（StreamLake） |
@@ -95,6 +96,116 @@ npm run build:model-limits
 ```
 
 See `docs/project/capacity-probe-methodology.md` for the full methodology, provider thinking-budget dialects, balanced context, and result interpretation rules.
+
+## Agent tests (CLI coding agents)
+
+Beyond raw HTTP protocol cases, Noctua can drive **real local CLI coding agents** — Claude Code, opencode, and kilo — through a gateway. This verifies the end-to-end contract an actual agent client sees: auth injection, model routing, tool calls (read / edit / create / bash / grep), and multi-step workflows.
+
+Agent tests are executed by the local CLI (`cli/noctua.mjs`) because they spawn local processes. They are **not** available in the Web UI or the Docker backend (no agent binaries there); the backend deliberately filters `kind: agent` manifests from `/api/providers`.
+
+### Prerequisites (macOS)
+
+Agent tests drive your locally installed agent CLIs. Noctua ships only the adapters and cases (all open source); the agent binaries themselves are installed by you. Check what's installed and get one-line install commands:
+
+```sh
+node scripts/check-agents.mjs
+# ✓ claude code    2.1.229
+# ✗ opencode       未安装
+#         安装：curl -fsSL https://opencode.ai/install | bash
+```
+
+| Agent | macOS install command |
+| --- | --- |
+| Claude Code | `curl -fsSL https://claude.ai/install.sh \| bash` |
+| opencode | `curl -fsSL https://opencode.ai/install \| bash` |
+| kilo | `npm install -g @kilocode/cli@latest` |
+
+Agent binaries are intentionally **not** bundled (Claude Code is proprietary and cannot be redistributed; the other two are MIT). Missing agents are skipped gracefully at runtime — only cases for installed agents run.
+
+### Quick start
+
+```sh
+# 检测本机 agent 安装状态 + 安装指引
+node scripts/check-agents.mjs
+
+# 列出 tokenplus 的 agent 测试用例
+node cli/noctua.mjs -p tokenplus --endpoint-id agent_test --list-cases
+
+# 跑全部 25 个用例（经本地网关）
+node cli/noctua.mjs -p tokenplus --endpoint-id agent_test --cases all \
+  -k sk-probe-local -u http://127.0.0.1:8899/v1
+
+# 只跑某个 agent / 某个场景 / 某个渠道
+node cli/noctua.mjs -p tokenplus --endpoint-id agent_test --agents opencode -k <key> -u <base-url>
+node cli/noctua.mjs -p tokenplus --endpoint-id agent_test --category edit_code -k <key> -u <base-url>
+node cli/noctua.mjs -p tokenplus --endpoint-id agent_test --category channel -k <key> -u <base-url>
+
+# 只看将要执行的命令（不真正运行）
+node cli/noctua.mjs -p tokenplus --endpoint-id agent_test --cases all --dry-run -k <key>
+
+# 输出 JSON + Markdown 报告
+node cli/noctua.mjs -p tokenplus --endpoint-id agent_test --cases all \
+  -k <key> -u <base-url> -o outputs/agents.json --md outputs/agents.md
+```
+
+### How it works
+
+| Agent | 配置注入 | 无头命令 | 成功判定 |
+| --- | --- | --- | --- |
+| Claude Code | 环境变量 `ANTHROPIC_BASE_URL` + `ANTHROPIC_API_KEY` + `ANTHROPIC_MODEL`（零配置文件） | `claude --bare -p "<prompt>" --output-format json --max-turns N` | JSON `is_error:false` + `result` 非空 + exit 0 |
+| opencode | 临时项目级 `opencode.json` 定义 provider（`@ai-sdk/openai-compatible` + baseURL + apiKey + models），`OPENCODE_CONFIG` 指向 | `opencode run -m tokenplus/<model> --format json --auto --title ... --pure "<prompt>"` | NDJSON 事件流：有 `text` 事件、无 `error` 事件 |
+| kilo | 同 opencode，但配置文件名 `kilo.jsonc` + **必须 `KILO_CONFIG` 环境变量显式指定** | `kilo run -m tokenplus/<model> --format json --auto --title ... --pure "<prompt>"` | 同上 |
+
+适配器定义在 `cli/noctua.mjs` 的 `AGENT_ADAPTERS`。每个 agent 通过环境变量或临时配置文件注入网关地址 / key / 模型，然后在**临时工作目录**（`mkdtemp`）中执行任务，运行后校验工作目录中的文件状态。
+
+### 用例目录规范
+
+Agent 用例位于 `payloads/<provider>_agents/`（`--endpoint-id agent_test` 加载），结构：
+
+```text
+payloads/tokenplus_agents/
+  manifest.json          # kind: "agent", endpoint: "agent_test", cases 列表
+  001_claude_basic.json  # 单个用例：agent + prompt + args + setup_files + expect
+```
+
+用例 schema：
+
+```json
+{
+  "case_id": "tp_agent_claude_edit_code",
+  "agent": "claude",                    // claude | opencode | kilo（对应 AGENT_ADAPTERS 键）
+  "channel": "siliconflow",             // 可选：标识经网关路由到的上游渠道
+  "prompt": "Fix the bug in math.js ...",
+  "model": "deepseek-ai/DeepSeek-V4-Pro", // 网关对外 model 名（channel-probe 按 model 精确路由）
+  "args": ["--max-turns", "5"],         // 可选：追加到无头命令的参数
+  "setup_files": [                      // 可选：预置到临时工作目录的项目文件
+    { "path": "math.js", "content": "..." }
+  ],
+  "expect": {
+    "exit_code": 0,
+    "no_error": true,
+    "output_non_empty": true,
+    "output_contains": "greet",              // 输出文本包含
+    "output_contains_any": ["secrets.js"],   // 输出文本包含任一
+    "file_created": ["hello.txt"],           // 运行后工作目录中应存在
+    "file_content_contains": [{ "path": "math.js", "contains": "a + b" }],
+    "file_content_not_contains": [{ "path": "math.js", "contains": "a - b" }]
+  }
+}
+```
+
+内置场景（`payloads/tokenplus_agents/` 覆盖 3 agent × 7 场景 = 21 个用例）：`basic` 基本对话、`read_code` 阅读代码、`edit_code` 修改代码、`tools_bash` 调用 Bash、`create_file` 创建文件、`search_code` Grep/Glob 搜索、`multistep` 多步任务。渠道用例（`category: channel`）验证经网关路由到具体上游渠道（如硅基流动 / 百炼 / 百度 / 数据宝）。
+
+### 已知注意事项
+
+- **上游限流**：真实渠道对连续请求限流（burst 后 429）。用例默认串行（agent 测试强制并发 1），用例间默认间隔 `--case-delay 6000`；遇到 429 重试等待更久。跑大量用例时保持默认间隔。
+- **`PWD` 陷阱**：opencode / kilo 用 `PWD` 环境变量（而非进程 cwd）定位工作目录。CLI 已注入 `env.PWD = workDir`；如果你手动复现 agent 命令，务必先 `cd` 到目标目录。
+- **kilo 不自动发现 cwd 配置**：必须用 `KILO_CONFIG` 显式指定配置文件（CLI 已处理）。
+- **model 名唯一性**：经 channel-probe 网关路由时，`model` 必须是网关 `channel-probe.yaml` 中注册的对外模型名（网关按 model 精确路由，重复名会互相覆盖）。messages 端点（claude 走 `/v1/messages`）与 chat 端点（opencode/kilo 走 `/v1/chat/completions`）的可用 model 可能不同，分别验证。
+
+### Agent 适配器扩展
+
+新增 agent（如 codex / aider）只需在 `cli/noctua.mjs` 的 `AGENT_ADAPTERS` 注册一个适配器：`bin`（可执行名）、`baseUrlEnv/apiKeyEnv/modelEnv` 或 `configFile/configEnv`（配置注入方式）、`buildArgs`（无头命令）、`parseOutput`（输出解析）。用例 `agent` 字段填入适配器键即可。
 
 ## Generated outputs
 

@@ -1,0 +1,23 @@
+{
+  "case_id": "tp_agent_siliconflow_edit",
+  "title": "硅基流动（opencode Edit 修 bug）经网关",
+  "category": "channel",
+  "agent": "opencode",
+  "channel": "siliconflow",
+  "prompt": "Fix the bug in math.js: the 'add' function currently subtracts but should add. Edit the file.",
+  "model": "deepseek-ai/DeepSeek-V4-Pro",
+  "setup_files": [
+    {
+      "path": "math.js",
+      "content": "// math utilities\nexport function add(a, b) {\n  return a - b; // BUG: should be a + b\n}\n"
+    }
+  ],
+  "expect": {
+    "exit_code": 0,
+    "no_error": true,
+    "output_non_empty": true,
+    "ndjson_text_event": true,
+    "file_content_contains": [{ "path": "math.js", "contains": "a + b" }],
+    "file_content_not_contains": [{ "path": "math.js", "contains": "a - b" }]
+  }
+}

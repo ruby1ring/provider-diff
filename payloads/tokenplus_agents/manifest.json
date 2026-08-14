@@ -1,0 +1,49 @@
+{
+  "provider": "tokenplus_agents",
+  "kind": "agent",
+  "base_url": "https://api.tokenplus.cn/v1",
+  "endpoint": "agent_test",
+  "method": "run",
+  "source": "../../tokflow-docs/apps/docs/openapi.yaml",
+  "default_model": "DeepSeek-V4-Pro",
+  "notes": [
+    "Agent 测试：真实启动本地 CLI agent（claude code / opencode / kilo）并以环境变量或临时配置指向 TokenPlus 网关。",
+    "每个 case 的 agent 字段选择适配器；适配器负责注入 base_url / api_key / model、构造无头命令、解析结构化输出。",
+    "claude code 使用 ANTHROPIC_BASE_URL + ANTHROPIC_API_KEY 环境变量注入（零配置文件）；opencode / kilo 使用临时项目级 config 文件定义 provider。",
+    "用例可携带 setup_files 在临时工作目录预置项目文件，expect 支持运行后文件断言（file_created / file_content_contains / file_content_not_contains），用于验证读代码、改代码、建文件等工具类场景。",
+    "channel 字段标识经网关路由到的上游渠道；model 字段必须与网关 channel-probe 配置的对外 model 名一致（网关按 model 精确路由）。",
+    "判定依据：进程 exit code + 结构化输出（claude 为单条 JSON result；opencode/kilo 为 NDJSON 事件流）中无 error 且文本非空 + 文件断言。"
+  ],
+  "common_expect": {
+    "exit_code": 0,
+    "no_error": true,
+    "output_non_empty": true
+  },
+  "cases": [
+    "001_claude_basic.json",
+    "002_opencode_basic.json",
+    "003_kilo_basic.json",
+    "010_claude_read_code.json",
+    "011_opencode_read_code.json",
+    "012_kilo_read_code.json",
+    "020_claude_edit_code.json",
+    "021_opencode_edit_code.json",
+    "022_kilo_edit_code.json",
+    "030_claude_bash.json",
+    "031_opencode_bash.json",
+    "032_kilo_bash.json",
+    "040_claude_create_file.json",
+    "041_opencode_create_file.json",
+    "042_kilo_create_file.json",
+    "050_claude_grep.json",
+    "051_opencode_grep.json",
+    "052_kilo_grep.json",
+    "060_claude_multistep.json",
+    "061_opencode_multistep.json",
+    "062_kilo_multistep.json",
+    "100_siliconflow_edit.json",
+    "101_bailian_read.json",
+    "102_baidu_create.json",
+    "103_shujubao_bash.json"
+  ]
+}

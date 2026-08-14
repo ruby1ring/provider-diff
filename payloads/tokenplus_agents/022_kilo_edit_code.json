@@ -1,0 +1,22 @@
+{
+  "case_id": "tp_agent_kilo_edit_code",
+  "title": "kilo 修改代码（Edit 工具修复 bug）",
+  "category": "edit_code",
+  "agent": "kilo",
+  "prompt": "Fix the bug in math.js: the 'add' function currently subtracts but should add. Edit the file.",
+  "model": "DeepSeek-V4-Pro",
+  "setup_files": [
+    {
+      "path": "math.js",
+      "content": "// math utilities\nexport function add(a, b) {\n  return a - b; // BUG: should be a + b\n}\n\nexport function multiply(a, b) {\n  return a * b;\n}\n"
+    }
+  ],
+  "expect": {
+    "exit_code": 0,
+    "no_error": true,
+    "output_non_empty": true,
+    "ndjson_text_event": true,
+    "file_content_contains": [{ "path": "math.js", "contains": "a + b" }],
+    "file_content_not_contains": [{ "path": "math.js", "contains": "a - b" }]
+  }
+}

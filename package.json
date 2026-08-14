@@ -13,6 +13,7 @@
     "test:channel-report-intent": "node web/lib/channel-report-intent.test.mjs",
     "test:parameter-diagnosis": "node web/lib/parameter-diagnosis.test.mjs",
     "test:model-oem-behaviors": "node web/lib/model-oem-behaviors.test.mjs",
+    "check:agents": "node scripts/check-agents.mjs",
     "scan:doc-gaps": "node scripts/scan-report-doc-gaps.mjs",
     "export:channel-reports": "node scripts/export-channel-reports-from-browser.mjs",
     "compare:official-docs": "node scripts/compare-official-api-docs.mjs",

@@ -28,3 +28,7 @@ outputs/*
 
 # Root-level stray screenshots / exports (use assets/ with descriptive names)
 /[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-*.png
+
+# CLI 测试产物与工具状态（含 API key 的报告，勿提交）
+cli/outputs/
+cli/.omo/

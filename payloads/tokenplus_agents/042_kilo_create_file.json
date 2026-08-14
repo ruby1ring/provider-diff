@@ -1,0 +1,16 @@
+{
+  "case_id": "tp_agent_kilo_create_file",
+  "title": "kilo 创建文件（Write 工具新建并写入内容）",
+  "category": "create_file",
+  "agent": "kilo",
+  "prompt": "Create a new file named hello.txt in this directory with the exact content: hello noctua. Then confirm the file was created.",
+  "model": "DeepSeek-V4-Pro",
+  "expect": {
+    "exit_code": 0,
+    "no_error": true,
+    "output_non_empty": true,
+    "ndjson_text_event": true,
+    "file_created": ["hello.txt"],
+    "file_content_contains": [{ "path": "hello.txt", "contains": "hello noctua" }]
+  }
+}

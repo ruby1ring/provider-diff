@@ -1,0 +1,19 @@
+{
+  "case_id": "tp_agent_claude_basic",
+  "title": "claude code 基本对话（--bare, env 注入, JSON result）",
+  "category": "basic",
+  "agent": "claude",
+  "prompt": "Reply with exactly one word: ok",
+  "model": "DeepSeek-V4-Pro",
+  "args": [
+    "--max-turns",
+    "1",
+    "--dangerously-skip-permissions"
+  ],
+  "expect": {
+    "exit_code": 0,
+    "no_error": true,
+    "output_non_empty": true,
+    "json_result_success": true
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "case_id": "tp_agent_claude_grep",
+  "title": "claude code 搜索代码（Grep/Glob 定位关键词所在文件）",
+  "category": "search_code",
+  "agent": "claude",
+  "prompt": "Search this directory for the text 'SECRET_FLAG' and tell me which file contains it. Reply with just the filename.",
+  "model": "DeepSeek-V4-Pro",
+  "args": ["--max-turns", "5", "--dangerously-skip-permissions"],
+  "setup_files": [
+    {
+      "path": "src/config.js",
+      "content": "export const config = { appName: 'demo', port: 8080 };\n"
+    },
+    {
+      "path": "src/secrets.js",
+      "content": "// hidden constant\nexport const SECRET_FLAG = 'flag-1234';\n"
+    },
+    {
+      "path": "src/utils.js",
+      "content": "export function helper() { return 42; }\n"
+    }
+  ],
+  "expect": {
+    "exit_code": 0,
+    "no_error": true,
+    "output_non_empty": true,
+    "output_contains_any": ["secrets.js"]
+  }
+}

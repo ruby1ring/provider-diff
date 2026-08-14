@@ -1,0 +1,21 @@
+{
+  "case_id": "tp_agent_kilo_read_code",
+  "title": "kilo 阅读代码（Read 工具读取并总结）",
+  "category": "read_code",
+  "agent": "kilo",
+  "prompt": "Read the file greeting.js in this directory and explain in one sentence what the function 'greet' does.",
+  "model": "DeepSeek-V4-Pro",
+  "setup_files": [
+    {
+      "path": "greeting.js",
+      "content": "// A simple greeting utility\nexport function greet(name) {\n  const hour = new Date().getHours();\n  const prefix = hour < 12 ? 'Good morning' : 'Good evening';\n  return `${prefix}, ${name}!`;\n}\n"
+    }
+  ],
+  "expect": {
+    "exit_code": 0,
+    "no_error": true,
+    "output_non_empty": true,
+    "ndjson_text_event": true,
+    "output_contains": "greet"
+  }
+}
